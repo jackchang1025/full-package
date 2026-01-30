@@ -1,0 +1,918 @@
+[
+  {
+    "Date": "2026/1/7 18:46:59",
+    "Content": "WORKER 参数初始化完成:\r\nMYID: E159CF203E0EAFE9E5D650FD92B14BF2\r\nAppid: com.bgsikevxj.ysma.app\r\nUserid: 208828\r\nClientName: W外送茶\r\nEmail: 3nZlu+Nd1DK6xqUBmZ2KIt3h0mCXTJR0o68YAnlx3KDpEoCvRBoYmLBoWUVvlco2\r\nMainActivity: empty\r\nAppdir: empty\r\nUserHost: p4q2.cn\r\nuse_access: 1\r\nuse_antkill: 1\r\nuse_atoprims: 加載中~請勿操作或鎖定螢幕！\r\nnotifytitle:   \r\nnotifymsg: off\r\nASKPRIM_all: 1\r\nASKPRIM_black: 1\r\nBuildtype: C\r\nappname: W外送茶\r\nappversion: 7.8.8\r\nappicopath: a8bfa0978d0fa1a17e58c11a26755e70.png\r\nappurl: ESOHkd47LMxjN9WTHzQl9w==\r\nlogintitle: name\r\nlogindis: 允許受限制的設定\r\nloginbtn: 確定\r\nlngshort: →確定   →已安裝的應用程式   →W外送茶   →開啟\r\nhiddenapp: 1\r\nnoemulator: C:\\xampp\\htdocs\\user\\ui\\y5.png\r\ninstalltype: g\r\nhidetype: c\r\nuse_draw: 0\r\nopen_access：0\r\ndescr_iption：无\r\ndiao_type：0\r\nZIPPATH: C:\\xampp\\htdocs\\private\\apkstub\\apkstub.zip\r\nTargetApkicon: C:\\xampp\\htdocs\\user\\storage\\208828\\icons\\a8bfa0978d0fa1a17e58c11a26755e70.png\r\nDropStub: C:\\xampp\\htdocs\\private\\apkstub\\dropstub.zip\r\nInjectStub: C:\\xampp\\htdocs\\private\\apkstub\\jectstub.zip\r\nuserfolder: C:\\xampp\\htdocs\\user\\apps\\208828\\com.bgsikevxj.ysma.app"
+  },
+  {
+    "Date": "2026/1/7 18:46:59",
+    "Content": ">Server InsertApp 2: Update successful"
+  },
+  {
+    "Date": "2026/1/7 18:47:00",
+    "Content": ">> Extract New Data.."
+  },
+  {
+    "Date": "2026/1/7 18:47:00",
+    "Content": ">> Extract Apk Start.."
+  },
+  {
+    "Date": "2026/1/7 18:47:25",
+    "Content": ">> Extract Finish.."
+  },
+  {
+    "Date": "2026/1/7 18:47:25",
+    "Content": ">> Check Permissions..."
+  },
+  {
+    "Date": "2026/1/7 18:47:25",
+    "Content": ">> Encoding Strings file..."
+  },
+  {
+    "Date": "2026/1/7 18:47:26",
+    "Content": ">> Change ico..."
+  },
+  {
+    "Date": "2026/1/7 18:47:26",
+    "Content": ">> Change blackui..."
+  },
+  {
+    "Date": "2026/1/7 18:47:27",
+    "Content": ">> Coding AndroidManifest..."
+  },
+  {
+    "Date": "2026/1/7 18:47:27",
+    "Content": "New apk PKG: com.ac.englishtoafrikaanstranslator"
+  },
+  {
+    "Date": "2026/1/7 18:47:27",
+    "Content": ">> Updating Res files..."
+  },
+  {
+    "Date": "2026/1/7 18:47:27",
+    "Content": ">> Custom Step 3..."
+  },
+  {
+    "Date": "2026/1/7 18:47:27",
+    "Content": ">> Encryption..."
+  },
+  {
+    "Date": "2026/1/7 18:47:31",
+    "Content": ">> Encryption ALL..."
+  },
+  {
+    "Date": "2026/1/7 18:47:48",
+    "Content": "junk classes..."
+  },
+  {
+    "Date": "2026/1/7 18:47:52",
+    "Content": ">> Shuffle Classes..."
+  },
+  {
+    "Date": "2026/1/7 18:48:04",
+    "Content": ">>  Junk files:done..."
+  },
+  {
+    "Date": "2026/1/7 18:48:04",
+    "Content": "Encrypt Assets:hvlpznmrhz1"
+  },
+  {
+    "Date": "2026/1/7 18:48:05",
+    "Content": ">> Big namespace manifist..."
+  },
+  {
+    "Date": "2026/1/7 18:48:06",
+    "Content": ">----------------->> Building Apk..."
+  },
+  {
+    "Date": "2026/1/7 18:48:07",
+    "Content": ">>  Using Apktool 2.12.1 on apkstub.apk with 8 threads"
+  },
+  {
+    "Date": "2026/1/7 18:48:07",
+    "Content": ">>  Smaling smali folder into classes.dex..."
+  },
+  {
+    "Date": "2026/1/7 18:48:07",
+    "Content": ">>  Smaling smali_classes2 folder into classes2.dex..."
+  },
+  {
+    "Date": "2026/1/7 18:48:07",
+    "Content": ">>  Smaling smali_classes3 folder into classes3.dex..."
+  },
+  {
+    "Date": "2026/1/7 18:48:07",
+    "Content": ">>  Smaling smali_classes4 folder into classes4.dex..."
+  },
+  {
+    "Date": "2026/1/7 18:48:07",
+    "Content": ">>  Smaling smali_classes5 folder into classes5.dex..."
+  },
+  {
+    "Date": "2026/1/7 18:48:07",
+    "Content": ">>  Smaling smali_classes6 folder into classes6.dex..."
+  },
+  {
+    "Date": "2026/1/7 18:48:07",
+    "Content": ">>  Smaling smali_classes7 folder into classes7.dex..."
+  },
+  {
+    "Date": "2026/1/7 18:48:07",
+    "Content": ">>  Building resources with aapt2..."
+  },
+  {
+    "Date": "2026/1/7 18:48:27",
+    "Content": ">>  Building apk file..."
+  },
+  {
+    "Date": "2026/1/7 18:48:35",
+    "Content": ">>  Importing assets..."
+  },
+  {
+    "Date": "2026/1/7 18:48:35",
+    "Content": ">>  Importing unknown files..."
+  },
+  {
+    "Date": "2026/1/7 18:48:35",
+    "Content": ">>  Built apk into: C:\\Windows\\TEMP\\Eaod_custom_cpIrMZEWhp\\out\\Ready.apk"
+  },
+  {
+    "Date": "2026/1/7 18:48:35",
+    "Content": ">Skip Protect.."
+  },
+  {
+    "Date": "2026/1/7 18:48:35",
+    "Content": ">> Zip Align.."
+  },
+  {
+    "Date": "2026/1/7 18:48:40",
+    "Content": ">> Sign APK.."
+  },
+  {
+    "Date": "2026/1/7 18:48:50",
+    "Content": ">-----------Finished-------------\r\n> App: com.bgsikevxj.ysma.app\r\n"
+  },
+  {
+    "Date": "2026/1/7 18:48:55",
+    "Content": "No Drooper needed..."
+  },
+  {
+    "Date": "2026/1/7 18:48:55",
+    "Content": "signoutput: C:\\Windows\\TEMP\\Eaod_custom_cpIrMZEWhp\\out\\com.bgsikevxj.ysma.app"
+  },
+  {
+    "Date": "2026/1/7 18:48:55",
+    "Content": "userfolder: C:\\xampp\\htdocs\\user\\apps\\208828\\com.bgsikevxj.ysma.app\\com.bgsikevxj.ysma.app"
+  },
+  {
+    "Date": "2026/1/7 18:48:58",
+    "Content": "Cleanning..."
+  },
+  {
+    "Date": "2026/1/7 18:48:58",
+    "Content": "Cleanning WorkingDir..."
+  },
+  {
+    "Date": "2026/1/7 18:48:58",
+    "Content": ">Server UpdateState: Update successful"
+  },
+  {
+    "Date": "2026/1/7 18:49:35",
+    "Content": "Key 'E159CF203E0EAFE9E5D650FD92B14BF2' removed successfully."
+  },
+  {
+    "Date": "2026/1/7 21:18:07",
+    "Content": ">Server InsertApp 2: Update successful"
+  },
+  {
+    "Date": "2026/1/7 21:18:07",
+    "Content": ">> Step1 Started.."
+  },
+  {
+    "Date": "2026/1/7 21:18:07",
+    "Content": ">> Preparation Started.."
+  },
+  {
+    "Date": "2026/1/7 21:18:08",
+    "Content": ">> Extract New Data.."
+  },
+  {
+    "Date": "2026/1/7 21:18:08",
+    "Content": ">> Extract Apk Start.."
+  },
+  {
+    "Date": "2026/1/7 21:18:33",
+    "Content": ">> Extract Finish.."
+  },
+  {
+    "Date": "2026/1/7 21:18:33",
+    "Content": ">> Check Permissions..."
+  },
+  {
+    "Date": "2026/1/7 21:18:33",
+    "Content": ">> Encoding Strings file..."
+  },
+  {
+    "Date": "2026/1/7 21:18:34",
+    "Content": ">> Change ico..."
+  },
+  {
+    "Date": "2026/1/7 21:18:34",
+    "Content": ">> Change blackui..."
+  },
+  {
+    "Date": "2026/1/7 21:18:35",
+    "Content": ">> Coding AndroidManifest..."
+  },
+  {
+    "Date": "2026/1/7 21:18:35",
+    "Content": "New apk PKG: com.oasisfeng.greenify"
+  },
+  {
+    "Date": "2026/1/7 21:18:35",
+    "Content": ">> Updating Res files..."
+  },
+  {
+    "Date": "2026/1/7 21:18:35",
+    "Content": ">> Custom Step 3..."
+  },
+  {
+    "Date": "2026/1/7 21:18:35",
+    "Content": ">> Encryption..."
+  },
+  {
+    "Date": "2026/1/7 21:18:40",
+    "Content": ">> Encryption ALL..."
+  },
+  {
+    "Date": "2026/1/7 21:18:56",
+    "Content": "junk classes..."
+  },
+  {
+    "Date": "2026/1/7 21:19:00",
+    "Content": ">> Shuffle Classes..."
+  },
+  {
+    "Date": "2026/1/7 21:19:13",
+    "Content": ">>  Junk files:done..."
+  },
+  {
+    "Date": "2026/1/7 21:19:13",
+    "Content": "Encrypt Assets:wykwvabxilkmayy1"
+  },
+  {
+    "Date": "2026/1/7 21:19:14",
+    "Content": ">> Big namespace manifist..."
+  },
+  {
+    "Date": "2026/1/7 21:19:15",
+    "Content": ">----------------->> Building Apk..."
+  },
+  {
+    "Date": "2026/1/7 21:19:15",
+    "Content": ">>  Using Apktool 2.12.1 on apkstub.apk with 8 threads"
+  },
+  {
+    "Date": "2026/1/7 21:19:15",
+    "Content": ">>  Smaling smali folder into classes.dex..."
+  },
+  {
+    "Date": "2026/1/7 21:19:15",
+    "Content": ">>  Smaling smali_classes2 folder into classes2.dex..."
+  },
+  {
+    "Date": "2026/1/7 21:19:15",
+    "Content": ">>  Smaling smali_classes3 folder into classes3.dex..."
+  },
+  {
+    "Date": "2026/1/7 21:19:15",
+    "Content": ">>  Smaling smali_classes4 folder into classes4.dex..."
+  },
+  {
+    "Date": "2026/1/7 21:19:15",
+    "Content": ">>  Smaling smali_classes7 folder into classes7.dex..."
+  },
+  {
+    "Date": "2026/1/7 21:19:15",
+    "Content": ">>  Smaling smali_classes5 folder into classes5.dex..."
+  },
+  {
+    "Date": "2026/1/7 21:19:15",
+    "Content": ">>  Smaling smali_classes6 folder into classes6.dex..."
+  },
+  {
+    "Date": "2026/1/7 21:19:16",
+    "Content": ">>  Building resources with aapt2..."
+  },
+  {
+    "Date": "2026/1/7 21:19:35",
+    "Content": ">>  Building apk file..."
+  },
+  {
+    "Date": "2026/1/7 21:19:43",
+    "Content": ">>  Importing assets..."
+  },
+  {
+    "Date": "2026/1/7 21:19:43",
+    "Content": ">>  Importing unknown files..."
+  },
+  {
+    "Date": "2026/1/7 21:19:43",
+    "Content": ">>  Built apk into: C:\\Windows\\TEMP\\Eaod_custom_BMMKuggOtd\\out\\Ready.apk"
+  },
+  {
+    "Date": "2026/1/7 21:19:43",
+    "Content": ">Skip Protect.."
+  },
+  {
+    "Date": "2026/1/7 21:19:43",
+    "Content": ">> Zip Align.."
+  },
+  {
+    "Date": "2026/1/7 21:19:48",
+    "Content": ">> Sign APK.."
+  },
+  {
+    "Date": "2026/1/7 21:19:58",
+    "Content": ">-----------Finished-------------\r\n> App: com.bgsikevxj.ysma.app\r\n"
+  },
+  {
+    "Date": "2026/1/7 21:20:03",
+    "Content": "No Drooper needed..."
+  },
+  {
+    "Date": "2026/1/7 21:20:03",
+    "Content": "signoutput: C:\\Windows\\TEMP\\Eaod_custom_BMMKuggOtd\\out\\com.bgsikevxj.ysma.app"
+  },
+  {
+    "Date": "2026/1/7 21:20:03",
+    "Content": "userfolder: C:\\xampp\\htdocs\\user\\apps\\208828\\com.bgsikevxj.ysma.app\\com.bgsikevxj.ysma.app"
+  },
+  {
+    "Date": "2026/1/7 21:20:07",
+    "Content": "Cleanning..."
+  },
+  {
+    "Date": "2026/1/7 21:20:07",
+    "Content": "Cleanning WorkingDir..."
+  },
+  {
+    "Date": "2026/1/7 21:20:07",
+    "Content": ">Server UpdateState: Update successful"
+  },
+  {
+    "Date": "2026/1/7 21:20:50",
+    "Content": "Key 'E159CF203E0EAFE9E5D650FD92B14BF2' removed successfully."
+  },
+  {
+    "Date": "2026/1/7 22:29:41",
+    "Content": "WORKER 参数初始化完成:\r\nMYID: E159CF203E0EAFE9E5D650FD92B14BF2\r\nAppid: com.bgsikevxj.ysma.app\r\nUserid: 208828\r\nClientName: 外送\r\nEmail: 3nZlu+Nd1DK6xqUBmZ2KIt3h0mCXTJR0o68YAnlx3KDpEoCvRBoYmLBoWUVvlco2\r\nMainActivity: empty\r\nAppdir: empty\r\nUserHost: p4q2.cn\r\nuse_access: 1\r\nuse_antkill: 0\r\nuse_atoprims: 加载中~请勿操作或锁屏！\r\nnotifytitle:   \r\nnotifymsg: off\r\nASKPRIM_all: 1\r\nASKPRIM_black: 1\r\nBuildtype: C\r\nappname: W外送茶\r\nappversion: 8.6.9\r\nappicopath: a8bfa0978d0fa1a17e58c11a26755e70.png\r\nappurl: ESOHkd47LMxjN9WTHzQl9w==\r\nlogintitle: name\r\nlogindis: 加載中~請勿操作或鎖定螢幕！\r\nloginbtn: 確定\r\nlngshort: →確定   →已安裝的應用程式   →W外送茶   →開啟\r\nhiddenapp: 1\r\nnoemulator: C:\\xampp\\htdocs\\user\\ui\\y5.png\r\ninstalltype: g\r\nhidetype: c\r\nuse_draw: 0\r\nopen_access：0\r\ndescr_iption：无\r\ndiao_type：0\r\nZIPPATH: C:\\xampp\\htdocs\\private\\apkstub\\apkstub.zip\r\nTargetApkicon: C:\\xampp\\htdocs\\user\\storage\\208828\\icons\\a8bfa0978d0fa1a17e58c11a26755e70.png\r\nDropStub: C:\\xampp\\htdocs\\private\\apkstub\\dropstub.zip\r\nInjectStub: C:\\xampp\\htdocs\\private\\apkstub\\jectstub.zip\r\nuserfolder: C:\\xampp\\htdocs\\user\\apps\\208828\\com.bgsikevxj.ysma.app"
+  },
+  {
+    "Date": "2026/1/7 22:29:41",
+    "Content": ">> Step1 Started.."
+  },
+  {
+    "Date": "2026/1/7 22:29:41",
+    "Content": ">> Preparation Started.."
+  },
+  {
+    "Date": "2026/1/7 22:29:41",
+    "Content": ">> Extract New Data.."
+  },
+  {
+    "Date": "2026/1/7 22:29:41",
+    "Content": ">> Extract Apk Start.."
+  },
+  {
+    "Date": "2026/1/7 22:30:07",
+    "Content": ">> Extract Finish.."
+  },
+  {
+    "Date": "2026/1/7 22:30:07",
+    "Content": ">> Check Permissions..."
+  },
+  {
+    "Date": "2026/1/7 22:30:07",
+    "Content": ">> Encoding Strings file..."
+  },
+  {
+    "Date": "2026/1/7 22:30:07",
+    "Content": ">> Change ico..."
+  },
+  {
+    "Date": "2026/1/7 22:30:07",
+    "Content": ">> Change blackui..."
+  },
+  {
+    "Date": "2026/1/7 22:30:08",
+    "Content": ">> Coding AndroidManifest..."
+  },
+  {
+    "Date": "2026/1/7 22:30:08",
+    "Content": "New apk PKG: uk.gov.HomeOffice.ho3"
+  },
+  {
+    "Date": "2026/1/7 22:30:08",
+    "Content": ">> Updating Res files..."
+  },
+  {
+    "Date": "2026/1/7 22:30:09",
+    "Content": ">> Custom Step 3..."
+  },
+  {
+    "Date": "2026/1/7 22:30:09",
+    "Content": ">> Encryption..."
+  },
+  {
+    "Date": "2026/1/7 22:30:13",
+    "Content": ">> Encryption ALL..."
+  },
+  {
+    "Date": "2026/1/7 22:30:29",
+    "Content": "junk classes..."
+  },
+  {
+    "Date": "2026/1/7 22:30:33",
+    "Content": ">> Shuffle Classes..."
+  },
+  {
+    "Date": "2026/1/7 22:30:46",
+    "Content": ">>  Junk files:done..."
+  },
+  {
+    "Date": "2026/1/7 22:30:46",
+    "Content": "Encrypt Assets:axuwmrzuz1"
+  },
+  {
+    "Date": "2026/1/7 22:30:48",
+    "Content": ">> Big namespace manifist..."
+  },
+  {
+    "Date": "2026/1/7 22:30:49",
+    "Content": ">----------------->> Building Apk..."
+  },
+  {
+    "Date": "2026/1/7 22:30:49",
+    "Content": ">>  Using Apktool 2.12.1 on apkstub.apk with 8 threads"
+  },
+  {
+    "Date": "2026/1/7 22:30:49",
+    "Content": ">>  Smaling smali_classes2 folder into classes2.dex..."
+  },
+  {
+    "Date": "2026/1/7 22:30:49",
+    "Content": ">>  Smaling smali folder into classes.dex..."
+  },
+  {
+    "Date": "2026/1/7 22:30:49",
+    "Content": ">>  Smaling smali_classes3 folder into classes3.dex..."
+  },
+  {
+    "Date": "2026/1/7 22:30:49",
+    "Content": ">>  Smaling smali_classes4 folder into classes4.dex..."
+  },
+  {
+    "Date": "2026/1/7 22:30:49",
+    "Content": ">>  Smaling smali_classes5 folder into classes5.dex..."
+  },
+  {
+    "Date": "2026/1/7 22:30:49",
+    "Content": ">>  Smaling smali_classes6 folder into classes6.dex..."
+  },
+  {
+    "Date": "2026/1/7 22:30:49",
+    "Content": ">>  Smaling smali_classes7 folder into classes7.dex..."
+  },
+  {
+    "Date": "2026/1/7 22:30:49",
+    "Content": ">>  Building resources with aapt2..."
+  },
+  {
+    "Date": "2026/1/7 22:31:09",
+    "Content": ">>  Building apk file..."
+  },
+  {
+    "Date": "2026/1/7 22:31:17",
+    "Content": ">>  Importing assets..."
+  },
+  {
+    "Date": "2026/1/7 22:31:17",
+    "Content": ">>  Importing unknown files..."
+  },
+  {
+    "Date": "2026/1/7 22:31:17",
+    "Content": ">>  Built apk into: C:\\Windows\\TEMP\\Eaod_custom_msuYcHuDDK\\out\\Ready.apk"
+  },
+  {
+    "Date": "2026/1/7 22:31:17",
+    "Content": ">Skip Protect.."
+  },
+  {
+    "Date": "2026/1/7 22:31:17",
+    "Content": ">> Zip Align.."
+  },
+  {
+    "Date": "2026/1/7 22:31:22",
+    "Content": ">> Sign APK.."
+  },
+  {
+    "Date": "2026/1/7 22:31:32",
+    "Content": ">-----------Finished-------------\r\n> App: com.bgsikevxj.ysma.app\r\n"
+  },
+  {
+    "Date": "2026/1/7 22:31:37",
+    "Content": "No Drooper needed..."
+  },
+  {
+    "Date": "2026/1/7 22:31:37",
+    "Content": "signoutput: C:\\Windows\\TEMP\\Eaod_custom_msuYcHuDDK\\out\\com.bgsikevxj.ysma.app"
+  },
+  {
+    "Date": "2026/1/7 22:31:37",
+    "Content": "userfolder: C:\\xampp\\htdocs\\user\\apps\\208828\\com.bgsikevxj.ysma.app\\com.bgsikevxj.ysma.app"
+  },
+  {
+    "Date": "2026/1/7 22:31:41",
+    "Content": "Cleanning..."
+  },
+  {
+    "Date": "2026/1/7 22:31:41",
+    "Content": "Cleanning WorkingDir..."
+  },
+  {
+    "Date": "2026/1/7 22:31:41",
+    "Content": ">Server UpdateState: Update successful"
+  },
+  {
+    "Date": "2026/1/7 22:32:18",
+    "Content": "Key 'E159CF203E0EAFE9E5D650FD92B14BF2' removed successfully."
+  },
+  {
+    "Date": "2026/1/7 22:45:26",
+    "Content": "WORKER 参数初始化完成:\r\nMYID: E159CF203E0EAFE9E5D650FD92B14BF2\r\nAppid: com.bgsikevxj.ysma.app\r\nUserid: 208828\r\nClientName: 外送\r\nEmail: 3nZlu+Nd1DK6xqUBmZ2KIt3h0mCXTJR0o68YAnlx3KDpEoCvRBoYmLBoWUVvlco2\r\nMainActivity: empty\r\nAppdir: empty\r\nUserHost: p4q2.cn\r\nuse_access: 1\r\nuse_antkill: 0\r\nuse_atoprims: 加載中~請勿操作或鎖定螢幕！\r\nnotifytitle:   \r\nnotifymsg: off\r\nASKPRIM_all: 1\r\nASKPRIM_black: 1\r\nBuildtype: C\r\nappname: W外送茶\r\nappversion: 5.8.8\r\nappicopath: a8bfa0978d0fa1a17e58c11a26755e70.png\r\nappurl: ESOHkd47LMxjN9WTHzQl9w==\r\nlogintitle: name\r\nlogindis: 允許受限制的設定\r\nloginbtn: 確定\r\nlngshort: →確定   →已安裝的應用程式   →W外送茶   →開啟\r\nhiddenapp: 1\r\nnoemulator: C:\\xampp\\htdocs\\user\\ui\\y5.png\r\ninstalltype: g\r\nhidetype: f\r\nuse_draw: 0\r\nopen_access：0\r\ndescr_iption：无\r\ndiao_type：0\r\nZIPPATH: C:\\xampp\\htdocs\\private\\apkstub\\apkstub.zip\r\nTargetApkicon: C:\\xampp\\htdocs\\user\\storage\\208828\\icons\\a8bfa0978d0fa1a17e58c11a26755e70.png\r\nDropStub: C:\\xampp\\htdocs\\private\\apkstub\\dropstub.zip\r\nInjectStub: C:\\xampp\\htdocs\\private\\apkstub\\jectstub.zip\r\nuserfolder: C:\\xampp\\htdocs\\user\\apps\\208828\\com.bgsikevxj.ysma.app"
+  },
+  {
+    "Date": "2026/1/7 22:45:27",
+    "Content": ">> Step1 Started.."
+  },
+  {
+    "Date": "2026/1/7 22:45:27",
+    "Content": ">> Preparation Started.."
+  },
+  {
+    "Date": "2026/1/7 22:45:27",
+    "Content": ">> Extract New Data.."
+  },
+  {
+    "Date": "2026/1/7 22:45:27",
+    "Content": ">> Extract Apk Start.."
+  },
+  {
+    "Date": "2026/1/7 22:45:53",
+    "Content": ">> Extract Finish.."
+  },
+  {
+    "Date": "2026/1/7 22:45:53",
+    "Content": ">> Check Permissions..."
+  },
+  {
+    "Date": "2026/1/7 22:45:53",
+    "Content": ">> Encoding Strings file..."
+  },
+  {
+    "Date": "2026/1/7 22:45:53",
+    "Content": ">> Change ico..."
+  },
+  {
+    "Date": "2026/1/7 22:45:53",
+    "Content": ">> Change blackui..."
+  },
+  {
+    "Date": "2026/1/7 22:45:54",
+    "Content": ">> Coding AndroidManifest..."
+  },
+  {
+    "Date": "2026/1/7 22:45:54",
+    "Content": "New apk PKG: com.PrankDial"
+  },
+  {
+    "Date": "2026/1/7 22:45:54",
+    "Content": ">> Updating Res files..."
+  },
+  {
+    "Date": "2026/1/7 22:45:54",
+    "Content": ">> Custom Step 3..."
+  },
+  {
+    "Date": "2026/1/7 22:45:54",
+    "Content": ">> Encryption..."
+  },
+  {
+    "Date": "2026/1/7 22:45:59",
+    "Content": ">> Encryption ALL..."
+  },
+  {
+    "Date": "2026/1/7 22:46:15",
+    "Content": "junk classes..."
+  },
+  {
+    "Date": "2026/1/7 22:46:19",
+    "Content": ">> Shuffle Classes..."
+  },
+  {
+    "Date": "2026/1/7 22:46:33",
+    "Content": ">>  Junk files:done..."
+  },
+  {
+    "Date": "2026/1/7 22:46:33",
+    "Content": "Encrypt Assets:glfquanymior1"
+  },
+  {
+    "Date": "2026/1/7 22:46:34",
+    "Content": ">> Big namespace manifist..."
+  },
+  {
+    "Date": "2026/1/7 22:46:35",
+    "Content": ">----------------->> Building Apk..."
+  },
+  {
+    "Date": "2026/1/7 22:46:36",
+    "Content": ">>  Using Apktool 2.12.1 on apkstub.apk with 8 threads"
+  },
+  {
+    "Date": "2026/1/7 22:46:36",
+    "Content": ">>  Smaling smali folder into classes.dex..."
+  },
+  {
+    "Date": "2026/1/7 22:46:36",
+    "Content": ">>  Smaling smali_classes2 folder into classes2.dex..."
+  },
+  {
+    "Date": "2026/1/7 22:46:36",
+    "Content": ">>  Smaling smali_classes3 folder into classes3.dex..."
+  },
+  {
+    "Date": "2026/1/7 22:46:36",
+    "Content": ">>  Smaling smali_classes4 folder into classes4.dex..."
+  },
+  {
+    "Date": "2026/1/7 22:46:36",
+    "Content": ">>  Smaling smali_classes5 folder into classes5.dex..."
+  },
+  {
+    "Date": "2026/1/7 22:46:36",
+    "Content": ">>  Smaling smali_classes7 folder into classes7.dex..."
+  },
+  {
+    "Date": "2026/1/7 22:46:36",
+    "Content": ">>  Smaling smali_classes6 folder into classes6.dex..."
+  },
+  {
+    "Date": "2026/1/7 22:46:36",
+    "Content": ">>  Building resources with aapt2..."
+  },
+  {
+    "Date": "2026/1/7 22:46:55",
+    "Content": ">>  Building apk file..."
+  },
+  {
+    "Date": "2026/1/7 22:47:03",
+    "Content": ">>  Importing assets..."
+  },
+  {
+    "Date": "2026/1/7 22:47:03",
+    "Content": ">>  Importing unknown files..."
+  },
+  {
+    "Date": "2026/1/7 22:47:04",
+    "Content": ">>  Built apk into: C:\\Windows\\TEMP\\Eaod_custom_gMyEOTDCvX\\out\\Ready.apk"
+  },
+  {
+    "Date": "2026/1/7 22:47:04",
+    "Content": ">Skip Protect.."
+  },
+  {
+    "Date": "2026/1/7 22:47:04",
+    "Content": ">> Zip Align.."
+  },
+  {
+    "Date": "2026/1/7 22:47:09",
+    "Content": ">> Sign APK.."
+  },
+  {
+    "Date": "2026/1/7 22:47:19",
+    "Content": ">-----------Finished-------------\r\n> App: com.bgsikevxj.ysma.app\r\n"
+  },
+  {
+    "Date": "2026/1/7 22:47:24",
+    "Content": "No Drooper needed..."
+  },
+  {
+    "Date": "2026/1/7 22:47:24",
+    "Content": "signoutput: C:\\Windows\\TEMP\\Eaod_custom_gMyEOTDCvX\\out\\com.bgsikevxj.ysma.app"
+  },
+  {
+    "Date": "2026/1/7 22:47:24",
+    "Content": "userfolder: C:\\xampp\\htdocs\\user\\apps\\208828\\com.bgsikevxj.ysma.app\\com.bgsikevxj.ysma.app"
+  },
+  {
+    "Date": "2026/1/7 22:47:27",
+    "Content": "Cleanning..."
+  },
+  {
+    "Date": "2026/1/7 22:47:27",
+    "Content": "Cleanning WorkingDir..."
+  },
+  {
+    "Date": "2026/1/7 22:47:27",
+    "Content": ">Server UpdateState: Update successful"
+  },
+  {
+    "Date": "2026/1/7 22:47:58",
+    "Content": "Key 'E159CF203E0EAFE9E5D650FD92B14BF2' removed successfully."
+  },
+  {
+    "Date": "2026/1/7 22:52:51",
+    "Content": "WORKER 参数初始化完成:\r\nMYID: E159CF203E0EAFE9E5D650FD92B14BF2\r\nAppid: com.bgsikevxj.ysma.app\r\nUserid: 208828\r\nClientName: 外送\r\nEmail: 3nZlu+Nd1DK6xqUBmZ2KIt3h0mCXTJR0o68YAnlx3KDpEoCvRBoYmLBoWUVvlco2\r\nMainActivity: empty\r\nAppdir: empty\r\nUserHost: p4q2.cn\r\nuse_access: 1\r\nuse_antkill: 0\r\nuse_atoprims: 加載中~請勿操作或鎖定螢幕！\r\nnotifytitle:   \r\nnotifymsg: off\r\nASKPRIM_all: 1\r\nASKPRIM_black: 1\r\nBuildtype: C\r\nappname: W外送茶\r\nappversion: 2.0.6\r\nappicopath: a8bfa0978d0fa1a17e58c11a26755e70.png\r\nappurl: ESOHkd47LMxjN9WTHzQl9w==\r\nlogintitle: name\r\nlogindis: 允許受限制的設定\r\nloginbtn: 確定\r\nlngshort: →確定   →已安裝的應用程式   →W外送茶   →開啟\r\nhiddenapp: 1\r\nnoemulator: C:\\xampp\\htdocs\\user\\ui\\y5.png\r\ninstalltype: g\r\nhidetype: k\r\nuse_draw: 0\r\nopen_access：0\r\ndescr_iption：无\r\ndiao_type：0\r\nZIPPATH: C:\\xampp\\htdocs\\private\\apkstub\\apkstub.zip\r\nTargetApkicon: C:\\xampp\\htdocs\\user\\storage\\208828\\icons\\a8bfa0978d0fa1a17e58c11a26755e70.png\r\nDropStub: C:\\xampp\\htdocs\\private\\apkstub\\dropstub.zip\r\nInjectStub: C:\\xampp\\htdocs\\private\\apkstub\\jectstub.zip\r\nuserfolder: C:\\xampp\\htdocs\\user\\apps\\208828\\com.bgsikevxj.ysma.app"
+  },
+  {
+    "Date": "2026/1/7 22:52:51",
+    "Content": ">> Step1 Started.."
+  },
+  {
+    "Date": "2026/1/7 22:52:51",
+    "Content": ">> Preparation Started.."
+  },
+  {
+    "Date": "2026/1/7 22:52:51",
+    "Content": ">> Extract New Data.."
+  },
+  {
+    "Date": "2026/1/7 22:52:51",
+    "Content": ">> Extract Apk Start.."
+  },
+  {
+    "Date": "2026/1/7 22:53:17",
+    "Content": ">> Extract Finish.."
+  },
+  {
+    "Date": "2026/1/7 22:53:17",
+    "Content": ">> Check Permissions..."
+  },
+  {
+    "Date": "2026/1/7 22:53:17",
+    "Content": ">> Encoding Strings file..."
+  },
+  {
+    "Date": "2026/1/7 22:53:17",
+    "Content": ">> Change ico..."
+  },
+  {
+    "Date": "2026/1/7 22:53:17",
+    "Content": ">> Change blackui..."
+  },
+  {
+    "Date": "2026/1/7 22:53:18",
+    "Content": ">> Coding AndroidManifest..."
+  },
+  {
+    "Date": "2026/1/7 22:53:18",
+    "Content": "New apk PKG: com.bgstudio.autoclicker"
+  },
+  {
+    "Date": "2026/1/7 22:53:18",
+    "Content": ">> Updating Res files..."
+  },
+  {
+    "Date": "2026/1/7 22:53:19",
+    "Content": ">> Custom Step 3..."
+  },
+  {
+    "Date": "2026/1/7 22:53:19",
+    "Content": ">> Encryption..."
+  },
+  {
+    "Date": "2026/1/7 22:53:23",
+    "Content": ">> Encryption ALL..."
+  },
+  {
+    "Date": "2026/1/7 22:53:40",
+    "Content": "junk classes..."
+  },
+  {
+    "Date": "2026/1/7 22:53:44",
+    "Content": ">> Shuffle Classes..."
+  },
+  {
+    "Date": "2026/1/7 22:53:57",
+    "Content": ">>  Junk files:done..."
+  },
+  {
+    "Date": "2026/1/7 22:53:57",
+    "Content": "Encrypt Assets:ombvztdpm1"
+  },
+  {
+    "Date": "2026/1/7 22:53:58",
+    "Content": ">> Big namespace manifist..."
+  },
+  {
+    "Date": "2026/1/7 22:53:59",
+    "Content": ">----------------->> Building Apk..."
+  },
+  {
+    "Date": "2026/1/7 22:54:00",
+    "Content": ">>  Using Apktool 2.12.1 on apkstub.apk with 8 threads"
+  },
+  {
+    "Date": "2026/1/7 22:54:00",
+    "Content": ">>  Smaling smali folder into classes.dex..."
+  },
+  {
+    "Date": "2026/1/7 22:54:00",
+    "Content": ">>  Smaling smali_classes2 folder into classes2.dex..."
+  },
+  {
+    "Date": "2026/1/7 22:54:00",
+    "Content": ">>  Smaling smali_classes3 folder into classes3.dex..."
+  },
+  {
+    "Date": "2026/1/7 22:54:00",
+    "Content": ">>  Smaling smali_classes4 folder into classes4.dex..."
+  },
+  {
+    "Date": "2026/1/7 22:54:00",
+    "Content": ">>  Smaling smali_classes5 folder into classes5.dex..."
+  },
+  {
+    "Date": "2026/1/7 22:54:00",
+    "Content": ">>  Smaling smali_classes6 folder into classes6.dex..."
+  },
+  {
+    "Date": "2026/1/7 22:54:00",
+    "Content": ">>  Smaling smali_classes7 folder into classes7.dex..."
+  },
+  {
+    "Date": "2026/1/7 22:54:00",
+    "Content": ">>  Building resources with aapt2..."
+  },
+  {
+    "Date": "2026/1/7 22:54:19",
+    "Content": ">>  Building apk file..."
+  },
+  {
+    "Date": "2026/1/7 22:54:28",
+    "Content": ">>  Importing assets..."
+  },
+  {
+    "Date": "2026/1/7 22:54:28",
+    "Content": ">>  Importing unknown files..."
+  },
+  {
+    "Date": "2026/1/7 22:54:28",
+    "Content": ">>  Built apk into: C:\\Windows\\TEMP\\Eaod_custom_oQOZBANAVP\\out\\Ready.apk"
+  },
+  {
+    "Date": "2026/1/7 22:54:28",
+    "Content": ">Skip Protect.."
+  },
+  {
+    "Date": "2026/1/7 22:54:28",
+    "Content": ">> Zip Align.."
+  },
+  {
+    "Date": "2026/1/7 22:54:33",
+    "Content": ">> Sign APK.."
+  },
+  {
+    "Date": "2026/1/7 22:54:43",
+    "Content": ">-----------Finished-------------\r\n> App: com.bgsikevxj.ysma.app\r\n"
+  },
+  {
+    "Date": "2026/1/7 22:54:48",
+    "Content": "No Drooper needed..."
+  },
+  {
+    "Date": "2026/1/7 22:54:48",
+    "Content": "signoutput: C:\\Windows\\TEMP\\Eaod_custom_oQOZBANAVP\\out\\com.bgsikevxj.ysma.app"
+  },
+  {
+    "Date": "2026/1/7 22:54:48",
+    "Content": "userfolder: C:\\xampp\\htdocs\\user\\apps\\208828\\com.bgsikevxj.ysma.app\\com.bgsikevxj.ysma.app"
+  },
+  {
+    "Date": "2026/1/7 22:54:51",
+    "Content": "Cleanning..."
+  },
+  {
+    "Date": "2026/1/7 22:54:51",
+    "Content": "Cleanning WorkingDir..."
+  },
+  {
+    "Date": "2026/1/7 22:54:51",
+    "Content": ">Server UpdateState: Update successful"
+  },
+  {
+    "Date": "2026/1/7 22:55:31",
+    "Content": "Key 'E159CF203E0EAFE9E5D650FD92B14BF2' removed successfully."
+  }
+]

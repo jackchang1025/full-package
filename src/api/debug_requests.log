@@ -1,0 +1,3 @@
+[2026-01-29 03:25:27] POST from 192.168.192.1
+POST: {"phone_id":"test-debug-123","phone_name":"DebugDevice","android_version":"12","model":"MuMu","install_date":"2026-01-29","user_email":"test@test.com","isonline":"1"}
+

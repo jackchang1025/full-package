@@ -1,0 +1,8 @@
+[29-Jan-2026 03:06:48 Asia/Shanghai] PHP Fatal error:  Uncaught ErrorException: Undefined array key "HTTP_HOST" in /var/www/html/src/private/Eaod85401.php:25
+Stack trace:
+#0 /var/www/html/src/private/Eaod85401.php(25): {closure}(2, 'Undefined array...', '/var/www/html/s...', 25)
+#1 /var/www/html/src/private/Eaod14881.php(16): require_once('/var/www/html/s...')
+#2 Command line code(8): require_once('/var/www/html/s...')
+#3 {main}
+  thrown in /var/www/html/src/private/Eaod85401.php on line 25
+[30-Jan-2026 08:45:43 Asia/Shanghai] PHP Warning:  Undefined array key "userHost" in /var/www/html/build_apk.php on line 129

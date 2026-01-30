@@ -1,0 +1,824 @@
+[2026-01-30 07:37:31] [0ms] === Build started for com.icontrol.protector ===
+[2026-01-30 07:37:31] [0ms] Starting: check_dependencies
+[2026-01-30 07:37:31] [57ms] Completed: check_dependencies (56.52ms)
+[2026-01-30 07:37:31] [57ms] Starting: prepare_work_dir
+[2026-01-30 07:37:32] [1427ms] Completed: prepare_work_dir (1369.96ms)
+[2026-01-30 07:37:32] [1427ms] Starting: modify_smali
+[2026-01-30 07:37:32] [1448ms] Completed: modify_smali (20.71ms)
+[2026-01-30 07:37:32] [1448ms] Starting: modify_manifest
+[2026-01-30 07:37:32] [1448ms] Completed: modify_manifest (0.34ms)
+[2026-01-30 07:37:32] [1448ms] Starting: modify_resources
+[2026-01-30 07:37:32] [1449ms] Completed: modify_resources (0.58ms)
+[2026-01-30 07:37:32] [1449ms] Starting: replace_icon
+[2026-01-30 07:37:32] [1449ms] Completed: replace_icon (0.43ms)
+[2026-01-30 07:37:32] [1449ms] Starting: encrypt_resources
+[2026-01-30 07:37:36] [5374ms] Completed: encrypt_resources (3925.09ms)
+[2026-01-30 07:37:36] [5374ms] Starting: build_apk
+[2026-01-30 07:37:55] [24455ms] Completed: build_apk (19080.85ms)
+[2026-01-30 07:37:55] [24455ms] Starting: sign_apk
+[2026-01-30 07:37:57] [26229ms] Completed: sign_apk (1773.34ms)
+[2026-01-30 07:37:57] [26229ms] Starting: move_output
+[2026-01-30 07:37:57] [26239ms] Completed: move_output (9.99ms)
+[2026-01-30 07:37:57] [26682ms] === Build completed in 26.7s ===
+[2026-01-30 07:38:59] [0ms] === Build started for com.icontrol.protector ===
+[2026-01-30 07:38:59] [0ms] Starting: check_dependencies
+[2026-01-30 07:38:59] [45ms] Completed: check_dependencies (44.7ms)
+[2026-01-30 07:38:59] [45ms] Starting: prepare_work_dir
+[2026-01-30 07:39:08] [9860ms] Completed: prepare_work_dir (9814.92ms)
+[2026-01-30 07:39:08] [9860ms] Starting: modify_smali
+[2026-01-30 07:39:08] [9883ms] Completed: modify_smali (23.15ms)
+[2026-01-30 07:39:08] [9883ms] Starting: modify_manifest
+[2026-01-30 07:39:08] [9884ms] Completed: modify_manifest (0.31ms)
+[2026-01-30 07:39:08] [9884ms] Starting: modify_resources
+[2026-01-30 07:39:08] [9884ms] Completed: modify_resources (0.19ms)
+[2026-01-30 07:39:08] [9884ms] Starting: replace_icon
+[2026-01-30 07:39:08] [9921ms] Completed: replace_icon (37.14ms)
+[2026-01-30 07:39:08] [9921ms] Starting: encrypt_resources
+[2026-01-30 07:39:12] [13780ms] Completed: encrypt_resources (3859.06ms)
+[2026-01-30 07:39:12] [13780ms] Starting: build_apk
+[2026-01-30 07:39:31] [32265ms] Completed: build_apk (18485.11ms)
+[2026-01-30 07:39:31] [32342ms] Starting: sign_apk
+[2026-01-30 07:39:32] [33721ms] Completed: sign_apk (1378.27ms)
+[2026-01-30 07:39:32] [33721ms] Starting: move_output
+[2026-01-30 07:39:32] [33732ms] Completed: move_output (11.38ms)
+[2026-01-30 07:39:33] [34177ms] === Build completed in 34.2s ===
+[2026-01-30 07:44:16] [0ms] === Build started for com.icontrol.protector ===
+[2026-01-30 07:44:16] [0ms] Starting: check_dependencies
+[2026-01-30 07:44:16] [45ms] Completed: check_dependencies (44.57ms)
+[2026-01-30 07:44:16] [45ms] Starting: prepare_work_dir
+[2026-01-30 07:44:17] [1700ms] Completed: prepare_work_dir (1654.73ms)
+[2026-01-30 07:44:17] [1700ms] Starting: modify_smali
+[2026-01-30 07:44:17] [1720ms] Completed: modify_smali (20.53ms)
+[2026-01-30 07:44:17] [1720ms] Starting: modify_manifest
+[2026-01-30 07:44:17] [1721ms] Completed: modify_manifest (0.25ms)
+[2026-01-30 07:44:17] [1721ms] Starting: modify_resources
+[2026-01-30 07:44:17] [1721ms] Completed: modify_resources (0.33ms)
+[2026-01-30 07:44:17] [1721ms] Starting: replace_icon
+[2026-01-30 07:44:17] [1721ms] Completed: replace_icon (0.39ms)
+[2026-01-30 07:44:17] [1721ms] Starting: encrypt_resources
+[2026-01-30 07:44:21] [5300ms] Completed: encrypt_resources (3578.17ms)
+[2026-01-30 07:44:21] [5300ms] Starting: build_apk
+[2026-01-30 07:44:34] [18317ms] Completed: build_apk (13017.69ms)
+[2026-01-30 07:44:34] [18318ms] Starting: sign_apk
+[2026-01-30 07:44:35] [19257ms] Completed: sign_apk (939.14ms)
+[2026-01-30 07:44:35] [19257ms] Starting: move_output
+[2026-01-30 07:44:35] [19265ms] Completed: move_output (8.24ms)
+[2026-01-30 07:44:35] [19654ms] === Build completed in 19.7s ===
+[2026-01-30 07:45:02] [0ms] === Build started for com.icontrol.protector ===
+[2026-01-30 07:45:02] [0ms] Starting: check_dependencies
+[2026-01-30 07:45:02] [33ms] Completed: check_dependencies (33.1ms)
+[2026-01-30 07:45:02] [33ms] Starting: prepare_work_dir
+[2026-01-30 07:45:04] [1944ms] Completed: prepare_work_dir (1910.44ms)
+[2026-01-30 07:45:04] [1944ms] Starting: modify_smali
+[2026-01-30 07:45:04] [1967ms] Completed: modify_smali (23.54ms)
+[2026-01-30 07:45:04] [1967ms] Starting: modify_manifest
+[2026-01-30 07:45:04] [1968ms] Completed: modify_manifest (0.19ms)
+[2026-01-30 07:45:04] [1968ms] Starting: modify_resources
+[2026-01-30 07:45:04] [1968ms] Completed: modify_resources (0.19ms)
+[2026-01-30 07:45:04] [1968ms] Starting: replace_icon
+[2026-01-30 07:45:04] [1968ms] Completed: replace_icon (0.57ms)
+[2026-01-30 07:45:04] [1968ms] Starting: encrypt_resources
+[2026-01-30 07:45:08] [5487ms] Completed: encrypt_resources (3519ms)
+[2026-01-30 07:45:08] [5487ms] Starting: build_apk
+[2026-01-30 07:45:24] [22013ms] Completed: build_apk (16525.82ms)
+[2026-01-30 07:45:24] [22013ms] Starting: sign_apk
+[2026-01-30 07:45:25] [22939ms] Completed: sign_apk (925.12ms)
+[2026-01-30 07:45:25] [22939ms] Starting: move_output
+[2026-01-30 07:45:25] [22947ms] Completed: move_output (7.85ms)
+[2026-01-30 07:45:26] [23311ms] === Build completed in 23.3s ===
+[2026-01-30 08:45:43] [0ms] === Build started for com.icontrol.protector ===
+[2026-01-30 08:45:43] [78ms] ERROR: Config validation failed: Missing required field: userHost
+[2026-01-30 08:46:37] [0ms] === Build started for com.icontrol.protector ===
+[2026-01-30 08:46:37] [0ms] Starting: check_dependencies
+[2026-01-30 08:46:39] [2546ms] Completed: check_dependencies (2545.96ms)
+[2026-01-30 08:46:39] [2546ms] Starting: prepare_work_dir
+[2026-01-30 08:49:20] [162903ms] Completed: prepare_work_dir (160317.63ms)
+[2026-01-30 08:49:20] [163045ms] Starting: modify_smali
+[2026-01-30 08:49:20] [163272ms] Completed: modify_smali (226.54ms)
+[2026-01-30 08:49:20] [163272ms] Starting: modify_manifest
+[2026-01-30 08:49:20] [163381ms] Completed: modify_manifest (109.22ms)
+[2026-01-30 08:49:20] [163381ms] Starting: modify_resources
+[2026-01-30 08:49:20] [163423ms] Completed: modify_resources (41.38ms)
+[2026-01-30 08:49:20] [163423ms] Starting: replace_icon
+[2026-01-30 08:49:20] [163444ms] Completed: replace_icon (21.54ms)
+[2026-01-30 08:49:20] [163444ms] Starting: encrypt_resources
+[2026-01-30 08:49:24] [167230ms] Completed: encrypt_resources (3785.58ms)
+[2026-01-30 08:49:24] [167230ms] Starting: build_apk
+[2026-01-30 08:50:35] [237862ms] Completed: build_apk (70632.63ms)
+[2026-01-30 08:50:35] [237888ms] Starting: sign_apk
+[2026-01-30 08:50:38] [240696ms] Completed: sign_apk (2807.41ms)
+[2026-01-30 08:50:38] [240696ms] Starting: move_output
+[2026-01-30 08:50:38] [241169ms] Completed: move_output (473.13ms)
+[2026-01-30 08:50:44] [247183ms] === Build completed in 4.1min ===
+[2026-01-30 08:54:37] [0ms] === Build started for com.icontrol.protector ===
+[2026-01-30 08:54:37] [0ms] Starting: check_dependencies
+[2026-01-30 08:54:42] [4917ms] Completed: check_dependencies (4917.28ms)
+[2026-01-30 08:54:42] [4917ms] Starting: prepare_work_dir
+[2026-01-30 08:55:03] [26570ms] Completed: prepare_work_dir (21652.07ms)
+[2026-01-30 08:55:03] [26570ms] Starting: modify_smali
+[2026-01-30 08:55:03] [26649ms] Completed: modify_smali (79.66ms)
+[2026-01-30 08:55:03] [26649ms] Starting: modify_manifest
+[2026-01-30 08:55:03] [26667ms] Completed: modify_manifest (17.71ms)
+[2026-01-30 08:55:03] [26667ms] Starting: modify_resources
+[2026-01-30 08:55:03] [26667ms] Completed: modify_resources (0.3ms)
+[2026-01-30 08:55:03] [26667ms] Starting: replace_icon
+[2026-01-30 08:55:03] [26729ms] Completed: replace_icon (61.39ms)
+[2026-01-30 08:55:03] [26729ms] Starting: encrypt_resources
+[2026-01-30 08:55:07] [30099ms] Completed: encrypt_resources (3370.36ms)
+[2026-01-30 08:55:07] [30099ms] Starting: build_apk
+[2026-01-30 08:55:35] [57929ms] Completed: build_apk (27829.66ms)
+[2026-01-30 08:55:35] [57929ms] Starting: sign_apk
+[2026-01-30 08:55:36] [59706ms] Completed: sign_apk (1777.25ms)
+[2026-01-30 08:55:36] [59707ms] Starting: move_output
+[2026-01-30 08:55:36] [59749ms] Completed: move_output (41.95ms)
+[2026-01-30 08:55:37] [60197ms] === Build completed in 1min ===
+[2026-01-30 08:59:42] [0ms] === Build started for com.icontrol.protector ===
+[2026-01-30 08:59:42] [0ms] Starting: check_dependencies
+[2026-01-30 08:59:43] [603ms] Completed: check_dependencies (602.91ms)
+[2026-01-30 08:59:43] [603ms] Starting: prepare_work_dir
+[2026-01-30 09:00:04] [21230ms] Completed: prepare_work_dir (20626.6ms)
+[2026-01-30 09:00:04] [21230ms] Starting: modify_smali
+[2026-01-30 09:00:04] [21257ms] Completed: modify_smali (27.36ms)
+[2026-01-30 09:00:04] [21257ms] Starting: modify_manifest
+[2026-01-30 09:00:04] [21296ms] Completed: modify_manifest (38.88ms)
+[2026-01-30 09:00:04] [21296ms] Starting: modify_resources
+[2026-01-30 09:00:04] [21296ms] Completed: modify_resources (0.19ms)
+[2026-01-30 09:00:04] [21296ms] Starting: replace_icon
+[2026-01-30 09:00:04] [21297ms] Completed: replace_icon (0.29ms)
+[2026-01-30 09:00:04] [21297ms] Starting: encrypt_resources
+[2026-01-30 09:00:07] [24705ms] Completed: encrypt_resources (3408.83ms)
+[2026-01-30 09:00:07] [24706ms] Starting: build_apk
+[2026-01-30 09:00:24] [41448ms] Completed: build_apk (16742.72ms)
+[2026-01-30 09:00:24] [41448ms] Starting: sign_apk
+[2026-01-30 09:00:25] [43000ms] Completed: sign_apk (1551.2ms)
+[2026-01-30 09:00:25] [43000ms] Starting: move_output
+[2026-01-30 09:00:25] [43010ms] Completed: move_output (10.13ms)
+[2026-01-30 09:00:26] [43404ms] === Build completed in 43.4s ===
+[2026-01-30 09:05:41] [0ms] === Build started for com.icontrol.protector ===
+[2026-01-30 09:05:41] [0ms] Starting: check_dependencies
+[2026-01-30 09:05:41] [193ms] Completed: check_dependencies (193ms)
+[2026-01-30 09:05:41] [193ms] Starting: prepare_work_dir
+[2026-01-30 09:05:46] [4906ms] Completed: prepare_work_dir (4712.3ms)
+[2026-01-30 09:05:46] [4906ms] Starting: modify_smali
+[2026-01-30 09:05:46] [4927ms] Completed: modify_smali (21.12ms)
+[2026-01-30 09:05:46] [4927ms] Starting: modify_manifest
+[2026-01-30 09:05:46] [4927ms] Completed: modify_manifest (0.33ms)
+[2026-01-30 09:05:46] [4927ms] Starting: modify_resources
+[2026-01-30 09:05:46] [4927ms] Completed: modify_resources (0.25ms)
+[2026-01-30 09:05:46] [4927ms] Starting: replace_icon
+[2026-01-30 09:05:46] [4928ms] Completed: replace_icon (0.52ms)
+[2026-01-30 09:05:46] [4928ms] Starting: encrypt_resources
+[2026-01-30 09:05:49] [8277ms] Completed: encrypt_resources (3349.32ms)
+[2026-01-30 09:05:49] [8277ms] Starting: build_apk
+[2026-01-30 09:06:04] [23362ms] Completed: build_apk (15084.64ms)
+[2026-01-30 09:06:04] [23362ms] Starting: sign_apk
+[2026-01-30 09:06:06] [24560ms] Completed: sign_apk (1197.4ms)
+[2026-01-30 09:06:06] [24563ms] Starting: move_output
+[2026-01-30 09:06:06] [24572ms] Completed: move_output (9.02ms)
+[2026-01-30 09:06:06] [24948ms] === Build completed in 24.9s ===
+[2026-01-30 09:07:54] [0ms] === Build started for com.icontrol.protector ===
+[2026-01-30 09:07:54] [0ms] Starting: check_dependencies
+[2026-01-30 09:07:55] [174ms] Completed: check_dependencies (173.41ms)
+[2026-01-30 09:07:55] [174ms] Starting: prepare_work_dir
+[2026-01-30 09:07:56] [1402ms] Completed: prepare_work_dir (1228.44ms)
+[2026-01-30 09:07:56] [1402ms] Starting: modify_smali
+[2026-01-30 09:07:56] [1423ms] Completed: modify_smali (20.56ms)
+[2026-01-30 09:07:56] [1423ms] Starting: modify_manifest
+[2026-01-30 09:07:56] [1423ms] Completed: modify_manifest (0.2ms)
+[2026-01-30 09:07:56] [1423ms] Starting: modify_resources
+[2026-01-30 09:07:56] [1423ms] Completed: modify_resources (0.14ms)
+[2026-01-30 09:07:56] [1423ms] Starting: replace_icon
+[2026-01-30 09:07:56] [1424ms] Completed: replace_icon (0.28ms)
+[2026-01-30 09:07:56] [1424ms] Starting: encrypt_resources
+[2026-01-30 09:07:59] [4976ms] Completed: encrypt_resources (3552.07ms)
+[2026-01-30 09:07:59] [4976ms] Starting: build_apk
+[2026-01-30 09:08:16] [21300ms] Completed: build_apk (16323.93ms)
+[2026-01-30 09:08:16] [21300ms] Starting: sign_apk
+[2026-01-30 09:08:18] [23228ms] Completed: sign_apk (1928.54ms)
+[2026-01-30 09:08:18] [23228ms] Starting: move_output
+[2026-01-30 09:08:18] [23234ms] Completed: move_output (6.02ms)
+[2026-01-30 09:08:18] [23671ms] === Build completed in 23.7s ===
+[2026-01-30 09:10:13] [0ms] === Build started for com.icontrol.protector ===
+[2026-01-30 09:10:13] [0ms] Starting: check_dependencies
+[2026-01-30 09:10:13] [32ms] Completed: check_dependencies (31.96ms)
+[2026-01-30 09:10:13] [32ms] Starting: prepare_work_dir
+[2026-01-30 09:10:17] [3617ms] Completed: prepare_work_dir (3585.32ms)
+[2026-01-30 09:10:17] [3617ms] Starting: modify_smali
+[2026-01-30 09:10:17] [3637ms] Completed: modify_smali (19.82ms)
+[2026-01-30 09:10:17] [3637ms] Starting: modify_manifest
+[2026-01-30 09:10:17] [3638ms] Completed: modify_manifest (0.17ms)
+[2026-01-30 09:10:17] [3638ms] Starting: modify_resources
+[2026-01-30 09:10:17] [3638ms] Completed: modify_resources (0.2ms)
+[2026-01-30 09:10:17] [3638ms] Starting: replace_icon
+[2026-01-30 09:10:17] [3654ms] Completed: replace_icon (16.66ms)
+[2026-01-30 09:10:17] [3655ms] Starting: encrypt_resources
+[2026-01-30 09:10:20] [7198ms] Completed: encrypt_resources (3543.27ms)
+[2026-01-30 09:10:20] [7198ms] Starting: build_apk
+[2026-01-30 09:10:34] [21134ms] Completed: build_apk (13935.67ms)
+[2026-01-30 09:10:34] [21134ms] Starting: sign_apk
+[2026-01-30 09:10:36] [23432ms] Completed: sign_apk (2298.62ms)
+[2026-01-30 09:10:36] [23432ms] Starting: move_output
+[2026-01-30 09:10:36] [23438ms] Completed: move_output (5.71ms)
+[2026-01-30 09:10:37] [23871ms] === Build completed in 23.9s ===
+[2026-01-30 09:11:21] [0ms] === Build started for com.icontrol.protector ===
+[2026-01-30 09:11:21] [0ms] Starting: check_dependencies
+[2026-01-30 09:11:21] [187ms] Completed: check_dependencies (186.53ms)
+[2026-01-30 09:11:21] [187ms] Starting: prepare_work_dir
+[2026-01-30 09:11:26] [4909ms] Completed: prepare_work_dir (4722.24ms)
+[2026-01-30 09:11:26] [4909ms] Starting: modify_smali
+[2026-01-30 09:11:26] [4942ms] Completed: modify_smali (32.59ms)
+[2026-01-30 09:11:26] [4942ms] Starting: modify_manifest
+[2026-01-30 09:11:26] [4942ms] Completed: modify_manifest (0.31ms)
+[2026-01-30 09:11:26] [4942ms] Starting: modify_resources
+[2026-01-30 09:11:26] [4942ms] Completed: modify_resources (0.22ms)
+[2026-01-30 09:11:26] [4942ms] Starting: replace_icon
+[2026-01-30 09:11:26] [4943ms] Completed: replace_icon (0.43ms)
+[2026-01-30 09:11:26] [4943ms] Starting: encrypt_resources
+[2026-01-30 09:11:26] [5011ms] Completed: encrypt_resources (68.33ms)
+[2026-01-30 09:11:26] [5011ms] Starting: build_apk
+[2026-01-30 09:11:39] [17339ms] Completed: build_apk (12327.72ms)
+[2026-01-30 09:11:39] [17339ms] Starting: sign_apk
+[2026-01-30 09:11:39] [18184ms] Completed: sign_apk (845.02ms)
+[2026-01-30 09:11:39] [18184ms] Starting: move_output
+[2026-01-30 09:11:39] [18194ms] Completed: move_output (9.99ms)
+[2026-01-30 09:11:40] [18693ms] === Build completed in 18.7s ===
+[2026-01-30 09:23:19] [0ms] === Build started for com.icontrol.protector ===
+[2026-01-30 09:23:19] [0ms] Starting: check_dependencies
+[2026-01-30 09:23:19] [268ms] Completed: check_dependencies (267.81ms)
+[2026-01-30 09:23:19] [268ms] Starting: prepare_work_dir
+[2026-01-30 09:23:23] [3928ms] Completed: prepare_work_dir (3659.52ms)
+[2026-01-30 09:23:23] [3928ms] Starting: modify_smali
+[2026-01-30 09:23:23] [3949ms] Completed: modify_smali (21.18ms)
+[2026-01-30 09:23:23] [3949ms] Starting: modify_manifest
+[2026-01-30 09:23:23] [3949ms] Completed: modify_manifest (0.18ms)
+[2026-01-30 09:23:23] [3949ms] Starting: modify_resources
+[2026-01-30 09:23:23] [3949ms] Completed: modify_resources (0.22ms)
+[2026-01-30 09:23:23] [3949ms] Starting: replace_icon
+[2026-01-30 09:23:23] [3950ms] Completed: replace_icon (0.65ms)
+[2026-01-30 09:23:23] [3950ms] Starting: encrypt_resources
+[2026-01-30 09:23:23] [4058ms] Completed: encrypt_resources (108.18ms)
+[2026-01-30 09:23:23] [4058ms] Starting: build_apk
+[2026-01-30 09:24:12] [53110ms] Completed: build_apk (49052.05ms)
+[2026-01-30 09:24:12] [53110ms] Starting: sign_apk
+[2026-01-30 09:24:16] [56975ms] Completed: sign_apk (3864.56ms)
+[2026-01-30 09:24:16] [56975ms] Starting: move_output
+[2026-01-30 09:24:16] [57020ms] Completed: move_output (44.83ms)
+[2026-01-30 09:24:16] [57400ms] === Build completed in 57.4s ===
+[2026-01-30 09:24:48] [0ms] === Build started for com.icontrol.protector ===
+[2026-01-30 09:24:48] [0ms] Starting: check_dependencies
+[2026-01-30 09:24:49] [835ms] Completed: check_dependencies (834.52ms)
+[2026-01-30 09:24:49] [835ms] Starting: prepare_work_dir
+[2026-01-30 09:25:01] [12591ms] Completed: prepare_work_dir (11755.92ms)
+[2026-01-30 09:25:01] [12591ms] Starting: modify_smali
+[2026-01-30 09:25:01] [12625ms] Completed: modify_smali (33.95ms)
+[2026-01-30 09:25:01] [12625ms] Starting: modify_manifest
+[2026-01-30 09:25:01] [12625ms] Completed: modify_manifest (0.25ms)
+[2026-01-30 09:25:01] [12625ms] Starting: modify_resources
+[2026-01-30 09:25:01] [12625ms] Completed: modify_resources (0.18ms)
+[2026-01-30 09:25:01] [12625ms] Starting: replace_icon
+[2026-01-30 09:25:01] [12626ms] Completed: replace_icon (0.28ms)
+[2026-01-30 09:25:01] [12626ms] Starting: encrypt_resources
+[2026-01-30 09:25:01] [12702ms] Completed: encrypt_resources (76.74ms)
+[2026-01-30 09:25:01] [12702ms] Starting: build_apk
+[2026-01-30 09:25:15] [26684ms] Completed: build_apk (13981.69ms)
+[2026-01-30 09:25:15] [26684ms] Starting: sign_apk
+[2026-01-30 09:25:18] [30300ms] Completed: sign_apk (3616.03ms)
+[2026-01-30 09:25:18] [30301ms] Starting: move_output
+[2026-01-30 09:25:18] [30314ms] Completed: move_output (13.35ms)
+[2026-01-30 09:25:19] [30767ms] === Build completed in 30.8s ===
+[2026-01-30 09:29:34] [0ms] === Build started for com.icontrol.protector ===
+[2026-01-30 09:29:34] [0ms] Starting: check_dependencies
+[2026-01-30 09:29:35] [59ms] Completed: check_dependencies (58.62ms)
+[2026-01-30 09:29:35] [59ms] Starting: prepare_work_dir
+[2026-01-30 09:31:59] [144582ms] Completed: prepare_work_dir (144523.03ms)
+[2026-01-30 09:31:59] [144582ms] Starting: modify_smali
+[2026-01-30 09:31:59] [144630ms] Completed: modify_smali (47.62ms)
+[2026-01-30 09:31:59] [144630ms] Starting: modify_manifest
+[2026-01-30 09:31:59] [144630ms] Completed: modify_manifest (0.14ms)
+[2026-01-30 09:31:59] [144630ms] Starting: modify_resources
+[2026-01-30 09:31:59] [144654ms] Completed: modify_resources (24.53ms)
+[2026-01-30 09:31:59] [144654ms] Starting: replace_icon
+[2026-01-30 09:31:59] [144678ms] Completed: replace_icon (23.22ms)
+[2026-01-30 09:31:59] [144678ms] Starting: encrypt_resources
+[2026-01-30 09:31:59] [144906ms] Completed: encrypt_resources (228.78ms)
+[2026-01-30 09:31:59] [144906ms] Starting: build_apk
+[2026-01-30 09:32:39] [0ms] === Build started for com.icontrol.protector ===
+[2026-01-30 09:32:39] [0ms] Starting: check_dependencies
+[2026-01-30 09:32:40] [852ms] Completed: check_dependencies (851.98ms)
+[2026-01-30 09:32:40] [852ms] Starting: prepare_work_dir
+[2026-01-30 09:33:31] [52113ms] Completed: prepare_work_dir (51260.8ms)
+[2026-01-30 09:33:31] [52113ms] Starting: modify_smali
+[2026-01-30 09:33:31] [52134ms] Completed: modify_smali (20.59ms)
+[2026-01-30 09:33:31] [52134ms] Starting: modify_manifest
+[2026-01-30 09:33:31] [52134ms] Completed: modify_manifest (0.18ms)
+[2026-01-30 09:33:31] [52134ms] Starting: modify_resources
+[2026-01-30 09:33:31] [52134ms] Completed: modify_resources (0.17ms)
+[2026-01-30 09:33:31] [52134ms] Starting: replace_icon
+[2026-01-30 09:33:31] [52179ms] Completed: replace_icon (44.5ms)
+[2026-01-30 09:33:31] [52179ms] Starting: encrypt_resources
+[2026-01-30 09:33:32] [52242ms] Completed: encrypt_resources (63.29ms)
+[2026-01-30 09:33:32] [52242ms] Starting: build_apk
+[2026-01-30 09:33:47] [67508ms] Completed: build_apk (15266.3ms)
+[2026-01-30 09:33:47] [67508ms] Starting: sign_apk
+[2026-01-30 09:33:48] [68948ms] Completed: sign_apk (1439.93ms)
+[2026-01-30 09:33:48] [68948ms] Starting: move_output
+[2026-01-30 09:33:48] [69027ms] Completed: move_output (78.71ms)
+[2026-01-30 09:33:49] [69390ms] === Build completed in 1.2min ===
+[2026-01-30 09:38:53] [0ms] === Build started for com.icontrol.protector ===
+[2026-01-30 09:38:53] [0ms] Starting: check_dependencies
+[2026-01-30 09:38:57] [3775ms] Completed: check_dependencies (3774.89ms)
+[2026-01-30 09:38:57] [3775ms] Starting: prepare_work_dir
+[2026-01-30 09:39:42] [49499ms] Completed: prepare_work_dir (45723.96ms)
+[2026-01-30 09:39:42] [49499ms] Starting: modify_smali
+[2026-01-30 09:39:42] [49520ms] Completed: modify_smali (20.84ms)
+[2026-01-30 09:39:42] [49520ms] Starting: modify_manifest
+[2026-01-30 09:39:42] [49545ms] Completed: modify_manifest (25.42ms)
+[2026-01-30 09:39:42] [49546ms] Starting: modify_resources
+[2026-01-30 09:39:42] [49546ms] Completed: modify_resources (0.29ms)
+[2026-01-30 09:39:42] [49546ms] Starting: replace_icon
+[2026-01-30 09:39:42] [49546ms] Completed: replace_icon (0.33ms)
+[2026-01-30 09:39:42] [49546ms] Starting: encrypt_resources
+[2026-01-30 09:39:42] [49619ms] Completed: encrypt_resources (72.27ms)
+[2026-01-30 09:39:42] [49619ms] Starting: build_apk
+[2026-01-30 09:39:58] [65038ms] Completed: build_apk (15419.87ms)
+[2026-01-30 09:39:58] [65050ms] Starting: sign_apk
+[2026-01-30 09:40:00] [66969ms] Completed: sign_apk (1919.13ms)
+[2026-01-30 09:40:00] [66970ms] Starting: move_output
+[2026-01-30 09:40:00] [67020ms] Completed: move_output (50.32ms)
+[2026-01-30 09:40:00] [67652ms] === Build completed in 1.1min ===
+[2026-01-30 09:47:49] [0ms] === Build started for com.icontrol.protector ===
+[2026-01-30 09:47:49] [0ms] Starting: check_dependencies
+[2026-01-30 09:47:49] [30ms] Completed: check_dependencies (29.49ms)
+[2026-01-30 09:47:49] [30ms] Starting: prepare_work_dir
+[2026-01-30 09:47:55] [6636ms] Completed: prepare_work_dir (6606.31ms)
+[2026-01-30 09:47:55] [6636ms] Starting: modify_smali
+[2026-01-30 09:47:55] [6705ms] Completed: modify_smali (68.72ms)
+[2026-01-30 09:47:55] [6705ms] Starting: modify_manifest
+[2026-01-30 09:47:55] [6705ms] Completed: modify_manifest (0.42ms)
+[2026-01-30 09:47:55] [6705ms] Starting: modify_resources
+[2026-01-30 09:47:55] [6706ms] Completed: modify_resources (0.41ms)
+[2026-01-30 09:47:55] [6706ms] Starting: replace_icon
+[2026-01-30 09:47:55] [6706ms] Completed: replace_icon (0.47ms)
+[2026-01-30 09:47:55] [6706ms] Starting: encrypt_resources
+[2026-01-30 09:47:55] [6779ms] Completed: encrypt_resources (72.72ms)
+[2026-01-30 09:47:55] [6779ms] Starting: build_apk
+[2026-01-30 09:48:12] [23026ms] Completed: build_apk (16246.44ms)
+[2026-01-30 09:48:12] [23026ms] Starting: sign_apk
+[2026-01-30 09:48:13] [24023ms] Completed: sign_apk (997.27ms)
+[2026-01-30 09:48:13] [24023ms] Starting: move_output
+[2026-01-30 09:48:13] [24030ms] Completed: move_output (6.96ms)
+[2026-01-30 09:48:13] [24473ms] === Build completed in 24.5s ===
+[2026-01-30 09:52:35] [0ms] === Build started for com.icontrol.protector ===
+[2026-01-30 09:52:35] [0ms] Starting: check_dependencies
+[2026-01-30 09:52:35] [28ms] Completed: check_dependencies (27.82ms)
+[2026-01-30 09:52:35] [28ms] Starting: prepare_work_dir
+[2026-01-30 09:52:36] [1483ms] Completed: prepare_work_dir (1454.84ms)
+[2026-01-30 09:52:36] [1483ms] Starting: modify_smali
+[2026-01-30 09:52:36] [1525ms] Completed: modify_smali (41.73ms)
+[2026-01-30 09:52:36] [1525ms] Starting: modify_manifest
+[2026-01-30 09:52:36] [1525ms] Completed: modify_manifest (0.29ms)
+[2026-01-30 09:52:36] [1525ms] Starting: modify_resources
+[2026-01-30 09:52:36] [1525ms] Completed: modify_resources (0.18ms)
+[2026-01-30 09:52:36] [1525ms] Starting: replace_icon
+[2026-01-30 09:52:36] [1526ms] Completed: replace_icon (0.31ms)
+[2026-01-30 09:52:36] [1526ms] Starting: encrypt_resources
+[2026-01-30 09:52:36] [1587ms] Completed: encrypt_resources (61.7ms)
+[2026-01-30 09:52:36] [1587ms] Starting: build_apk
+[2026-01-30 09:52:52] [17027ms] Completed: build_apk (15423.53ms)
+[2026-01-30 09:52:52] [17027ms] Starting: sign_apk
+[2026-01-30 09:52:53] [17998ms] Completed: sign_apk (971.34ms)
+[2026-01-30 09:52:53] [17998ms] Starting: move_output
+[2026-01-30 09:52:53] [18029ms] Completed: move_output (31.17ms)
+[2026-01-30 09:52:54] [19482ms] === Build completed in 19.5s ===
+[2026-01-30 10:20:17] [0ms] === Build started for com.icontrol.protector ===
+[2026-01-30 10:20:17] [0ms] Starting: check_dependencies
+[2026-01-30 10:20:18] [488ms] Completed: check_dependencies (487.35ms)
+[2026-01-30 10:20:18] [488ms] Starting: prepare_work_dir
+[2026-01-30 10:20:23] [5449ms] Completed: prepare_work_dir (4960.9ms)
+[2026-01-30 10:20:23] [5449ms] Starting: modify_smali
+[2026-01-30 10:20:23] [5806ms] Completed: modify_smali (357.81ms)
+[2026-01-30 10:20:23] [5806ms] Starting: modify_manifest
+[2026-01-30 10:20:23] [5844ms] Completed: modify_manifest (37.28ms)
+[2026-01-30 10:20:23] [5844ms] Starting: modify_resources
+[2026-01-30 10:20:23] [5844ms] Completed: modify_resources (0.23ms)
+[2026-01-30 10:20:23] [5844ms] Starting: replace_icon
+[2026-01-30 10:20:23] [5844ms] Completed: replace_icon (0.29ms)
+[2026-01-30 10:20:23] [5844ms] Starting: encrypt_resources
+[2026-01-30 10:20:23] [5941ms] Completed: encrypt_resources (96.27ms)
+[2026-01-30 10:20:23] [5941ms] Starting: build_apk
+[2026-01-30 10:20:44] [26570ms] Completed: build_apk (20629.48ms)
+[2026-01-30 10:20:44] [26589ms] Starting: sign_apk
+[2026-01-30 10:20:46] [28093ms] Completed: sign_apk (1503.92ms)
+[2026-01-30 10:20:46] [28093ms] Starting: move_output
+[2026-01-30 10:20:46] [28204ms] Completed: move_output (110.87ms)
+[2026-01-30 10:20:46] [28724ms] === Build completed in 28.7s ===
+[2026-01-30 10:31:32] [0ms] === Build started for com.icontrol.protector ===
+[2026-01-30 10:31:32] [32ms] Starting: check_dependencies
+[2026-01-30 10:31:33] [841ms] Completed: check_dependencies (808.59ms)
+[2026-01-30 10:31:33] [841ms] Starting: prepare_work_dir
+[2026-01-30 10:31:48] [16092ms] Completed: prepare_work_dir (15251.12ms)
+[2026-01-30 10:31:48] [16092ms] Starting: modify_smali
+[2026-01-30 10:31:48] [16164ms] Completed: modify_smali (72.13ms)
+[2026-01-30 10:31:48] [16165ms] Starting: modify_manifest
+[2026-01-30 10:31:48] [16170ms] Completed: modify_manifest (5.1ms)
+[2026-01-30 10:31:48] [16170ms] Starting: modify_resources
+[2026-01-30 10:31:48] [16170ms] Completed: modify_resources (0.24ms)
+[2026-01-30 10:31:48] [16170ms] Starting: replace_icon
+[2026-01-30 10:31:48] [16184ms] Completed: replace_icon (13.63ms)
+[2026-01-30 10:31:48] [16184ms] Starting: encrypt_resources
+[2026-01-30 10:31:48] [16185ms] Completed: encrypt_resources (1.79ms)
+[2026-01-30 10:31:48] [16185ms] Starting: build_apk
+[2026-01-30 10:32:06] [33932ms] Completed: build_apk (17746.6ms)
+[2026-01-30 10:32:06] [33932ms] Starting: sign_apk
+[2026-01-30 10:32:07] [35560ms] Completed: sign_apk (1627.95ms)
+[2026-01-30 10:32:07] [35560ms] Starting: move_output
+[2026-01-30 10:32:07] [35622ms] Completed: move_output (61.9ms)
+[2026-01-30 10:32:08] [36028ms] === Build completed in 36s ===
+[2026-01-30 10:52:04] [0ms] === Build started for com.icontrol.protector ===
+[2026-01-30 10:52:04] [0ms] Starting: check_dependencies
+[2026-01-30 10:52:04] [178ms] Completed: check_dependencies (178.12ms)
+[2026-01-30 10:52:04] [178ms] Starting: prepare_work_dir
+[2026-01-30 10:52:08] [4186ms] Completed: prepare_work_dir (4007.4ms)
+[2026-01-30 10:52:08] [4186ms] Starting: modify_smali
+[2026-01-30 10:52:08] [4227ms] Completed: modify_smali (41.26ms)
+[2026-01-30 10:52:08] [4227ms] Starting: modify_manifest
+[2026-01-30 10:52:08] [4228ms] Completed: modify_manifest (0.42ms)
+[2026-01-30 10:52:08] [4228ms] Starting: modify_resources
+[2026-01-30 10:52:08] [4228ms] Completed: modify_resources (0.27ms)
+[2026-01-30 10:52:08] [4228ms] Starting: replace_icon
+[2026-01-30 10:52:08] [4345ms] Completed: replace_icon (117.03ms)
+[2026-01-30 10:52:08] [4345ms] Starting: encrypt_resources
+[2026-01-30 10:52:08] [4347ms] Completed: encrypt_resources (1.74ms)
+[2026-01-30 10:52:08] [4347ms] Starting: build_apk
+[2026-01-30 10:52:25] [21587ms] Completed: build_apk (17240.28ms)
+[2026-01-30 10:52:25] [21588ms] Starting: sign_apk
+[2026-01-30 10:52:26] [22239ms] Completed: sign_apk (651.89ms)
+[2026-01-30 10:52:26] [22239ms] Starting: move_output
+[2026-01-30 10:52:26] [22250ms] Completed: move_output (10.46ms)
+[2026-01-30 10:52:26] [22688ms] === Build completed in 22.7s ===
+[2026-01-30 10:59:10] [0ms] === Build started for com.icontrol.protector ===
+[2026-01-30 10:59:10] [11ms] Starting: check_dependencies
+[2026-01-30 10:59:11] [55ms] Completed: check_dependencies (43.71ms)
+[2026-01-30 10:59:11] [55ms] Starting: prepare_work_dir
+[2026-01-30 10:59:15] [4257ms] Completed: prepare_work_dir (4201.84ms)
+[2026-01-30 10:59:15] [4257ms] Starting: modify_smali
+[2026-01-30 10:59:15] [4300ms] Completed: modify_smali (43.02ms)
+[2026-01-30 10:59:15] [4300ms] Starting: modify_manifest
+[2026-01-30 10:59:15] [4300ms] Completed: modify_manifest (0.29ms)
+[2026-01-30 10:59:15] [4300ms] Starting: modify_resources
+[2026-01-30 10:59:15] [4301ms] Completed: modify_resources (0.19ms)
+[2026-01-30 10:59:15] [4301ms] Starting: replace_icon
+[2026-01-30 10:59:15] [4301ms] Completed: replace_icon (0.34ms)
+[2026-01-30 10:59:15] [4301ms] Starting: encrypt_resources
+[2026-01-30 10:59:15] [4303ms] Completed: encrypt_resources (1.89ms)
+[2026-01-30 10:59:15] [4303ms] Starting: build_apk
+[2026-01-30 10:59:29] [18318ms] Completed: build_apk (14015.44ms)
+[2026-01-30 10:59:29] [18319ms] Starting: sign_apk
+[2026-01-30 10:59:30] [19427ms] Completed: sign_apk (1108.21ms)
+[2026-01-30 10:59:30] [19427ms] Starting: move_output
+[2026-01-30 10:59:30] [19436ms] Completed: move_output (8.78ms)
+[2026-01-30 10:59:30] [19964ms] === Build completed in 20s ===
+[2026-01-30 11:14:02] [0ms] === Build started for com.icontrol.protector ===
+[2026-01-30 11:14:02] [0ms] Starting: check_dependencies
+[2026-01-30 11:14:02] [30ms] Completed: check_dependencies (29.6ms)
+[2026-01-30 11:14:02] [30ms] Starting: prepare_work_dir
+[2026-01-30 11:14:04] [2264ms] Completed: prepare_work_dir (2234.58ms)
+[2026-01-30 11:14:04] [2264ms] Starting: modify_smali
+[2026-01-30 11:14:05] [2593ms] Completed: modify_smali (328.02ms)
+[2026-01-30 11:14:05] [2593ms] Starting: modify_manifest
+[2026-01-30 11:14:05] [2593ms] Completed: modify_manifest (0.24ms)
+[2026-01-30 11:14:05] [2593ms] Starting: modify_resources
+[2026-01-30 11:14:05] [2593ms] Completed: modify_resources (0.17ms)
+[2026-01-30 11:14:05] [2593ms] Starting: replace_icon
+[2026-01-30 11:14:05] [2593ms] Completed: replace_icon (0.32ms)
+[2026-01-30 11:14:05] [2593ms] Starting: encrypt_resources
+[2026-01-30 11:14:05] [2595ms] Completed: encrypt_resources (2.05ms)
+[2026-01-30 11:14:05] [2596ms] Starting: build_apk
+[2026-01-30 11:14:24] [21777ms] Completed: build_apk (19181.55ms)
+[2026-01-30 11:14:24] [21813ms] Starting: sign_apk
+[2026-01-30 11:14:25] [23327ms] Completed: sign_apk (1514.43ms)
+[2026-01-30 11:14:25] [23327ms] Starting: move_output
+[2026-01-30 11:14:25] [23501ms] Completed: move_output (173.09ms)
+[2026-01-30 11:14:26] [23931ms] === Build completed in 23.9s ===
+[2026-01-30 11:28:16] [0ms] === Build started for com.icontrol.protector ===
+[2026-01-30 11:28:16] [0ms] Starting: check_dependencies
+[2026-01-30 11:28:16] [26ms] Completed: check_dependencies (25.68ms)
+[2026-01-30 11:28:16] [26ms] Starting: prepare_work_dir
+[2026-01-30 11:28:18] [1596ms] Completed: prepare_work_dir (1570.58ms)
+[2026-01-30 11:28:18] [1597ms] Starting: modify_smali
+[2026-01-30 11:28:18] [1753ms] Completed: modify_smali (156.43ms)
+[2026-01-30 11:28:18] [1753ms] Starting: modify_manifest
+[2026-01-30 11:28:18] [1753ms] Completed: modify_manifest (0.26ms)
+[2026-01-30 11:28:18] [1753ms] Starting: modify_resources
+[2026-01-30 11:28:18] [1754ms] Completed: modify_resources (0.27ms)
+[2026-01-30 11:28:18] [1754ms] Starting: replace_icon
+[2026-01-30 11:28:18] [1754ms] Completed: replace_icon (0.4ms)
+[2026-01-30 11:28:18] [1754ms] Starting: encrypt_resources
+[2026-01-30 11:28:18] [1756ms] Completed: encrypt_resources (2.07ms)
+[2026-01-30 11:28:18] [1756ms] Starting: build_apk
+[2026-01-30 11:28:51] [35066ms] Completed: build_apk (33309.47ms)
+[2026-01-30 11:28:51] [35066ms] Starting: sign_apk
+[2026-01-30 11:28:52] [36240ms] Completed: sign_apk (1173.45ms)
+[2026-01-30 11:28:52] [36240ms] Starting: move_output
+[2026-01-30 11:28:52] [36247ms] Completed: move_output (7.69ms)
+[2026-01-30 11:28:53] [36830ms] === Build completed in 36.8s ===
+[2026-01-30 11:42:48] [0ms] === Build started for com.icontrol.protector ===
+[2026-01-30 11:42:48] [0ms] Starting: check_dependencies
+[2026-01-30 11:42:48] [35ms] Completed: check_dependencies (35.24ms)
+[2026-01-30 11:42:48] [35ms] Starting: prepare_work_dir
+[2026-01-30 11:42:49] [1660ms] Completed: prepare_work_dir (1624.38ms)
+[2026-01-30 11:42:49] [1660ms] Starting: modify_smali
+[2026-01-30 11:42:50] [1972ms] Completed: modify_smali (312.07ms)
+[2026-01-30 11:42:50] [1972ms] Starting: modify_manifest
+[2026-01-30 11:42:50] [1972ms] Completed: modify_manifest (0.3ms)
+[2026-01-30 11:42:50] [1972ms] Starting: modify_resources
+[2026-01-30 11:42:50] [1973ms] Completed: modify_resources (0.19ms)
+[2026-01-30 11:42:50] [1973ms] Starting: replace_icon
+[2026-01-30 11:42:50] [1973ms] Completed: replace_icon (0.3ms)
+[2026-01-30 11:42:50] [1973ms] Starting: replace_background
+[2026-01-30 11:42:50] [1973ms] Background: downloading from URL
+[2026-01-30 11:43:20] [32017ms] Background: download failed (HTTP 0), using default
+[2026-01-30 11:43:20] [32017ms] Completed: replace_background (30044.22ms)
+[2026-01-30 11:43:20] [32017ms] Starting: encrypt_resources
+[2026-01-30 11:43:20] [32020ms] Completed: encrypt_resources (2.46ms)
+[2026-01-30 11:43:20] [32020ms] Starting: build_apk
+[2026-01-30 11:43:46] [58899ms] Completed: build_apk (26878.9ms)
+[2026-01-30 11:43:46] [58909ms] Starting: sign_apk
+[2026-01-30 11:43:49] [61224ms] Completed: sign_apk (2315.04ms)
+[2026-01-30 11:43:49] [61224ms] Starting: move_output
+[2026-01-30 11:43:49] [61270ms] Completed: move_output (45.95ms)
+[2026-01-30 11:43:50] [62536ms] === Build completed in 1min ===
+[2026-01-30 11:45:35] [0ms] === Build started for com.icontrol.protector ===
+[2026-01-30 11:45:35] [0ms] Starting: check_dependencies
+[2026-01-30 11:45:35] [31ms] Completed: check_dependencies (30.52ms)
+[2026-01-30 11:45:35] [31ms] Starting: prepare_work_dir
+[2026-01-30 11:46:09] [33633ms] Completed: prepare_work_dir (33602.38ms)
+[2026-01-30 11:46:09] [33633ms] Starting: modify_smali
+[2026-01-30 11:46:09] [33688ms] Completed: modify_smali (55.13ms)
+[2026-01-30 11:46:09] [33689ms] Starting: modify_manifest
+[2026-01-30 11:46:09] [33690ms] Completed: modify_manifest (1.08ms)
+[2026-01-30 11:46:09] [33690ms] Starting: modify_resources
+[2026-01-30 11:46:09] [33691ms] Completed: modify_resources (0.81ms)
+[2026-01-30 11:46:09] [33691ms] Starting: replace_icon
+[2026-01-30 11:46:09] [33730ms] Completed: replace_icon (39.83ms)
+[2026-01-30 11:46:09] [33731ms] Starting: replace_background
+[2026-01-30 11:46:09] [33731ms] Background: using local file: 13c1a4a20a91b6dc649e31be41c253ed.png
+[2026-01-30 11:46:09] [33754ms] Background: replaced 1 mylogo.png files
+[2026-01-30 11:46:09] [33754ms] Completed: replace_background (23.47ms)
+[2026-01-30 11:46:09] [33754ms] Starting: encrypt_resources
+[2026-01-30 11:46:09] [33757ms] Completed: encrypt_resources (2.87ms)
+[2026-01-30 11:46:09] [33757ms] Starting: build_apk
+[2026-01-30 11:46:37] [61510ms] Completed: build_apk (27752.47ms)
+[2026-01-30 11:46:37] [61538ms] Starting: sign_apk
+[2026-01-30 11:46:39] [63996ms] Completed: sign_apk (2458.11ms)
+[2026-01-30 11:46:39] [63996ms] Starting: move_output
+[2026-01-30 11:46:39] [64005ms] Completed: move_output (8.23ms)
+[2026-01-30 11:46:40] [64465ms] === Build completed in 1.1min ===
+[2026-01-30 12:23:03] [0ms] === Build started for com.icontrol.protector ===
+[2026-01-30 12:23:03] [0ms] Starting: check_dependencies
+[2026-01-30 12:23:03] [217ms] Completed: check_dependencies (216.62ms)
+[2026-01-30 12:23:03] [217ms] Starting: prepare_work_dir
+[2026-01-30 12:23:18] [14473ms] Completed: prepare_work_dir (14255.8ms)
+[2026-01-30 12:23:18] [14473ms] Starting: modify_smali
+[2026-01-30 12:23:18] [14549ms] Completed: modify_smali (76.39ms)
+[2026-01-30 12:23:18] [14549ms] Starting: modify_manifest
+[2026-01-30 12:23:18] [14581ms] Completed: modify_manifest (31.38ms)
+[2026-01-30 12:23:18] [14581ms] Starting: modify_resources
+[2026-01-30 12:23:18] [14582ms] Completed: modify_resources (0.92ms)
+[2026-01-30 12:23:18] [14582ms] Starting: replace_icon
+[2026-01-30 12:23:18] [14603ms] Completed: replace_icon (21.61ms)
+[2026-01-30 12:23:18] [14603ms] Starting: replace_background
+[2026-01-30 12:23:18] [14617ms] Background: using local file: storage/user/ui/y1.png
+[2026-01-30 12:23:18] [14623ms] Background: replaced blackui.png
+[2026-01-30 12:23:18] [14623ms] Completed: replace_background (19.41ms)
+[2026-01-30 12:23:18] [14623ms] Starting: encrypt_resources
+[2026-01-30 12:23:18] [14688ms] Completed: encrypt_resources (65.12ms)
+[2026-01-30 12:23:18] [14688ms] Starting: build_apk
+[2026-01-30 12:30:18] [0ms] === Build started for com.icontrol.protector ===
+[2026-01-30 12:30:18] [0ms] Starting: check_dependencies
+[2026-01-30 12:30:20] [2160ms] Completed: check_dependencies (2159.64ms)
+[2026-01-30 12:30:20] [2160ms] Starting: prepare_work_dir
+[2026-01-30 12:33:30] [192086ms] Completed: prepare_work_dir (189925.95ms)
+[2026-01-30 12:33:30] [192086ms] Starting: modify_smali
+[2026-01-30 12:33:30] [192125ms] Completed: modify_smali (38.61ms)
+[2026-01-30 12:33:30] [192125ms] Starting: modify_manifest
+[2026-01-30 12:33:30] [192125ms] Completed: modify_manifest (0.15ms)
+[2026-01-30 12:33:30] [192125ms] Starting: modify_resources
+[2026-01-30 12:33:30] [192125ms] Completed: modify_resources (0.2ms)
+[2026-01-30 12:33:30] [192125ms] Starting: replace_icon
+[2026-01-30 12:33:30] [192144ms] Completed: replace_icon (18.89ms)
+[2026-01-30 12:33:30] [192144ms] Starting: replace_background
+[2026-01-30 12:33:30] [192144ms] Background: using local file: storage/user/ui/y1.png
+[2026-01-30 12:33:30] [192275ms] Background: replaced blackui.png
+[2026-01-30 12:33:30] [192275ms] Completed: replace_background (130.98ms)
+[2026-01-30 12:33:30] [192275ms] Starting: encrypt_resources
+[2026-01-30 12:33:30] [192305ms] Completed: encrypt_resources (30.44ms)
+[2026-01-30 12:33:30] [192305ms] Starting: build_apk
+[2026-01-30 12:34:12] [234609ms] Completed: build_apk (42303.16ms)
+[2026-01-30 12:34:12] [234609ms] Starting: sign_apk
+[2026-01-30 12:34:18] [240111ms] Completed: sign_apk (5502.19ms)
+[2026-01-30 12:34:18] [240111ms] Starting: move_output
+[2026-01-30 12:34:18] [240152ms] Completed: move_output (41ms)
+[2026-01-30 12:34:18] [240481ms] === Build completed in 4min ===
+[2026-01-30 12:36:52] [0ms] === Build started for com.icontrol.protector ===
+[2026-01-30 12:36:52] [0ms] Starting: check_dependencies
+[2026-01-30 12:36:52] [29ms] Completed: check_dependencies (29.24ms)
+[2026-01-30 12:36:52] [29ms] Starting: prepare_work_dir
+[2026-01-30 12:38:58] [125761ms] Completed: prepare_work_dir (125731.38ms)
+[2026-01-30 12:38:58] [125761ms] Starting: modify_smali
+[2026-01-30 12:38:58] [125803ms] Completed: modify_smali (42.12ms)
+[2026-01-30 12:38:58] [125803ms] Starting: modify_manifest
+[2026-01-30 12:38:58] [125803ms] Completed: modify_manifest (0.2ms)
+[2026-01-30 12:38:58] [125803ms] Starting: modify_resources
+[2026-01-30 12:38:58] [125803ms] Completed: modify_resources (0.17ms)
+[2026-01-30 12:38:58] [125803ms] Starting: replace_icon
+[2026-01-30 12:38:58] [125816ms] Icon: replaced with 33d9a1c82517bc3312f314adc3a40c60.png
+[2026-01-30 12:38:58] [125816ms] Completed: replace_icon (12.55ms)
+[2026-01-30 12:38:58] [125816ms] Starting: replace_background
+[2026-01-30 12:38:58] [125816ms] Background: using local file: storage/user/ui/y1.png
+[2026-01-30 12:38:58] [125822ms] Background: replaced blackui.png
+[2026-01-30 12:38:58] [125823ms] Completed: replace_background (6.48ms)
+[2026-01-30 12:38:58] [125823ms] Starting: encrypt_resources
+[2026-01-30 12:38:58] [125826ms] Completed: encrypt_resources (3.26ms)
+[2026-01-30 12:38:58] [125826ms] Starting: build_apk
+[2026-01-30 12:39:10] [137782ms] Completed: build_apk (11955.85ms)
+[2026-01-30 12:39:10] [137782ms] Starting: sign_apk
+[2026-01-30 12:39:15] [142805ms] Completed: sign_apk (5022.82ms)
+[2026-01-30 12:39:15] [142805ms] Starting: move_output
+[2026-01-30 12:39:15] [142811ms] Completed: move_output (6.68ms)
+[2026-01-30 12:39:15] [143190ms] === Build completed in 2.4min ===
+[2026-01-30 12:42:26] [0ms] === Build started for com.icontrol.protector ===
+[2026-01-30 12:42:26] [0ms] Starting: check_dependencies
+[2026-01-30 12:42:26] [37ms] Completed: check_dependencies (37.08ms)
+[2026-01-30 12:42:26] [37ms] Starting: prepare_work_dir
+[2026-01-30 12:42:27] [1010ms] Completed: prepare_work_dir (972.75ms)
+[2026-01-30 12:42:27] [1010ms] Starting: modify_smali
+[2026-01-30 12:42:27] [1052ms] Completed: modify_smali (42.12ms)
+[2026-01-30 12:42:27] [1052ms] Starting: modify_manifest
+[2026-01-30 12:42:27] [1052ms] Completed: modify_manifest (0.14ms)
+[2026-01-30 12:42:27] [1052ms] Starting: modify_resources
+[2026-01-30 12:42:28] [1996ms] Completed: modify_resources (943.6ms)
+[2026-01-30 12:42:28] [1996ms] Starting: replace_icon
+[2026-01-30 12:42:28] [1996ms] Icon: replaced with 33d9a1c82517bc3312f314adc3a40c60.png
+[2026-01-30 12:42:28] [1996ms] Completed: replace_icon (0.27ms)
+[2026-01-30 12:42:28] [1996ms] Starting: replace_background
+[2026-01-30 12:42:28] [1996ms] Background: using local file: storage/user/ui/y1.png
+[2026-01-30 12:42:29] [2159ms] Background: replaced blackui.png
+[2026-01-30 12:42:29] [2159ms] Completed: replace_background (162.58ms)
+[2026-01-30 12:42:29] [2159ms] Starting: encrypt_resources
+[2026-01-30 12:42:29] [2161ms] Completed: encrypt_resources (1.84ms)
+[2026-01-30 12:42:29] [2161ms] Starting: build_apk
+[2026-01-30 12:42:40] [13307ms] Completed: build_apk (11146.08ms)
+[2026-01-30 12:42:40] [13307ms] Starting: sign_apk
+[2026-01-30 12:42:40] [14034ms] Completed: sign_apk (726.84ms)
+[2026-01-30 12:42:40] [14034ms] Starting: move_output
+[2026-01-30 12:42:40] [14044ms] Completed: move_output (9.99ms)
+[2026-01-30 12:42:41] [14430ms] === Build completed in 14.4s ===
+[2026-01-30 22:49:09] [0ms] === Build started for com.test.build ===
+[2026-01-30 22:49:09] [12ms] Starting: check_dependencies
+[2026-01-30 22:49:09] [678ms] Completed: check_dependencies (665.74ms)
+[2026-01-30 22:49:09] [678ms] Starting: prepare_work_dir
+[2026-01-30 22:50:34] [85324ms] Completed: prepare_work_dir (84646.77ms)
+[2026-01-30 22:50:34] [85324ms] Starting: modify_smali
+[2026-01-30 22:50:34] [85361ms] Completed: modify_smali (36.72ms)
+[2026-01-30 22:50:34] [85361ms] Starting: modify_manifest
+[2026-01-30 22:50:39] [90121ms] ERROR: mkdir(): File exists
+[2026-01-30 23:04:27] [0ms] === Build started for com.test.build ===
+[2026-01-30 23:04:27] [7ms] Starting: check_dependencies
+[2026-01-30 23:04:28] [409ms] Completed: check_dependencies (402.23ms)
+[2026-01-30 23:04:28] [409ms] Starting: prepare_work_dir
+[2026-01-30 23:04:33] [5983ms] Completed: prepare_work_dir (5574.51ms)
+[2026-01-30 23:04:33] [5983ms] Starting: modify_smali
+[2026-01-30 23:04:33] [6021ms] Completed: modify_smali (37.54ms)
+[2026-01-30 23:04:33] [6021ms] Starting: modify_manifest
+[2026-01-30 23:04:43] [15563ms] Completed: modify_manifest (9542.43ms)
+[2026-01-30 23:04:43] [15564ms] Starting: modify_resources
+[2026-01-30 23:04:43] [15564ms] Completed: modify_resources (0.17ms)
+[2026-01-30 23:04:43] [15564ms] Starting: replace_icon
+[2026-01-30 23:04:43] [15629ms] Icon: replaced with 33d9a1c82517bc3312f314adc3a40c60.png
+[2026-01-30 23:04:43] [15629ms] Completed: replace_icon (65.45ms)
+[2026-01-30 23:04:43] [15629ms] Starting: replace_background
+[2026-01-30 23:04:43] [15629ms] Background: file not found (C:\xampp\htdocs\user\ui\6ad2a99e946182249eaa8f99ee70db85.png), using default black
+[2026-01-30 23:04:43] [15632ms] Background: deleted blackui.png
+[2026-01-30 23:04:43] [15633ms] Background: removed blackui from public.xml
+[2026-01-30 23:04:43] [15633ms] Completed: replace_background (3.63ms)
+[2026-01-30 23:04:43] [15633ms] Starting: encrypt_resources
+[2026-01-30 23:04:43] [15634ms] Completed: encrypt_resources (1.24ms)
+[2026-01-30 23:04:43] [15634ms] Starting: build_apk
+[2026-01-30 23:04:50] [22712ms] Completed: build_apk (7077.57ms)
+[2026-01-30 23:04:50] [22712ms] Starting: sign_apk
+[2026-01-30 23:04:51] [23376ms] Completed: sign_apk (664.57ms)
+[2026-01-30 23:04:51] [23376ms] Starting: move_output
+[2026-01-30 23:04:51] [23380ms] Completed: move_output (3.87ms)
+[2026-01-30 23:04:51] [23710ms] === Build completed in 23.7s ===
+[2026-01-30 23:12:03] [0ms] === Build started for com.test.apk ===
+[2026-01-30 23:12:03] [0ms] Starting: check_dependencies
+[2026-01-30 23:12:03] [19ms] Completed: check_dependencies (18.87ms)
+[2026-01-30 23:12:03] [19ms] Starting: prepare_work_dir
+[2026-01-30 23:12:04] [1117ms] Completed: prepare_work_dir (1098.34ms)
+[2026-01-30 23:12:04] [1117ms] Starting: modify_smali
+[2026-01-30 23:12:04] [1158ms] Completed: modify_smali (40.7ms)
+[2026-01-30 23:12:04] [1158ms] Starting: modify_manifest
+[2026-01-30 23:12:08] [4861ms] Completed: modify_manifest (3703.1ms)
+[2026-01-30 23:12:08] [4861ms] Starting: modify_resources
+[2026-01-30 23:12:08] [4861ms] Completed: modify_resources (0.14ms)
+[2026-01-30 23:12:08] [4861ms] Starting: replace_icon
+[2026-01-30 23:12:08] [4862ms] Icon: replaced with 33d9a1c82517bc3312f314adc3a40c60.png
+[2026-01-30 23:12:08] [4862ms] Completed: replace_icon (0.34ms)
+[2026-01-30 23:12:08] [4862ms] Starting: replace_background
+[2026-01-30 23:12:08] [4862ms] Background: file not found (C:\xampp\htdocs\user\ui\13c1a4a20a91b6dc649e31be41c253ed.png), using default black
+[2026-01-30 23:12:08] [4864ms] Background: deleted blackui.png
+[2026-01-30 23:12:08] [4865ms] Background: removed blackui from public.xml
+[2026-01-30 23:12:08] [4865ms] Completed: replace_background (3.47ms)
+[2026-01-30 23:12:08] [4865ms] Starting: encrypt_resources
+[2026-01-30 23:12:08] [4867ms] Completed: encrypt_resources (1.27ms)
+[2026-01-30 23:12:08] [4867ms] Starting: build_apk
+[2026-01-30 23:12:17] [14772ms] Completed: build_apk (9905.91ms)
+[2026-01-30 23:12:17] [14773ms] Starting: sign_apk
+[2026-01-30 23:12:18] [15202ms] Completed: sign_apk (429.19ms)
+[2026-01-30 23:12:18] [15202ms] Starting: move_output
+[2026-01-30 23:12:18] [15206ms] Completed: move_output (4.02ms)
+[2026-01-30 23:12:18] [15539ms] === Build completed in 15.5s ===
+[2026-01-30 23:20:21] [13ms] === Build started for com.test.apk ===
+[2026-01-30 23:20:21] [13ms] Starting: check_dependencies
+[2026-01-30 23:20:21] [439ms] Completed: check_dependencies (426.4ms)
+[2026-01-30 23:20:21] [439ms] Starting: prepare_work_dir
+[2026-01-30 23:20:25] [4102ms] Completed: prepare_work_dir (3662.92ms)
+[2026-01-30 23:20:25] [4102ms] Starting: modify_smali
+[2026-01-30 23:20:25] [4141ms] Completed: modify_smali (38.3ms)
+[2026-01-30 23:20:25] [4141ms] Starting: modify_manifest
+[2026-01-30 23:20:30] [8812ms] Completed: modify_manifest (4671.05ms)
+[2026-01-30 23:20:30] [8812ms] Starting: modify_resources
+[2026-01-30 23:20:30] [8812ms] Completed: modify_resources (0.11ms)
+[2026-01-30 23:20:30] [8812ms] Starting: replace_icon
+[2026-01-30 23:20:30] [9006ms] Icon: replaced with 33d9a1c82517bc3312f314adc3a40c60.png
+[2026-01-30 23:20:30] [9006ms] Completed: replace_icon (194.29ms)
+[2026-01-30 23:20:30] [9006ms] Starting: replace_background
+[2026-01-30 23:20:30] [9006ms] Background: file not found (C:\xampp\htdocs\user\ui\13c1a4a20a91b6dc649e31be41c253ed.png), using default black
+[2026-01-30 23:20:30] [9009ms] Background: deleted blackui.png
+[2026-01-30 23:20:30] [9010ms] Background: removed blackui from public.xml
+[2026-01-30 23:20:30] [9010ms] Completed: replace_background (3.83ms)
+[2026-01-30 23:20:30] [9010ms] Starting: encrypt_resources
+[2026-01-30 23:20:30] [9011ms] Completed: encrypt_resources (1.32ms)
+[2026-01-30 23:20:30] [9012ms] Starting: build_apk
+[2026-01-30 23:20:46] [25211ms] Completed: build_apk (16199.36ms)
+[2026-01-30 23:20:46] [25211ms] Starting: sign_apk
+[2026-01-30 23:20:47] [26003ms] Completed: sign_apk (792.36ms)
+[2026-01-30 23:20:47] [26003ms] Starting: move_output
+[2026-01-30 23:20:47] [26004ms] ERROR: mkdir(): File exists
+[2026-01-30 23:25:35] [0ms] === Build started for com.test.apk ===
+[2026-01-30 23:25:35] [0ms] Starting: check_dependencies
+[2026-01-30 23:25:35] [22ms] Completed: check_dependencies (21.86ms)
+[2026-01-30 23:25:35] [22ms] Starting: prepare_work_dir
+[2026-01-30 23:25:39] [4610ms] Completed: prepare_work_dir (4588.4ms)
+[2026-01-30 23:25:39] [4611ms] Starting: modify_smali
+[2026-01-30 23:25:39] [4649ms] Completed: modify_smali (38.59ms)
+[2026-01-30 23:25:39] [4649ms] Starting: modify_manifest
+[2026-01-30 23:25:46] [11242ms] Completed: modify_manifest (6592.69ms)
+[2026-01-30 23:25:46] [11242ms] Starting: modify_resources
+[2026-01-30 23:25:46] [11485ms] Completed: modify_resources (242.7ms)
+[2026-01-30 23:25:46] [11485ms] Starting: replace_icon
+[2026-01-30 23:25:46] [11485ms] Icon: replaced with 33d9a1c82517bc3312f314adc3a40c60.png
+[2026-01-30 23:25:46] [11485ms] Completed: replace_icon (0.4ms)
+[2026-01-30 23:25:46] [11485ms] Starting: replace_background
+[2026-01-30 23:25:46] [11485ms] Background: converted Windows path to: storage/user/ui/13c1a4a20a91b6dc649e31be41c253ed.png
+[2026-01-30 23:25:46] [11485ms] Background: using local file: /var/www/html/storage/user/ui/13c1a4a20a91b6dc649e31be41c253ed.png
+[2026-01-30 23:25:46] [11630ms] Background: replaced blackui.png
+[2026-01-30 23:25:46] [11631ms] Completed: replace_background (145.39ms)
+[2026-01-30 23:25:46] [11631ms] Starting: encrypt_resources
+[2026-01-30 23:25:46] [11632ms] Completed: encrypt_resources (1.47ms)
+[2026-01-30 23:25:46] [11632ms] Starting: build_apk
+[2026-01-30 23:26:00] [24985ms] Completed: build_apk (13353.25ms)
+[2026-01-30 23:26:00] [24985ms] Starting: sign_apk
+[2026-01-30 23:26:01] [25912ms] Completed: sign_apk (926.98ms)
+[2026-01-30 23:26:01] [25912ms] Starting: move_output
+[2026-01-30 23:26:01] [25920ms] Completed: move_output (7.32ms)
+[2026-01-30 23:26:01] [26317ms] === Build completed in 26.3s ===
+[2026-01-30 23:49:28] [0ms] === Build started for com.test.apk ===
+[2026-01-30 23:49:28] [0ms] Starting: check_dependencies
+[2026-01-30 23:49:28] [61ms] Completed: check_dependencies (60.29ms)
+[2026-01-30 23:49:28] [61ms] Starting: prepare_work_dir
+[2026-01-30 23:49:38] [9376ms] Completed: prepare_work_dir (9315.42ms)
+[2026-01-30 23:49:38] [9376ms] Starting: modify_smali
+[2026-01-30 23:49:38] [9475ms] Completed: modify_smali (98.81ms)
+[2026-01-30 23:49:38] [9475ms] Starting: modify_manifest
+[2026-01-30 23:49:46] [17890ms] Completed: modify_manifest (8415.24ms)
+[2026-01-30 23:49:46] [17890ms] Starting: modify_resources
+[2026-01-30 23:49:46] [17891ms] Completed: modify_resources (0.94ms)
+[2026-01-30 23:49:46] [17891ms] Starting: replace_icon
+[2026-01-30 23:49:46] [17943ms] Icon: replaced with 33d9a1c82517bc3312f314adc3a40c60.png
+[2026-01-30 23:49:46] [17944ms] Completed: replace_icon (52.27ms)
+[2026-01-30 23:49:46] [17944ms] Starting: replace_background
+[2026-01-30 23:49:46] [17944ms] Background: converted Windows path to: storage/user/ui/13c1a4a20a91b6dc649e31be41c253ed.png
+[2026-01-30 23:49:46] [17944ms] Background: using local file: /var/www/html/storage/user/ui/13c1a4a20a91b6dc649e31be41c253ed.png
+[2026-01-30 23:49:46] [18211ms] Background: replaced blackui.png
+[2026-01-30 23:49:46] [18211ms] Completed: replace_background (267.92ms)
+[2026-01-30 23:49:46] [18211ms] Starting: encrypt_resources
+[2026-01-30 23:49:46] [18213ms] Completed: encrypt_resources (1.73ms)
+[2026-01-30 23:49:46] [18213ms] Starting: build_apk
+[2026-01-30 23:50:01] [32891ms] Completed: build_apk (14677.69ms)
+[2026-01-30 23:50:01] [32920ms] Starting: sign_apk
+[2026-01-30 23:50:02] [33746ms] Completed: sign_apk (825.96ms)
+[2026-01-30 23:50:02] [33746ms] Starting: move_output
+[2026-01-30 23:50:02] [34006ms] Completed: move_output (259.61ms)
+[2026-01-30 23:50:03] [34402ms] === Build completed in 34.4s ===

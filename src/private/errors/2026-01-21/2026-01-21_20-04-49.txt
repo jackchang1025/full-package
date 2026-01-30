@@ -1,0 +1,5 @@
+Timestamp: 2026-01-21_20-04-49
+Error Message: Undefined constant "DB_ServerName"
+Stack Trace:
+#0 {main}
+

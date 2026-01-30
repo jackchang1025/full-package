@@ -1,0 +1,7 @@
+Timestamp: 2026-01-30_23-26-01
+Error Message: SQLSTATE[23000]: Integrity constraint violation: 1062 Duplicate entry 'com.test.apk' for key 'custom_app.cstmappuniq'
+Stack Trace:
+#0 /var/www/html/src/private/Eaod36921.php(57): PDOStatement->execute()
+#1 /var/www/html/src/private/Eaod36921.php(281): UpdateCustomAppDB('INSERT INTO cus...', Array)
+#2 {main}
+

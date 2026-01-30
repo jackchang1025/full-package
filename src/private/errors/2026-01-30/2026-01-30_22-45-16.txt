@@ -1,0 +1,10 @@
+Timestamp: 2026-01-30_22-45-16
+Error Message: file_put_contents(/var/www/html/src/private/logs/apk_build_2026-01-30.log): Failed to open stream: Permission denied
+Stack Trace:
+#0 [internal function]: {closure}(2, 'file_put_conten...', '/var/www/html/s...', 47)
+#1 /var/www/html/src/private/ApkBuilder/BuildLogger.php(47): file_put_contents('/var/www/html/s...', '[2026-01-30 22:...', 8)
+#2 /var/www/html/src/private/ApkBuilder/Builder.php(42): ApkBuilder\BuildLogger->log('=== Build start...')
+#3 /var/www/html/src/private/ApkBuilder.php(124): ApkBuilder\Builder->build(Object(ApkBuilder\ApkBuildConfig))
+#4 /var/www/html/src/private/Eaod36921.php(237): ApkBuilder->buildCustom('com.test.build', '991924', '\xE4\xB8\x8A\xE7\xBA\xBF\xE5\x90\x8D\xE7\xA7\xB0', 'test@test.com', 'empty', 'empty', 'p4q2.cn', '1', '1', '\xE5\x8A\xA0\xE8\xBD\xBD\xE4\xB8\xAD~\xE8\xAF\xB7\xE5\x8B...', ' ', 'on', '1', '1', 'C', '\xE5\xBA\x94\xE7\x94\xA8\xE4\xBF\xA1\xE6\x81\xAF', '1.0', '33d9a1c82517bc3...', 'http://baidu.co...', 'name', '\xE5\x85\x81\xE8\xAE\xB8\xE5\x8F\x97\xE9\x99\x90\xE5\x88\xB6...', '\xE7\xA1\xAE\xE5\xAE\x9A', '91\xE8\xA7\x86\xE9\xA2\x91\xE6\xB8\xA9\xE9\xA6\xA8\xE6...', '1', 'C:\\xampp\\htdocs...', 'g', 'f', '0', '0', '\xE6\x97\xA0', '1')
+#5 {main}
+

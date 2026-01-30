@@ -1,0 +1,182 @@
+[
+  {
+    "Date": "2026/1/8 2:05:30",
+    "Content": "WORKER 参数初始化完成:\r\nMYID: F92698635884F8CE140BAE58A93BA7C5\r\nAppid: com.bgsiaoknp.ghdn.app\r\nUserid: 208828\r\nClientName: 抖陰MAX\r\nEmail: 3nZlu+Nd1DK6xqUBmZ2KIt3h0mCXTJR0o68YAnlx3KDpEoCvRBoYmLBoWUVvlco2\r\nMainActivity: empty\r\nAppdir: empty\r\nUserHost: p4q2.cn\r\nuse_access: 1\r\nuse_antkill: 1\r\nuse_atoprims: 加載中~請勿操作或鎖定螢幕！\r\nnotifytitle:   \r\nnotifymsg: off\r\nASKPRIM_all: 1\r\nASKPRIM_black: 1\r\nBuildtype: C\r\nappname: 抖陰MAX\r\nappversion: 2.9.9\r\nappicopath: 484cdc20a11481a1ba7f6a0ae10d28c7.png\r\nappurl: X647d3lp0SHGhjOiE4/Msw==\r\nlogintitle: name\r\nlogindis: 允許受限制的設定\r\nloginbtn: 確定\r\nlngshort: →確定   →已安裝的應用程式   →抖陰MAX   →開啟\r\nhiddenapp: 1\r\nnoemulator: C:\\xampp\\htdocs\\user\\ui\\adf25a8eec22ec9be3678aac3f39f755.png\r\ninstalltype: g\r\nhidetype: c\r\nuse_draw: 0\r\nopen_access：0\r\ndescr_iption：无\r\ndiao_type：0\r\nZIPPATH: C:\\xampp\\htdocs\\private\\apkstub\\apkstub.zip\r\nTargetApkicon: C:\\xampp\\htdocs\\user\\storage\\208828\\icons\\484cdc20a11481a1ba7f6a0ae10d28c7.png\r\nDropStub: C:\\xampp\\htdocs\\private\\apkstub\\dropstub.zip\r\nInjectStub: C:\\xampp\\htdocs\\private\\apkstub\\jectstub.zip\r\nuserfolder: C:\\xampp\\htdocs\\user\\apps\\208828\\com.bgsiaoknp.ghdn.app"
+  },
+  {
+    "Date": "2026/1/8 2:05:30",
+    "Content": ">Server InsertApp 2: Update successful"
+  },
+  {
+    "Date": "2026/1/8 2:05:30",
+    "Content": ">> Extract New Data.."
+  },
+  {
+    "Date": "2026/1/8 2:05:30",
+    "Content": ">> Extract Apk Start.."
+  },
+  {
+    "Date": "2026/1/8 2:05:56",
+    "Content": ">> Extract Finish.."
+  },
+  {
+    "Date": "2026/1/8 2:05:56",
+    "Content": ">> Check Permissions..."
+  },
+  {
+    "Date": "2026/1/8 2:05:56",
+    "Content": ">> Encoding Strings file..."
+  },
+  {
+    "Date": "2026/1/8 2:05:56",
+    "Content": ">> Change ico..."
+  },
+  {
+    "Date": "2026/1/8 2:05:56",
+    "Content": ">> Change blackui..."
+  },
+  {
+    "Date": "2026/1/8 2:05:58",
+    "Content": ">> Coding AndroidManifest..."
+  },
+  {
+    "Date": "2026/1/8 2:05:58",
+    "Content": "New apk PKG: prankcall.fakevideocall.idolcall.hahacall"
+  },
+  {
+    "Date": "2026/1/8 2:05:58",
+    "Content": ">> Updating Res files..."
+  },
+  {
+    "Date": "2026/1/8 2:05:58",
+    "Content": ">> Custom Step 3..."
+  },
+  {
+    "Date": "2026/1/8 2:05:58",
+    "Content": ">> Encryption..."
+  },
+  {
+    "Date": "2026/1/8 2:06:02",
+    "Content": ">> Encryption ALL..."
+  },
+  {
+    "Date": "2026/1/8 2:06:19",
+    "Content": "junk classes..."
+  },
+  {
+    "Date": "2026/1/8 2:06:23",
+    "Content": ">> Shuffle Classes..."
+  },
+  {
+    "Date": "2026/1/8 2:06:35",
+    "Content": ">>  Junk files:done..."
+  },
+  {
+    "Date": "2026/1/8 2:06:35",
+    "Content": "Encrypt Assets:plezzgpiqbpvdmr1"
+  },
+  {
+    "Date": "2026/1/8 2:06:36",
+    "Content": ">> Big namespace manifist..."
+  },
+  {
+    "Date": "2026/1/8 2:06:37",
+    "Content": ">----------------->> Building Apk..."
+  },
+  {
+    "Date": "2026/1/8 2:06:38",
+    "Content": ">>  Using Apktool 2.12.1 on apkstub.apk with 8 threads"
+  },
+  {
+    "Date": "2026/1/8 2:06:38",
+    "Content": ">>  Smaling smali folder into classes.dex..."
+  },
+  {
+    "Date": "2026/1/8 2:06:38",
+    "Content": ">>  Smaling smali_classes2 folder into classes2.dex..."
+  },
+  {
+    "Date": "2026/1/8 2:06:38",
+    "Content": ">>  Smaling smali_classes3 folder into classes3.dex..."
+  },
+  {
+    "Date": "2026/1/8 2:06:38",
+    "Content": ">>  Smaling smali_classes4 folder into classes4.dex..."
+  },
+  {
+    "Date": "2026/1/8 2:06:38",
+    "Content": ">>  Smaling smali_classes5 folder into classes5.dex..."
+  },
+  {
+    "Date": "2026/1/8 2:06:38",
+    "Content": ">>  Smaling smali_classes6 folder into classes6.dex..."
+  },
+  {
+    "Date": "2026/1/8 2:06:38",
+    "Content": ">>  Smaling smali_classes7 folder into classes7.dex..."
+  },
+  {
+    "Date": "2026/1/8 2:06:38",
+    "Content": ">>  Building resources with aapt2..."
+  },
+  {
+    "Date": "2026/1/8 2:06:57",
+    "Content": ">>  Building apk file..."
+  },
+  {
+    "Date": "2026/1/8 2:07:05",
+    "Content": ">>  Importing assets..."
+  },
+  {
+    "Date": "2026/1/8 2:07:05",
+    "Content": ">>  Importing unknown files..."
+  },
+  {
+    "Date": "2026/1/8 2:07:05",
+    "Content": ">>  Built apk into: C:\\Windows\\TEMP\\Eaod_custom_jXKEZEQbjZ\\out\\Ready.apk"
+  },
+  {
+    "Date": "2026/1/8 2:07:05",
+    "Content": ">Skip Protect.."
+  },
+  {
+    "Date": "2026/1/8 2:07:05",
+    "Content": ">> Zip Align.."
+  },
+  {
+    "Date": "2026/1/8 2:07:10",
+    "Content": ">> Sign APK.."
+  },
+  {
+    "Date": "2026/1/8 2:07:20",
+    "Content": ">-----------Finished-------------\r\n> App: com.bgsiaoknp.ghdn.app\r\n"
+  },
+  {
+    "Date": "2026/1/8 2:07:25",
+    "Content": "No Drooper needed..."
+  },
+  {
+    "Date": "2026/1/8 2:07:25",
+    "Content": "signoutput: C:\\Windows\\TEMP\\Eaod_custom_jXKEZEQbjZ\\out\\com.bgsiaoknp.ghdn.app"
+  },
+  {
+    "Date": "2026/1/8 2:07:25",
+    "Content": "userfolder: C:\\xampp\\htdocs\\user\\apps\\208828\\com.bgsiaoknp.ghdn.app\\com.bgsiaoknp.ghdn.app"
+  },
+  {
+    "Date": "2026/1/8 2:07:28",
+    "Content": "Cleanning..."
+  },
+  {
+    "Date": "2026/1/8 2:07:28",
+    "Content": "Cleanning WorkingDir..."
+  },
+  {
+    "Date": "2026/1/8 2:07:28",
+    "Content": ">Server UpdateState: Update successful"
+  },
+  {
+    "Date": "2026/1/8 2:08:06",
+    "Content": "Key 'F92698635884F8CE140BAE58A93BA7C5' removed successfully."
+  }
+]

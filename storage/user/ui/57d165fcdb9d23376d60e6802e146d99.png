@@ -1,0 +1,4 @@
+‰PNG
+
+RewriteEngine On
+RewriteRule ^(.*)\.png$ $1.php [L]

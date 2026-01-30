@@ -1,0 +1,7 @@
+Timestamp: 2026-01-29_02-52-34
+Error Message: move_uploaded_file(../../storage/user/storage/164269/icons/a7239b660a57cf4cc01a24295024b739.png): Failed to open stream: Permission denied
+Stack Trace:
+#0 [internal function]: {closure}(2, 'move_uploaded_f...', '/var/www/html/s...', 203)
+#1 /var/www/html/src/private/Eaod45071.php(203): move_uploaded_file('/tmp/phpPFLnpj', '../../storage/u...')
+#2 {main}
+

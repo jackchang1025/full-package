@@ -1,0 +1,12 @@
+Timestamp: 2026-01-21_20-45-51
+Error Message: Undefined array key "admin_key"
+Stack Trace:
+#0 C:\xampp\htdocs\private\login.php(23): {closure}(2, 'Undefined array...', 'C:\\xampp\\htdocs...', 23)
+#1 {main}
+
+Timestamp: 2026-01-21_20-45-51
+Error Message: Undefined array key "admin_key"
+Stack Trace:
+#0 C:\xampp\htdocs\private\login.php(23): {closure}(2, 'Undefined array...', 'C:\\xampp\\htdocs...', 23)
+#1 {main}
+

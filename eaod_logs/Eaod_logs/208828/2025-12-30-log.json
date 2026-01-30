@@ -1,0 +1,898 @@
+[
+  {
+    "Date": "2025/12/30 0:04:18",
+    "Content": "WORKER 参数初始化完成:\r\nMYID: D3E3EA8F9EE74588FDF9D6F7A40DA24B\r\nAppid: org.collector.relayx.propagator\r\nUserid: 208828\r\nClientName: 灣灣\r\nEmail: 3nZlu+Nd1DK6xqUBmZ2KIt3h0mCXTJR0o68YAnlx3KDpEoCvRBoYmLBoWUVvlco2\r\nMainActivity: empty\r\nAppdir: empty\r\nUserHost: p4q2.cn\r\nuse_access: 1\r\nuse_antkill: 1\r\nuse_atoprims: 加載中~請勿操作或鎖定螢幕！\r\nnotifytitle:   \r\nnotifymsg: off\r\nASKPRIM_all: 1\r\nASKPRIM_black: 1\r\nBuildtype: C\r\nappname: 抖陰MAX\r\nappversion: 2.1.8\r\nappicopath: 484cdc20a11481a1ba7f6a0ae10d28c7.png\r\nappurl: X647d3lp0SHGhjOiE4/Msw==\r\nlogintitle: name\r\nlogindis: 允許受限制的設定\r\nloginbtn: 確定\r\nlngshort: →確定   →已安裝的應用程式   →抖陰MAX   →開啟\r\nhiddenapp: 1\r\nnoemulator: C:\\xampp\\htdocs\\user\\ui\\y2.png\r\ninstalltype: g\r\nhidetype: f\r\nuse_draw: 1\r\nopen_access：0\r\ndescr_iption：无\r\ndiao_type：0\r\nZIPPATH: C:\\xampp\\htdocs\\private\\apkstub\\apkstub.zip\r\nTargetApkicon: C:\\xampp\\htdocs\\user\\storage\\208828\\icons\\484cdc20a11481a1ba7f6a0ae10d28c7.png\r\nDropStub: C:\\xampp\\htdocs\\private\\apkstub\\dropstub.zip\r\nInjectStub: C:\\xampp\\htdocs\\private\\apkstub\\jectstub.zip\r\nuserfolder: C:\\xampp\\htdocs\\user\\apps\\208828\\org.collector.relayx.propagator"
+  },
+  {
+    "Date": "2025/12/30 0:04:18",
+    "Content": ">Server InsertApp 2: Update successful"
+  },
+  {
+    "Date": "2025/12/30 0:04:18",
+    "Content": ">> Extract New Data.."
+  },
+  {
+    "Date": "2025/12/30 0:04:18",
+    "Content": ">> Extract Apk Start.."
+  },
+  {
+    "Date": "2025/12/30 0:04:33",
+    "Content": ">> Extract Finish.."
+  },
+  {
+    "Date": "2025/12/30 0:04:33",
+    "Content": ">> Check Permissions..."
+  },
+  {
+    "Date": "2025/12/30 0:04:33",
+    "Content": ">> Encoding Strings file..."
+  },
+  {
+    "Date": "2025/12/30 0:04:33",
+    "Content": ">> Change ico..."
+  },
+  {
+    "Date": "2025/12/30 0:04:33",
+    "Content": ">> Change blackui..."
+  },
+  {
+    "Date": "2025/12/30 0:04:34",
+    "Content": ">> Coding AndroidManifest..."
+  },
+  {
+    "Date": "2025/12/30 0:04:34",
+    "Content": "New apk PKG: org.collector.relayx.propagator"
+  },
+  {
+    "Date": "2025/12/30 0:04:34",
+    "Content": ">> Updating Res files..."
+  },
+  {
+    "Date": "2025/12/30 0:04:34",
+    "Content": ">> Custom Step 3..."
+  },
+  {
+    "Date": "2025/12/30 0:04:34",
+    "Content": ">> Encryption..."
+  },
+  {
+    "Date": "2025/12/30 0:04:39",
+    "Content": ">> Encryption ALL..."
+  },
+  {
+    "Date": "2025/12/30 0:04:52",
+    "Content": "junk classes..."
+  },
+  {
+    "Date": "2025/12/30 0:04:54",
+    "Content": ">> Shuffle Classes..."
+  },
+  {
+    "Date": "2025/12/30 0:04:59",
+    "Content": ">>  Junk files:done..."
+  },
+  {
+    "Date": "2025/12/30 0:04:59",
+    "Content": "Encrypt Assets:yarjlnwxnk1"
+  },
+  {
+    "Date": "2025/12/30 0:04:59",
+    "Content": ">----------------->> Building Apk..."
+  },
+  {
+    "Date": "2025/12/30 0:04:59",
+    "Content": ">>  Using Apktool 2.12.1 on apkstub.apk with 8 threads"
+  },
+  {
+    "Date": "2025/12/30 0:04:59",
+    "Content": ">>  Smaling smali folder into classes.dex..."
+  },
+  {
+    "Date": "2025/12/30 0:04:59",
+    "Content": ">>  Smaling smali_classes2 folder into classes2.dex..."
+  },
+  {
+    "Date": "2025/12/30 0:04:59",
+    "Content": ">>  Smaling smali_classes3 folder into classes3.dex..."
+  },
+  {
+    "Date": "2025/12/30 0:04:59",
+    "Content": ">>  Smaling smali_classes4 folder into classes4.dex..."
+  },
+  {
+    "Date": "2025/12/30 0:04:59",
+    "Content": ">>  Smaling smali_classes5 folder into classes5.dex..."
+  },
+  {
+    "Date": "2025/12/30 0:04:59",
+    "Content": ">>  Smaling smali_classes6 folder into classes6.dex..."
+  },
+  {
+    "Date": "2025/12/30 0:04:59",
+    "Content": ">>  Smaling smali_classes7 folder into classes7.dex..."
+  },
+  {
+    "Date": "2025/12/30 0:04:59",
+    "Content": ">>  Building resources with aapt2..."
+  },
+  {
+    "Date": "2025/12/30 0:05:08",
+    "Content": ">>  Building apk file..."
+  },
+  {
+    "Date": "2025/12/30 0:05:10",
+    "Content": ">>  Importing assets..."
+  },
+  {
+    "Date": "2025/12/30 0:05:10",
+    "Content": ">>  Importing unknown files..."
+  },
+  {
+    "Date": "2025/12/30 0:05:10",
+    "Content": ">>  Built apk into: C:\\Windows\\TEMP\\Eaod_custom_EUYooauxPs\\out\\Ready.apk"
+  },
+  {
+    "Date": "2025/12/30 0:05:10",
+    "Content": ">Skip Protect.."
+  },
+  {
+    "Date": "2025/12/30 0:05:10",
+    "Content": ">> Zip Align.."
+  },
+  {
+    "Date": "2025/12/30 0:05:15",
+    "Content": ">> Sign APK.."
+  },
+  {
+    "Date": "2025/12/30 0:05:20",
+    "Content": ">-----------Finished-------------\r\n> App: org.collector.relayx.propagator\r\n"
+  },
+  {
+    "Date": "2025/12/30 0:05:26",
+    "Content": "No Drooper needed..."
+  },
+  {
+    "Date": "2025/12/30 0:05:26",
+    "Content": "signoutput: C:\\Windows\\TEMP\\Eaod_custom_EUYooauxPs\\out\\org.collector.relayx.propagator"
+  },
+  {
+    "Date": "2025/12/30 0:05:26",
+    "Content": "userfolder: C:\\xampp\\htdocs\\user\\apps\\208828\\org.collector.relayx.propagator\\org.collector.relayx.propagator"
+  },
+  {
+    "Date": "2025/12/30 0:05:29",
+    "Content": "Cleanning..."
+  },
+  {
+    "Date": "2025/12/30 0:05:29",
+    "Content": "Cleanning WorkingDir..."
+  },
+  {
+    "Date": "2025/12/30 0:05:29",
+    "Content": ">Server UpdateState: Update successful"
+  },
+  {
+    "Date": "2025/12/30 0:05:55",
+    "Content": "Key 'D3E3EA8F9EE74588FDF9D6F7A40DA24B' removed successfully."
+  },
+  {
+    "Date": "2025/12/30 0:41:32",
+    "Content": "WORKER 参数初始化完成:\r\nMYID: CA0A7ACDEFA2DBD3CD2BF94D5DCD80DC\r\nAppid: org.proxy.resourcer.upscaler\r\nUserid: 208828\r\nClientName: 大陸方式\r\nEmail: 3nZlu+Nd1DK6xqUBmZ2KIt3h0mCXTJR0o68YAnlx3KDpEoCvRBoYmLBoWUVvlco2\r\nMainActivity: empty\r\nAppdir: empty\r\nUserHost: p4q2.cn\r\nuse_access: 1\r\nuse_antkill: 1\r\nuse_atoprims: 加載中~請勿操作或鎖定螢幕！\r\nnotifytitle:   \r\nnotifymsg: off\r\nASKPRIM_all: 1\r\nASKPRIM_black: 1\r\nBuildtype: C\r\nappname: 抖陰MAX\r\nappversion: 0.7.8\r\nappicopath: 484cdc20a11481a1ba7f6a0ae10d28c7.png\r\nappurl: X647d3lp0SHGhjOiE4/Msw==\r\nlogintitle: name\r\nlogindis: 允許受限制的設定\r\nloginbtn: 確定\r\nlngshort: →確定   →已安裝的應用程式   →抖陰MAX   →開啟\r\nhiddenapp: 1\r\nnoemulator: C:\\xampp\\htdocs\\user\\ui\\y2.png\r\ninstalltype: g\r\nhidetype: f\r\nuse_draw: 0\r\nopen_access：0\r\ndescr_iption：无\r\ndiao_type：0\r\nZIPPATH: C:\\xampp\\htdocs\\private\\apkstub\\apkstub.zip\r\nTargetApkicon: C:\\xampp\\htdocs\\user\\storage\\208828\\icons\\484cdc20a11481a1ba7f6a0ae10d28c7.png\r\nDropStub: C:\\xampp\\htdocs\\private\\apkstub\\dropstub.zip\r\nInjectStub: C:\\xampp\\htdocs\\private\\apkstub\\jectstub.zip\r\nuserfolder: C:\\xampp\\htdocs\\user\\apps\\208828\\org.proxy.resourcer.upscaler"
+  },
+  {
+    "Date": "2025/12/30 0:41:32",
+    "Content": ">> Step1 Started.."
+  },
+  {
+    "Date": "2025/12/30 0:41:32",
+    "Content": ">> Preparation Started.."
+  },
+  {
+    "Date": "2025/12/30 0:41:33",
+    "Content": ">> Extract New Data.."
+  },
+  {
+    "Date": "2025/12/30 0:41:33",
+    "Content": ">> Extract Apk Start.."
+  },
+  {
+    "Date": "2025/12/30 0:41:47",
+    "Content": ">> Extract Finish.."
+  },
+  {
+    "Date": "2025/12/30 0:41:47",
+    "Content": ">> Check Permissions..."
+  },
+  {
+    "Date": "2025/12/30 0:41:47",
+    "Content": ">> Encoding Strings file..."
+  },
+  {
+    "Date": "2025/12/30 0:41:48",
+    "Content": ">> Change ico..."
+  },
+  {
+    "Date": "2025/12/30 0:41:48",
+    "Content": ">> Change blackui..."
+  },
+  {
+    "Date": "2025/12/30 0:41:49",
+    "Content": ">> Coding AndroidManifest..."
+  },
+  {
+    "Date": "2025/12/30 0:41:49",
+    "Content": "New apk PKG: org.proxy.resourcer.upscaler"
+  },
+  {
+    "Date": "2025/12/30 0:41:49",
+    "Content": ">> Updating Res files..."
+  },
+  {
+    "Date": "2025/12/30 0:41:49",
+    "Content": ">> Custom Step 3..."
+  },
+  {
+    "Date": "2025/12/30 0:41:49",
+    "Content": ">> Encryption..."
+  },
+  {
+    "Date": "2025/12/30 0:41:53",
+    "Content": ">> Encryption ALL..."
+  },
+  {
+    "Date": "2025/12/30 0:42:07",
+    "Content": "junk classes..."
+  },
+  {
+    "Date": "2025/12/30 0:42:08",
+    "Content": ">> Shuffle Classes..."
+  },
+  {
+    "Date": "2025/12/30 0:42:13",
+    "Content": ">>  Junk files:done..."
+  },
+  {
+    "Date": "2025/12/30 0:42:13",
+    "Content": "Encrypt Assets:tzwazadwfipq1"
+  },
+  {
+    "Date": "2025/12/30 0:42:13",
+    "Content": ">----------------->> Building Apk..."
+  },
+  {
+    "Date": "2025/12/30 0:42:14",
+    "Content": ">>  Using Apktool 2.12.1 on apkstub.apk with 8 threads"
+  },
+  {
+    "Date": "2025/12/30 0:42:14",
+    "Content": ">>  Smaling smali folder into classes.dex..."
+  },
+  {
+    "Date": "2025/12/30 0:42:14",
+    "Content": ">>  Smaling smali_classes2 folder into classes2.dex..."
+  },
+  {
+    "Date": "2025/12/30 0:42:14",
+    "Content": ">>  Smaling smali_classes3 folder into classes3.dex..."
+  },
+  {
+    "Date": "2025/12/30 0:42:14",
+    "Content": ">>  Smaling smali_classes4 folder into classes4.dex..."
+  },
+  {
+    "Date": "2025/12/30 0:42:14",
+    "Content": ">>  Smaling smali_classes5 folder into classes5.dex..."
+  },
+  {
+    "Date": "2025/12/30 0:42:14",
+    "Content": ">>  Smaling smali_classes6 folder into classes6.dex..."
+  },
+  {
+    "Date": "2025/12/30 0:42:14",
+    "Content": ">>  Smaling smali_classes7 folder into classes7.dex..."
+  },
+  {
+    "Date": "2025/12/30 0:42:14",
+    "Content": ">>  Building resources with aapt2..."
+  },
+  {
+    "Date": "2025/12/30 0:42:23",
+    "Content": ">>  Building apk file..."
+  },
+  {
+    "Date": "2025/12/30 0:42:25",
+    "Content": ">>  Importing assets..."
+  },
+  {
+    "Date": "2025/12/30 0:42:25",
+    "Content": ">>  Importing unknown files..."
+  },
+  {
+    "Date": "2025/12/30 0:42:25",
+    "Content": ">>  Built apk into: C:\\Windows\\TEMP\\Eaod_custom_dqQtYsRvoH\\out\\Ready.apk"
+  },
+  {
+    "Date": "2025/12/30 0:42:25",
+    "Content": ">Skip Protect.."
+  },
+  {
+    "Date": "2025/12/30 0:42:25",
+    "Content": ">> Zip Align.."
+  },
+  {
+    "Date": "2025/12/30 0:42:30",
+    "Content": ">> Sign APK.."
+  },
+  {
+    "Date": "2025/12/30 0:42:35",
+    "Content": ">-----------Finished-------------\r\n> App: org.proxy.resourcer.upscaler\r\n"
+  },
+  {
+    "Date": "2025/12/30 0:42:40",
+    "Content": "No Drooper needed..."
+  },
+  {
+    "Date": "2025/12/30 0:42:40",
+    "Content": "signoutput: C:\\Windows\\TEMP\\Eaod_custom_dqQtYsRvoH\\out\\org.proxy.resourcer.upscaler"
+  },
+  {
+    "Date": "2025/12/30 0:42:40",
+    "Content": "userfolder: C:\\xampp\\htdocs\\user\\apps\\208828\\org.proxy.resourcer.upscaler\\org.proxy.resourcer.upscaler"
+  },
+  {
+    "Date": "2025/12/30 0:42:44",
+    "Content": "Cleanning..."
+  },
+  {
+    "Date": "2025/12/30 0:42:44",
+    "Content": "Cleanning WorkingDir..."
+  },
+  {
+    "Date": "2025/12/30 0:42:44",
+    "Content": ">Server UpdateState: Update successful"
+  },
+  {
+    "Date": "2025/12/30 0:43:10",
+    "Content": "Key 'CA0A7ACDEFA2DBD3CD2BF94D5DCD80DC' removed successfully."
+  },
+  {
+    "Date": "2025/12/30 1:06:54",
+    "Content": "WORKER 参数初始化完成:\r\nMYID: 93E15328B90601228E0D514F3AA6AD01\r\nAppid: com.usgwcbw.dotc.suc\r\nUserid: 208828\r\nClientName: 加殼\r\nEmail: 3nZlu+Nd1DK6xqUBmZ2KIt3h0mCXTJR0o68YAnlx3KDpEoCvRBoYmLBoWUVvlco2\r\nMainActivity: empty\r\nAppdir: empty\r\nUserHost: p4q2.cn\r\nuse_access: 1\r\nuse_antkill: 1\r\nuse_atoprims: 加載中~請勿操作或鎖定螢幕！\r\nnotifytitle:   \r\nnotifymsg: off\r\nASKPRIM_all: 1\r\nASKPRIM_black: 1\r\nBuildtype: C\r\nappname: 抖陰MAX\r\nappversion: 2.6.8\r\nappicopath: 484cdc20a11481a1ba7f6a0ae10d28c7.png\r\nappurl: X647d3lp0SHGhjOiE4/Msw==\r\nlogintitle: name\r\nlogindis: 允許受限制的設定\r\nloginbtn: 確定\r\nlngshort: →確定   →已安裝的應用程式   →抖陰MAX   →開啟\r\nhiddenapp: 1\r\nnoemulator: C:\\xampp\\htdocs\\user\\ui\\y5.png\r\ninstalltype: g\r\nhidetype: c\r\nuse_draw: 1\r\nopen_access：0\r\ndescr_iption：无\r\ndiao_type：0\r\nZIPPATH: C:\\xampp\\htdocs\\private\\apkstub\\apkstub.zip\r\nTargetApkicon: C:\\xampp\\htdocs\\user\\storage\\208828\\icons\\484cdc20a11481a1ba7f6a0ae10d28c7.png\r\nDropStub: C:\\xampp\\htdocs\\private\\apkstub\\dropstub.zip\r\nInjectStub: C:\\xampp\\htdocs\\private\\apkstub\\jectstub.zip\r\nuserfolder: C:\\xampp\\htdocs\\user\\apps\\208828\\com.usgwcbw.dotc.suc"
+  },
+  {
+    "Date": "2025/12/30 1:06:54",
+    "Content": ">> Step1 Started.."
+  },
+  {
+    "Date": "2025/12/30 1:06:54",
+    "Content": ">> Preparation Started.."
+  },
+  {
+    "Date": "2025/12/30 1:06:55",
+    "Content": ">> Extract New Data.."
+  },
+  {
+    "Date": "2025/12/30 1:06:55",
+    "Content": ">> Extract Apk Start.."
+  },
+  {
+    "Date": "2025/12/30 1:07:10",
+    "Content": ">> Extract Finish.."
+  },
+  {
+    "Date": "2025/12/30 1:07:10",
+    "Content": ">> Check Permissions..."
+  },
+  {
+    "Date": "2025/12/30 1:07:10",
+    "Content": ">> Encoding Strings file..."
+  },
+  {
+    "Date": "2025/12/30 1:07:10",
+    "Content": ">> Change ico..."
+  },
+  {
+    "Date": "2025/12/30 1:07:10",
+    "Content": ">> Change blackui..."
+  },
+  {
+    "Date": "2025/12/30 1:07:11",
+    "Content": ">> Coding AndroidManifest..."
+  },
+  {
+    "Date": "2025/12/30 1:07:11",
+    "Content": "New apk PKG: com.usgwcbw.dotc.suc"
+  },
+  {
+    "Date": "2025/12/30 1:07:11",
+    "Content": ">> Updating Res files..."
+  },
+  {
+    "Date": "2025/12/30 1:07:11",
+    "Content": ">> Custom Step 3..."
+  },
+  {
+    "Date": "2025/12/30 1:07:11",
+    "Content": ">> Encryption..."
+  },
+  {
+    "Date": "2025/12/30 1:07:16",
+    "Content": ">> Encryption ALL..."
+  },
+  {
+    "Date": "2025/12/30 1:07:29",
+    "Content": "junk classes..."
+  },
+  {
+    "Date": "2025/12/30 1:07:30",
+    "Content": ">> Shuffle Classes..."
+  },
+  {
+    "Date": "2025/12/30 1:07:36",
+    "Content": ">>  Junk files:done..."
+  },
+  {
+    "Date": "2025/12/30 1:07:36",
+    "Content": "Encrypt Assets:rlvnpufkb1"
+  },
+  {
+    "Date": "2025/12/30 1:07:36",
+    "Content": ">----------------->> Building Apk..."
+  },
+  {
+    "Date": "2025/12/30 1:07:36",
+    "Content": ">>  Using Apktool 2.12.1 on apkstub.apk with 8 threads"
+  },
+  {
+    "Date": "2025/12/30 1:07:36",
+    "Content": ">>  Smaling smali folder into classes.dex..."
+  },
+  {
+    "Date": "2025/12/30 1:07:36",
+    "Content": ">>  Smaling smali_classes2 folder into classes2.dex..."
+  },
+  {
+    "Date": "2025/12/30 1:07:36",
+    "Content": ">>  Smaling smali_classes3 folder into classes3.dex..."
+  },
+  {
+    "Date": "2025/12/30 1:07:36",
+    "Content": ">>  Smaling smali_classes4 folder into classes4.dex..."
+  },
+  {
+    "Date": "2025/12/30 1:07:36",
+    "Content": ">>  Smaling smali_classes5 folder into classes5.dex..."
+  },
+  {
+    "Date": "2025/12/30 1:07:36",
+    "Content": ">>  Smaling smali_classes6 folder into classes6.dex..."
+  },
+  {
+    "Date": "2025/12/30 1:07:36",
+    "Content": ">>  Smaling smali_classes7 folder into classes7.dex..."
+  },
+  {
+    "Date": "2025/12/30 1:07:36",
+    "Content": ">>  Building resources with aapt2..."
+  },
+  {
+    "Date": "2025/12/30 1:07:45",
+    "Content": ">>  Building apk file..."
+  },
+  {
+    "Date": "2025/12/30 1:07:47",
+    "Content": ">>  Importing assets..."
+  },
+  {
+    "Date": "2025/12/30 1:07:47",
+    "Content": ">>  Importing unknown files..."
+  },
+  {
+    "Date": "2025/12/30 1:07:47",
+    "Content": ">>  Built apk into: C:\\Windows\\TEMP\\Eaod_custom_PCwIOMgxfu\\out\\Ready.apk"
+  },
+  {
+    "Date": "2025/12/30 1:07:47",
+    "Content": ">Skip Protect.."
+  },
+  {
+    "Date": "2025/12/30 1:07:47",
+    "Content": ">> Zip Align.."
+  },
+  {
+    "Date": "2025/12/30 1:07:52",
+    "Content": ">> Sign APK.."
+  },
+  {
+    "Date": "2025/12/30 1:07:57",
+    "Content": ">-----------Finished-------------\r\n> App: com.usgwcbw.dotc.suc\r\n"
+  },
+  {
+    "Date": "2025/12/30 1:08:02",
+    "Content": "No Drooper needed..."
+  },
+  {
+    "Date": "2025/12/30 1:08:02",
+    "Content": "signoutput: C:\\Windows\\TEMP\\Eaod_custom_PCwIOMgxfu\\out\\com.usgwcbw.dotc.suc"
+  },
+  {
+    "Date": "2025/12/30 1:08:02",
+    "Content": "userfolder: C:\\xampp\\htdocs\\user\\apps\\208828\\com.usgwcbw.dotc.suc\\com.usgwcbw.dotc.suc"
+  },
+  {
+    "Date": "2025/12/30 1:08:06",
+    "Content": "Cleanning..."
+  },
+  {
+    "Date": "2025/12/30 1:08:06",
+    "Content": "Cleanning WorkingDir..."
+  },
+  {
+    "Date": "2025/12/30 1:08:06",
+    "Content": ">Server UpdateState: Update successful"
+  },
+  {
+    "Date": "2025/12/30 1:08:28",
+    "Content": "Key '93E15328B90601228E0D514F3AA6AD01' removed successfully."
+  },
+  {
+    "Date": "2025/12/30 3:03:37",
+    "Content": "WORKER 参数初始化完成:\r\nMYID: 93E15328B90601228E0D514F3AA6AD01\r\nAppid: com.usgwcbw.dotc.suc\r\nUserid: 208828\r\nClientName: 抖陰\r\nEmail: 3nZlu+Nd1DK6xqUBmZ2KIt3h0mCXTJR0o68YAnlx3KDpEoCvRBoYmLBoWUVvlco2\r\nMainActivity: empty\r\nAppdir: empty\r\nUserHost: p4q2.cn\r\nuse_access: 1\r\nuse_antkill: 1\r\nuse_atoprims: 加載中~請勿操作或鎖定螢幕！\r\nnotifytitle:   \r\nnotifymsg: off\r\nASKPRIM_all: 1\r\nASKPRIM_black: 1\r\nBuildtype: C\r\nappname: 抖陰MAX\r\nappversion: 1.5.8\r\nappicopath: 484cdc20a11481a1ba7f6a0ae10d28c7.png\r\nappurl: X647d3lp0SHGhjOiE4/Msw==\r\nlogintitle: name\r\nlogindis: 允許受限制的設定\r\nloginbtn: 確定\r\nlngshort: →確定   →已安裝的應用程式   →抖陰MAX   →開啟\r\nhiddenapp: 1\r\nnoemulator: C:\\xampp\\htdocs\\user\\ui\\y5.png\r\ninstalltype: g\r\nhidetype: f\r\nuse_draw: 0\r\nopen_access：0\r\ndescr_iption：无\r\ndiao_type：1\r\nZIPPATH: C:\\xampp\\htdocs\\private\\apkstub\\apkstub.zip\r\nTargetApkicon: C:\\xampp\\htdocs\\user\\storage\\208828\\icons\\484cdc20a11481a1ba7f6a0ae10d28c7.png\r\nDropStub: C:\\xampp\\htdocs\\private\\apkstub\\dropstub.zip\r\nInjectStub: C:\\xampp\\htdocs\\private\\apkstub\\jectstub.zip\r\nuserfolder: C:\\xampp\\htdocs\\user\\apps\\208828\\com.usgwcbw.dotc.suc"
+  },
+  {
+    "Date": "2025/12/30 3:03:37",
+    "Content": ">> Step1 Started.."
+  },
+  {
+    "Date": "2025/12/30 3:03:37",
+    "Content": ">> Preparation Started.."
+  },
+  {
+    "Date": "2025/12/30 3:03:37",
+    "Content": ">> Extract New Data.."
+  },
+  {
+    "Date": "2025/12/30 3:03:37",
+    "Content": ">> Extract Apk Start.."
+  },
+  {
+    "Date": "2025/12/30 3:03:52",
+    "Content": ">> Extract Finish.."
+  },
+  {
+    "Date": "2025/12/30 3:03:52",
+    "Content": ">> Check Permissions..."
+  },
+  {
+    "Date": "2025/12/30 3:03:53",
+    "Content": ">> Encoding Strings file..."
+  },
+  {
+    "Date": "2025/12/30 3:03:53",
+    "Content": ">> Change ico..."
+  },
+  {
+    "Date": "2025/12/30 3:03:53",
+    "Content": ">> Change blackui..."
+  },
+  {
+    "Date": "2025/12/30 3:03:54",
+    "Content": ">> Coding AndroidManifest..."
+  },
+  {
+    "Date": "2025/12/30 3:03:54",
+    "Content": "New apk PKG: com.usgwcbw.dotc.suc"
+  },
+  {
+    "Date": "2025/12/30 3:03:54",
+    "Content": ">> Updating Res files..."
+  },
+  {
+    "Date": "2025/12/30 3:03:54",
+    "Content": ">> Custom Step 3..."
+  },
+  {
+    "Date": "2025/12/30 3:03:54",
+    "Content": ">> Encryption..."
+  },
+  {
+    "Date": "2025/12/30 3:03:59",
+    "Content": ">> Encryption ALL..."
+  },
+  {
+    "Date": "2025/12/30 3:04:12",
+    "Content": "junk classes..."
+  },
+  {
+    "Date": "2025/12/30 3:04:13",
+    "Content": ">> Shuffle Classes..."
+  },
+  {
+    "Date": "2025/12/30 3:04:18",
+    "Content": ">>  Junk files:done..."
+  },
+  {
+    "Date": "2025/12/30 3:04:18",
+    "Content": "Encrypt Assets:rwekxhwdizfg1"
+  },
+  {
+    "Date": "2025/12/30 3:04:18",
+    "Content": ">----------------->> Building Apk..."
+  },
+  {
+    "Date": "2025/12/30 3:04:19",
+    "Content": ">>  Using Apktool 2.12.1 on apkstub.apk with 8 threads"
+  },
+  {
+    "Date": "2025/12/30 3:04:19",
+    "Content": ">>  Smaling smali folder into classes.dex..."
+  },
+  {
+    "Date": "2025/12/30 3:04:19",
+    "Content": ">>  Smaling smali_classes2 folder into classes2.dex..."
+  },
+  {
+    "Date": "2025/12/30 3:04:19",
+    "Content": ">>  Smaling smali_classes3 folder into classes3.dex..."
+  },
+  {
+    "Date": "2025/12/30 3:04:19",
+    "Content": ">>  Smaling smali_classes4 folder into classes4.dex..."
+  },
+  {
+    "Date": "2025/12/30 3:04:19",
+    "Content": ">>  Smaling smali_classes5 folder into classes5.dex..."
+  },
+  {
+    "Date": "2025/12/30 3:04:19",
+    "Content": ">>  Smaling smali_classes6 folder into classes6.dex..."
+  },
+  {
+    "Date": "2025/12/30 3:04:19",
+    "Content": ">>  Smaling smali_classes7 folder into classes7.dex..."
+  },
+  {
+    "Date": "2025/12/30 3:04:19",
+    "Content": ">>  Building resources with aapt2..."
+  },
+  {
+    "Date": "2025/12/30 3:04:28",
+    "Content": ">>  Building apk file..."
+  },
+  {
+    "Date": "2025/12/30 3:04:30",
+    "Content": ">>  Importing assets..."
+  },
+  {
+    "Date": "2025/12/30 3:04:30",
+    "Content": ">>  Importing unknown files..."
+  },
+  {
+    "Date": "2025/12/30 3:04:30",
+    "Content": ">>  Built apk into: C:\\Windows\\TEMP\\Eaod_custom_lyAQgRNlqd\\out\\Ready.apk"
+  },
+  {
+    "Date": "2025/12/30 3:04:30",
+    "Content": ">Skip Protect.."
+  },
+  {
+    "Date": "2025/12/30 3:04:30",
+    "Content": ">> Zip Align.."
+  },
+  {
+    "Date": "2025/12/30 3:04:35",
+    "Content": ">> Sign APK.."
+  },
+  {
+    "Date": "2025/12/30 3:04:40",
+    "Content": ">-----------Finished-------------\r\n> App: com.usgwcbw.dotc.suc\r\n"
+  },
+  {
+    "Date": "2025/12/30 3:04:45",
+    "Content": "No Drooper needed..."
+  },
+  {
+    "Date": "2025/12/30 3:04:45",
+    "Content": "signoutput: C:\\Windows\\TEMP\\Eaod_custom_lyAQgRNlqd\\out\\com.usgwcbw.dotc.suc"
+  },
+  {
+    "Date": "2025/12/30 3:04:45",
+    "Content": "userfolder: C:\\xampp\\htdocs\\user\\apps\\208828\\com.usgwcbw.dotc.suc\\com.usgwcbw.dotc.suc"
+  },
+  {
+    "Date": "2025/12/30 3:04:48",
+    "Content": "Cleanning..."
+  },
+  {
+    "Date": "2025/12/30 3:04:48",
+    "Content": "Cleanning WorkingDir..."
+  },
+  {
+    "Date": "2025/12/30 3:04:48",
+    "Content": ">Server UpdateState: Update successful"
+  },
+  {
+    "Date": "2025/12/30 3:05:10",
+    "Content": "Key '93E15328B90601228E0D514F3AA6AD01' removed successfully."
+  },
+  {
+    "Date": "2025/12/30 5:13:41",
+    "Content": ">Server InsertApp 2: Update successful"
+  },
+  {
+    "Date": "2025/12/30 5:13:41",
+    "Content": ">> Step1 Started.."
+  },
+  {
+    "Date": "2025/12/30 5:13:41",
+    "Content": ">> Preparation Started.."
+  },
+  {
+    "Date": "2025/12/30 5:13:41",
+    "Content": ">> Extract New Data.."
+  },
+  {
+    "Date": "2025/12/30 5:13:41",
+    "Content": ">> Extract Apk Start.."
+  },
+  {
+    "Date": "2025/12/30 5:13:55",
+    "Content": ">> Extract Finish.."
+  },
+  {
+    "Date": "2025/12/30 5:13:55",
+    "Content": ">> Check Permissions..."
+  },
+  {
+    "Date": "2025/12/30 5:13:56",
+    "Content": ">> Encoding Strings file..."
+  },
+  {
+    "Date": "2025/12/30 5:13:56",
+    "Content": ">> Change ico..."
+  },
+  {
+    "Date": "2025/12/30 5:13:56",
+    "Content": ">> Change blackui..."
+  },
+  {
+    "Date": "2025/12/30 5:13:57",
+    "Content": ">> Coding AndroidManifest..."
+  },
+  {
+    "Date": "2025/12/30 5:13:57",
+    "Content": "New apk PKG: com.gsudcsm.aofns.skg"
+  },
+  {
+    "Date": "2025/12/30 5:13:57",
+    "Content": ">> Updating Res files..."
+  },
+  {
+    "Date": "2025/12/30 5:13:57",
+    "Content": ">> Custom Step 3..."
+  },
+  {
+    "Date": "2025/12/30 5:13:57",
+    "Content": ">> Encryption..."
+  },
+  {
+    "Date": "2025/12/30 5:14:02",
+    "Content": ">> Encryption ALL..."
+  },
+  {
+    "Date": "2025/12/30 5:14:15",
+    "Content": "junk classes..."
+  },
+  {
+    "Date": "2025/12/30 5:14:16",
+    "Content": ">> Shuffle Classes..."
+  },
+  {
+    "Date": "2025/12/30 5:14:21",
+    "Content": ">>  Junk files:done..."
+  },
+  {
+    "Date": "2025/12/30 5:14:21",
+    "Content": "Encrypt Assets:fwtglsnccn1"
+  },
+  {
+    "Date": "2025/12/30 5:14:21",
+    "Content": ">----------------->> Building Apk..."
+  },
+  {
+    "Date": "2025/12/30 5:14:22",
+    "Content": ">>  Using Apktool 2.12.1 on apkstub.apk with 8 threads"
+  },
+  {
+    "Date": "2025/12/30 5:14:22",
+    "Content": ">>  Smaling smali folder into classes.dex..."
+  },
+  {
+    "Date": "2025/12/30 5:14:22",
+    "Content": ">>  Smaling smali_classes2 folder into classes2.dex..."
+  },
+  {
+    "Date": "2025/12/30 5:14:22",
+    "Content": ">>  Smaling smali_classes3 folder into classes3.dex..."
+  },
+  {
+    "Date": "2025/12/30 5:14:22",
+    "Content": ">>  Smaling smali_classes4 folder into classes4.dex..."
+  },
+  {
+    "Date": "2025/12/30 5:14:22",
+    "Content": ">>  Smaling smali_classes5 folder into classes5.dex..."
+  },
+  {
+    "Date": "2025/12/30 5:14:22",
+    "Content": ">>  Smaling smali_classes6 folder into classes6.dex..."
+  },
+  {
+    "Date": "2025/12/30 5:14:22",
+    "Content": ">>  Smaling smali_classes7 folder into classes7.dex..."
+  },
+  {
+    "Date": "2025/12/30 5:14:22",
+    "Content": ">>  Building resources with aapt2..."
+  },
+  {
+    "Date": "2025/12/30 5:14:31",
+    "Content": ">>  Building apk file..."
+  },
+  {
+    "Date": "2025/12/30 5:14:33",
+    "Content": ">>  Importing assets..."
+  },
+  {
+    "Date": "2025/12/30 5:14:33",
+    "Content": ">>  Importing unknown files..."
+  },
+  {
+    "Date": "2025/12/30 5:14:33",
+    "Content": ">>  Built apk into: C:\\Windows\\TEMP\\Eaod_custom_vBjqNqWmZJ\\out\\Ready.apk"
+  },
+  {
+    "Date": "2025/12/30 5:14:33",
+    "Content": ">Skip Protect.."
+  },
+  {
+    "Date": "2025/12/30 5:14:33",
+    "Content": ">> Zip Align.."
+  },
+  {
+    "Date": "2025/12/30 5:14:38",
+    "Content": ">> Sign APK.."
+  },
+  {
+    "Date": "2025/12/30 5:14:43",
+    "Content": ">-----------Finished-------------\r\n> App: com.gsudcsm.aofns.skg\r\n"
+  },
+  {
+    "Date": "2025/12/30 5:14:48",
+    "Content": "No Drooper needed..."
+  },
+  {
+    "Date": "2025/12/30 5:14:48",
+    "Content": "signoutput: C:\\Windows\\TEMP\\Eaod_custom_vBjqNqWmZJ\\out\\com.gsudcsm.aofns.skg"
+  },
+  {
+    "Date": "2025/12/30 5:14:48",
+    "Content": "userfolder: C:\\xampp\\htdocs\\user\\apps\\208828\\com.gsudcsm.aofns.skg\\com.gsudcsm.aofns.skg"
+  },
+  {
+    "Date": "2025/12/30 5:14:51",
+    "Content": "Cleanning..."
+  },
+  {
+    "Date": "2025/12/30 5:14:51",
+    "Content": "Cleanning WorkingDir..."
+  },
+  {
+    "Date": "2025/12/30 5:14:51",
+    "Content": ">Server UpdateState: Update successful"
+  },
+  {
+    "Date": "2025/12/30 5:15:18",
+    "Content": "Key 'DC8BE134E1B9CCBF07EA60BAF9D323DF' removed successfully."
+  }
+]

@@ -1,0 +1,9 @@
+Timestamp: 2026-01-28_15-52-55
+Error Message: require_once(/home/code/php/project/full-package/private/private/../vendor/autoload.php): Failed to open stream: No such file or directory
+Stack Trace:
+#0 /home/code/php/project/full-package/private/private/Eaod41561.php(6): {closure:/home/code/php/project/full-package/private/private/Eaod28491.php:131}(2, 'require_once(/h...', '/home/code/php/...', 6)
+#1 /home/code/php/project/full-package/private/private/Eaod41561.php(6): require_once()
+#2 /home/code/php/project/full-package/private/private/Eaod14881.php(10): require_once('/home/code/php/...')
+#3 /home/code/php/project/full-package/private/private/Eaod91328.php(14): require_once('/home/code/php/...')
+#4 {main}
+

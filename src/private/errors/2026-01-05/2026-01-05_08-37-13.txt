@@ -1,0 +1,7 @@
+Timestamp: 2026-01-05_08-37-13
+Error Message: file_get_contents(../404.php): Failed to open stream: No such file or directory
+Stack Trace:
+#0 [internal function]: {closure}(2, 'file_get_conten...', 'C:\\xampp\\htdocs...', 15)
+#1 C:\xampp\htdocs\private\create.php(15): file_get_contents('../404.php')
+#2 {main}
+
