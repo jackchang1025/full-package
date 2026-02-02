@@ -71,6 +71,13 @@ init() {
     print_msg "安装 Composer 依赖..."
     $DC exec -T app composer install --optimize-autoloader --no-dev
     
+    # 构建前端资源
+    print_msg "安装 npm 依赖..."
+    $DC exec -T app npm install
+    
+    print_msg "构建前端资源..."
+    $DC exec -T app npm run build
+    
     # 生成密钥
     print_msg "生成应用密钥..."
     $DC exec -T app php artisan key:generate --force
@@ -129,6 +136,7 @@ update() {
     $DC exec -T app php artisan queue:restart
     
     print_msg "=== 更新完成 ==="
+    print_warn "如果前端代码有变化，请执行: ./deploy.sh build-frontend"
 }
 
 # 重启服务
