@@ -23,7 +23,7 @@ return [
     // 对于大规模部署，需要实现 Redis Pub/Sub 或 Swoole Task Worker 方案
     'settings' => [
         'worker_num' => (int) env('WEBSOCKET_WORKERS', 1),
-        'max_connection' => (int) env('WEBSOCKET_MAX_CONNECTIONS', 10000),
+        'max_connection' => (int) env('WEBSOCKET_MAX_CONNECTIONS', 1024),
         'daemonize' => env('WEBSOCKET_DAEMONIZE', false),
         // Swoole 原生日志统一放到 websocket 目录，与 Laravel 日志在同一位置
         'log_file' => storage_path('logs/websocket/swoole.log'),

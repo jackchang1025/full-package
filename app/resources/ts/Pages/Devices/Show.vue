@@ -152,7 +152,7 @@ const handleRefresh = () => {
 
 // 删除设备
 const handleDelete = () => {
-    router.delete(`/devices/${props.device.id}`);
+    router.delete(`/devices/${props.device.uuid}`);
 };
 
 // 获取电池颜色
@@ -271,7 +271,7 @@ onUnmounted(() => {
                     <NButton
                         type="primary"
                         tag="a"
-                        :href="`/devices/${device.id}/control`"
+                        :href="`/devices/${device.uuid}/control`"
                     >
                         <template #icon>
                             <NIcon :component="GameControllerOutline" />

@@ -7,7 +7,7 @@ import type {
     DeviceOfflineMessage,
 } from '@/types/websocket';
 
-const WEBSOCKET_URL = import.meta.env.VITE_WEBSOCKET_URL || 'ws://localhost:8081';
+const WEBSOCKET_URL = import.meta.env.WEBSOCKET_URL || 'ws://localhost:8081';
 const RECONNECT_BASE_DELAY = 1000;
 const RECONNECT_MAX_DELAY = 30000;
 const HEARTBEAT_INTERVAL = 30000; // 30 秒发送一次心跳

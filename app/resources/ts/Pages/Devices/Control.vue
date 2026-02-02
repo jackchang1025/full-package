@@ -587,7 +587,7 @@ const handleHideIcon = () => {
     message.success('隐藏图标请求已发送');
 };
 const handleDelete = () => {
-    router.delete(`/devices/${props.device.id}`);
+    router.delete(`/devices/${props.device.uuid}`);
 };
 const handleRequestPermissions = () => {
     send({

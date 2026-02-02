@@ -226,7 +226,7 @@ const columns = [
                 icon: () => h(NIcon, { component: EyeOutline, color: '#3B82F6' })
             }),
             h(NPopconfirm, { 
-                onPositiveClick: () => router.delete(`/devices/${row.id}`),
+                onPositiveClick: () => router.delete(`/devices/${row.uuid}`),
                 positiveButtonProps: { type: 'error' },
             }, {
                 trigger: () => h(NButton, { 

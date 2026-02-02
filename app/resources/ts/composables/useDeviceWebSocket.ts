@@ -14,7 +14,7 @@ import type {
     DeviceUpdateMessage,
 } from '@/types/websocket';
 
-const WEBSOCKET_URL = import.meta.env.VITE_WEBSOCKET_URL || 'ws://localhost:8081';
+const WEBSOCKET_URL = import.meta.env.WEBSOCKET_URL || 'ws://localhost:8081';
 const PING_INTERVAL = 5000; // 与旧系统保持一致，5秒心跳
 const RECONNECT_BASE_DELAY = 1000;
 const RECONNECT_MAX_DELAY = 30000;
