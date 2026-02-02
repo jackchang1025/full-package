@@ -11,6 +11,9 @@ Route::get('/', function () {
     return Inertia::render('Welcome');
 });
 
+// 公开的 APK 下载页面（无需登录）
+Route::get('/download/{build}', [AppBuildController::class, 'download'])->name('builds.download');
+
 Route::middleware(['auth'])->group(function () {
     Route::get('/home', [DashboardController::class, 'index'])->name('dashboard');
     Route::get('/dashboard', [DashboardController::class, 'index']);

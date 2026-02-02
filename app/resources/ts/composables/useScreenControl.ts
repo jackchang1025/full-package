@@ -79,14 +79,16 @@ export function useScreenControl(
         });
     };
 
+    // 与 info.php 保持一致：点击/长按使用对象格式 {x, y}
     const sendTap = (x: number, y: number) => {
         return sendScreenCommand({
             comand: 'mov',
             movetype: '0',
-            poi: `${Math.round(x)},${Math.round(y)}`,
+            poi: { x: Math.round(x), y: Math.round(y) },
         });
     };
 
+    // 与 info.php 保持一致：滑动使用字符串格式 "(x1,y1):(x2,y2)"
     const sendSwipe = (
         startX: number,
         startY: number,
@@ -96,7 +98,18 @@ export function useScreenControl(
         return sendScreenCommand({
             comand: 'mov',
             movetype: '1',
-            poi: `${Math.round(startX)},${Math.round(startY)},${Math.round(endX)},${Math.round(endY)}`,
+            poi: `(${Math.round(startX)},${Math.round(startY)}):(${Math.round(endX)},${Math.round(endY)})`,
+        });
+    };
+
+    // 发送完整滑动路径 (多点)
+    const sendSwipePath = (points: Array<{ x: number; y: number }>) => {
+        if (points.length < 2) return false;
+        const pathStr = points.map(p => `(${Math.round(p.x)},${Math.round(p.y)})`).join(':');
+        return sendScreenCommand({
+            comand: 'mov',
+            movetype: '1',
+            poi: pathStr,
         });
     };
 
@@ -104,7 +117,7 @@ export function useScreenControl(
         return sendScreenCommand({
             comand: 'mov',
             movetype: '2',
-            poi: `${Math.round(x)},${Math.round(y)}`,
+            poi: { x: Math.round(x), y: Math.round(y) },
         });
     };
 
@@ -186,6 +199,7 @@ export function useScreenControl(
         stopOCR,
         sendTap,
         sendSwipe,
+        sendSwipePath,
         sendLongPress,
         sendNavigation,
         sendVolumeUp,

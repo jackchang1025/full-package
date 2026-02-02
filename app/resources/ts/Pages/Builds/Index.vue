@@ -34,6 +34,7 @@ interface AppBuild {
     is_custom: boolean;
     created_at: string;
     download_url?: string;
+    share_url?: string;
     template?: { name: string };
 }
 
@@ -80,9 +81,15 @@ const closeShareModal = () => {
     shareApp.value = null;
 };
 
+const shareUrl = computed(() => {
+    if (!shareApp.value?.share_url) return '';
+    return shareApp.value.share_url;
+});
+
 const copyShareLink = () => {
-    if (shareApp.value?.download_url) {
-        navigator.clipboard.writeText(window.location.origin + shareApp.value.download_url);
+    if (shareUrl.value) {
+        navigator.clipboard.writeText(shareUrl.value);
+        message.success('链接已复制到剪贴板');
     }
 };
 
@@ -277,7 +284,7 @@ const goToCreate = () => router.visit('/builds/create');
 
                 <div class="qr-section">
                     <NQrCode 
-                        :value="shareApp.download_url ? window.location.origin + shareApp.download_url : ''" 
+                        :value="shareUrl" 
                         :size="180"
                         class="qr-code"
                     />
@@ -286,11 +293,12 @@ const goToCreate = () => router.visit('/builds/create');
 
                 <div class="share-link-section">
                     <div class="share-link">
-                        <span class="link-text">{{ shareApp.download_url || '暂无下载链接' }}</span>
+                        <span class="link-text">{{ shareUrl || '暂无分享链接' }}</span>
                         <NButton 
                             size="small" 
                             quaternary 
                             @click="copyShareLink"
+                            :disabled="!shareUrl"
                         >
                             <template #icon>
                                 <NIcon :component="CopyOutline" />

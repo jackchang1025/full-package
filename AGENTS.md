@@ -77,6 +77,7 @@ cd app
 
 | 文档 | 用途 | 推荐阅读场景 |
 |------|------|-------------|
+| [FRONTEND.md](./docs/migration/FRONTEND.md) | **前端架构文档** - Vue 3 + Inertia.js 技术栈、页面组件、Composables、WebSocket 类型 | ⭐ 前端开发首选 |
 | [API.md](./docs/migration/API.md) | API 接口文档 | 开发 API 功能 |
 | [DEVELOPMENT.md](./docs/migration/DEVELOPMENT.md) | 开发环境详解 | 环境配置、常用命令 |
 | [APK_BUILDER.md](./docs/migration/APK_BUILDER.md) | **APK 构建服务** - Laravel 版构建服务、配置参数、使用示例 | 开发/维护 APK 构建功能 |
@@ -89,6 +90,7 @@ cd app
 | [SYSTEM_FEATURES.md](./docs/legacy/SYSTEM_FEATURES.md) | **系统功能详解** - 完整的功能列表、架构设计和商业模式 | 了解系统全貌、功能范围 |
 | [DEPLOYMENT.md](./docs/legacy/DEPLOYMENT.md) | **部署文档** - Docker/手动部署指南、SSL配置、安全加固 | 部署上线、环境配置 |
 | [QUICK_REFERENCE.md](./docs/legacy/QUICK_REFERENCE.md) | **快速参考** - 参数表格、加密密钥、常见错误速查 | 开发时快速查阅 |
+| [DEVICE_CONTROL_PANEL.md](./docs/legacy/DEVICE_CONTROL_PANEL.md) | **设备控制面板** - 旧版 info.php 单页应用、WebSocket 协议、功能模块、UI 组件 | 理解旧版控制面板、迁移参考 |
 
 ### WebSocket 文档
 
@@ -135,6 +137,11 @@ cd app
 **新手入门**:
 ```
 AGENTS.md → docs/migration/DEVELOPMENT.md → docs/legacy/SYSTEM_FEATURES.md
+```
+
+**前端开发**:
+```
+docs/migration/FRONTEND.md → docs/migration/WEBSOCKET_CLIENT.md
 ```
 
 **WebSocket 开发**:

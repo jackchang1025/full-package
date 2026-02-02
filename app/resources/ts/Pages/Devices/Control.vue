@@ -109,6 +109,12 @@ const isStreaming = ref(false);
 const screenLoading = ref(false);
 const screenMode = ref<'screen' | 'screenshot'>('screen');
 
+// OCR 文字辅助状态
+const ocrScreenData = ref<string | null>(null);
+const ocrScreenWidth = ref(1080);
+const ocrScreenHeight = ref(1920);
+const isOcrRunning = ref(false);
+
 const smsMessages = ref<SmsMessage[]>([]);
 const contacts = ref<Contact[]>([]);
 const files = ref<FileItem[]>([]);
@@ -171,8 +177,18 @@ const handleMessage = (msg: WebSocketInboundMessage) => {
             // deviceStatus 由 useDeviceWebSocket 自动处理
             break;
         }
-        case 'screen':
+        case 'screen': {
+            // OCR 文字辅助屏幕数据
+            const screenMsg = msg as ScreenDataMessage;
+            if (isOcrRunning.value) {
+                ocrScreenData.value = screenMsg.data;
+                ocrScreenWidth.value = screenMsg.wmob || 1080;
+                ocrScreenHeight.value = screenMsg.hmob || 1920;
+            }
+            break;
+        }
         case 'screenshot': {
+            // 截图/投屏屏幕数据
             const screenMsg = msg as ScreenDataMessage;
             screenData.value = screenMsg.data;
             screenWidth.value = screenMsg.wmob || 1080;
@@ -267,6 +283,33 @@ const handleVolumeDown = () => screenControl.sendVolumeDown();
 const handleShowKeyboard = () => screenControl.showKeyboard();
 const handleHideKeyboard = () => screenControl.hideKeyboard();
 const handlePaste = (text: string) => screenControl.pasteText(text);
+
+// OCR 文字辅助处理
+const handleStartOcr = () => {
+    isOcrRunning.value = true;
+    ocrScreenData.value = null;  // 清除旧数据
+    screenControl.startOCR();
+    message.success('已开启文字辅助');
+};
+
+const handleStopOcr = () => {
+    screenControl.stopOCR();
+    isOcrRunning.value = false;
+    ocrScreenData.value = null;
+    message.success('已关闭文字辅助');
+};
+
+const handleOcrTap = (x: number, y: number) => {
+    screenControl.sendTap(x, y);
+};
+
+const handleOcrSwipe = (startX: number, startY: number, endX: number, endY: number) => {
+    screenControl.sendSwipe(startX, startY, endX, endY);
+};
+
+const handleOcrLongPress = (x: number, y: number) => {
+    screenControl.sendLongPress(x, y);
+};
 const handleLock = (type: 0 | 1 | 2 | 3) => screenControl.lockDevice(type);
 const handleScreenshot = () => screenControl.takeScreenshot();
 const handleQualityChange = (quality: number) => screenControl.setScreenQuality(quality);
@@ -739,9 +782,15 @@ const tabList = [
                     :last-ping="deviceStatus?.lastPing || ''"
                 />
                 <TextAssistPanel
-                    @paste="handlePaste"
-                    @show-keyboard="handleShowKeyboard"
-                    @hide-keyboard="handleHideKeyboard"
+                    :screen-data="ocrScreenData"
+                    :screen-width="ocrScreenWidth"
+                    :screen-height="ocrScreenHeight"
+                    :is-running="isOcrRunning"
+                    @start="handleStartOcr"
+                    @stop="handleStopOcr"
+                    @tap="handleOcrTap"
+                    @swipe="handleOcrSwipe"
+                    @longpress="handleOcrLongPress"
                 />
                 <DeviceActions
                     @rename="handleRename"
@@ -1029,12 +1078,15 @@ const tabList = [
 </template>
 
 <style scoped>
-/* 单页面容器 */
+/* 单页面容器：固定宽度由视口决定，不随内容变化 */
 .control-page {
     min-height: 100vh;
+    width: 100%;
+    max-width: 100%;
     background: #f5f7fa;
     display: flex;
     flex-direction: column;
+    overflow-x: hidden;
 }
 
 /* 顶部导航栏 */
@@ -1063,14 +1115,19 @@ const tabList = [
     gap: 12px;
 }
 
-/* 主布局：两栏布局 */
+/* 主布局：两栏布局，宽度固定为 100% 防止被内容撑开 */
 .control-dashboard {
     display: grid;
-    grid-template-columns: 240px 1fr;
-    gap: 16px;
+    grid-template-columns: 280px minmax(0, 1fr);
+    gap: 20px;
     flex: 1;
-    padding: 16px;
+    width: 100%;
+    max-width: 1920px;
+    min-width: 0;
+    padding: 20px 24px;
     position: relative;
+    margin: 0 auto;
+    overflow: hidden;
 }
 
 /* 初始化加载遮罩 */
@@ -1155,16 +1212,20 @@ const tabList = [
     top: 16px;
 }
 
-/* 右侧主内容区 */
+/* 右侧主内容区：占满 grid 单元格，不随内部内容撑开 */
 .main-content {
     position: relative;
     display: flex;
     flex-direction: column;
     gap: 16px;
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
     background: white;
     border-radius: 12px;
     padding: 16px;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+    overflow: hidden;
 }
 
 /* 设备离线遮罩 */
@@ -1224,10 +1285,25 @@ const tabList = [
     opacity: 0;
 }
 
-/* 标签导航 */
+/* 标签导航：限制宽度，防止 n-tabs 撑开父级 */
 .tabs-header {
+    width: 100%;
+    min-width: 0;
     border-bottom: 1px solid #e5e7eb;
     padding-bottom: 12px;
+    overflow: hidden;
+}
+
+.tabs-header :deep(.n-tabs) {
+    width: 100%;
+}
+
+.tabs-header :deep(.n-tabs-nav) {
+    max-width: 100%;
+}
+
+.tabs-header :deep(.n-tabs-rail) {
+    max-width: 100%;
 }
 
 .tab-label {
@@ -1241,13 +1317,16 @@ const tabList = [
     font-size: 16px;
 }
 
-/* 内容区：投屏 + 标签内容并排 */
+/* 内容区：投屏 + 标签内容并排，第二列固定由剩余空间分配 */
 .content-layout {
     display: grid;
-    grid-template-columns: minmax(280px, 360px) 1fr;
-    gap: 20px;
+    grid-template-columns: 320px minmax(0, 1fr);
+    gap: 24px;
     flex: 1;
+    width: 100%;
+    min-width: 0;
     min-height: 0;
+    overflow: hidden;
 }
 
 /* 投屏区域 */
@@ -1313,17 +1392,35 @@ const tabList = [
     border-radius: 8px;
 }
 
-/* 标签内容区 */
+/* 标签内容区：宽度严格限制在 grid 单元格内，不随各标签内容变化 */
 .tab-content-area {
     background: #fafbfc;
     border-radius: 12px;
     padding: 16px;
+    overflow-x: hidden;
     overflow-y: auto;
     max-height: calc(100vh - 200px);
+    min-height: 500px;
+    min-width: 0;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
 }
 
 .tab-content-wrapper {
     height: 100%;
+    min-width: 0;
+    width: 100%;
+    max-width: 100%;
+    overflow-x: hidden;
+    overflow-y: visible;
+    box-sizing: border-box;
+}
+
+/* 各标签页内部根元素统一限制宽度，防止宽内容撑开 */
+.tab-content-area .tab-content-wrapper > * {
+    max-width: 100%;
+    min-width: 0;
 }
 
 /* Tab 过渡动画 */
@@ -1343,19 +1440,54 @@ const tabList = [
 }
 
 /* 响应式布局 */
-@media (max-width: 1400px) {
+
+/* 超大屏幕 (> 1600px) */
+@media (min-width: 1600px) {
+    .control-dashboard {
+        grid-template-columns: 300px minmax(0, 1fr);
+        gap: 24px;
+    }
+
     .content-layout {
-        grid-template-columns: minmax(260px, 320px) 1fr;
+        grid-template-columns: 360px minmax(0, 1fr);
+        gap: 28px;
     }
 }
 
-@media (max-width: 1200px) {
+/* 大屏幕 (1400px - 1600px) */
+@media (max-width: 1600px) and (min-width: 1400px) {
     .control-dashboard {
-        grid-template-columns: 220px 1fr;
+        grid-template-columns: 280px minmax(0, 1fr);
     }
 
     .content-layout {
-        grid-template-columns: 260px 1fr;
+        grid-template-columns: 340px minmax(0, 1fr);
+    }
+}
+
+/* 中大屏幕 (1200px - 1400px) */
+@media (max-width: 1400px) and (min-width: 1200px) {
+    .control-dashboard {
+        grid-template-columns: 260px minmax(0, 1fr);
+        padding: 16px 20px;
+    }
+
+    .content-layout {
+        grid-template-columns: 300px minmax(0, 1fr);
+        gap: 20px;
+    }
+}
+
+/* 中等屏幕 (1024px - 1200px) */
+@media (max-width: 1200px) and (min-width: 1024px) {
+    .control-dashboard {
+        grid-template-columns: 240px minmax(0, 1fr);
+        padding: 16px;
+    }
+
+    .content-layout {
+        grid-template-columns: 280px minmax(0, 1fr);
+        gap: 16px;
     }
 
     .tab-label span {
@@ -1363,32 +1495,41 @@ const tabList = [
     }
 }
 
+/* 平板屏幕 (768px - 1024px) */
 @media (max-width: 1024px) {
     .control-dashboard {
         grid-template-columns: 1fr;
+        padding: 16px;
     }
 
     .sidebar {
         position: static;
         flex-direction: row;
         flex-wrap: wrap;
+        gap: 12px;
     }
 
     .sidebar > * {
         flex: 1;
-        min-width: 200px;
+        min-width: 240px;
     }
 
     .content-layout {
         grid-template-columns: 1fr;
+        gap: 16px;
     }
 
     .screen-area {
-        max-width: 360px;
+        max-width: 400px;
         margin: 0 auto;
+    }
+
+    .tab-label span {
+        display: none;
     }
 }
 
+/* 手机屏幕 (< 768px) */
 @media (max-width: 768px) {
     .control-dashboard {
         padding: 12px;
@@ -1399,10 +1540,22 @@ const tabList = [
         padding: 12px;
     }
 
-    .header-content {
-        flex-direction: column;
-        gap: 12px;
-        align-items: flex-start;
+    .page-header {
+        padding: 10px 16px;
+    }
+
+    .header-left {
+        gap: 8px;
+    }
+
+    .device-icon {
+        width: 36px;
+        height: 36px;
+        border-radius: 8px;
+    }
+
+    .device-name {
+        font-size: 16px;
     }
 
     .sidebar {
@@ -1419,6 +1572,12 @@ const tabList = [
 
     .tab-content-area {
         max-height: none;
+        padding: 12px;
+    }
+
+    .tabs-header {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
     }
 }
 </style>

@@ -1,158 +1,410 @@
 <script setup lang="ts">
-import { ref } from 'vue';
+import { ref, computed } from 'vue';
+import { NIcon, NButton, NModal } from 'naive-ui';
 import {
-    NCard,
-    NButton,
-    NInput,
-    NIcon,
-    NSpace,
-} from 'naive-ui';
-import {
-    ClipboardOutline,
-    SendOutline,
-    DocumentTextOutline,
+    PlayOutline,
+    StopOutline,
+    ExpandOutline,
+    TextOutline,
 } from '@vicons/ionicons5';
 
-interface Emits {
-    (e: 'paste', text: string): void;
-    (e: 'showKeyboard'): void;
-    (e: 'hideKeyboard'): void;
+interface Props {
+    /** OCR 屏幕图像数据 (base64) */
+    screenData?: string | null;
+    /** 屏幕宽度 */
+    screenWidth?: number;
+    /** 屏幕高度 */
+    screenHeight?: number;
+    /** 是否正在运行 OCR */
+    isRunning?: boolean;
 }
+
+interface Emits {
+    (e: 'start'): void;
+    (e: 'stop'): void;
+    (e: 'tap', x: number, y: number): void;
+    (e: 'swipe', startX: number, startY: number, endX: number, endY: number): void;
+    (e: 'longpress', x: number, y: number): void;
+}
+
+const props = withDefaults(defineProps<Props>(), {
+    screenData: null,
+    screenWidth: 1080,
+    screenHeight: 1920,
+    isRunning: false,
+});
 
 const emit = defineEmits<Emits>();
 
-const pasteText = ref('');
-const quickTexts = [
-    '验证码',
-    '确认',
-    '取消',
-    '下一步',
-    '完成',
-    '同意',
-];
+// 放大模态框
+const showFullscreen = ref(false);
 
-const handlePaste = () => {
-    if (pasteText.value.trim()) {
-        emit('paste', pasteText.value);
-        pasteText.value = '';
+// 图片元素引用
+const imageRef = ref<HTMLImageElement | null>(null);
+const fullscreenImageRef = ref<HTMLImageElement | null>(null);
+
+// 触摸状态
+const touchStartX = ref(0);
+const touchStartY = ref(0);
+const isTouching = ref(false);
+const isClick = ref(true);
+const longPressTimer = ref<ReturnType<typeof setTimeout> | null>(null);
+
+// 阈值配置 (与 info.php 一致)
+const LONG_PRESS_DURATION = 350;
+const MOVE_THRESHOLD = 5;
+
+// 计算图片 src
+const imageSrc = computed(() => {
+    if (!props.screenData) return '';
+    if (props.screenData.startsWith('data:')) return props.screenData;
+    return `data:image/jpeg;base64,${props.screenData}`;
+});
+
+// 坐标转换
+const getScaledCoordinates = (
+    event: MouseEvent | Touch,
+    imgEl: HTMLImageElement | null
+): { x: number; y: number } => {
+    if (!imgEl) return { x: 0, y: 0 };
+
+    const rect = imgEl.getBoundingClientRect();
+    const scaleX = props.screenWidth / rect.width;
+    const scaleY = props.screenHeight / rect.height;
+
+    const x = (event.clientX - rect.left) * scaleX;
+    const y = (event.clientY - rect.top) * scaleY;
+
+    return {
+        x: Math.max(0, Math.min(props.screenWidth, x)),
+        y: Math.max(0, Math.min(props.screenHeight, y)),
+    };
+};
+
+// 清除长按计时器
+const clearLongPressTimer = () => {
+    if (longPressTimer.value) {
+        clearTimeout(longPressTimer.value);
+        longPressTimer.value = null;
     }
 };
 
-const handleQuickPaste = (text: string) => {
-    emit('paste', text);
+// 鼠标/触摸事件处理
+const handlePointerDown = (event: MouseEvent, imgEl: HTMLImageElement | null) => {
+    if (!props.isRunning) return;
+    event.preventDefault();
+
+    const coords = getScaledCoordinates(event, imgEl);
+    touchStartX.value = coords.x;
+    touchStartY.value = coords.y;
+    isTouching.value = true;
+    isClick.value = true;
+
+    longPressTimer.value = setTimeout(() => {
+        if (isTouching.value && isClick.value) {
+            emit('longpress', touchStartX.value, touchStartY.value);
+            isTouching.value = false;
+        }
+    }, LONG_PRESS_DURATION);
+};
+
+const handlePointerMove = (event: MouseEvent, imgEl: HTMLImageElement | null) => {
+    if (!isTouching.value || !imgEl) return;
+
+    const coords = getScaledCoordinates(event, imgEl);
+
+    if (
+        Math.abs(coords.x - touchStartX.value) > MOVE_THRESHOLD ||
+        Math.abs(coords.y - touchStartY.value) > MOVE_THRESHOLD
+    ) {
+        isClick.value = false;
+        clearLongPressTimer();
+    }
+};
+
+const handlePointerUp = (event: MouseEvent, imgEl: HTMLImageElement | null) => {
+    if (!isTouching.value) return;
+    event.preventDefault();
+
+    clearLongPressTimer();
+    const coords = getScaledCoordinates(event, imgEl);
+
+    if (isClick.value) {
+        emit('tap', touchStartX.value, touchStartY.value);
+    } else {
+        emit('swipe', touchStartX.value, touchStartY.value, coords.x, coords.y);
+    }
+
+    isTouching.value = false;
+};
+
+const handlePointerLeave = () => {
+    clearLongPressTimer();
+    isTouching.value = false;
+};
+
+// 开启/停止
+const handleToggle = () => {
+    if (props.isRunning) {
+        emit('stop');
+    } else {
+        emit('start');
+    }
 };
 </script>
 
 <template>
-    <NCard size="small" class="text-assist-card">
-        <template #header>
-            <div class="card-header">
-                <NIcon :component="DocumentTextOutline" size="16" />
-                <span>文字辅助</span>
+    <div class="text-assist-panel">
+        <!-- 头部 -->
+        <div class="panel-header">
+            <div class="header-title">
+                <span class="title-icon">A</span>
+                <span class="title-text">文字辅助</span>
             </div>
-        </template>
-
-        <div class="assist-content">
-            <!-- 粘贴输入 -->
-            <div class="paste-row">
-                <NInput
-                    v-model:value="pasteText"
-                    placeholder="输入文本..."
-                    size="small"
-                    @keyup.enter="handlePaste"
-                />
+            <div class="header-actions">
                 <NButton
-                    size="small"
-                    type="primary"
-                    :disabled="!pasteText.trim()"
-                    @click="handlePaste"
-                >
-                    <template #icon>
-                        <NIcon :component="SendOutline" />
-                    </template>
-                </NButton>
-            </div>
-
-            <!-- 快捷文本 -->
-            <div class="quick-texts">
-                <NButton
-                    v-for="text in quickTexts"
-                    :key="text"
                     size="tiny"
                     quaternary
-                    class="quick-btn"
-                    @click="handleQuickPaste(text)"
+                    :disabled="!screenData"
+                    @click="showFullscreen = true"
                 >
-                    {{ text }}
+                    <template #icon>
+                        <NIcon :component="ExpandOutline" :size="14" />
+                    </template>
+                    放大
                 </NButton>
-            </div>
-
-            <!-- 键盘控制 -->
-            <div class="keyboard-controls">
-                <NButton size="tiny" block @click="emit('showKeyboard')">
-                    显示键盘
+                <NButton
+                    size="tiny"
+                    :type="isRunning ? 'default' : 'success'"
+                    @click="emit('start')"
+                    :disabled="isRunning"
+                >
+                    <template #icon>
+                        <NIcon :component="PlayOutline" :size="14" />
+                    </template>
+                    开启
                 </NButton>
-                <NButton size="tiny" block @click="emit('hideKeyboard')">
-                    隐藏键盘
+                <NButton
+                    size="tiny"
+                    type="error"
+                    @click="emit('stop')"
+                    :disabled="!isRunning"
+                >
+                    <template #icon>
+                        <NIcon :component="StopOutline" :size="14" />
+                    </template>
+                    停止
                 </NButton>
             </div>
         </div>
-    </NCard>
+
+        <!-- OCR 屏幕显示区域 -->
+        <div class="screen-display">
+            <!-- 有屏幕数据时显示图像 -->
+            <template v-if="isRunning && screenData">
+                <img
+                    ref="imageRef"
+                    :src="imageSrc"
+                    class="screen-image"
+                    draggable="false"
+                    @mousedown="handlePointerDown($event, imageRef)"
+                    @mousemove="handlePointerMove($event, imageRef)"
+                    @mouseup="handlePointerUp($event, imageRef)"
+                    @mouseleave="handlePointerLeave"
+                />
+            </template>
+
+            <!-- 加载中状态 -->
+            <template v-else-if="isRunning && !screenData">
+                <div class="screen-placeholder loading">
+                    <NIcon :component="TextOutline" :size="48" class="placeholder-icon spinning" />
+                    <div class="placeholder-text">正在连接...</div>
+                </div>
+            </template>
+
+            <!-- 默认占位符 -->
+            <template v-else>
+                <div class="screen-placeholder" @click="emit('start')">
+                    <span class="placeholder-icon-text">A</span>
+                    <div class="placeholder-text">点击开启文字识别</div>
+                </div>
+            </template>
+        </div>
+
+        <!-- 放大模态框 -->
+        <NModal
+            v-model:show="showFullscreen"
+            preset="card"
+            title="文字辅助 - 放大视图"
+            style="width: 90vw; max-width: 800px;"
+            :bordered="false"
+        >
+            <div class="fullscreen-display">
+                <img
+                    v-if="screenData"
+                    ref="fullscreenImageRef"
+                    :src="imageSrc"
+                    class="fullscreen-image"
+                    draggable="false"
+                    @mousedown="handlePointerDown($event, fullscreenImageRef)"
+                    @mousemove="handlePointerMove($event, fullscreenImageRef)"
+                    @mouseup="handlePointerUp($event, fullscreenImageRef)"
+                    @mouseleave="handlePointerLeave"
+                />
+                <div v-else class="screen-placeholder">
+                    <span class="placeholder-icon-text">A</span>
+                    <div class="placeholder-text">暂无屏幕数据</div>
+                </div>
+            </div>
+        </NModal>
+    </div>
 </template>
 
 <style scoped>
-.text-assist-card {
+.text-assist-panel {
+    display: flex;
+    flex-direction: column;
     background: white;
+    border-radius: 12px;
+    overflow: hidden;
+    height: 100%;
+    border: 1px solid #e5e7eb;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
 }
 
-.text-assist-card :deep(.n-card__header) {
-    padding: 12px 16px;
-    border-bottom: 1px solid #f1f5f9;
+.panel-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 14px;
+    background: #f8fafc;
+    border-bottom: 1px solid #e5e7eb;
 }
 
-.card-header {
+.header-title {
     display: flex;
     align-items: center;
     gap: 8px;
-    font-weight: 600;
+}
+
+.title-icon {
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #10B981, #059669);
+    color: white;
+    font-weight: 700;
     font-size: 14px;
+    border-radius: 6px;
+}
+
+.title-text {
+    font-size: 13px;
+    font-weight: 500;
     color: #1e293b;
 }
 
-.assist-content {
+.header-actions {
     display: flex;
-    flex-direction: column;
-    gap: 12px;
-}
-
-.paste-row {
-    display: flex;
-    gap: 8px;
+    gap: 6px;
     align-items: center;
 }
 
-.quick-texts {
+.screen-display {
+    flex: 1;
+    min-height: 200px;
+    background: #f1f5f9;
     display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    cursor: pointer;
 }
 
-.quick-btn {
-    font-size: 11px;
-    padding: 4px 8px;
-    background: #f1f5f9;
-    border-radius: 6px;
+.screen-image {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    display: block;
+    user-select: none;
+    -webkit-user-drag: none;
+}
+
+.screen-placeholder {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    color: #94a3b8;
+    padding: 40px;
+    cursor: pointer;
     transition: all 0.2s ease;
 }
 
-.quick-btn:hover {
-    background: #e2e8f0;
+.screen-placeholder:hover {
+    color: #64748b;
+}
+
+.screen-placeholder.loading {
+    cursor: default;
     color: #10B981;
 }
 
-.keyboard-controls {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 8px;
+.placeholder-icon-text {
+    font-size: 48px;
+    font-weight: 700;
+    color: #cbd5e1;
+}
+
+.placeholder-icon {
+    opacity: 0.6;
+}
+
+.placeholder-icon.spinning {
+    animation: spin 1.5s linear infinite;
+}
+
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+.placeholder-text {
+    font-size: 13px;
+    color: inherit;
+}
+
+.fullscreen-display {
+    background: #f1f5f9;
+    border-radius: 8px;
+    overflow: hidden;
+    min-height: 400px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.fullscreen-image {
+    max-width: 100%;
+    max-height: 70vh;
+    object-fit: contain;
+    user-select: none;
+    -webkit-user-drag: none;
+}
+
+/* 按钮样式覆盖 */
+.header-actions :deep(.n-button) {
+    font-size: 12px;
+}
+
+.header-actions :deep(.n-button--default-type) {
+    color: #64748b;
+}
+
+.header-actions :deep(.n-button--default-type:hover) {
+    color: #1e293b;
 }
 </style>

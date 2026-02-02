@@ -1,26 +1,34 @@
 <script setup lang="ts">
-import { computed, ref, onMounted, onUnmounted, watch } from 'vue';
+import { computed, ref, onMounted, onUnmounted, watch, h } from 'vue';
 import { Head, router } from '@inertiajs/vue3';
 import {
     NDataTable,
     NButton,
-    NSpace,
     NTag,
     NPopconfirm,
     NIcon,
     NInput,
     NSelect,
     NPagination,
+    NTooltip,
+    NSpace,
 } from 'naive-ui';
-import { h } from 'vue';
+import type { DataTableColumns } from 'naive-ui';
 import {
     SearchOutline,
     RefreshOutline,
     EyeOutline,
     TrashOutline,
     PhonePortraitOutline,
-    LocationOutline,
     WifiOutline,
+    CellularOutline,
+    AccessibilityOutline,
+    TimeOutline,
+    BatteryFullOutline,
+    BatteryHalfOutline,
+    BatteryDeadOutline,
+    EllipseOutline,
+    HardwareChipOutline,
 } from '@vicons/ionicons5';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { useGlobalWebSocket } from '@/composables/useGlobalWebSocket';
@@ -34,6 +42,7 @@ interface Device {
     model: string;
     android_version: string;
     country: string;
+    network_type: string | null;
     battery_level: number | null;
     is_online: boolean;
     has_accessibility: boolean;
@@ -163,26 +172,85 @@ const handleDeviceOffline = (pid: string) => {
     }
 };
 
-// Table columns
-const columns = [
+// 格式化最后活动时间
+const formatLastSeen = (dateStr: string | null) => {
+    if (!dateStr) return '从未';
+    const date = new Date(dateStr);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+    const diffDays = Math.floor(diffMs / 86400000);
+    
+    if (diffMins < 1) return '刚刚';
+    if (diffMins < 60) return `${diffMins}分钟前`;
+    if (diffHours < 24) return `${diffHours}小时前`;
+    if (diffDays < 7) return `${diffDays}天前`;
+    return date.toLocaleDateString('zh-CN');
+};
+
+// 获取电池图标
+const getBatteryIcon = (level: number | null) => {
+    if (level === null) return BatteryDeadOutline;
+    if (level > 60) return BatteryFullOutline;
+    if (level > 20) return BatteryHalfOutline;
+    return BatteryDeadOutline;
+};
+
+// 获取电池颜色
+const getBatteryColor = (level: number | null) => {
+    if (level === null) return '#94a3b8';
+    if (level > 60) return '#10B981';
+    if (level > 20) return '#F59E0B';
+    return '#EF4444';
+};
+
+// 获取网络图标和颜色
+const getNetworkInfo = (type: string | null) => {
+    if (!type) return { icon: EllipseOutline, color: '#cbd5e1', label: '未知' };
+    const t = type.toLowerCase();
+    if (t.includes('wifi')) return { icon: WifiOutline, color: '#3B82F6', label: 'WiFi' };
+    if (t.includes('5g')) return { icon: CellularOutline, color: '#8B5CF6', label: '5G' };
+    if (t.includes('4g') || t.includes('lte')) return { icon: CellularOutline, color: '#10B981', label: '4G' };
+    if (t.includes('3g')) return { icon: CellularOutline, color: '#F59E0B', label: '3G' };
+    return { icon: CellularOutline, color: '#64748b', label: type };
+};
+
+// 打开设备控制
+const openControl = (uuid: string) => {
+    window.open(`/devices/${uuid}/control`, '_blank');
+};
+
+// 删除设备
+const deleteDevice = (uuid: string) => {
+    router.delete(`/devices/${uuid}`);
+};
+
+// 表格列定义
+const columns: DataTableColumns<Device> = [
     {
-        title: '设备信息',
+        title: '设备',
         key: 'device',
-        render: (row: Device) => h('div', { class: 'device-cell' }, [
-            h('div', { class: 'device-icon-wrapper' }, [
-                h(NIcon, { component: PhonePortraitOutline, size: 20, color: '#64748b' }),
+        minWidth: 220,
+        render: (row) => h('div', { class: 'device-cell' }, [
+            h('div', { class: ['device-avatar', { online: row.is_online }] }, [
+                h(NIcon, { component: PhonePortraitOutline, size: 20 }),
             ]),
-            h('div', { class: 'device-details' }, [
+            h('div', { class: 'device-info' }, [
                 h('div', { class: 'device-name' }, row.name || '未命名设备'),
-                h('div', { class: 'device-model' }, row.model || '-'),
+                h('div', { class: 'device-model' }, [
+                    h(NIcon, { component: HardwareChipOutline, size: 12, color: '#94a3b8' }),
+                    h('span', { style: { marginLeft: '4px' } }, row.model || '未知型号'),
+                ]),
             ]),
         ]),
     },
     {
         title: 'Android',
         key: 'android_version',
-        width: 100,
-        render: (row: Device) => h(NTag, { 
+        width: 90,
+        align: 'center',
+        render: (row) => h(NTag, { 
             size: 'small', 
             round: true,
             bordered: false,
@@ -190,52 +258,94 @@ const columns = [
         }, () => row.android_version ? `v${row.android_version}` : '-'),
     },
     {
-        title: '地区',
-        key: 'country',
-        width: 120,
-        render: (row: Device) => h('div', { class: 'country-cell' }, [
-            h(NIcon, { component: LocationOutline, size: 16, color: '#94a3b8' }),
-            h('span', {}, row.country || '-'),
+        title: '状态',
+        key: 'is_online',
+        width: 90,
+        align: 'center',
+        render: (row) => h('div', { class: 'status-cell' }, [
+            h('span', { class: ['status-dot', row.is_online ? 'online' : 'offline'] }),
+            h('span', { 
+                style: { color: row.is_online ? '#059669' : '#94a3b8', fontWeight: 500 }
+            }, row.is_online ? '在线' : '离线'),
         ]),
     },
     {
         title: '电量',
         key: 'battery_level',
-        width: 80,
-        render: (row: Device) => {
-            const battery = row.battery_level ?? 0;
-            const color = battery > 50 ? '#10B981' : battery > 20 ? '#F59E0B' : '#EF4444';
-            return h('span', { style: { color, fontWeight: 500 } }, `${battery}%`);
+        width: 90,
+        align: 'center',
+        render: (row) => {
+            const icon = getBatteryIcon(row.battery_level);
+            const color = getBatteryColor(row.battery_level);
+            return h('div', { class: 'metric-cell' }, [
+                h(NIcon, { component: icon, size: 16, color }),
+                h('span', { style: { color, marginLeft: '4px', fontWeight: 500 } }, 
+                    row.battery_level !== null ? `${row.battery_level}%` : '-'
+                ),
+            ]);
         },
     },
     {
-        title: '状态',
-        key: 'is_online',
-        width: 100,
-        render: (row: Device) => h('div', { class: 'status-cell' }, [
-            h('div', { 
-                class: ['status-dot', row.is_online ? 'online' : 'offline']
-            }),
-            h('span', { 
-                class: row.is_online ? 'text-emerald-600' : 'text-slate-400'
-            }, row.is_online ? '在线' : '离线'),
+        title: '网络',
+        key: 'network_type',
+        width: 90,
+        align: 'center',
+        render: (row) => {
+            const info = getNetworkInfo(row.network_type);
+            return h('div', { class: 'metric-cell' }, [
+                h(NIcon, { component: info.icon, size: 16, color: info.color }),
+                h('span', { style: { color: info.color, marginLeft: '4px', fontWeight: 500 } }, info.label),
+            ]);
+        },
+    },
+    {
+        title: '无障碍',
+        key: 'has_accessibility',
+        width: 90,
+        align: 'center',
+        render: (row) => {
+            const active = row.has_accessibility;
+            return h('div', { class: 'metric-cell' }, [
+                h(NIcon, { 
+                    component: AccessibilityOutline, 
+                    size: 16, 
+                    color: active ? '#10B981' : '#cbd5e1' 
+                }),
+                h('span', { 
+                    style: { color: active ? '#10B981' : '#94a3b8', marginLeft: '4px', fontWeight: 500 } 
+                }, active ? '开启' : '关闭'),
+            ]);
+        },
+    },
+    {
+        title: '活动时间',
+        key: 'last_seen_at',
+        width: 110,
+        align: 'center',
+        render: (row) => h('div', { class: 'metric-cell' }, [
+            h(NIcon, { component: TimeOutline, size: 14, color: '#64748b' }),
+            h('span', { style: { color: '#64748b', marginLeft: '4px' } }, formatLastSeen(row.last_seen_at)),
         ]),
     },
     {
         title: '操作',
         key: 'actions',
-        width: 140,
-        render: (row: Device) => h(NSpace, { size: 8 }, () => [
-            h(NButton, { 
-                size: 'small',
-                quaternary: true,
-                circle: true,
-                onClick: () => window.open(`/devices/${row.uuid}/control`, '_blank')
-            }, { 
-                icon: () => h(NIcon, { component: EyeOutline, color: '#3B82F6' })
+        width: 100,
+        align: 'center',
+        render: (row) => h(NSpace, { size: 4, justify: 'center' }, () => [
+            h(NTooltip, { trigger: 'hover' }, {
+                trigger: () => h(NButton, { 
+                    size: 'small',
+                    quaternary: true,
+                    circle: true,
+                    onClick: () => openControl(row.uuid)
+                }, { 
+                    icon: () => h(NIcon, { component: EyeOutline, color: '#3B82F6' })
+                }),
+                default: () => '查看控制'
             }),
             h(NPopconfirm, { 
-                onPositiveClick: () => router.delete(`/devices/${row.uuid}`),
+                onPositiveClick: () => deleteDevice(row.uuid),
                 positiveButtonProps: { type: 'error' },
             }, {
                 trigger: () => h(NButton, { 
@@ -339,8 +449,9 @@ const handlePageChange = (page: number) => {
                         :columns="columns"
                         :data="filteredDevices"
                         :bordered="false"
-                        :single-line="false"
+                        :single-line="true"
                         :row-key="(row: Device) => row.uuid"
+                        :row-class-name="(row: Device) => row.is_online ? 'row-online' : 'row-offline'"
                         class="devices-table"
                     />
                     <div v-else class="empty-state">
@@ -370,7 +481,7 @@ const handlePageChange = (page: number) => {
 
 <style scoped>
 .devices-container {
-    max-width: 1200px;
+    max-width: 1400px;
 }
 
 .header-with-status {
@@ -414,15 +525,15 @@ const handlePageChange = (page: number) => {
 }
 
 .status-dot {
-    width: 10px;
-    height: 10px;
+    width: 8px;
+    height: 8px;
     border-radius: 50%;
     flex-shrink: 0;
 }
 
 .status-dot.online {
     background: #10B981;
-    box-shadow: 0 0 8px rgba(16, 185, 129, 0.5);
+    box-shadow: 0 0 6px rgba(16, 185, 129, 0.5);
 }
 
 .status-dot.offline {
@@ -471,6 +582,7 @@ const handlePageChange = (page: number) => {
     background: #f8fafc;
 }
 
+/* 表格样式 */
 .table-wrapper {
     padding: 0 8px 8px;
 }
@@ -480,65 +592,84 @@ const handlePageChange = (page: number) => {
     font-weight: 600;
     color: #475569;
     font-size: 13px;
-    padding: 14px 16px;
+    padding: 14px 12px;
 }
 
 .devices-table :deep(.n-data-table-td) {
-    padding: 16px;
+    padding: 14px 12px;
     border-bottom: 1px solid #f1f5f9;
 }
 
 .devices-table :deep(.n-data-table-tr:hover .n-data-table-td) {
-    background: #fafafa;
+    background: #fafbfc;
 }
 
+.devices-table :deep(.row-online) {
+    background: rgba(16, 185, 129, 0.02);
+}
+
+/* 设备单元格 */
 :deep(.device-cell) {
     display: flex;
     align-items: center;
-    gap: 14px;
+    gap: 12px;
 }
 
-:deep(.device-icon-wrapper) {
-    width: 42px;
-    height: 42px;
-    background: #f1f5f9;
+:deep(.device-avatar) {
+    width: 40px;
+    height: 40px;
     border-radius: 10px;
+    background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
     display: flex;
     align-items: center;
     justify-content: center;
+    color: #64748b;
+    flex-shrink: 0;
 }
 
-:deep(.device-details) {
+:deep(.device-avatar.online) {
+    background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
+    color: #059669;
+}
+
+:deep(.device-info) {
     display: flex;
     flex-direction: column;
     gap: 2px;
+    min-width: 0;
 }
 
 :deep(.device-name) {
     font-size: 14px;
     font-weight: 600;
     color: #1e293b;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 :deep(.device-model) {
-    font-size: 13px;
-    color: #64748b;
-}
-
-:deep(.country-cell) {
     display: flex;
     align-items: center;
-    gap: 6px;
-    color: #64748b;
-    font-size: 14px;
+    font-size: 12px;
+    color: #94a3b8;
 }
 
+/* 状态单元格 */
 :deep(.status-cell) {
     display: flex;
     align-items: center;
-    gap: 8px;
-    font-size: 14px;
-    font-weight: 500;
+    justify-content: center;
+    gap: 6px;
+    font-size: 13px;
+}
+
+/* 指标单元格 */
+:deep(.metric-cell) {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
 }
 
 .pagination-wrapper {
@@ -577,6 +708,17 @@ const handlePageChange = (page: number) => {
     margin: 0;
 }
 
+@media (max-width: 1024px) {
+    .devices-table :deep(.n-data-table) {
+        font-size: 12px;
+    }
+    
+    .devices-table :deep(.n-data-table-th),
+    .devices-table :deep(.n-data-table-td) {
+        padding: 10px 8px;
+    }
+}
+
 @media (max-width: 768px) {
     .stats-bar {
         flex-wrap: wrap;
@@ -607,6 +749,10 @@ const handlePageChange = (page: number) => {
     
     .toolbar-right {
         justify-content: flex-end;
+    }
+    
+    .table-wrapper {
+        overflow-x: auto;
     }
 }
 </style>

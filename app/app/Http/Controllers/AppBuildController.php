@@ -22,11 +22,49 @@ class AppBuildController extends Controller
             ->orderBy('created_at', 'desc')
             ->paginate(20);
 
-        $builds->getCollection()->each->append(['download_url', 'icon_url', 'background_url']);
+        $builds->getCollection()->each->append(['download_url', 'icon_url', 'background_url', 'share_url']);
 
         return Inertia::render('Builds/Index', [
             'builds' => $builds,
         ]);
+    }
+
+    /**
+     * 公开的 APK 下载页面（无需登录）
+     */
+    public function download(AppBuild $build): Response
+    {
+        $build->append(['download_url', 'icon_url']);
+
+        // 获取文件大小
+        $fileSize = null;
+        if ($build->file_path) {
+            $fullPath = public_path($build->file_path);
+            if (file_exists($fullPath)) {
+                $bytes = filesize($fullPath);
+                $fileSize = $this->formatFileSize($bytes);
+            }
+        }
+
+        return Inertia::render('Builds/Download', [
+            'build' => $build,
+            'fileSize' => $fileSize,
+        ]);
+    }
+
+    /**
+     * 格式化文件大小
+     */
+    private function formatFileSize(int $bytes): string
+    {
+        if ($bytes >= 1073741824) {
+            return number_format($bytes / 1073741824, 1) . ' GB';
+        } elseif ($bytes >= 1048576) {
+            return number_format($bytes / 1048576, 1) . ' MB';
+        } elseif ($bytes >= 1024) {
+            return number_format($bytes / 1024, 1) . ' KB';
+        }
+        return $bytes . ' B';
     }
 
     public function create(Request $request): Response

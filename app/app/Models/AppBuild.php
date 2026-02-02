@@ -72,6 +72,14 @@ class AppBuild extends Model
         return url($this->file_path);
     }
 
+    /**
+     * 获取分享页面 URL
+     */
+    public function getShareUrlAttribute(): string
+    {
+        return route('builds.download', $this->id);
+    }
+
     public function getBuildDurationAttribute(): ?int
     {
         if (!$this->started_at) {
