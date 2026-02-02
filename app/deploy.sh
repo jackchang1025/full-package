@@ -194,6 +194,9 @@ status() {
 # 重建前端
 build_frontend() {
     print_msg "构建前端资源..."
+    print_msg "清理旧的构建产物..."
+    $DC exec -T app rm -rf public/build
+    
     $DC exec -T app npm install
     $DC exec -T app npm run build
     print_msg "前端构建完成"
