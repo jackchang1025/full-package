@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, onMounted, onUnmounted } from 'vue';
+import { computed, ref, onMounted, onUnmounted, watch } from 'vue';
 import { Head, router } from '@inertiajs/vue3';
 import {
     NDataTable,
@@ -66,6 +66,15 @@ const { connectionState, stats: wsStats, onMessage } = useGlobalWebSocket();
 // Local reactive copy of devices for real-time updates
 const localDevices = ref<Device[]>([...props.devices.data]);
 const localStats = ref<Stats>({ ...props.stats });
+
+// Sync local state when props change (e.g., after delete redirect)
+watch(() => props.devices.data, (newData) => {
+    localDevices.value = [...newData];
+}, { deep: true });
+
+watch(() => props.stats, (newStats) => {
+    localStats.value = { ...newStats };
+}, { deep: true });
 
 // Search and filter
 const searchQuery = ref('');
