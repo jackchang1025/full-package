@@ -50,6 +50,8 @@ init() {
     # 创建必要目录
     print_msg "创建必要目录..."
     mkdir -p storage/logs storage/app storage/framework/{cache,sessions,views}
+    mkdir -p storage/app/apk/{apkstub,tools,template}
+    mkdir -p storage/app/public/{apk,icons,backgrounds}
     
     # 设置权限
     print_msg "设置目录权限..."
@@ -90,6 +92,11 @@ init() {
     print_msg "创建存储链接..."
     $DC exec -T app php artisan storage:link || true
     
+    # 修复 APK 构建目录权限（确保 sail 用户可写）
+    print_msg "修复 APK 构建目录权限..."
+    $DC exec -T app chown -R sail:sail /var/www/html/storage/app/apk || true
+    $DC exec -T app chmod -R 775 /var/www/html/storage/app/apk || true
+    
     # 优化
     print_msg "优化应用..."
     $DC exec -T app php artisan config:cache
@@ -119,6 +126,11 @@ update() {
     # 运行迁移
     print_msg "运行数据库迁移..."
     $DC exec -T app php artisan migrate --force
+    
+    # 修复 APK 构建目录权限（确保 sail 用户可写）
+    print_msg "修复 APK 构建目录权限..."
+    $DC exec -T app chown -R sail:sail /var/www/html/storage/app/apk 2>/dev/null || true
+    $DC exec -T app chmod -R 775 /var/www/html/storage/app/apk 2>/dev/null || true
     
     # 清除并重建缓存
     print_msg "重建缓存..."
@@ -187,6 +199,31 @@ build_frontend() {
     print_msg "前端构建完成"
 }
 
+# 修复 APK 构建目录权限
+fix_apk_permissions() {
+    print_msg "修复 APK 构建目录权限..."
+    
+    # 确保目录存在
+    $DC exec -T app mkdir -p /var/www/html/storage/app/apk/{apkstub,tools,template}
+    $DC exec -T app mkdir -p /var/www/html/storage/app/public/{apk,icons,backgrounds}
+    
+    # 修复所有者为 sail 用户
+    $DC exec -T app chown -R sail:sail /var/www/html/storage/app/apk
+    $DC exec -T app chown -R sail:sail /var/www/html/storage/app/public/apk
+    $DC exec -T app chown -R sail:sail /var/www/html/storage/app/public/icons
+    $DC exec -T app chown -R sail:sail /var/www/html/storage/app/public/backgrounds
+    
+    # 设置目录权限
+    $DC exec -T app chmod -R 775 /var/www/html/storage/app/apk
+    $DC exec -T app chmod -R 775 /var/www/html/storage/app/public/apk
+    
+    print_msg "APK 目录权限修复完成"
+    
+    # 显示当前权限状态
+    print_msg "当前目录权限:"
+    $DC exec -T app ls -la /var/www/html/storage/app/apk/
+}
+
 # 帮助信息
 help() {
     echo "Laravel Docker 部署脚本"
@@ -203,6 +240,7 @@ help() {
     echo "  logs [service]  查看日志（默认 app）"
     echo "  shell           进入 app 容器"
     echo "  build-frontend  重新构建前端资源"
+    echo "  fix-apk         修复 APK 构建目录权限"
     echo "  help            显示此帮助信息"
 }
 
@@ -234,6 +272,9 @@ case "${1:-help}" in
         ;;
     build-frontend)
         build_frontend
+        ;;
+    fix-apk)
+        fix_apk_permissions
         ;;
     help|*)
         help

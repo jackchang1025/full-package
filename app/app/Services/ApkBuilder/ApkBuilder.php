@@ -249,20 +249,49 @@ final class ApkBuilder
         $result = $zip->open($this->stubZipPath);
 
         if ($result !== true) {
-            throw new ApkBuildException("无法打开模板 ZIP 文件: {$this->stubZipPath}", [
+            $errorMessages = [
+                \ZipArchive::ER_EXISTS => '文件已存在',
+                \ZipArchive::ER_INCONS => '压缩包不一致',
+                \ZipArchive::ER_INVAL => '无效参数',
+                \ZipArchive::ER_MEMORY => '内存分配失败',
+                \ZipArchive::ER_NOENT => '文件不存在',
+                \ZipArchive::ER_NOZIP => '不是有效的 ZIP 文件',
+                \ZipArchive::ER_OPEN => '无法打开文件',
+                \ZipArchive::ER_READ => '读取错误',
+                \ZipArchive::ER_SEEK => '定位错误',
+            ];
+            throw new ApkBuildException("无法打开模板 ZIP 文件: " . ($errorMessages[$result] ?? "未知错误 ($result)"), [
+                'zip' => $this->stubZipPath,
                 'error_code' => $result,
             ]);
         }
 
-        // 确保父目录存在
-        File::ensureDirectoryExists(dirname($this->templateDir));
+        // 确保父目录存在并可写
+        $parentDir = dirname($this->templateDir);
+        File::ensureDirectoryExists($parentDir);
+
+        if (!is_writable($parentDir)) {
+            $zip->close();
+            throw new ApkBuildException("目标目录不可写", [
+                'parent_dir' => $parentDir,
+                'permissions' => substr(sprintf('%o', fileperms($parentDir)), -4),
+            ]);
+        }
+
+        // 如果模板目录已存在，先删除
+        if (File::isDirectory($this->templateDir)) {
+            File::deleteDirectory($this->templateDir);
+        }
 
         // 解压到模板目录
         if (!$zip->extractTo($this->templateDir)) {
+            $statusMessage = $zip->getStatusString();
             $zip->close();
-            throw new ApkBuildException("解压模板 ZIP 文件失败", [
+            throw new ApkBuildException("解压模板 ZIP 文件失败: {$statusMessage}", [
                 'zip' => $this->stubZipPath,
                 'target' => $this->templateDir,
+                'zip_status' => $statusMessage,
+                'disk_free_space' => disk_free_space($parentDir),
             ]);
         }
 
