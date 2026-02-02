@@ -167,6 +167,10 @@ update() {
     $DC exec -T app npm run build
     print_msg "前端构建完成"
     
+    # 重启 Swoole WebSocket 服务（常驻内存，代码更新后需重启）
+    print_msg "重启 WebSocket 服务..."
+    $DC exec -T app supervisorctl restart websocket || print_warn "WebSocket 服务重启失败（可能未配置 supervisor）"
+    
     print_msg "=== 更新完成 ==="
 }
 
