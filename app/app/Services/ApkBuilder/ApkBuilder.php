@@ -16,8 +16,6 @@ final class ApkBuilder
     private string $templateDir;
     private string $toolsDir;
     private string $outputDir;
-    private string $iconsDir;
-    private string $backgroundsDir;
     private string $workDir = '';
     private string $buildDir = '';
     private string $assetsKey = '';
@@ -49,8 +47,6 @@ final class ApkBuilder
         $this->templateDir = config('apk-builder.template_path');
         $this->toolsDir = config('apk-builder.tools_path');
         $this->outputDir = config('apk-builder.output_path');
-        $this->iconsDir = config('apk-builder.icons_path');
-        $this->backgroundsDir = config('apk-builder.backgrounds_path');
     }
 
     public function buildWithProgress(ApkBuildConfig $config, callable $onProgress): ApkBuildResult
@@ -361,33 +357,22 @@ final class ApkBuilder
 
     private function resolveIconPath(ApkBuildConfig $config): ?string
     {
-        if (!empty($config->iconPath)) {
-            // 从 URL 路径中提取文件名（如 /storage/icons/1/abc.png -> abc.png）
-            $filename = basename($config->iconPath);
+        $iconPath = $this->resolveStoragePath($config->iconPath);
 
-            $userIcon = $this->iconsDir . '/' . $config->userId . '/' . $filename;
-            if (File::exists($userIcon) && File::size($userIcon) > 100) {
-                return $userIcon;
-            }
-
-            $sharedIcon = $this->iconsDir . '/' . $filename;
-            if (File::exists($sharedIcon) && File::size($sharedIcon) > 100) {
-                return $sharedIcon;
-            }
+        // 检查传入的文件路径是否有效
+        if ($iconPath && File::exists($iconPath) && File::size($iconPath) > 100) {
+            return $iconPath;
         }
 
+        // 使用默认图标（完整路径）
         $defaultIcon = config('apk-builder.default_icon');
-        if ($defaultIcon) {
-            $defaultPath = $this->iconsDir . '/' . $defaultIcon;
-            if (File::exists($defaultPath) && File::size($defaultPath) > 100) {
-                Log::channel('apk')->debug('Using default icon', ['path' => $defaultPath]);
-                return $defaultPath;
-            }
+        if ($defaultIcon && File::exists($defaultIcon) && File::size($defaultIcon) > 100) {
+            return $defaultIcon;
         }
 
+        // 使用模板图标
         $templateIcon = $this->templateDir . '/res/drawable/mylogo.png';
         if (File::exists($templateIcon)) {
-            Log::channel('apk')->debug('Using template icon');
             return $templateIcon;
         }
 
@@ -418,36 +403,47 @@ final class ApkBuilder
     {
         $bgSource = $config->backgroundPath;
 
-        if (preg_match('/^[A-Za-z]:[\\\\\/]/', $bgSource)) {
-            $bgSource = basename(str_replace('\\', '/', $bgSource));
-        }
-
+        // 'black' 或空值表示使用纯黑背景
         if (empty($bgSource) || strtolower($bgSource) === 'black') {
-            $defaultBg = config('apk-builder.default_background', 'black');
-
-            if (empty($defaultBg) || strtolower($defaultBg) === 'black') {
-                return null;
-            }
-
-            $bgSource = $defaultBg;
+            return null;
         }
 
-        $filename = basename($bgSource);
+        $bgPath = $this->resolveStoragePath($bgSource);
 
-        $possiblePaths = [
-            $bgSource,
-            $this->backgroundsDir . '/' . $config->userId . '/' . $filename,
-            $this->backgroundsDir . '/' . $filename,
-        ];
-
-        foreach ($possiblePaths as $path) {
-            if (File::exists($path) && File::size($path) > 100) {
-                return $path;
-            }
+        // 检查传入的文件路径是否有效
+        if ($bgPath && File::exists($bgPath) && File::size($bgPath) > 100) {
+            return $bgPath;
         }
 
-        Log::channel('apk')->warning('Background file not found', ['requested' => $config->backgroundPath]);
         return null;
+    }
+
+    /**
+     * 将 URL 路径或文件系统路径统一转换为文件系统路径
+     * 
+     * @param string|null $path URL 路径 (如 /storage/icons/1/xxx.png) 或文件系统路径
+     * @return string|null 文件系统完整路径
+     */
+    private function resolveStoragePath(?string $path): ?string
+    {
+        if (empty($path)) {
+            return null;
+        }
+
+        // 如果是以 /storage/ 开头的 URL 路径，转换为文件系统路径
+        if (str_starts_with($path, '/storage/')) {
+            // /storage/icons/1/xxx.png -> storage/app/public/icons/1/xxx.png
+            $relativePath = substr($path, 9); // 移除 '/storage/'
+            return storage_path('app/public/' . $relativePath);
+        }
+
+        // 如果已经是绝对路径，直接返回
+        if (str_starts_with($path, '/')) {
+            return $path;
+        }
+
+        // 其他情况，假设是相对于 storage/app/public 的路径
+        return storage_path('app/public/' . $path);
     }
 
     private function removeBlackuiResource(): void

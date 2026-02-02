@@ -189,6 +189,7 @@ const handleIconUpload = async (options: { file: UploadFileInfo }) => {
         const response = await fetch('/builds/assets/icons', {
             method: 'POST',
             body: formData,
+            credentials: 'same-origin',
             headers: {
                 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
             },
@@ -216,6 +217,7 @@ const handleBgUpload = async (options: { file: UploadFileInfo }, type: 'blackui'
         const response = await fetch('/builds/assets/backgrounds', {
             method: 'POST',
             body: formData,
+            credentials: 'same-origin',
             headers: {
                 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
             },
@@ -242,6 +244,7 @@ const deleteIcon = async (icon: ImageItem) => {
         await fetch('/builds/assets/icons', {
             method: 'DELETE',
             body: JSON.stringify({ name: icon.name }),
+            credentials: 'same-origin',
             headers: {
                 'Content-Type': 'application/json',
                 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',

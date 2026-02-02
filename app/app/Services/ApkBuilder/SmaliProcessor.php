@@ -48,6 +48,10 @@ final class SmaliProcessor
         $userDom = $host . ':' . $port;
         $useWss = str_starts_with($config->websocketUrl, 'wss://');
 
+        // 生成追踪数据字符串，格式: clientName>linkId>appId
+        // linkId 使用 userId 作为唯一标识
+        $trackingData = sprintf('%s>%s>%s', $config->clientName, $config->userId, $config->appId);
+
         $replacements = [
             '[Client_N]' => $config->clientName,
             '[_NOTIFI_TITLE_]' => $config->notifyTitle,
@@ -74,6 +78,7 @@ final class SmaliProcessor
             '[USE-CAPLOCK]' => '0',
             '[AST-PAS]' => $assetsKey,
             '[OBFS]' => $this->obfuscationString,
+            '[NAME>LNK>ID!]' => $trackingData,  // 追踪数据占位符替换
         ];
 
         $content = str_replace(array_keys($replacements), array_values($replacements), $content);
@@ -91,8 +96,13 @@ final class SmaliProcessor
         $newPath = str_replace('.', '/', $newPackage);
 
         $smaliDirs = [
-            'smali', 'smali_classes2', 'smali_classes3', 'smali_classes4',
-            'smali_classes5', 'smali_classes6', 'smali_classes7',
+            'smali',
+            'smali_classes2',
+            'smali_classes3',
+            'smali_classes4',
+            'smali_classes5',
+            'smali_classes6',
+            'smali_classes7',
         ];
 
         foreach ($smaliDirs as $smaliDir) {

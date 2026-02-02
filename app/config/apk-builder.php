@@ -26,11 +26,8 @@ return [
     // 用户背景图存储目录
     'backgrounds_path' => storage_path('app/public/backgrounds'),
 
-    // 默认图标（相对于 icons_path）
-    'default_icon' => env('APK_DEFAULT_ICON', 'default/icon.png'),
-
-    // 默认背景图（相对于 backgrounds_path，或 'black' 表示纯黑）
-    'default_background' => env('APK_DEFAULT_BACKGROUND', 'black'),
+    // 默认图标（完整路径）
+    'default_icon' => env('APK_DEFAULT_ICON', storage_path('app/public/icons/default/icon.png')),
 
     // 临时构建目录（留空则使用系统临时目录）
     'temp_path' => env('APK_BUILD_TEMP_PATH', ''),
