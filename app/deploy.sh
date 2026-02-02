@@ -162,14 +162,15 @@ update() {
     
     print_msg "安装 npm 依赖..."
     $DC exec -T app npm install
-    
+
     print_msg "构建前端资源..."
     $DC exec -T app npm run build
     print_msg "前端构建完成"
     
-    # 重启 Swoole WebSocket 服务（常驻内存，代码更新后需重启）
-    print_msg "重启 WebSocket 服务..."
-    $DC exec -T app supervisorctl restart websocket || print_warn "WebSocket 服务重启失败（可能未配置 supervisor）"
+    # 重启 app 容器，使 PHP/WebSocket/队列/调度器 等常驻进程加载新代码
+    print_msg "重启 app 容器..."
+    $DC restart app
+    print_msg "容器已重启"
     
     print_msg "=== 更新完成 ==="
 }
