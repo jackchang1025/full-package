@@ -139,10 +139,17 @@ update() {
     print_warn "如果前端代码有变化，请执行: ./deploy.sh build-frontend"
 }
 
-# 重启服务
+# 启动服务
+start() {
+    print_msg "启动服务..."
+    $DC up -d
+    print_msg "启动完成"
+}
+
+# 重启服务（强制重建容器）
 restart() {
     print_msg "重启所有服务..."
-    $DC restart
+    $DC up -d --force-recreate
     print_msg "重启完成"
 }
 
@@ -189,7 +196,8 @@ help() {
     echo "可用命令:"
     echo "  init            首次部署初始化"
     echo "  update          更新部署（拉取代码、迁移、清缓存）"
-    echo "  restart         重启所有服务"
+    echo "  start           启动服务（容器不存在时创建）"
+    echo "  restart         重启服务（强制重建容器）"
     echo "  stop            停止所有服务"
     echo "  status          查看服务状态"
     echo "  logs [service]  查看日志（默认 app）"
@@ -205,6 +213,9 @@ case "${1:-help}" in
         ;;
     update)
         update
+        ;;
+    start)
+        start
         ;;
     restart)
         restart
