@@ -4,250 +4,155 @@
 
 ## 项目概述
 
-这是一个 PHP 后端项目，用于设备管理系统（飞鹰管理系统）。包含 REST API、管理后台和 WebSocket 服务。
+飞鹰管理系统 V2 - 基于 Laravel 12 的设备管理平台，已从原生 PHP 迁移至现代化技术栈。
 
 ### 技术栈
 
-- **后端**: 原生 PHP (无框架)
-- **数据库**: MySQL (PDO)
-- **WebSocket**: Node.js + Express
-- **前端**: Vue.js (已构建的静态资源)
+| 层级 | 技术 | 版本 |
+|------|------|------|
+| **后端框架** | Laravel | 12.x |
+| **前端框架** | Vue 3 + Inertia.js | 3.5 / 2.x |
+| **UI 组件库** | Naive UI | 2.43 |
+| **数据库** | MySQL | 8.4 |
+| **缓存** | Redis | Alpine |
+| **WebSocket** | PHP + Swoole | 6.x |
+| **开发环境** | Laravel Sail (Docker) | - |
+| **构建工具** | Vite | 7.x |
+| **CSS** | Tailwind CSS | 4.x |
 
 ## 项目结构
 
 ```
 full-package/
-├── api/api/              # REST API 端点
-│   ├── ws/               # WebSocket 服务 (Node.js)
-│   ├── assets/           # GeoIP 数据库等资源
-│   ├── EaodLogin.php     # 用户登录 API
-│   ├── EaodAllDevices.php # 设备列表 API
-│   ├── Ping.php          # 设备心跳 API
-│   └── ...
-├── private/private/      # 管理后台
-│   ├── Eaod85401.php     # 数据库配置 (常量定义)
-│   ├── login.php         # 管理员登录页
-│   ├── create.php        # 账号管理页
-│   ├── createacc.php     # 账号管理 API
-│   └── ...
-├── vendor/vendor/        # Composer 依赖
-├── assets/               # 前端构建资源
-├── htdocs_root/          # Web 根目录
-└── eaod_logs/            # 日志文件
+├── app/                      # 🆕 Laravel 12 应用 (主项目)
+├── legacy/                   # 📦 旧项目归档
+├── shared/                   # 🔗 共享资源 (APK 构建模板)
+├── docs/                     # 📚 文档
+│   ├── legacy/               # 旧系统文档
+│   └── migration/            # 迁移文档
+└── AGENTS.md                 # 本文件
 ```
 
-## 构建/运行命令
-
-### PHP 服务
+## 快速启动
 
 ```bash
-# 本项目无正式构建流程，直接通过 Web 服务器运行
-# 确保 PHP 和 MySQL 服务已启动
-
-# 检查 PHP 语法错误
-php -l <file.php>
-
-# 批量检查所有 PHP 文件
-find . -name "*.php" ! -path "./vendor/*" -exec php -l {} \;
+cd app
+./dev-start.sh
+./vendor/bin/sail npm run dev
 ```
 
-### WebSocket 服务
+### 访问地址
 
-```bash
-cd api/api/ws
-npm install
-node server.js  # 或相应的启动文件
+| 服务 | 地址 |
+|------|------|
+| 应用 | http://localhost:8000 |
+| WebSocket | ws://localhost:8081 |
+| MySQL | localhost:3307 |
+| Redis | localhost:6380 |
+| Vite HMR | localhost:5173 |
+
+## 开发检查清单
+
+### 后端修改
+- [ ] 遵循 Laravel 最佳实践
+- [ ] 使用 Eloquent ORM (避免原生 SQL)
+- [ ] 添加适当的验证规则
+
+### 前端修改
+- [ ] 使用 TypeScript 类型定义
+- [ ] 使用 Naive UI 组件
+- [ ] 遵循 Vue 3 Composition API
+
+### 提交前
+- [ ] `./vendor/bin/sail artisan route:clear`
+- [ ] `./vendor/bin/sail npm run build` (生产环境)
+
+> ⚠️ **开发环境注意**: 开发环境使用 `npm run dev` 启动 Vite 开发服务器，不要执行 `npm run build`。构建后的文件会启用缓存，导致热重载失效。
+
+---
+
+## 📚 扩展文档索引
+
+### 新系统文档 (位于 `docs/migration/`)
+
+| 文档 | 用途 | 推荐阅读场景 |
+|------|------|-------------|
+| [API.md](./docs/migration/API.md) | API 接口文档 | 开发 API 功能 |
+| [DEVELOPMENT.md](./docs/migration/DEVELOPMENT.md) | 开发环境详解 | 环境配置、常用命令 |
+| [APK_BUILDER.md](./docs/migration/APK_BUILDER.md) | **APK 构建服务** - Laravel 版构建服务、配置参数、使用示例 | 开发/维护 APK 构建功能 |
+| [DOCKER_SUPERVISOR.md](./docs/migration/DOCKER_SUPERVISOR.md) | **Docker Supervisor 配置** - 容器内服务管理、WebSocket 自动启动、添加新服务 | 配置容器后台服务 |
+
+### 核心系统文档 (位于 `docs/legacy/`)
+
+| 文档 | 用途 | 推荐阅读场景 |
+|------|------|-------------|
+| [SYSTEM_FEATURES.md](./docs/legacy/SYSTEM_FEATURES.md) | **系统功能详解** - 完整的功能列表、架构设计和商业模式 | 了解系统全貌、功能范围 |
+| [DEPLOYMENT.md](./docs/legacy/DEPLOYMENT.md) | **部署文档** - Docker/手动部署指南、SSL配置、安全加固 | 部署上线、环境配置 |
+| [QUICK_REFERENCE.md](./docs/legacy/QUICK_REFERENCE.md) | **快速参考** - 参数表格、加密密钥、常见错误速查 | 开发时快速查阅 |
+
+### WebSocket 文档
+
+| 文档 | 用途 | 推荐阅读场景 |
+|------|------|-------------|
+| [WEBSOCKET_CLIENT.md](./docs/migration/WEBSOCKET_CLIENT.md) | **WebSocket 系统架构** - 三端架构 (设备/Web/服务器)、数据流、消息协议、前后端实现 | ⭐ WebSocket 开发首选 |
+| [WEBSOCKET_SERVER_PHP.md](./docs/migration/WEBSOCKET_SERVER_PHP.md) | **PHP WebSocket 服务器** - Swoole 实现、Handler 详解、配置说明 | 开发/维护 PHP WebSocket 服务 |
+| [WEBSOCKET_TESTING.md](./docs/migration/WEBSOCKET_TESTING.md) | **WebSocket 测试套件** - Unit Tests (Pest) + E2E Tests (Node.js)、Mock 客户端、测试命令 | 编写/运行 WebSocket 测试 |
+| [WEBSOCKET_SERVER.md](./docs/WEBSOCKET_SERVER.md) | **Node.js WebSocket 服务器** - 原始实现分析、消息协议、命令列表 | 理解原始协议、对比参考 |
+| [FRONTEND_WEBSOCKET_CLIENT.md](./docs/FRONTEND_WEBSOCKET_CLIENT.md) | **前端 WebSocket 客户端分析** - 编译后代码逆向、消息处理、触摸事件、状态管理 | 理解旧前端实现 |
+
+### APK 构建系统文档 (位于 `docs/legacy/`)
+
+| 文档 | 用途 | 推荐阅读场景 |
+|------|------|-------------|
+| [APK_BUILD_SYSTEM.md](./docs/legacy/APK_BUILD_SYSTEM.md) | **APK 构建系统详解** - 构建流程、参数、PHP/VB.NET 交互 | 理解 APK 构建机制 |
+| [APK_STUB_TEMPLATE.md](./docs/legacy/APK_STUB_TEMPLATE.md) | **APK Stub 模板分析** - Smali 代码结构、占位符系统、配置注入 | 修改 APK 模板、调试构建问题 |
+| [APK_RUNTIME_FLOW.md](./docs/legacy/APK_RUNTIME_FLOW.md) | **APK 运行流程** - 启动机制、服务依赖、WebSocket 通信、保活策略 | 理解客户端行为、调试设备问题 |
+| [APKBUILDER_OPTIMIZATION.md](./docs/legacy/APKBUILDER_OPTIMIZATION.md) | **ApkBuilder.php 优化** - HTTP 回调机制、数据库更新流程 | 修复构建状态不更新问题 |
+
+### 逆向工程文档 (位于 `docs/legacy/`)
+
+| 文档 | 用途 | 推荐阅读场景 |
+|------|------|-------------|
+| [REVERSE_ANALYSIS.md](./docs/legacy/REVERSE_ANALYSIS.md) | **逆向源码分析** - EaodStarter/EaodWorker 完整分析 | 深入理解构建程序逻辑 |
+| [CODE_MAPPING.md](./docs/legacy/CODE_MAPPING.md) | **代码映射指南** - 参数传递、数据结构、PHP 实现指南 | 实现新功能、重构代码 |
+| [README_ANALYSIS.md](./docs/legacy/README_ANALYSIS.md) | **逆向文档索引** - 所有逆向分析文档的导航 | 快速定位逆向相关信息 |
+
+### APK 构建系统逆向工程专题 (位于 `docs/legacy/APKBuildSystemReverseEngineeringDocumentation/`)
+
+| 文档 | 用途 | 推荐阅读场景 |
+|------|------|-------------|
+| [README.md](./docs/legacy/APKBuildSystemReverseEngineeringDocumentation/README.md) | **专题索引** - 逆向分析项目概述和关键发现 | 了解构建失败根因 |
+| [01-system-architecture.md](./docs/legacy/APKBuildSystemReverseEngineeringDocumentation/01-system-architecture.md) | **系统架构分析** - 前端→PHP→VB.NET→Java 完整链路 | 理解系统架构 |
+| [02-decompile-analysis.md](./docs/legacy/APKBuildSystemReverseEngineeringDocumentation/02-decompile-analysis.md) | **反编译分析** - ILSpy 反编译、核心代码解析 | 修改 EaodWorker 行为 |
+| [03-problem-diagnosis.md](./docs/legacy/APKBuildSystemReverseEngineeringDocumentation/03-problem-diagnosis.md) | **问题诊断** - AndroidManifest 膨胀问题分析 | 排查构建失败 |
+| [04-fix-solution.md](./docs/legacy/APKBuildSystemReverseEngineeringDocumentation/04-fix-solution.md) | **修复方案** - dnSpy 修改、手动修复、自动脚本 | 修复构建问题 |
+| [05-verification.md](./docs/legacy/APKBuildSystemReverseEngineeringDocumentation/05-verification.md) | **验证测试** - 修复后的验证流程 | 确认修复有效 |
+
+---
+
+## 文档阅读路径推荐
+
+**新手入门**:
+```
+AGENTS.md → docs/migration/DEVELOPMENT.md → docs/legacy/SYSTEM_FEATURES.md
 ```
 
-### 测试
-
-```bash
-# 本项目无正式测试框架
-# 手动测试 API 端点:
-curl -X POST http://localhost/api/EaodLogin.php \
-  -H "Content-Type: application/json" \
-  -d '{"usrname":"test","password":"test"}'
+**WebSocket 开发**:
+```
+docs/WEBSOCKET_SERVER.md → docs/migration/WEBSOCKET_SERVER_PHP.md → docs/migration/WEBSOCKET_CLIENT.md
 ```
 
-## 代码风格规范
-
-### PHP 文件头部模板
-
-```php
-<?php
-date_default_timezone_set('Asia/Shanghai');
-
-// API 文件需要 CORS 头
-header("Access-Control-Allow-Origin: *");
-header("Access-Control-Allow-Headers: Content-Type, Authorization");
-header("Access-Control-Allow-Methods: POST, GET, OPTIONS");
-header("Content-Type: application/json");
-
-// 处理 OPTIONS 预检请求
-if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
-    http_response_code(204);
-    exit();
-}
-
-require_once '../private/Eaod85401.php';
+**APK 构建开发**:
+```
+docs/migration/APK_BUILDER.md → docs/legacy/APK_BUILD_SYSTEM.md → APK_STUB_TEMPLATE.md
 ```
 
-### 数据库连接
-
-```php
-// 使用 PDO 连接数据库
-$pdo = new PDO(
-    "mysql:host=" . DB_ServerName . ";dbname=" . DB_Name,
-    DB_UserName,
-    DB_Password
-);
-$pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-
-// 始终使用预处理语句防止 SQL 注入
-$stmt = $pdo->prepare("SELECT * FROM users WHERE usrname = :usrname");
-$stmt->bindParam(':usrname', $username, PDO::PARAM_STR);
-$stmt->execute();
-$result = $stmt->fetch(PDO::FETCH_ASSOC);
+**排查构建问题**:
+```
+docs/legacy/APKBuildSystemReverseEngineeringDocumentation/README.md → 03-problem-diagnosis.md → 04-fix-solution.md
 ```
 
-### 错误处理
-
-```php
-try {
-    // 业务逻辑
-} catch (PDOException $e) {
-    http_response_code(500);
-    echo json_encode(['error' => 'Server busy']);
-    error_log($e->getMessage());
-    // 或写入日志文件
-    file_put_contents("log.txt", "异常：" . $e->getMessage() . "\n", FILE_APPEND);
-}
+**深度逆向分析**:
 ```
-
-### API 响应格式
-
-```php
-// 成功响应
-echo json_encode([
-    'code' => 200,
-    'msg' => '操作成功',
-    'data' => $result
-]);
-
-// 错误响应
-http_response_code(400);
-echo json_encode(['error' => '错误信息']);
-
-// 管理后台响应格式
-echo json_encode(['Success' => '操作成功']);
-echo json_encode(['Fail' => '操作失败']);
+docs/legacy/REVERSE_ANALYSIS.md → CODE_MAPPING.md → 02-decompile-analysis.md
 ```
-
-### 命名规范
-
-| 类型 | 规范 | 示例 |
-|------|------|------|
-| 文件名 | PascalCase 或混淆名 | `EaodLogin.php`, `Eaod85401.php` |
-| 函数名 | camelCase | `getCountry()`, `generateUUID()` |
-| 变量名 | camelCase | `$phoneId`, `$userName` |
-| 常量 | UPPER_SNAKE_CASE | `DB_ServerName`, `Admin_Key` |
-| 数据库字段 | snake_case | `phone_id`, `user_name` |
-
-### 重要常量 (定义在 Eaod85401.php)
-
-```php
-// 数据库配置
-DB_ServerName  // 数据库主机
-DB_UserName    // 数据库用户名
-DB_Password    // 数据库密码
-DB_Name        // 数据库名
-
-// 加密配置
-Secrit_Key     // 加密密钥
-SIV            // 初始化向量
-
-// 管理配置
-Admin_Key      // 管理员密钥
-```
-
-### 敏感数据处理
-
-```php
-// 密码存储 - 使用 password_hash
-$hashedPassword = password_hash($password, PASSWORD_DEFAULT);
-
-// 密码验证
-if (password_verify($inputPassword, $storedHash)) {
-    // 验证成功
-}
-
-// 敏感数据加密 (使用项目自定义函数)
-$encrypted = EN($plainText);  // 加密
-$decrypted = DE($encrypted);  // 解密
-```
-
-## 安全注意事项
-
-1. **SQL 注入防护**: 始终使用 PDO 预处理语句
-2. **XSS 防护**: 输出时进行适当转义
-3. **CORS**: API 端点已配置允许跨域
-4. **Session**: 管理后台使用 PHP Session 认证
-5. **Token**: API 使用 token 认证，有效期 7 天
-
-## 常见开发任务
-
-### 添加新 API 端点
-
-1. 在 `api/api/` 目录创建新 PHP 文件
-2. 添加标准头部 (时区、CORS、Content-Type)
-3. 引入配置文件 `require_once '../private/Eaod85401.php'`
-4. 实现业务逻辑，使用 try-catch 包裹
-5. 返回 JSON 格式响应
-
-### 修改数据库操作
-
-1. 使用 PDO 预处理语句
-2. 绑定参数时指定类型 (`PDO::PARAM_STR`, `PDO::PARAM_INT`)
-3. 捕获 `PDOException` 并记录日志
-
-### 调试技巧
-
-```php
-// 开启错误显示 (仅开发环境)
-ini_set('display_errors', 1);
-ini_set('display_startup_errors', 1);
-error_reporting(E_ALL);
-
-// 日志记录
-file_put_contents("log.txt", "调试信息：" . print_r($data, true) . "\n", FILE_APPEND);
-```
-
-## 依赖库
-
-主要 Composer 依赖 (位于 vendor/vendor/):
-
-- `phpmailer/phpmailer` - 邮件发送
-- `maxmind-db/reader` - GeoIP 地理位置查询
-- `geoip2/geoip2` - GeoIP2 API
-- `php-ffmpeg/php-ffmpeg` - 视频处理
-- `robthree/twofactorauth` - 两步验证
-- `symfony/cache` - 缓存组件
-- `spatie/temporary-directory` - 临时目录管理
-
-## 注意事项
-
-1. **无正式测试**: 项目没有单元测试，修改后需手动验证
-2. **无代码格式化工具**: 保持与现有代码风格一致
-3. **混淆文件名**: 部分文件使用 `Eaod` 前缀的混淆命名
-4. **中文注释**: 项目使用中文注释，保持一致
-5. **时区**: 所有时间操作使用 `Asia/Shanghai` 时区
-6. **编码**: 文件使用 UTF-8 编码
-
-## 文件修改检查清单
-
-- [ ] PHP 语法检查通过 (`php -l`)
-- [ ] 数据库操作使用预处理语句
-- [ ] 敏感信息已加密处理
-- [ ] API 响应格式正确
-- [ ] 错误处理完整
-- [ ] 日志记录适当
