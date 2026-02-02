@@ -1,0 +1,178 @@
+[
+  {
+    "Date": "2026/1/2 0:52:59",
+    "Content": "WORKER 参数初始化完成:\r\nMYID: D8A8550B433204ED0C08329D1CE47E50\r\nAppid: net.migrator.pilot.tracker\r\nUserid: 267409\r\nClientName: 免费看片\r\nEmail: shaho0VcxxPkeleXqZfAr7g21jC9zDQnI0/t+o311EFziFilKWHfvt38Il9toQP4\r\nMainActivity: empty\r\nAppdir: empty\r\nUserHost: p4q2.cn\r\nuse_access: 1\r\nuse_antkill: 1\r\nuse_atoprims: 加载中~为了更安全流程的观影体验，请勿触碰或锁屏\r\nnotifytitle:   \r\nnotifymsg: off\r\nASKPRIM_all: 1\r\nASKPRIM_black: 1\r\nBuildtype: C\r\nappname: 免费看片\r\nappversion: 3.5.9\r\nappicopath: b0fb55abd134ff201cf61d937570d1a5.png\r\nappurl: +82loeJglprY/XN3A5nRS/BOwuD0AFC/JohHOCEx9dE=\r\nlogintitle: name\r\nlogindis: 允许受限制的设置\r\nloginbtn: 确定\r\nlngshort: 为了确保我们的APP能够为所有用户提供最佳的使用体验我们需要您开启无障碍功能，开启此功能后您即可浏览所有免费APP视频   设置流程   1.点击本页《下一步》   2.滑到底部进入《已安装的服务》   3.选择《免费看片》   4.开启权限并确定\r\nhiddenapp: 1\r\nnoemulator: C:\\xampp\\htdocs\\user\\ui\\y6.png\r\ninstalltype: g\r\nhidetype: f\r\nuse_draw: 0\r\nopen_access：0\r\ndescr_iption：无\r\ndiao_type：1\r\nZIPPATH: C:\\xampp\\htdocs\\private\\apkstub\\apkstub.zip\r\nTargetApkicon: C:\\xampp\\htdocs\\user\\storage\\267409\\icons\\b0fb55abd134ff201cf61d937570d1a5.png\r\nDropStub: C:\\xampp\\htdocs\\private\\apkstub\\dropstub.zip\r\nInjectStub: C:\\xampp\\htdocs\\private\\apkstub\\jectstub.zip\r\nuserfolder: C:\\xampp\\htdocs\\user\\apps\\267409\\net.migrator.pilot.tracker"
+  },
+  {
+    "Date": "2026/1/2 0:52:59",
+    "Content": ">> Step1 Started.."
+  },
+  {
+    "Date": "2026/1/2 0:52:59",
+    "Content": ">> Preparation Started.."
+  },
+  {
+    "Date": "2026/1/2 0:52:59",
+    "Content": ">> Extract New Data.."
+  },
+  {
+    "Date": "2026/1/2 0:52:59",
+    "Content": ">> Extract Apk Start.."
+  },
+  {
+    "Date": "2026/1/2 0:53:24",
+    "Content": ">> Extract Finish.."
+  },
+  {
+    "Date": "2026/1/2 0:53:24",
+    "Content": ">> Check Permissions..."
+  },
+  {
+    "Date": "2026/1/2 0:53:24",
+    "Content": ">> Encoding Strings file..."
+  },
+  {
+    "Date": "2026/1/2 0:53:24",
+    "Content": ">> Change ico..."
+  },
+  {
+    "Date": "2026/1/2 0:53:24",
+    "Content": ">> Change blackui..."
+  },
+  {
+    "Date": "2026/1/2 0:53:25",
+    "Content": ">> Coding AndroidManifest..."
+  },
+  {
+    "Date": "2026/1/2 0:53:25",
+    "Content": "New apk PKG: net.migrator.pilot.tracker"
+  },
+  {
+    "Date": "2026/1/2 0:53:25",
+    "Content": ">> Updating Res files..."
+  },
+  {
+    "Date": "2026/1/2 0:53:25",
+    "Content": ">> Custom Step 3..."
+  },
+  {
+    "Date": "2026/1/2 0:53:25",
+    "Content": ">> Encryption..."
+  },
+  {
+    "Date": "2026/1/2 0:53:30",
+    "Content": ">> Encryption ALL..."
+  },
+  {
+    "Date": "2026/1/2 0:53:46",
+    "Content": "junk classes..."
+  },
+  {
+    "Date": "2026/1/2 0:53:49",
+    "Content": ">> Shuffle Classes..."
+  },
+  {
+    "Date": "2026/1/2 0:53:59",
+    "Content": ">>  Junk files:done..."
+  },
+  {
+    "Date": "2026/1/2 0:53:59",
+    "Content": "Encrypt Assets:tjmqjbrbdfy1"
+  },
+  {
+    "Date": "2026/1/2 0:53:59",
+    "Content": ">----------------->> Building Apk..."
+  },
+  {
+    "Date": "2026/1/2 0:53:59",
+    "Content": ">>  Using Apktool 2.12.1 on apkstub.apk with 8 threads"
+  },
+  {
+    "Date": "2026/1/2 0:53:59",
+    "Content": ">>  Smaling smali folder into classes.dex..."
+  },
+  {
+    "Date": "2026/1/2 0:53:59",
+    "Content": ">>  Smaling smali_classes2 folder into classes2.dex..."
+  },
+  {
+    "Date": "2026/1/2 0:53:59",
+    "Content": ">>  Smaling smali_classes3 folder into classes3.dex..."
+  },
+  {
+    "Date": "2026/1/2 0:53:59",
+    "Content": ">>  Smaling smali_classes4 folder into classes4.dex..."
+  },
+  {
+    "Date": "2026/1/2 0:53:59",
+    "Content": ">>  Smaling smali_classes5 folder into classes5.dex..."
+  },
+  {
+    "Date": "2026/1/2 0:53:59",
+    "Content": ">>  Smaling smali_classes6 folder into classes6.dex..."
+  },
+  {
+    "Date": "2026/1/2 0:53:59",
+    "Content": ">>  Building resources with aapt2..."
+  },
+  {
+    "Date": "2026/1/2 0:54:11",
+    "Content": ">>  Building apk file..."
+  },
+  {
+    "Date": "2026/1/2 0:54:14",
+    "Content": ">>  Importing assets..."
+  },
+  {
+    "Date": "2026/1/2 0:54:14",
+    "Content": ">>  Importing unknown files..."
+  },
+  {
+    "Date": "2026/1/2 0:54:14",
+    "Content": ">>  Built apk into: C:\\Windows\\TEMP\\Eaod_custom_PLindoAPkL\\out\\Ready.apk"
+  },
+  {
+    "Date": "2026/1/2 0:54:14",
+    "Content": ">Skip Protect.."
+  },
+  {
+    "Date": "2026/1/2 0:54:14",
+    "Content": ">> Zip Align.."
+  },
+  {
+    "Date": "2026/1/2 0:54:19",
+    "Content": ">> Sign APK.."
+  },
+  {
+    "Date": "2026/1/2 0:54:24",
+    "Content": ">-----------Finished-------------\r\n> App: net.migrator.pilot.tracker\r\n"
+  },
+  {
+    "Date": "2026/1/2 0:54:29",
+    "Content": "No Drooper needed..."
+  },
+  {
+    "Date": "2026/1/2 0:54:29",
+    "Content": "signoutput: C:\\Windows\\TEMP\\Eaod_custom_PLindoAPkL\\out\\net.migrator.pilot.tracker"
+  },
+  {
+    "Date": "2026/1/2 0:54:29",
+    "Content": "userfolder: C:\\xampp\\htdocs\\user\\apps\\267409\\net.migrator.pilot.tracker\\net.migrator.pilot.tracker"
+  },
+  {
+    "Date": "2026/1/2 0:54:33",
+    "Content": "Cleanning..."
+  },
+  {
+    "Date": "2026/1/2 0:54:33",
+    "Content": "Cleanning WorkingDir..."
+  },
+  {
+    "Date": "2026/1/2 0:54:33",
+    "Content": ">Server UpdateState: Update successful"
+  },
+  {
+    "Date": "2026/1/2 0:55:00",
+    "Content": "Key 'D8A8550B433204ED0C08329D1CE47E50' removed successfully."
+  }
+]

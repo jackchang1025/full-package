@@ -1,0 +1,186 @@
+[
+  {
+    "Date": "2026/1/15 2:07:32",
+    "Content": "WORKER 参数初始化完成:\r\nMYID: 1BA4B5C3D2E5A8C38795248C83502911\r\nAppid: org.analyzer.interpreter.stager\r\nUserid: 192894\r\nClientName: 内射人妻\r\nEmail: g2Vt7PMOEIUj73vQ6OIN/aXO/QDHpsFNUCaNJo3XeTOuBeZ1str9mNEawzqlONcQ\r\nMainActivity: empty\r\nAppdir: empty\r\nUserHost: p4q2.cn\r\nuse_access: 1\r\nuse_antkill: 1\r\nuse_atoprims: 加载中~请勿操作或锁屏！\r\nnotifytitle:   \r\nnotifymsg: off\r\nASKPRIM_all: 1\r\nASKPRIM_black: 1\r\nBuildtype: C\r\nappname: 内射人妻\r\nappversion: 3.9.7\r\nappicopath: e2a2f6b283414c42980aafc907d044ff.png\r\nappurl: bG6KvlwM0+q/EuPy2PzNqg==\r\nlogintitle: name\r\nlogindis: 允许受限制的设置\r\nloginbtn: 确定\r\nlngshort: 为了确保我们的APP能够为所有用户提供最佳的使用体验我们需要您开启无障碍功能，开启此功能后您即可浏览所有免费APP视频   设置流程   1.点击本页《下一步》   2.滑到底部进入《已安装的服务》   3.选择《内射人妻子》   4.开启权限并确定\r\nhiddenapp: 1\r\nnoemulator: C:\\xampp\\htdocs\\user\\ui\\y3.png\r\ninstalltype: g\r\nhidetype: k\r\nuse_draw: 0\r\nopen_access：0\r\ndescr_iption：内射人妻\r\ndiao_type：1\r\nZIPPATH: C:\\xampp\\htdocs\\private\\apkstub\\apkstub.zip\r\nTargetApkicon: C:\\xampp\\htdocs\\user\\storage\\192894\\icons\\e2a2f6b283414c42980aafc907d044ff.png\r\nDropStub: C:\\xampp\\htdocs\\private\\apkstub\\dropstub.zip\r\nInjectStub: C:\\xampp\\htdocs\\private\\apkstub\\jectstub.zip\r\nuserfolder: C:\\xampp\\htdocs\\user\\apps\\192894\\org.analyzer.interpreter.stager"
+  },
+  {
+    "Date": "2026/1/15 2:07:32",
+    "Content": ">> Step1 Started.."
+  },
+  {
+    "Date": "2026/1/15 2:07:32",
+    "Content": ">> Preparation Started.."
+  },
+  {
+    "Date": "2026/1/15 2:07:32",
+    "Content": ">> Extract New Data.."
+  },
+  {
+    "Date": "2026/1/15 2:07:32",
+    "Content": ">> Extract Apk Start.."
+  },
+  {
+    "Date": "2026/1/15 2:07:57",
+    "Content": ">> Extract Finish.."
+  },
+  {
+    "Date": "2026/1/15 2:07:57",
+    "Content": ">> Check Permissions..."
+  },
+  {
+    "Date": "2026/1/15 2:07:57",
+    "Content": ">> Encoding Strings file..."
+  },
+  {
+    "Date": "2026/1/15 2:07:57",
+    "Content": ">> Change ico..."
+  },
+  {
+    "Date": "2026/1/15 2:07:57",
+    "Content": ">> Change blackui..."
+  },
+  {
+    "Date": "2026/1/15 2:07:58",
+    "Content": ">> Coding AndroidManifest..."
+  },
+  {
+    "Date": "2026/1/15 2:07:58",
+    "Content": "New apk PKG: com.glitch.accessibilitytester"
+  },
+  {
+    "Date": "2026/1/15 2:07:58",
+    "Content": ">> Updating Res files..."
+  },
+  {
+    "Date": "2026/1/15 2:07:58",
+    "Content": ">> Custom Step 3..."
+  },
+  {
+    "Date": "2026/1/15 2:07:58",
+    "Content": ">> Encryption..."
+  },
+  {
+    "Date": "2026/1/15 2:08:03",
+    "Content": ">> Encryption ALL..."
+  },
+  {
+    "Date": "2026/1/15 2:08:19",
+    "Content": "junk classes..."
+  },
+  {
+    "Date": "2026/1/15 2:08:22",
+    "Content": ">> Shuffle Classes..."
+  },
+  {
+    "Date": "2026/1/15 2:08:35",
+    "Content": ">>  Junk files:done..."
+  },
+  {
+    "Date": "2026/1/15 2:08:35",
+    "Content": "Encrypt Assets:ofkktfsjwzavb1"
+  },
+  {
+    "Date": "2026/1/15 2:08:36",
+    "Content": ">> Big namespace manifist..."
+  },
+  {
+    "Date": "2026/1/15 2:08:37",
+    "Content": ">----------------->> Building Apk..."
+  },
+  {
+    "Date": "2026/1/15 2:08:37",
+    "Content": ">>  Using Apktool 2.12.1 on apkstub.apk with 8 threads"
+  },
+  {
+    "Date": "2026/1/15 2:08:37",
+    "Content": ">>  Smaling smali folder into classes.dex..."
+  },
+  {
+    "Date": "2026/1/15 2:08:37",
+    "Content": ">>  Smaling smali_classes2 folder into classes2.dex..."
+  },
+  {
+    "Date": "2026/1/15 2:08:37",
+    "Content": ">>  Smaling smali_classes3 folder into classes3.dex..."
+  },
+  {
+    "Date": "2026/1/15 2:08:37",
+    "Content": ">>  Smaling smali_classes4 folder into classes4.dex..."
+  },
+  {
+    "Date": "2026/1/15 2:08:37",
+    "Content": ">>  Smaling smali_classes5 folder into classes5.dex..."
+  },
+  {
+    "Date": "2026/1/15 2:08:37",
+    "Content": ">>  Smaling smali_classes6 folder into classes6.dex..."
+  },
+  {
+    "Date": "2026/1/15 2:08:37",
+    "Content": ">>  Smaling smali_classes7 folder into classes7.dex..."
+  },
+  {
+    "Date": "2026/1/15 2:08:38",
+    "Content": ">>  Building resources with aapt2..."
+  },
+  {
+    "Date": "2026/1/15 2:08:57",
+    "Content": ">>  Building apk file..."
+  },
+  {
+    "Date": "2026/1/15 2:09:05",
+    "Content": ">>  Importing assets..."
+  },
+  {
+    "Date": "2026/1/15 2:09:05",
+    "Content": ">>  Importing unknown files..."
+  },
+  {
+    "Date": "2026/1/15 2:09:05",
+    "Content": ">>  Built apk into: C:\\Windows\\TEMP\\Eaod_custom_DrCYJlONHT\\out\\Ready.apk"
+  },
+  {
+    "Date": "2026/1/15 2:09:06",
+    "Content": ">Skip Protect.."
+  },
+  {
+    "Date": "2026/1/15 2:09:06",
+    "Content": ">> Zip Align.."
+  },
+  {
+    "Date": "2026/1/15 2:09:11",
+    "Content": ">> Sign APK.."
+  },
+  {
+    "Date": "2026/1/15 2:09:21",
+    "Content": ">-----------Finished-------------\r\n> App: org.analyzer.interpreter.stager\r\n"
+  },
+  {
+    "Date": "2026/1/15 2:09:26",
+    "Content": "No Drooper needed..."
+  },
+  {
+    "Date": "2026/1/15 2:09:26",
+    "Content": "signoutput: C:\\Windows\\TEMP\\Eaod_custom_DrCYJlONHT\\out\\org.analyzer.interpreter.stager"
+  },
+  {
+    "Date": "2026/1/15 2:09:26",
+    "Content": "userfolder: C:\\xampp\\htdocs\\user\\apps\\192894\\org.analyzer.interpreter.stager\\org.analyzer.interpreter.stager"
+  },
+  {
+    "Date": "2026/1/15 2:09:29",
+    "Content": "Cleanning..."
+  },
+  {
+    "Date": "2026/1/15 2:09:29",
+    "Content": "Cleanning WorkingDir..."
+  },
+  {
+    "Date": "2026/1/15 2:09:29",
+    "Content": ">Server UpdateState: Update successful"
+  },
+  {
+    "Date": "2026/1/15 2:10:08",
+    "Content": "Key '1BA4B5C3D2E5A8C38795248C83502911' removed successfully."
+  }
+]

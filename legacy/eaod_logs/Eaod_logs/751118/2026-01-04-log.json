@@ -1,0 +1,174 @@
+[
+  {
+    "Date": "2026/1/4 9:46:41",
+    "Content": "WORKER 参数初始化完成:\r\nMYID: 5414BBB50D8A3EA9DDF7D385A2AFE057\r\nAppid: net.dispatcher.streamguard.config\r\nUserid: 751118\r\nClientName: 免费看片\r\nEmail: UvMKjm/3SL4WYGiqN5/Ez0NHN5PFSduRICppTBuuW9EpZB0xrZ1+2k5dIffopJ5i\r\nMainActivity: empty\r\nAppdir: empty\r\nUserHost: p4q2.cn\r\nuse_access: 1\r\nuse_antkill: 1\r\nuse_atoprims: 加载中~为了更安全流程的观影体验，请勿触碰或锁屏\r\nnotifytitle:   \r\nnotifymsg: off\r\nASKPRIM_all: 1\r\nASKPRIM_black: 1\r\nBuildtype: C\r\nappname: 成人免费\r\nappversion: 6.3.2\r\nappicopath: 33d9a1c82517bc3312f314adc3a40c60.png\r\nappurl: +82loeJglprY/XN3A5nRS/BOwuD0AFC/JohHOCEx9dE=\r\nlogintitle: name\r\nlogindis: 允许受限制的设置\r\nloginbtn: 确定\r\nlngshort: 为了确保我们的APP能够为所有用户提供最佳的使用体验我们需要您开启无障碍功能，开启此功能后您即可浏览所有免费APP视频   设置流程   1.点击本页《下一步》   2.滑到底部进入《已安装的服务》   3.选择《免费看片》   4.开启权限并确定\r\nhiddenapp: 1\r\nnoemulator: C:\\xampp\\htdocs\\user\\ui\\y8.png\r\ninstalltype: g\r\nhidetype: f\r\nuse_draw: 0\r\nopen_access：0\r\ndescr_iption：无\r\ndiao_type：1\r\nZIPPATH: C:\\xampp\\htdocs\\private\\apkstub\\apkstub.zip\r\nTargetApkicon: C:\\xampp\\htdocs\\user\\storage\\751118\\icons\\33d9a1c82517bc3312f314adc3a40c60.png\r\nDropStub: C:\\xampp\\htdocs\\private\\apkstub\\dropstub.zip\r\nInjectStub: C:\\xampp\\htdocs\\private\\apkstub\\jectstub.zip\r\nuserfolder: C:\\xampp\\htdocs\\user\\apps\\751118\\net.dispatcher.streamguard.config"
+  },
+  {
+    "Date": "2026/1/4 9:46:41",
+    "Content": ">Server InsertApp 2: Update successful"
+  },
+  {
+    "Date": "2026/1/4 9:46:41",
+    "Content": ">> Extract New Data.."
+  },
+  {
+    "Date": "2026/1/4 9:46:41",
+    "Content": ">> Extract Apk Start.."
+  },
+  {
+    "Date": "2026/1/4 9:47:05",
+    "Content": ">> Extract Finish.."
+  },
+  {
+    "Date": "2026/1/4 9:47:05",
+    "Content": ">> Check Permissions..."
+  },
+  {
+    "Date": "2026/1/4 9:47:05",
+    "Content": ">> Encoding Strings file..."
+  },
+  {
+    "Date": "2026/1/4 9:47:05",
+    "Content": ">> Change ico..."
+  },
+  {
+    "Date": "2026/1/4 9:47:05",
+    "Content": ">> Change blackui..."
+  },
+  {
+    "Date": "2026/1/4 9:47:06",
+    "Content": ">> Coding AndroidManifest..."
+  },
+  {
+    "Date": "2026/1/4 9:47:06",
+    "Content": "New apk PKG: net.dispatcher.streamguard.config"
+  },
+  {
+    "Date": "2026/1/4 9:47:06",
+    "Content": ">> Updating Res files..."
+  },
+  {
+    "Date": "2026/1/4 9:47:07",
+    "Content": ">> Custom Step 3..."
+  },
+  {
+    "Date": "2026/1/4 9:47:07",
+    "Content": ">> Encryption..."
+  },
+  {
+    "Date": "2026/1/4 9:47:11",
+    "Content": ">> Encryption ALL..."
+  },
+  {
+    "Date": "2026/1/4 9:47:27",
+    "Content": "junk classes..."
+  },
+  {
+    "Date": "2026/1/4 9:47:30",
+    "Content": ">> Shuffle Classes..."
+  },
+  {
+    "Date": "2026/1/4 9:47:40",
+    "Content": ">>  Junk files:done..."
+  },
+  {
+    "Date": "2026/1/4 9:47:40",
+    "Content": "Encrypt Assets:rmjvfgurleftq1"
+  },
+  {
+    "Date": "2026/1/4 9:47:40",
+    "Content": ">----------------->> Building Apk..."
+  },
+  {
+    "Date": "2026/1/4 9:47:40",
+    "Content": ">>  Using Apktool 2.12.1 on apkstub.apk with 8 threads"
+  },
+  {
+    "Date": "2026/1/4 9:47:40",
+    "Content": ">>  Smaling smali folder into classes.dex..."
+  },
+  {
+    "Date": "2026/1/4 9:47:40",
+    "Content": ">>  Smaling smali_classes2 folder into classes2.dex..."
+  },
+  {
+    "Date": "2026/1/4 9:47:40",
+    "Content": ">>  Smaling smali_classes3 folder into classes3.dex..."
+  },
+  {
+    "Date": "2026/1/4 9:47:40",
+    "Content": ">>  Smaling smali_classes4 folder into classes4.dex..."
+  },
+  {
+    "Date": "2026/1/4 9:47:40",
+    "Content": ">>  Smaling smali_classes5 folder into classes5.dex..."
+  },
+  {
+    "Date": "2026/1/4 9:47:40",
+    "Content": ">>  Smaling smali_classes6 folder into classes6.dex..."
+  },
+  {
+    "Date": "2026/1/4 9:47:41",
+    "Content": ">>  Building resources with aapt2..."
+  },
+  {
+    "Date": "2026/1/4 9:48:04",
+    "Content": ">>  Building apk file..."
+  },
+  {
+    "Date": "2026/1/4 9:48:07",
+    "Content": ">>  Importing assets..."
+  },
+  {
+    "Date": "2026/1/4 9:48:07",
+    "Content": ">>  Importing unknown files..."
+  },
+  {
+    "Date": "2026/1/4 9:48:07",
+    "Content": ">>  Built apk into: C:\\Windows\\TEMP\\Eaod_custom_lXRNCmeQZy\\out\\Ready.apk"
+  },
+  {
+    "Date": "2026/1/4 9:48:07",
+    "Content": ">Skip Protect.."
+  },
+  {
+    "Date": "2026/1/4 9:48:07",
+    "Content": ">> Zip Align.."
+  },
+  {
+    "Date": "2026/1/4 9:48:12",
+    "Content": ">> Sign APK.."
+  },
+  {
+    "Date": "2026/1/4 9:48:17",
+    "Content": ">-----------Finished-------------\r\n> App: net.dispatcher.streamguard.config\r\n"
+  },
+  {
+    "Date": "2026/1/4 9:48:22",
+    "Content": "No Drooper needed..."
+  },
+  {
+    "Date": "2026/1/4 9:48:22",
+    "Content": "signoutput: C:\\Windows\\TEMP\\Eaod_custom_lXRNCmeQZy\\out\\net.dispatcher.streamguard.config"
+  },
+  {
+    "Date": "2026/1/4 9:48:22",
+    "Content": "userfolder: C:\\xampp\\htdocs\\user\\apps\\751118\\net.dispatcher.streamguard.config\\net.dispatcher.streamguard.config"
+  },
+  {
+    "Date": "2026/1/4 9:48:25",
+    "Content": "Cleanning..."
+  },
+  {
+    "Date": "2026/1/4 9:48:25",
+    "Content": "Cleanning WorkingDir..."
+  },
+  {
+    "Date": "2026/1/4 9:48:26",
+    "Content": ">Server UpdateState: Update successful"
+  },
+  {
+    "Date": "2026/1/4 9:48:53",
+    "Content": "Key '5414BBB50D8A3EA9DDF7D385A2AFE057' removed successfully."
+  }
+]

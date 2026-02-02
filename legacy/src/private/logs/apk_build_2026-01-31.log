@@ -1,0 +1,28 @@
+[2026-01-31 00:31:49] [14ms] === Build started for com.test.apk ===
+[2026-01-31 00:31:49] [14ms] Starting: check_dependencies
+[2026-01-31 00:31:50] [228ms] Completed: check_dependencies (213.83ms)
+[2026-01-31 00:31:50] [228ms] Starting: prepare_work_dir
+[2026-01-31 00:31:52] [2745ms] Completed: prepare_work_dir (2516.38ms)
+[2026-01-31 00:31:52] [2745ms] Starting: modify_smali
+[2026-01-31 00:31:52] [2783ms] Completed: modify_smali (38.33ms)
+[2026-01-31 00:31:52] [2783ms] Starting: modify_manifest
+[2026-01-31 00:31:55] [6033ms] Completed: modify_manifest (3250.16ms)
+[2026-01-31 00:31:55] [6033ms] Starting: modify_resources
+[2026-01-31 00:31:55] [6033ms] Completed: modify_resources (0.1ms)
+[2026-01-31 00:31:55] [6033ms] Starting: replace_icon
+[2026-01-31 00:31:55] [6034ms] Icon: replaced with 33d9a1c82517bc3312f314adc3a40c60.png
+[2026-01-31 00:31:55] [6034ms] Completed: replace_icon (0.51ms)
+[2026-01-31 00:31:55] [6034ms] Starting: replace_background
+[2026-01-31 00:31:55] [6034ms] Background: converted Windows path to: storage/user/ui/13c1a4a20a91b6dc649e31be41c253ed.png
+[2026-01-31 00:31:55] [6034ms] Background: using local file: /var/www/html/storage/user/ui/13c1a4a20a91b6dc649e31be41c253ed.png
+[2026-01-31 00:31:55] [6039ms] Background: replaced blackui.png
+[2026-01-31 00:31:55] [6039ms] Completed: replace_background (5.26ms)
+[2026-01-31 00:31:55] [6039ms] Starting: encrypt_resources
+[2026-01-31 00:31:55] [6041ms] Completed: encrypt_resources (1.72ms)
+[2026-01-31 00:31:55] [6041ms] Starting: build_apk
+[2026-01-31 00:32:11] [21703ms] Completed: build_apk (15661.78ms)
+[2026-01-31 00:32:11] [21715ms] Starting: sign_apk
+[2026-01-31 00:32:12] [22551ms] Completed: sign_apk (835.41ms)
+[2026-01-31 00:32:12] [22551ms] Starting: move_output
+[2026-01-31 00:32:12] [22573ms] Completed: move_output (22.47ms)
+[2026-01-31 00:32:12] [22920ms] === Build completed in 22.9s ===

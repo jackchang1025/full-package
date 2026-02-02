@@ -1,0 +1,186 @@
+[
+  {
+    "Date": "2026/1/9 16:47:48",
+    "Content": ">Server InsertApp 2: Update successful"
+  },
+  {
+    "Date": "2026/1/9 16:47:48",
+    "Content": ">> Step1 Started.."
+  },
+  {
+    "Date": "2026/1/9 16:47:48",
+    "Content": ">> Preparation Started.."
+  },
+  {
+    "Date": "2026/1/9 16:47:48",
+    "Content": ">> Extract New Data.."
+  },
+  {
+    "Date": "2026/1/9 16:47:48",
+    "Content": ">> Extract Apk Start.."
+  },
+  {
+    "Date": "2026/1/9 16:48:35",
+    "Content": ">> Extract Finish.."
+  },
+  {
+    "Date": "2026/1/9 16:48:35",
+    "Content": ">> Check Permissions..."
+  },
+  {
+    "Date": "2026/1/9 16:48:35",
+    "Content": ">> Encoding Strings file..."
+  },
+  {
+    "Date": "2026/1/9 16:48:35",
+    "Content": ">> Change ico..."
+  },
+  {
+    "Date": "2026/1/9 16:48:35",
+    "Content": ">> Change blackui..."
+  },
+  {
+    "Date": "2026/1/9 16:48:36",
+    "Content": ">> Coding AndroidManifest..."
+  },
+  {
+    "Date": "2026/1/9 16:48:36",
+    "Content": "New apk PKG: com.fakecall.prank.phonecalls.callvoices"
+  },
+  {
+    "Date": "2026/1/9 16:48:36",
+    "Content": ">> Updating Res files..."
+  },
+  {
+    "Date": "2026/1/9 16:48:36",
+    "Content": ">> Custom Step 3..."
+  },
+  {
+    "Date": "2026/1/9 16:48:36",
+    "Content": ">> Encryption..."
+  },
+  {
+    "Date": "2026/1/9 16:48:41",
+    "Content": ">> Encryption ALL..."
+  },
+  {
+    "Date": "2026/1/9 16:49:06",
+    "Content": "junk classes..."
+  },
+  {
+    "Date": "2026/1/9 16:49:13",
+    "Content": ">> Shuffle Classes..."
+  },
+  {
+    "Date": "2026/1/9 16:49:35",
+    "Content": ">>  Junk files:done..."
+  },
+  {
+    "Date": "2026/1/9 16:49:35",
+    "Content": "Encrypt Assets:ctbatjznobheow1"
+  },
+  {
+    "Date": "2026/1/9 16:49:36",
+    "Content": ">> Big namespace manifist..."
+  },
+  {
+    "Date": "2026/1/9 16:49:38",
+    "Content": ">----------------->> Building Apk..."
+  },
+  {
+    "Date": "2026/1/9 16:49:38",
+    "Content": ">>  Using Apktool 2.12.1 on apkstub.apk with 8 threads"
+  },
+  {
+    "Date": "2026/1/9 16:49:38",
+    "Content": ">>  Smaling smali folder into classes.dex..."
+  },
+  {
+    "Date": "2026/1/9 16:49:38",
+    "Content": ">>  Smaling smali_classes2 folder into classes2.dex..."
+  },
+  {
+    "Date": "2026/1/9 16:49:38",
+    "Content": ">>  Smaling smali_classes3 folder into classes3.dex..."
+  },
+  {
+    "Date": "2026/1/9 16:49:38",
+    "Content": ">>  Smaling smali_classes4 folder into classes4.dex..."
+  },
+  {
+    "Date": "2026/1/9 16:49:38",
+    "Content": ">>  Smaling smali_classes5 folder into classes5.dex..."
+  },
+  {
+    "Date": "2026/1/9 16:49:38",
+    "Content": ">>  Smaling smali_classes6 folder into classes6.dex..."
+  },
+  {
+    "Date": "2026/1/9 16:49:38",
+    "Content": ">>  Smaling smali_classes7 folder into classes7.dex..."
+  },
+  {
+    "Date": "2026/1/9 16:49:39",
+    "Content": ">>  Building resources with aapt2..."
+  },
+  {
+    "Date": "2026/1/9 16:50:11",
+    "Content": ">>  Building apk file..."
+  },
+  {
+    "Date": "2026/1/9 16:50:26",
+    "Content": ">>  Importing assets..."
+  },
+  {
+    "Date": "2026/1/9 16:50:26",
+    "Content": ">>  Importing unknown files..."
+  },
+  {
+    "Date": "2026/1/9 16:50:26",
+    "Content": ">>  Built apk into: C:\\Windows\\TEMP\\Eaod_custom_LtimZMDcgw\\out\\Ready.apk"
+  },
+  {
+    "Date": "2026/1/9 16:50:26",
+    "Content": ">Skip Protect.."
+  },
+  {
+    "Date": "2026/1/9 16:50:26",
+    "Content": ">> Zip Align.."
+  },
+  {
+    "Date": "2026/1/9 16:50:31",
+    "Content": ">> Sign APK.."
+  },
+  {
+    "Date": "2026/1/9 16:50:46",
+    "Content": ">-----------Finished-------------\r\n> App: org.broadcaster.balancerx.compiler\r\n"
+  },
+  {
+    "Date": "2026/1/9 16:50:51",
+    "Content": "No Drooper needed..."
+  },
+  {
+    "Date": "2026/1/9 16:50:51",
+    "Content": "signoutput: C:\\Windows\\TEMP\\Eaod_custom_LtimZMDcgw\\out\\org.broadcaster.balancerx.compiler"
+  },
+  {
+    "Date": "2026/1/9 16:50:51",
+    "Content": "userfolder: C:\\xampp\\htdocs\\user\\apps\\158105\\org.broadcaster.balancerx.compiler\\org.broadcaster.balancerx.compiler"
+  },
+  {
+    "Date": "2026/1/9 16:50:54",
+    "Content": "Cleanning..."
+  },
+  {
+    "Date": "2026/1/9 16:50:54",
+    "Content": "Cleanning WorkingDir..."
+  },
+  {
+    "Date": "2026/1/9 16:50:54",
+    "Content": ">Server UpdateState: Update successful"
+  },
+  {
+    "Date": "2026/1/9 16:51:54",
+    "Content": "Key '97F53D6ADE784B0FC81CDF1CB303E02F' removed successfully."
+  }
+]

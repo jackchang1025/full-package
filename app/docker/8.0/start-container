@@ -1,0 +1,57 @@
+#!/usr/bin/env bash
+
+if [ "$SUPERVISOR_PHP_USER" != "root" ] && [ "$SUPERVISOR_PHP_USER" != "sail" ]; then
+    echo "You should set SUPERVISOR_PHP_USER to either 'sail' or 'root'."
+    exit 1
+fi
+
+if [ ! -z "$WWWUSER" ]; then
+    usermod -u $WWWUSER sail
+fi
+
+if [ ! -d /.composer ]; then
+    mkdir /.composer
+fi
+
+chmod -R ugo+rw /.composer
+
+# Fix storage directory permissions for sail user
+# This ensures the web server can write to storage directories
+if [ -d /var/www/html/storage ]; then
+    echo "Fixing storage directory permissions..."
+    
+    # Create necessary directories if they don't exist
+    mkdir -p /var/www/html/storage/app/public/icons
+    mkdir -p /var/www/html/storage/app/public/backgrounds
+    mkdir -p /var/www/html/storage/app/public/apk
+    mkdir -p /var/www/html/storage/logs/apk
+    mkdir -p /var/www/html/storage/logs/websocket
+    mkdir -p /var/www/html/storage/framework/cache
+    mkdir -p /var/www/html/storage/framework/sessions
+    mkdir -p /var/www/html/storage/framework/views
+    
+    # Set ownership to sail user for storage directory
+    chown -R sail:sail /var/www/html/storage
+    
+    # Set appropriate permissions (775 for directories, 664 for files)
+    find /var/www/html/storage -type d -exec chmod 775 {} \;
+    find /var/www/html/storage -type f -exec chmod 664 {} \;
+    
+    echo "Storage permissions fixed."
+fi
+
+# Also fix bootstrap/cache directory permissions
+if [ -d /var/www/html/bootstrap/cache ]; then
+    chown -R sail:sail /var/www/html/bootstrap/cache
+    chmod -R 775 /var/www/html/bootstrap/cache
+fi
+
+if [ $# -gt 0 ]; then
+    if [ "$SUPERVISOR_PHP_USER" = "root" ]; then
+        exec "$@"
+    else
+        exec gosu $WWWUSER "$@"
+    fi
+else
+    exec /usr/bin/supervisord -c /etc/supervisor/conf.d/supervisord.conf
+fi

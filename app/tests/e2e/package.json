@@ -1,0 +1,17 @@
+{
+  "name": "websocket-e2e-tests",
+  "version": "1.0.0",
+  "description": "WebSocket E2E integration tests",
+  "main": "websocket.test.js",
+  "scripts": {
+    "test": "node websocket.test.js",
+    "test:push": "node test-push-mode.js",
+    "test:checkphone": "node test-checkphone.js",
+    "test:isolation": "node test-user-device-isolation.js",
+    "test:all": "node websocket.test.js && node test-push-mode.js",
+    "mock-device": "node mock-device.js"
+  },
+  "dependencies": {
+    "ws": "^8.16.0"
+  }
+}

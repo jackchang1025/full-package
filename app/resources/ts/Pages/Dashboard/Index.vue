@@ -1,0 +1,488 @@
+<script setup lang="ts">
+import { computed } from 'vue';
+import { Head, usePage, router } from '@inertiajs/vue3';
+import {
+    NCard,
+    NGrid,
+    NGi,
+    NStatistic,
+    NIcon,
+    NButton,
+    NSpace,
+    NProgress,
+    NTag,
+} from 'naive-ui';
+import {
+    PhonePortraitOutline,
+    CloudDownloadOutline,
+    CheckmarkCircleOutline,
+    TimeOutline,
+    TrendingUpOutline,
+    ArrowForwardOutline,
+    PulseOutline,
+    ServerOutline,
+} from '@vicons/ionicons5';
+import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
+
+interface Props {
+    stats: {
+        totalDevices: number;
+        onlineDevices: number;
+        totalBuilds: number;
+        completedBuilds: number;
+    };
+}
+
+const props = defineProps<Props>();
+
+const page = usePage();
+const user = computed(() => page.props.auth?.user);
+
+const onlinePercentage = computed(() => {
+    if (props.stats.totalDevices === 0) return 0;
+    return Math.round((props.stats.onlineDevices / props.stats.totalDevices) * 100);
+});
+
+const buildSuccessRate = computed(() => {
+    if (props.stats.totalBuilds === 0) return 0;
+    return Math.round((props.stats.completedBuilds / props.stats.totalBuilds) * 100);
+});
+
+const statCards = computed(() => [
+    {
+        title: '设备总数',
+        value: props.stats.totalDevices,
+        icon: PhonePortraitOutline,
+        color: '#10B981',
+        bgColor: 'rgba(16, 185, 129, 0.1)',
+        trend: '+12%',
+        trendUp: true,
+    },
+    {
+        title: '在线设备',
+        value: props.stats.onlineDevices,
+        icon: PulseOutline,
+        color: '#3B82F6',
+        bgColor: 'rgba(59, 130, 246, 0.1)',
+        suffix: `/ ${props.stats.totalDevices}`,
+        progress: onlinePercentage.value,
+    },
+    {
+        title: 'APK 构建',
+        value: props.stats.totalBuilds,
+        icon: CloudDownloadOutline,
+        color: '#8B5CF6',
+        bgColor: 'rgba(139, 92, 246, 0.1)',
+        trend: '+8%',
+        trendUp: true,
+    },
+    {
+        title: '构建成功',
+        value: props.stats.completedBuilds,
+        icon: CheckmarkCircleOutline,
+        color: '#F59E0B',
+        bgColor: 'rgba(245, 158, 11, 0.1)',
+        suffix: `(${buildSuccessRate.value}%)`,
+    },
+]);
+
+const quickActions = [
+    { label: '管理设备', icon: PhonePortraitOutline, route: '/devices', color: '#10B981' },
+    { label: 'APK 构建', icon: CloudDownloadOutline, route: '/builds', color: '#3B82F6' },
+    { label: '系统设置', icon: ServerOutline, route: '/settings/profile', color: '#8B5CF6' },
+];
+
+const goTo = (route: string) => router.visit(route);
+</script>
+
+<template>
+    <Head title="控制台" />
+    <AuthenticatedLayout>
+        <template #header-title>控制台</template>
+
+        <div class="dashboard-container">
+            <!-- 欢迎区域 -->
+            <div class="welcome-section">
+                <div class="welcome-content">
+                    <h1 class="welcome-title">
+                        欢迎回来，<span class="username">{{ user?.username }}</span> 👋
+                    </h1>
+                    <p class="welcome-subtitle">
+                        这是您的飞鹰管理系统控制台，查看设备状态和系统概览
+                    </p>
+                </div>
+                <div class="welcome-actions">
+                    <NButton type="primary" class="action-btn" @click="goTo('/devices')">
+                        <template #icon>
+                            <NIcon :component="PhonePortraitOutline" />
+                        </template>
+                        查看设备
+                    </NButton>
+                </div>
+            </div>
+
+            <!-- 统计卡片 -->
+            <div class="stats-grid">
+                <div 
+                    v-for="stat in statCards" 
+                    :key="stat.title" 
+                    class="stat-card"
+                >
+                    <div class="stat-header">
+                        <div class="stat-icon" :style="{ background: stat.bgColor, color: stat.color }">
+                            <NIcon :component="stat.icon" size="24" />
+                        </div>
+                        <div v-if="stat.trend" class="stat-trend" :class="{ up: stat.trendUp }">
+                            <NIcon :component="TrendingUpOutline" size="14" />
+                            {{ stat.trend }}
+                        </div>
+                    </div>
+                    <div class="stat-body">
+                        <div class="stat-value">
+                            {{ stat.value }}
+                            <span v-if="stat.suffix" class="stat-suffix">{{ stat.suffix }}</span>
+                        </div>
+                        <div class="stat-title">{{ stat.title }}</div>
+                    </div>
+                    <div v-if="stat.progress !== undefined" class="stat-progress">
+                        <NProgress
+                            type="line"
+                            :percentage="stat.progress"
+                            :color="stat.color"
+                            :rail-color="stat.bgColor"
+                            :height="6"
+                            :show-indicator="false"
+                        />
+                    </div>
+                </div>
+            </div>
+
+            <!-- 快捷操作 -->
+            <div class="quick-section">
+                <h2 class="section-title">快捷操作</h2>
+                <div class="quick-grid">
+                    <div 
+                        v-for="action in quickActions" 
+                        :key="action.label" 
+                        class="quick-card"
+                        @click="goTo(action.route)"
+                    >
+                        <div class="quick-icon" :style="{ background: `${action.color}15`, color: action.color }">
+                            <NIcon :component="action.icon" size="28" />
+                        </div>
+                        <span class="quick-label">{{ action.label }}</span>
+                        <NIcon :component="ArrowForwardOutline" class="quick-arrow" />
+                    </div>
+                </div>
+            </div>
+
+            <!-- 系统状态 -->
+            <div class="status-section">
+                <h2 class="section-title">系统状态</h2>
+                <div class="status-card">
+                    <div class="status-item">
+                        <div class="status-indicator online"></div>
+                        <span class="status-label">API 服务</span>
+                        <NTag type="success" size="small" round>正常</NTag>
+                    </div>
+                    <div class="status-item">
+                        <div class="status-indicator online"></div>
+                        <span class="status-label">WebSocket</span>
+                        <NTag type="success" size="small" round>已连接</NTag>
+                    </div>
+                    <div class="status-item">
+                        <div class="status-indicator online"></div>
+                        <span class="status-label">数据库</span>
+                        <NTag type="success" size="small" round>正常</NTag>
+                    </div>
+                    <div class="status-item">
+                        <div class="status-indicator online"></div>
+                        <span class="status-label">构建服务</span>
+                        <NTag type="success" size="small" round>就绪</NTag>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </AuthenticatedLayout>
+</template>
+
+<style scoped>
+.dashboard-container {
+    max-width: 1200px;
+}
+
+/* 欢迎区域 */
+.welcome-section {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: linear-gradient(135deg, #10B981 0%, #059669 100%);
+    border-radius: 20px;
+    padding: 32px 40px;
+    margin-bottom: 28px;
+    box-shadow: 0 8px 32px rgba(16, 185, 129, 0.25);
+}
+
+.welcome-title {
+    font-size: 28px;
+    font-weight: 700;
+    color: white;
+    margin: 0 0 8px;
+}
+
+.username {
+    color: rgba(255, 255, 255, 0.95);
+}
+
+.welcome-subtitle {
+    font-size: 15px;
+    color: rgba(255, 255, 255, 0.8);
+    margin: 0;
+}
+
+.action-btn {
+    height: 44px;
+    padding: 0 24px;
+    border-radius: 12px;
+    font-weight: 600;
+    background: white;
+    color: #059669;
+    border: none;
+    transition: all 0.3s ease;
+}
+
+.action-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+}
+
+/* 统计卡片 */
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 20px;
+    margin-bottom: 28px;
+}
+
+.stat-card {
+    background: white;
+    border-radius: 16px;
+    padding: 24px;
+    border: 1px solid #e2e8f0;
+    transition: all 0.3s ease;
+}
+
+.stat-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.08);
+    border-color: transparent;
+}
+
+.stat-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 16px;
+}
+
+.stat-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.stat-trend {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 13px;
+    font-weight: 600;
+    color: #10B981;
+    background: rgba(16, 185, 129, 0.1);
+    padding: 4px 10px;
+    border-radius: 20px;
+}
+
+.stat-body {
+    margin-bottom: 8px;
+}
+
+.stat-value {
+    font-size: 32px;
+    font-weight: 700;
+    color: #1e293b;
+    line-height: 1.2;
+}
+
+.stat-suffix {
+    font-size: 16px;
+    font-weight: 500;
+    color: #64748b;
+    margin-left: 4px;
+}
+
+.stat-title {
+    font-size: 14px;
+    color: #64748b;
+    margin-top: 4px;
+}
+
+.stat-progress {
+    margin-top: 12px;
+}
+
+/* 快捷操作 */
+.section-title {
+    font-size: 18px;
+    font-weight: 600;
+    color: #1e293b;
+    margin: 0 0 16px;
+}
+
+.quick-section {
+    margin-bottom: 28px;
+}
+
+.quick-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+}
+
+.quick-card {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    background: white;
+    border-radius: 14px;
+    padding: 20px 24px;
+    border: 1px solid #e2e8f0;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.quick-card:hover {
+    border-color: #10B981;
+    box-shadow: 0 8px 24px rgba(16, 185, 129, 0.12);
+    transform: translateX(4px);
+}
+
+.quick-card:hover .quick-arrow {
+    opacity: 1;
+    transform: translateX(4px);
+}
+
+.quick-icon {
+    width: 52px;
+    height: 52px;
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.quick-label {
+    font-size: 16px;
+    font-weight: 600;
+    color: #1e293b;
+    flex: 1;
+}
+
+.quick-arrow {
+    color: #10B981;
+    opacity: 0;
+    transition: all 0.3s ease;
+}
+
+/* 系统状态 */
+.status-section {
+    margin-bottom: 20px;
+}
+
+.status-card {
+    background: white;
+    border-radius: 14px;
+    padding: 8px;
+    border: 1px solid #e2e8f0;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+}
+
+.status-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 16px 20px;
+    background: #f8fafc;
+    border-radius: 10px;
+}
+
+.status-indicator {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.status-indicator.online {
+    background: #10B981;
+    box-shadow: 0 0 8px rgba(16, 185, 129, 0.5);
+}
+
+.status-indicator.offline {
+    background: #ef4444;
+    box-shadow: 0 0 8px rgba(239, 68, 68, 0.5);
+}
+
+.status-label {
+    font-size: 14px;
+    font-weight: 500;
+    color: #475569;
+    flex: 1;
+}
+
+/* 响应式 */
+@media (max-width: 1024px) {
+    .stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    
+    .quick-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    
+    .status-card {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 640px) {
+    .welcome-section {
+        flex-direction: column;
+        text-align: center;
+        gap: 20px;
+        padding: 28px 24px;
+    }
+    
+    .welcome-title {
+        font-size: 22px;
+    }
+    
+    .stats-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .quick-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .status-card {
+        grid-template-columns: 1fr;
+    }
+}
+</style>
