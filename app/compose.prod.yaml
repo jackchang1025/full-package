@@ -34,8 +34,10 @@ services:
         image: 'mysql:8.4'
         container_name: feiying-mysql
         restart: unless-stopped
-        ports:
-            - '${FORWARD_DB_PORT:-3306}:3306'
+        # 生产环境默认不对外暴露数据库端口（更安全）
+        # 如需从宿主机访问数据库（运维），取消注释下面的 ports
+        # ports:
+        #     - '${DB_PORT:-3306}:3306'
         environment:
             MYSQL_ROOT_PASSWORD: '${DB_PASSWORD}'
             MYSQL_ROOT_HOST: '%'
@@ -48,19 +50,21 @@ services:
         networks:
             - feiying-network
         healthcheck:
-            test: ["CMD", "mysqladmin", "ping", "-p${DB_PASSWORD}"]
+            test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${DB_PASSWORD}"]
             interval: 10s
             timeout: 5s
             retries: 5
-            start_period: 30s
-        command: --default-authentication-plugin=mysql_native_password --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+            start_period: 60s
+        command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
 
     redis:
         image: 'redis:alpine'
         container_name: feiying-redis
         restart: unless-stopped
-        ports:
-            - '${FORWARD_REDIS_PORT:-6379}:6379'
+        # 生产环境默认不对外暴露 Redis 端口（更安全）
+        # 如需从宿主机访问 Redis（运维），取消注释下面的 ports
+        # ports:
+        #     - '${REDIS_PORT:-6379}:6379'
         volumes:
             - 'redis-data:/data'
         networks:

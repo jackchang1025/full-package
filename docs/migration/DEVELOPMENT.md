@@ -163,8 +163,8 @@ DB_PASSWORD=password
 
 # Sail 端口 (避免冲突)
 APP_PORT=8899
-FORWARD_DB_PORT=3307
-FORWARD_REDIS_PORT=6380
+DB_PORT=3306
+REDIS_PORT=6379
 
 # WebSocket (Swoole 服务器)
 VITE_WEBSOCKET_URL=ws://localhost:8081
@@ -353,8 +353,8 @@ const { devices, connectionState, refreshDevices } = useGlobalWebSocket();
 
 ```bash
 APP_PORT=8001           # 应用端口
-FORWARD_DB_PORT=3308    # MySQL 端口
-FORWARD_REDIS_PORT=6381 # Redis 端口
+DB_PORT=3306    # MySQL 端口
+REDIS_PORT=6379 # Redis 端口
 ```
 
 ### 权限问题
