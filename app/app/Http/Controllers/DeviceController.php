@@ -31,6 +31,8 @@ class DeviceController extends Controller
                 'model' => $device->model ?? '',
                 'android_version' => $device->android_version ?? '',
                 'country' => $device->country ?? '',
+                'ip_address' => $device->ip_address ?? '',
+                'ip_location' => $device->ip_location ?? '',
                 'battery_level' => $device->battery_level,
                 'is_online' => $device->is_online,
                 'has_accessibility' => $device->has_accessibility,

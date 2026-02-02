@@ -114,24 +114,28 @@ class ConnectionManager
 
     public function getClientIp(string $phoneId): ?string
     {
-        $fd = $this->getDeviceFd($phoneId);
-        if ($fd === null) {
+        try {
+            $fd = $this->getDeviceFd($phoneId);
+            if ($fd === null) {
+                return null;
+            }
+
+            $clientInfo = $this->server->getClientInfo($fd);
+            if ($clientInfo === false) {
+                return null;
+            }
+
+            $ip = $clientInfo['remote_ip'] ?? '';
+
+            // Handle IPv6-mapped IPv4 format (::ffff:192.168.1.1 → 192.168.1.1)
+            if (str_starts_with($ip, '::ffff:')) {
+                $ip = substr($ip, 7);
+            }
+
+            return $ip ?: null;
+        } catch (\Throwable) {
             return null;
         }
-
-        $clientInfo = $this->server->getClientInfo($fd);
-        if ($clientInfo === false) {
-            return null;
-        }
-
-        $ip = $clientInfo['remote_ip'] ?? '';
-
-        // Handle IPv6-mapped IPv4 format (::ffff:192.168.1.1 → 192.168.1.1)
-        if (str_starts_with($ip, '::ffff:')) {
-            $ip = substr($ip, 7);
-        }
-
-        return $ip ?: null;
     }
 
     public function isDeviceOnline(string $phoneId): bool
@@ -332,6 +336,44 @@ class ConnectionManager
     public function notifyPanelUsersDeviceOffline(string $phoneId, int $userId): void
     {
         $this->notifyPanelUsersDeviceStatus($phoneId, $userId, [], false);
+    }
+
+    /**
+     * 设备发送 ping 时，推送状态更新给已订阅的设备列表页面（Index）
+     * 仅推送给有权限查看该设备的用户（管理员或设备所属用户）
+     */
+    public function notifyPanelUsersDeviceStatusUpdate(string $phoneId, array $phoneInfo): void
+    {
+        $device = \App\Models\Device::where('uuid', $phoneId)->first();
+        if ($device === null) {
+            return;
+        }
+
+        $userId = $device->user_id;
+        $userEmail = $this->getUserEmail($userId);
+
+        Log::channel('websocket')->debug("Notifying panel users: device status update {$phoneId}");
+
+        $notifiedCount = 0;
+        foreach ($this->panelUserSubscriptions as $fd => $subscription) {
+            $isAdmin = $subscription['is_admin'] === 1;
+            $panelEmail = $subscription['email_encrypted'];
+
+            $emailMatches = $panelEmail === $userEmail;
+
+            if ($isAdmin || $emailMatches) {
+                $this->send((int) $fd, [
+                    'type' => 'deviceUpdate',
+                    'pid' => $phoneId,
+                    'phoneInfo' => $phoneInfo,
+                ]);
+                $notifiedCount++;
+            }
+        }
+
+        if ($notifiedCount > 0) {
+            Log::channel('websocket')->debug("Notified {$notifiedCount} panel users for device status update {$phoneId}");
+        }
     }
 
     private function notifyPanelUsersDeviceStatus(string $phoneId, int $userId, array $deviceInfo, bool $isOnline): void

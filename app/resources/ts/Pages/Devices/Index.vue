@@ -24,17 +24,19 @@ import {
     CellularOutline,
     AccessibilityOutline,
     TimeOutline,
+    BatteryChargingOutline,
     BatteryFullOutline,
     BatteryHalfOutline,
     BatteryDeadOutline,
     EllipseOutline,
     HardwareChipOutline,
+    LocationOutline,
 } from '@vicons/ionicons5';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { useGlobalWebSocket } from '@/composables/useGlobalWebSocket';
-import type { DeviceOnlineMessage, DeviceOfflineMessage } from '@/types/websocket';
+import type { DeviceOnlineMessage, DeviceOfflineMessage, DeviceUpdateMessage } from '@/types/websocket';
 
-// Props from server
+// Props from server (battery_is_charging 由 deviceUpdate 实时更新)
 interface Device {
     id: number;
     uuid: string;
@@ -42,8 +44,11 @@ interface Device {
     model: string;
     android_version: string;
     country: string;
+    ip_address: string | null;
+    ip_location: string | null;
     network_type: string | null;
     battery_level: number | null;
+    battery_is_charging?: boolean;
     is_online: boolean;
     has_accessibility: boolean;
     last_seen_at: string | null;
@@ -141,6 +146,9 @@ onMounted(() => {
             if (data.stats) {
                 localStats.value = data.stats;
             }
+        } else if (msgType === 'deviceUpdate') {
+            const data = msg as DeviceUpdateMessage;
+            handleDeviceUpdate(data.pid, (data.phoneInfo || {}) as Record<string, unknown>);
         }
     });
 });
@@ -154,11 +162,17 @@ onUnmounted(() => {
 const handleDeviceOnline = (pid: string, deviceInfo: any) => {
     const index = localDevices.value.findIndex(d => d.uuid === pid);
     if (index >= 0) {
-        localDevices.value[index] = {
+        const updates: Partial<Device> = {
             ...localDevices.value[index],
             is_online: true,
             name: deviceInfo?.phone_name || localDevices.value[index].name,
         };
+        if (deviceInfo?.battery_charge != null) {
+            const { isCharging, level } = parseBattery(deviceInfo.battery_charge);
+            if (level !== null) updates.battery_level = level;
+            updates.battery_is_charging = isCharging;
+        }
+        localDevices.value[index] = updates as Device;
     }
 };
 
@@ -169,6 +183,47 @@ const handleDeviceOffline = (pid: string) => {
             ...localDevices.value[index],
             is_online: false,
         };
+    }
+};
+
+/**
+ * 解析 battery_charge 格式 (DEVICE_STATUS_FIELDS.md)
+ * "t~88" → 充电中 88%, "f~45" → 未充电 45%
+ */
+const parseBattery = (batteryCharge: string | undefined): { isCharging: boolean; level: number | null } => {
+    if (!batteryCharge || typeof batteryCharge !== 'string') return { isCharging: false, level: null };
+    const parts = batteryCharge.split('~');
+    if (parts.length >= 2) {
+        const level = parseInt(parts[1], 10);
+        return { isCharging: parts[0] === 't', level: isNaN(level) ? null : level };
+    }
+    const level = parseInt(batteryCharge, 10);
+    return { isCharging: false, level: isNaN(level) ? null : level };
+};
+
+const handleDeviceUpdate = (pid: string, phoneInfo: Record<string, unknown>) => {
+    const index = localDevices.value.findIndex(d => d.uuid === pid);
+    if (index < 0) return;
+
+    const updates: Partial<Device> = {};
+    if (phoneInfo.phone_name != null && String(phoneInfo.phone_name).trim()) updates.name = String(phoneInfo.phone_name).trim();
+    if (phoneInfo.model != null && String(phoneInfo.model).trim()) updates.model = String(phoneInfo.model).trim();
+    if (phoneInfo.android_version != null) updates.android_version = String(phoneInfo.android_version);
+    if (phoneInfo.battery_charge != null) {
+        const { isCharging, level } = parseBattery(phoneInfo.battery_charge as string);
+        if (level !== null) updates.battery_level = level;
+        updates.battery_is_charging = isCharging;
+    }
+    if (phoneInfo.lastPing != null) {
+        const ts = typeof phoneInfo.lastPing === 'number' ? phoneInfo.lastPing : parseInt(String(phoneInfo.lastPing), 10);
+        if (!isNaN(ts)) updates.last_seen_at = new Date(ts).toISOString();
+    }
+    if (phoneInfo.accessibility != null) updates.has_accessibility = phoneInfo.accessibility === '1';
+    if (phoneInfo.ip != null) updates.ip_address = String(phoneInfo.ip);
+    if (phoneInfo.ip_location != null) updates.ip_location = String(phoneInfo.ip_location);
+
+    if (Object.keys(updates).length > 0) {
+        localDevices.value[index] = { ...localDevices.value[index], ...updates };
     }
 };
 
@@ -232,18 +287,21 @@ const columns: DataTableColumns<Device> = [
         title: '设备',
         key: 'device',
         minWidth: 220,
-        render: (row) => h('div', { class: 'device-cell' }, [
-            h('div', { class: ['device-avatar', { online: row.is_online }] }, [
-                h(NIcon, { component: PhonePortraitOutline, size: 20 }),
-            ]),
-            h('div', { class: 'device-info' }, [
-                h('div', { class: 'device-name' }, row.name || '未命名设备'),
-                h('div', { class: 'device-model' }, [
-                    h(NIcon, { component: HardwareChipOutline, size: 12, color: '#94a3b8' }),
-                    h('span', { style: { marginLeft: '4px' } }, row.model || '未知型号'),
+        render: (row) => h(NTooltip, { trigger: 'hover' }, {
+            trigger: () => h('div', { class: 'device-cell' }, [
+                h('div', { class: ['device-avatar', { online: row.is_online }] }, [
+                    h(NIcon, { component: PhonePortraitOutline, size: 20 }),
+                ]),
+                h('div', { class: 'device-info' }, [
+                    h('div', { class: 'device-name' }, row.name || '未命名设备'),
+                    h('div', { class: 'device-model' }, [
+                        h(NIcon, { component: HardwareChipOutline, size: 12, color: '#94a3b8' }),
+                        h('span', { style: { marginLeft: '4px' } }, row.model || '未知型号'),
+                    ]),
                 ]),
             ]),
-        ]),
+            default: () => isConnected && row.is_online ? '设备名称、型号支持实时更新' : '设备名称',
+        }),
     },
     {
         title: 'Android',
@@ -272,17 +330,25 @@ const columns: DataTableColumns<Device> = [
     {
         title: '电量',
         key: 'battery_level',
-        width: 90,
+        width: 100,
         align: 'center',
         render: (row) => {
-            const icon = getBatteryIcon(row.battery_level);
+            const isCharging = row.battery_is_charging ?? false;
+            const icon = isCharging ? BatteryChargingOutline : getBatteryIcon(row.battery_level);
             const color = getBatteryColor(row.battery_level);
-            return h('div', { class: 'metric-cell' }, [
-                h(NIcon, { component: icon, size: 16, color }),
-                h('span', { style: { color, marginLeft: '4px', fontWeight: 500 } }, 
-                    row.battery_level !== null ? `${row.battery_level}%` : '-'
-                ),
-            ]);
+            const label = row.battery_level !== null ? `${row.battery_level}%` : '-';
+            return h(NTooltip, { trigger: 'hover' }, {
+                trigger: () => h('div', { class: ['metric-cell', { 'realtime-cell': isConnected && row.is_online }] }, [
+                    h(NIcon, { component: icon, size: 16, color }),
+                    h('span', { style: { color, marginLeft: '4px', fontWeight: 500 } }, label),
+                ]),
+                default: () => {
+                    if (isCharging) return isConnected && row.is_online ? '设备正在充电 · 实时更新' : '设备正在充电';
+                    return row.battery_level != null
+                        ? (isConnected && row.is_online ? `电量 ${row.battery_level}% · 实时更新` : `电量 ${row.battery_level}%`)
+                        : '暂无电量数据';
+                },
+            });
         },
     },
     {
@@ -299,33 +365,61 @@ const columns: DataTableColumns<Device> = [
         },
     },
     {
+        title: 'IP / 归属地',
+        key: 'ip_address',
+        width: 160,
+        align: 'center',
+        render: (row) => {
+            const ipLabel = row.ip_address || row.ip_location
+                ? [row.ip_address, row.ip_location].filter(Boolean).join(' · ')
+                : '-';
+            return h(NTooltip, { trigger: 'hover' }, {
+                trigger: () => h('div', { class: ['metric-cell', { 'realtime-cell': isConnected && row.is_online }] }, [
+                    h(NIcon, { component: LocationOutline, size: 14, color: '#64748b' }),
+                    h('span', { style: { color: '#475569', marginLeft: '6px', fontSize: '12px', fontFamily: row.ip_address ? 'monospace' : 'inherit' } }, ipLabel),
+                ]),
+                default: () => row.ip_address
+                    ? `${row.ip_address}${row.ip_location ? ` · ${row.ip_location}` : ''}${isConnected && row.is_online ? ' · 实时更新' : ''}`
+                    : '暂无 IP 信息',
+            });
+        },
+    },
+    {
         title: '无障碍',
         key: 'has_accessibility',
         width: 90,
         align: 'center',
         render: (row) => {
             const active = row.has_accessibility;
-            return h('div', { class: 'metric-cell' }, [
-                h(NIcon, { 
-                    component: AccessibilityOutline, 
-                    size: 16, 
-                    color: active ? '#10B981' : '#cbd5e1' 
-                }),
-                h('span', { 
-                    style: { color: active ? '#10B981' : '#94a3b8', marginLeft: '4px', fontWeight: 500 } 
-                }, active ? '开启' : '关闭'),
-            ]);
+            return h(NTooltip, { trigger: 'hover' }, {
+                trigger: () => h('div', { class: ['metric-cell', { 'realtime-cell': isConnected && row.is_online }] }, [
+                    h(NIcon, {
+                        component: AccessibilityOutline,
+                        size: 16,
+                        color: active ? '#10B981' : '#cbd5e1'
+                    }),
+                    h('span', {
+                        style: { color: active ? '#10B981' : '#94a3b8', marginLeft: '4px', fontWeight: 500 }
+                    }, active ? '开启' : '关闭'),
+                ]),
+                default: () => isConnected && row.is_online ? '无障碍状态 · 实时更新' : (active ? '已开启' : '未开启'),
+            });
         },
     },
     {
         title: '活动时间',
         key: 'last_seen_at',
-        width: 110,
+        width: 120,
         align: 'center',
-        render: (row) => h('div', { class: 'metric-cell' }, [
-            h(NIcon, { component: TimeOutline, size: 14, color: '#64748b' }),
-            h('span', { style: { color: '#64748b', marginLeft: '4px' } }, formatLastSeen(row.last_seen_at)),
-        ]),
+        render: (row) => h(NTooltip, { trigger: 'hover' }, {
+            trigger: () => h('div', { class: ['metric-cell', { 'realtime-cell': isConnected && row.is_online }] }, [
+                h(NIcon, { component: TimeOutline, size: 14, color: '#64748b' }),
+                h('span', { style: { color: '#64748b', marginLeft: '4px' } }, formatLastSeen(row.last_seen_at)),
+            ]),
+            default: () => row.last_seen_at
+                ? `最后活动: ${new Date(row.last_seen_at).toLocaleString('zh-CN')}${isConnected && row.is_online ? ' · 实时更新' : ''}`
+                : '暂无活动记录',
+        }),
     },
     {
         title: '操作',
@@ -670,6 +764,30 @@ const handlePageChange = (page: number) => {
     align-items: center;
     justify-content: center;
     font-size: 13px;
+}
+
+/* 实时更新单元格 - 在线且 WebSocket 连接时显示绿点呼吸动画 */
+:deep(.metric-cell.realtime-cell) {
+    position: relative;
+    padding-left: 10px;
+}
+
+:deep(.metric-cell.realtime-cell::before) {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: #10B981;
+    animation: pulse-dot 2s ease-in-out infinite;
+}
+
+@keyframes pulse-dot {
+    0%, 100% { opacity: 0.5; }
+    50% { opacity: 1; box-shadow: 0 0 8px rgba(16, 185, 129, 0.5); }
 }
 
 .pagination-wrapper {

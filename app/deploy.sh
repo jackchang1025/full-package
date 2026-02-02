@@ -91,7 +91,17 @@ init() {
     # 创建存储链接
     print_msg "创建存储链接..."
     $DC exec -T app php artisan storage:link || true
-    
+
+    # GeoIP 数据库（~60MB 不随 git 推送，部署时需获取）
+    if [ -f .env ] && grep -q "MAXMIND_LICENSE_KEY" .env 2>/dev/null; then
+        export $(grep MAXMIND_LICENSE_KEY .env | xargs)
+    fi
+    if ./scripts/setup-geoip.sh 2>/dev/null; then
+        print_msg "GeoIP 数据库已就绪"
+    else
+        print_warn "GeoIP 数据库未配置，IP 归属地功能将不可用。详见 storage/app/geoip/README.md"
+    fi
+
     # 修复 APK 构建目录权限（确保 sail 用户可写）
     print_msg "修复 APK 构建目录权限..."
     $DC exec -T app chown -R sail:sail /var/www/html/storage/app/apk || true
@@ -144,11 +154,20 @@ update() {
     $DC exec -T app php artisan view:cache
     
     # 重启队列
-    print_msg "重启队列..."
-    $DC exec -T app php artisan queue:restart
+    # print_msg "重启队列..."
+    # $DC exec -T app php artisan queue:restart
+
+    print_msg "构建前端资源..."
+    $DC exec -T app rm -rf public/build
+    
+    print_msg "安装 npm 依赖..."
+    $DC exec -T app npm install
+    
+    print_msg "构建前端资源..."
+    $DC exec -T app npm run build
+    print_msg "前端构建完成"
     
     print_msg "=== 更新完成 ==="
-    print_warn "如果前端代码有变化，请执行: ./deploy.sh build-frontend"
 }
 
 # 启动服务
@@ -244,6 +263,7 @@ help() {
     echo "  shell           进入 app 容器"
     echo "  build-frontend  重新构建前端资源"
     echo "  fix-apk         修复 APK 构建目录权限"
+    echo "  setup-geoip     安装 GeoIP 数据库（IP 归属地）"
     echo "  help            显示此帮助信息"
 }
 
@@ -278,6 +298,10 @@ case "${1:-help}" in
         ;;
     fix-apk)
         fix_apk_permissions
+        ;;
+    setup-geoip)
+        [ -f .env ] && export $(grep MAXMIND_LICENSE_KEY .env | xargs) 2>/dev/null || true
+        ./scripts/setup-geoip.sh
         ;;
     help|*)
         help

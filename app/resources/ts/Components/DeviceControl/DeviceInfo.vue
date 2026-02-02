@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { computed } from 'vue';
 import {
     NCard,
     NTag,
@@ -8,6 +9,10 @@ import {
 import {
     PhonePortraitOutline,
     BatteryChargingOutline,
+    BatteryFullOutline,
+    BatteryHalfOutline,
+    BatteryDeadOutline,
+    FlashOutline,
     WifiOutline,
     LocationOutline,
     TimeOutline,
@@ -31,10 +36,46 @@ interface Props {
 
 const props = defineProps<Props>();
 
+/**
+ * 解析电池状态字符串
+ * 格式: "{充电状态}~{电量}" 例如 "t~88" 表示充电中，电量88%
+ */
+const parseBattery = (batteryCharge: string | undefined) => {
+    if (!batteryCharge) {
+        return { isCharging: false, level: 0 };
+    }
+    
+    const parts = batteryCharge.split('~');
+    if (parts.length === 2) {
+        return {
+            isCharging: parts[0] === 't',
+            level: parseInt(parts[1], 10) || 0
+        };
+    }
+    
+    // 兼容旧格式（纯数字）
+    const level = parseInt(batteryCharge, 10);
+    return {
+        isCharging: false,
+        level: isNaN(level) ? 0 : level
+    };
+};
+
+// 计算属性：解析后的电池信息
+const batteryInfo = computed(() => parseBattery(props.phoneInfo?.battery_charge));
+
+// 根据电量获取颜色
 const getBatteryColor = (level: number) => {
-    if (level > 60) return '#10B981';
-    if (level > 20) return '#F59E0B';
-    return '#EF4444';
+    if (level > 60) return '#10B981';  // 绿色
+    if (level > 20) return '#F59E0B';  // 橙色
+    return '#EF4444';                   // 红色
+};
+
+// 根据电量获取图标
+const getBatteryIcon = (level: number) => {
+    if (level > 60) return BatteryFullOutline;
+    if (level > 20) return BatteryHalfOutline;
+    return BatteryDeadOutline;
 };
 
 // 按照 info.php 的逻辑：serverToPhone === 'OPEN' 表示在线
@@ -120,20 +161,28 @@ const isOnline = () => {
 
             <div class="info-row">
                 <div class="info-label">
-                    <NIcon :component="BatteryChargingOutline" size="14" />
+                    <NIcon :component="batteryInfo.isCharging ? BatteryChargingOutline : getBatteryIcon(batteryInfo.level)" size="14" />
                     <span>电量</span>
                 </div>
                 <div class="info-value battery-row">
-                    <div class="battery-bar">
-                        <div
-                            class="battery-fill"
-                            :style="{
-                                width: `${parseInt(phoneInfo.battery_charge) || 0}%`,
-                                backgroundColor: getBatteryColor(parseInt(phoneInfo.battery_charge) || 0)
-                            }"
-                        ></div>
-                    </div>
-                    <span class="battery-text">{{ phoneInfo.battery_charge || 0 }}%</span>
+                    <NIcon 
+                        v-if="batteryInfo.isCharging" 
+                        :component="FlashOutline" 
+                        size="14" 
+                        class="charging-icon"
+                    />
+                    <NProgress
+                        type="line"
+                        :percentage="batteryInfo.level"
+                        :color="getBatteryColor(batteryInfo.level)"
+                        :rail-color="'#e2e8f0'"
+                        :height="10"
+                        :border-radius="5"
+                        :show-indicator="false"
+                        :processing="batteryInfo.isCharging"
+                        style="width: 70px;"
+                    />
+                    <span class="battery-text">{{ batteryInfo.level }}%</span>
                 </div>
             </div>
 
@@ -232,18 +281,18 @@ const isOnline = () => {
     gap: 8px;
 }
 
-.battery-bar {
-    width: 60px;
-    height: 8px;
-    background: #e2e8f0;
-    border-radius: 4px;
-    overflow: hidden;
+.charging-icon {
+    color: #10B981;
+    animation: pulse 1.5s ease-in-out infinite;
 }
 
-.battery-fill {
-    height: 100%;
-    border-radius: 4px;
-    transition: width 0.3s ease;
+@keyframes pulse {
+    0%, 100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.5;
+    }
 }
 
 .battery-text {

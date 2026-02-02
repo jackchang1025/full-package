@@ -18,6 +18,8 @@
 /public/storage
 /storage/*.key
 /storage/pail
+# GeoIP 数据库 (~60MB)，部署时通过脚本下载
+/storage/app/geoip/*.mmdb
 /vendor
 Homestead.json
 Homestead.yaml

@@ -15,6 +15,7 @@ class Device extends Model
         'name',
         'country',
         'ip_address',
+        'ip_location',
         'android_version',
         'model',
         'phone_number',

@@ -102,6 +102,9 @@ const handleMessage = (event: MessageEvent) => {
                 }
                 break;
             }
+            case 'deviceUpdate':
+                // 设备 ping 状态更新，由 Index 等页面自行处理
+                break;
             case 'pong':
                 // 心跳响应，不需要处理
                 break;

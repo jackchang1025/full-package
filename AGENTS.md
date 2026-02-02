@@ -98,6 +98,7 @@ cd app
 |------|------|-------------|
 | [WEBSOCKET_CLIENT.md](./docs/migration/WEBSOCKET_CLIENT.md) | **WebSocket 系统架构** - 三端架构 (设备/Web/服务器)、数据流、消息协议、前后端实现 | ⭐ WebSocket 开发首选 |
 | [WEBSOCKET_SERVER_PHP.md](./docs/migration/WEBSOCKET_SERVER_PHP.md) | **PHP WebSocket 服务器** - Swoole 实现、Handler 详解、配置说明 | 开发/维护 PHP WebSocket 服务 |
+| [DEVICE_STATUS_FIELDS.md](./docs/migration/DEVICE_STATUS_FIELDS.md) | **设备状态字段参考** - statusBatch 消息结构、phoneInfo 字段详解、电池/密码格式解析 | 理解设备数据结构、前端字段映射 |
 | [WEBSOCKET_TESTING.md](./docs/migration/WEBSOCKET_TESTING.md) | **WebSocket 测试套件** - Unit Tests (Pest) + E2E Tests (Node.js)、Mock 客户端、测试命令 | 编写/运行 WebSocket 测试 |
 | [WEBSOCKET_SERVER.md](./docs/WEBSOCKET_SERVER.md) | **Node.js WebSocket 服务器** - 原始实现分析、消息协议、命令列表 | 理解原始协议、对比参考 |
 | [FRONTEND_WEBSOCKET_CLIENT.md](./docs/FRONTEND_WEBSOCKET_CLIENT.md) | **前端 WebSocket 客户端分析** - 编译后代码逆向、消息处理、触摸事件、状态管理 | 理解旧前端实现 |

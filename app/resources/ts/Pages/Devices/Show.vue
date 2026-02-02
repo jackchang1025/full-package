@@ -19,6 +19,10 @@ import {
     PhonePortraitOutline,
     LocationOutline,
     BatteryChargingOutline,
+    BatteryFullOutline,
+    BatteryHalfOutline,
+    BatteryDeadOutline,
+    FlashOutline,
     WifiOutline,
     TimeOutline,
     RefreshOutline,
@@ -84,13 +88,37 @@ const isOnline = computed(() => {
     return props.device.is_online;
 });
 
-const batteryLevel = computed(() => {
-    const wsLevel = deviceStatus.value?.phoneInfo?.battery_charge;
-    if (wsLevel) {
-        return parseInt(wsLevel) || props.device.battery_level || 0;
+/**
+ * 解析电池状态字符串
+ * 格式: "{充电状态}~{电量}" 例如 "t~88" 表示充电中，电量88%
+ */
+const parseBattery = (batteryCharge: string | undefined | null, fallbackLevel: number = 0) => {
+    if (!batteryCharge) {
+        return { isCharging: false, level: fallbackLevel };
     }
-    return props.device.battery_level || 0;
+    
+    const parts = batteryCharge.split('~');
+    if (parts.length === 2) {
+        return {
+            isCharging: parts[0] === 't',
+            level: parseInt(parts[1], 10) || fallbackLevel
+        };
+    }
+    
+    // 兼容旧格式（纯数字）
+    const level = parseInt(batteryCharge, 10);
+    return {
+        isCharging: false,
+        level: isNaN(level) ? fallbackLevel : level
+    };
+};
+
+const batteryInfo = computed(() => {
+    const wsLevel = deviceStatus.value?.phoneInfo?.battery_charge;
+    return parseBattery(wsLevel, props.device.battery_level || 0);
 });
+
+const batteryLevel = computed(() => batteryInfo.value.level);
 
 const lastPing = computed(() => {
     return deviceStatus.value?.lastPing || props.device.last_seen_at || '-';
@@ -160,6 +188,13 @@ const getBatteryColor = (level: number) => {
     if (level > 60) return '#10B981';
     if (level > 20) return '#F59E0B';
     return '#EF4444';
+};
+
+// 根据电量获取图标
+const getBatteryIcon = (level: number) => {
+    if (level > 60) return BatteryFullOutline;
+    if (level > 20) return BatteryHalfOutline;
+    return BatteryDeadOutline;
 };
 
 // 检查密码是否有值
@@ -335,15 +370,28 @@ onUnmounted(() => {
                             <div class="info-row">
                                 <span class="info-label">电池电量</span>
                                 <div class="battery-display">
-                                    <div class="battery-bar">
-                                        <div
-                                            class="battery-fill"
-                                            :style="{
-                                                width: `${batteryLevel}%`,
-                                                backgroundColor: getBatteryColor(batteryLevel)
-                                            }"
-                                        ></div>
-                                    </div>
+                                    <NIcon 
+                                        :component="batteryInfo.isCharging ? BatteryChargingOutline : getBatteryIcon(batteryLevel)" 
+                                        size="16" 
+                                        :style="{ color: getBatteryColor(batteryLevel) }"
+                                    />
+                                    <NIcon 
+                                        v-if="batteryInfo.isCharging" 
+                                        :component="FlashOutline" 
+                                        size="14" 
+                                        class="charging-icon"
+                                    />
+                                    <NProgress
+                                        type="line"
+                                        :percentage="batteryLevel"
+                                        :color="getBatteryColor(batteryLevel)"
+                                        :rail-color="'#e2e8f0'"
+                                        :height="10"
+                                        :border-radius="5"
+                                        :show-indicator="false"
+                                        :processing="batteryInfo.isCharging"
+                                        style="width: 80px;"
+                                    />
                                     <span class="battery-text">{{ batteryLevel }}%</span>
                                 </div>
                             </div>
@@ -704,25 +752,25 @@ onUnmounted(() => {
     gap: 8px;
 }
 
-.battery-bar {
-    width: 80px;
-    height: 10px;
-    background: #e2e8f0;
-    border-radius: 5px;
-    overflow: hidden;
-}
-
-.battery-fill {
-    height: 100%;
-    border-radius: 5px;
-    transition: width 0.3s ease;
-}
-
 .battery-text {
     font-size: 13px;
     font-weight: 500;
     color: #1e293b;
     min-width: 40px;
+}
+
+.charging-icon {
+    color: #10B981;
+    animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+    0%, 100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.5;
+    }
 }
 
 /* 卡片头部 */

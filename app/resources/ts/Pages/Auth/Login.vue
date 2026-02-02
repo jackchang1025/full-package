@@ -131,11 +131,6 @@ const submit = () => {
                         >
                             <span v-if="!form.processing">登 录</span>
                         </NButton>
-
-                        <div class="register-link">
-                            还没有账号？
-                            <NA href="/register" class="link-highlight">立即注册</NA>
-                        </div>
                     </NForm>
                 </div>
 
@@ -341,24 +336,6 @@ const submit = () => {
 
 .login-button:active {
     transform: translateY(0);
-}
-
-.register-link {
-    text-align: center;
-    font-size: 14px;
-    color: #64748b;
-    margin-top: 8px;
-}
-
-.link-highlight {
-    color: #10B981;
-    font-weight: 600;
-    text-decoration: none;
-    transition: color 0.2s;
-}
-
-.link-highlight:hover {
-    color: #059669;
 }
 
 /* 底部信息 */

