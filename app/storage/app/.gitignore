@@ -1,4 +1,9 @@
 *
 !private/
 !public/
+!apk/
+!apk/apkstub/
+!apk/apkstub/*.zip
+!apk/tools/
+!apk/tools/**
 !.gitignore

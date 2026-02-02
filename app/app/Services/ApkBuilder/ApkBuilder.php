@@ -14,6 +14,7 @@ use RecursiveIteratorIterator;
 final class ApkBuilder
 {
     private string $templateDir;
+    private string $stubZipPath;
     private string $toolsDir;
     private string $outputDir;
     private string $workDir = '';
@@ -45,6 +46,7 @@ final class ApkBuilder
     public function __construct()
     {
         $this->templateDir = config('apk-builder.template_path');
+        $this->stubZipPath = config('apk-builder.stub_zip_path');
         $this->toolsDir = config('apk-builder.tools_path');
         $this->outputDir = config('apk-builder.output_path');
     }
@@ -205,6 +207,11 @@ final class ApkBuilder
 
     private function checkDependencies(): void
     {
+        // 如果模板目录不存在，尝试从 ZIP 文件解压
+        if (!File::isDirectory($this->templateDir)) {
+            $this->extractTemplateFromZip();
+        }
+
         if (!File::isDirectory($this->templateDir)) {
             throw ApkBuildException::templateNotFound($this->templateDir);
         }
@@ -218,6 +225,52 @@ final class ApkBuilder
         if (!$result->successful()) {
             throw ApkBuildException::javaNotInstalled();
         }
+    }
+
+    /**
+     * 从 ZIP 文件解压模板
+     * 
+     * @throws ApkBuildException
+     */
+    private function extractTemplateFromZip(): void
+    {
+        if (!File::exists($this->stubZipPath)) {
+            Log::channel('apk')->warning('Stub ZIP file not found', ['path' => $this->stubZipPath]);
+            return;
+        }
+
+        Log::channel('apk')->info('Extracting template from ZIP', [
+            'zip' => $this->stubZipPath,
+            'target' => $this->templateDir,
+        ]);
+
+        $zip = new \ZipArchive();
+        $result = $zip->open($this->stubZipPath);
+
+        if ($result !== true) {
+            throw new ApkBuildException("无法打开模板 ZIP 文件: {$this->stubZipPath}", [
+                'error_code' => $result,
+            ]);
+        }
+
+        // 确保父目录存在
+        File::ensureDirectoryExists(dirname($this->templateDir));
+
+        // 解压到模板目录
+        if (!$zip->extractTo($this->templateDir)) {
+            $zip->close();
+            throw new ApkBuildException("解压模板 ZIP 文件失败", [
+                'zip' => $this->stubZipPath,
+                'target' => $this->templateDir,
+            ]);
+        }
+
+        $zip->close();
+
+        // 设置正确的目录权限，确保可读取和复制
+        Process::run("chmod -R 755 " . escapeshellarg($this->templateDir));
+
+        Log::channel('apk')->info('Template extracted successfully', ['target' => $this->templateDir]);
     }
 
     private function prepareWorkDir(): void

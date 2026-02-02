@@ -14,6 +14,9 @@ return [
     // APK 模板目录（解压后的 apkstub）
     'template_path' => storage_path('app/apk/template'),
 
+    // APK 模板 ZIP 文件路径（当 template_path 不存在时自动解压）
+    'stub_zip_path' => storage_path('app/apk/apkstub/apkstub.zip'),
+
     // 构建工具目录（apktool.jar, signapk.jar 等）
     'tools_path' => storage_path('app/apk/tools'),
 
