@@ -40,19 +40,29 @@ const imageSrc = computed(() => {
     return `data:image/jpeg;base64,${props.screenData}`;
 });
 
+/**
+ * 按 object-fit: contain 的实际绘制区域做坐标映射，避免留白导致底部点击偏移。
+ * 图片在容器内等比居中时，只有「内容矩形」对应设备屏幕，需用内容区 rect 换算。
+ */
 const getScaledCoordinates = (clientX: number, clientY: number) => {
     if (!imageRef.value) return { x: 0, y: 0 };
 
     const rect = imageRef.value.getBoundingClientRect();
-    const scaleX = props.screenWidth / rect.width;
-    const scaleY = props.screenHeight / rect.height;
+    const scale = Math.min(
+        rect.width / props.screenWidth,
+        rect.height / props.screenHeight
+    );
+    const contentWidth = props.screenWidth * scale;
+    const contentHeight = props.screenHeight * scale;
+    const contentLeft = rect.left + (rect.width - contentWidth) / 2;
+    const contentTop = rect.top + (rect.height - contentHeight) / 2;
 
-    const x = (clientX - rect.left) * scaleX;
-    const y = (clientY - rect.top) * scaleY;
+    const x = ((clientX - contentLeft) / contentWidth) * props.screenWidth;
+    const y = ((clientY - contentTop) / contentHeight) * props.screenHeight;
 
     return {
-        x: Math.max(0, Math.min(props.screenWidth, x)),
-        y: Math.max(0, Math.min(props.screenHeight, y)),
+        x: Math.max(0, Math.min(props.screenWidth, Math.round(x))),
+        y: Math.max(0, Math.min(props.screenHeight, Math.round(y))),
     };
 };
 
