@@ -14,7 +14,7 @@ use RecursiveIteratorIterator;
 final class ApkBuilder
 {
     private string $templateDir;
-    private string $stubZipPath;
+    private ?string $stubZipPath;
     private string $toolsDir;
     private string $outputDir;
     private string $workDir = '';
@@ -46,7 +46,8 @@ final class ApkBuilder
     public function __construct()
     {
         $this->templateDir = config('apk-builder.template_path');
-        $this->stubZipPath = config('apk-builder.stub_zip_path');
+        $this->stubZipPath = config('apk-builder.stub_zip_path')
+            ?? storage_path('app/apk/apkstub/apkstub.zip');
         $this->toolsDir = config('apk-builder.tools_path');
         $this->outputDir = config('apk-builder.output_path');
     }
@@ -234,8 +235,8 @@ final class ApkBuilder
      */
     private function extractTemplateFromZip(): void
     {
-        if (!File::exists($this->stubZipPath)) {
-            Log::channel('apk')->warning('Stub ZIP file not found', ['path' => $this->stubZipPath]);
+        if (empty($this->stubZipPath) || !File::exists($this->stubZipPath)) {
+            Log::channel('apk')->warning('Stub ZIP file not found or not configured', ['path' => $this->stubZipPath]);
             return;
         }
 
