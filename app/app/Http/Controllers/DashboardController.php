@@ -15,8 +15,8 @@ class DashboardController extends Controller
         $user = $request->user();
 
         $stats = [
-            'totalDevices' => Device::where('user_id', $user->id)->count(),
-            'onlineDevices' => Device::where('user_id', $user->id)->where('is_online', true)->count(),
+            'totalDevices' => Device::where('user_id', $user->id)->where('is_removed', false)->count(),
+            'onlineDevices' => Device::where('user_id', $user->id)->where('is_online', true)->where('is_removed', false)->count(),
             'totalBuilds' => AppBuild::where('user_id', $user->id)->count(),
             'completedBuilds' => AppBuild::where('user_id', $user->id)->count(),
         ];
