@@ -13,6 +13,7 @@ class Device extends Model
         'uuid',
         'user_id',
         'name',
+        'remark',
         'country',
         'ip_address',
         'ip_location',

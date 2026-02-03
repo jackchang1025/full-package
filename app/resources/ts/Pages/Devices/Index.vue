@@ -12,6 +12,10 @@ import {
     NPagination,
     NTooltip,
     NSpace,
+    NModal,
+    NForm,
+    NFormItem,
+    useMessage,
 } from 'naive-ui';
 import type { DataTableColumns } from 'naive-ui';
 import {
@@ -31,6 +35,7 @@ import {
     EllipseOutline,
     HardwareChipOutline,
     LocationOutline,
+    PencilOutline,
 } from '@vicons/ionicons5';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { useGlobalWebSocket } from '@/composables/useGlobalWebSocket';
@@ -41,6 +46,7 @@ interface Device {
     id: number;
     uuid: string;
     name: string;
+    remark: string | null;
     model: string;
     android_version: string;
     country: string;
@@ -108,6 +114,7 @@ const filteredDevices = computed(() => {
         const query = searchQuery.value.toLowerCase();
         result = result.filter(d => 
             (d.name || '').toLowerCase().includes(query) ||
+            (d.remark || '').toLowerCase().includes(query) ||
             (d.model || '').toLowerCase().includes(query) ||
             (d.uuid || '').toLowerCase().includes(query)
         );
@@ -281,6 +288,54 @@ const deleteDevice = (uuid: string) => {
     router.delete(`/devices/${uuid}`);
 };
 
+// 修改备注
+const message = useMessage();
+const showEditRemarkModal = ref(false);
+const editRemarkDevice = ref<Device | null>(null);
+const editRemarkValue = ref('');
+const editRemarkLoading = ref(false);
+
+const openEditRemarkModal = (device: Device) => {
+    editRemarkDevice.value = device;
+    editRemarkValue.value = device.remark ?? '';
+    showEditRemarkModal.value = true;
+};
+
+const closeEditRemarkModal = () => {
+    showEditRemarkModal.value = false;
+    editRemarkDevice.value = null;
+};
+
+const saveRemark = () => {
+    const device = editRemarkDevice.value;
+    if (!device || editRemarkLoading.value) return;
+
+    const newRemark = editRemarkValue.value.trim();
+    if (newRemark === (device.remark ?? '')) {
+        closeEditRemarkModal();
+        return;
+    }
+
+    editRemarkLoading.value = true;
+    router.put(`/devices/${device.uuid}`, { remark: newRemark }, {
+        preserveScroll: true,
+        onSuccess: () => {
+            const index = localDevices.value.findIndex(d => d.uuid === device.uuid);
+            if (index >= 0) {
+                localDevices.value[index] = { ...localDevices.value[index], remark: newRemark };
+            }
+            message.success('备注已更新');
+            closeEditRemarkModal();
+        },
+        onError: () => {
+            message.error('更新失败');
+        },
+        onFinish: () => {
+            editRemarkLoading.value = false;
+        },
+    });
+};
+
 // 表格列定义
 const columns: DataTableColumns<Device> = [
     {
@@ -300,8 +355,15 @@ const columns: DataTableColumns<Device> = [
                     ]),
                 ]),
             ]),
-            default: () => isConnected && row.is_online ? '设备名称、型号支持实时更新' : '设备名称',
+            default: () => `设备名称（来自设备）: ${row.name || '-'}`,
         }),
+    },
+    {
+        title: '备注',
+        key: 'remark',
+        width: 120,
+        ellipsis: { tooltip: true },
+        render: (row) => row.remark ? h('span', { class: 'remark-cell' }, row.remark) : h('span', { class: 'text-slate-400' }, '-'),
     },
     {
         title: 'Android',
@@ -338,7 +400,7 @@ const columns: DataTableColumns<Device> = [
             const color = getBatteryColor(row.battery_level);
             const label = row.battery_level !== null ? `${row.battery_level}%` : '-';
             return h(NTooltip, { trigger: 'hover' }, {
-                trigger: () => h('div', { class: ['metric-cell', { 'realtime-cell': isConnected && row.is_online }] }, [
+                trigger: () => h('div', { class: 'metric-cell' }, [
                     h(NIcon, { component: icon, size: 16, color }),
                     h('span', { style: { color, marginLeft: '4px', fontWeight: 500 } }, label),
                 ]),
@@ -365,24 +427,19 @@ const columns: DataTableColumns<Device> = [
         },
     },
     {
-        title: 'IP / 归属地',
+        title: 'IP',
         key: 'ip_address',
-        width: 160,
+        width: 130,
         align: 'center',
-        render: (row) => {
-            const ipLabel = row.ip_address || row.ip_location
-                ? [row.ip_address, row.ip_location].filter(Boolean).join(' · ')
-                : '-';
-            return h(NTooltip, { trigger: 'hover' }, {
-                trigger: () => h('div', { class: ['metric-cell', { 'realtime-cell': isConnected && row.is_online }] }, [
-                    h(NIcon, { component: LocationOutline, size: 14, color: '#64748b' }),
-                    h('span', { style: { color: '#475569', marginLeft: '6px', fontSize: '12px', fontFamily: row.ip_address ? 'monospace' : 'inherit' } }, ipLabel),
-                ]),
-                default: () => row.ip_address
-                    ? `${row.ip_address}${row.ip_location ? ` · ${row.ip_location}` : ''}${isConnected && row.is_online ? ' · 实时更新' : ''}`
-                    : '暂无 IP 信息',
-            });
-        },
+        render: (row) => h(NTooltip, { trigger: 'hover' }, {
+            trigger: () => h('div', { class: 'ip-cell' }, [
+                h('span', { class: 'ip-address', style: { fontFamily: 'monospace', fontSize: '12px' } }, row.ip_address || '-'),
+                row.ip_location ? h('span', { class: 'ip-location' }, row.ip_location) : null,
+            ].filter(Boolean)),
+            default: () => row.ip_address
+                ? `${row.ip_address}${row.ip_location ? ` · ${row.ip_location}` : ''}`
+                : '暂无 IP 信息',
+        }),
     },
     {
         title: '无障碍',
@@ -392,7 +449,7 @@ const columns: DataTableColumns<Device> = [
         render: (row) => {
             const active = row.has_accessibility;
             return h(NTooltip, { trigger: 'hover' }, {
-                trigger: () => h('div', { class: ['metric-cell', { 'realtime-cell': isConnected && row.is_online }] }, [
+                trigger: () => h('div', { class: 'metric-cell' }, [
                     h(NIcon, {
                         component: AccessibilityOutline,
                         size: 16,
@@ -412,7 +469,7 @@ const columns: DataTableColumns<Device> = [
         width: 120,
         align: 'center',
         render: (row) => h(NTooltip, { trigger: 'hover' }, {
-            trigger: () => h('div', { class: ['metric-cell', { 'realtime-cell': isConnected && row.is_online }] }, [
+            trigger: () => h('div', { class: 'metric-cell' }, [
                 h(NIcon, { component: TimeOutline, size: 14, color: '#64748b' }),
                 h('span', { style: { color: '#64748b', marginLeft: '4px' } }, formatLastSeen(row.last_seen_at)),
             ]),
@@ -424,9 +481,20 @@ const columns: DataTableColumns<Device> = [
     {
         title: '操作',
         key: 'actions',
-        width: 100,
+        width: 140,
         align: 'center',
-        render: (row) => h(NSpace, { size: 4, justify: 'center' }, () => [
+        render: (row) => h('div', { class: 'actions-cell' }, [
+            h(NTooltip, { trigger: 'hover' }, {
+                trigger: () => h(NButton, { 
+                    size: 'small',
+                    quaternary: true,
+                    circle: true,
+                    onClick: () => openEditRemarkModal(row)
+                }, { 
+                    icon: () => h(NIcon, { component: PencilOutline, color: '#64748b' })
+                }),
+                default: () => '修改备注'
+            }),
             h(NTooltip, { trigger: 'hover' }, {
                 trigger: () => h(NButton, { 
                     size: 'small',
@@ -558,6 +626,33 @@ const handlePageChange = (page: number) => {
                         </p>
                     </div>
                 </div>
+
+                <!-- 修改备注弹窗 -->
+                <NModal
+                    v-model:show="showEditRemarkModal"
+                    preset="card"
+                    title="修改设备备注"
+                    style="width: 400px"
+                    :bordered="false"
+                >
+                    <NForm label-placement="top">
+                        <NFormItem label="设备备注">
+                        <NInput
+                            v-model:value="editRemarkValue"
+                            placeholder="请输入备注（选填）"
+                            maxlength="200"
+                            show-count
+                            clearable
+                        />
+                        </NFormItem>
+                    </NForm>
+                    <template #footer>
+                        <NSpace justify="end">
+                            <NButton @click="closeEditRemarkModal">取消</NButton>
+                            <NButton type="primary" :loading="editRemarkLoading" @click="saveRemark">保存</NButton>
+                        </NSpace>
+                    </template>
+                </NModal>
 
                 <!-- Pagination -->
                 <div v-if="props.devices.last_page > 1" class="pagination-wrapper">
@@ -737,9 +832,6 @@ const handlePageChange = (page: number) => {
     font-size: 14px;
     font-weight: 600;
     color: #1e293b;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
 }
 
 :deep(.device-model) {
@@ -766,28 +858,41 @@ const handlePageChange = (page: number) => {
     font-size: 13px;
 }
 
-/* 实时更新单元格 - 在线且 WebSocket 连接时显示绿点呼吸动画 */
-:deep(.metric-cell.realtime-cell) {
-    position: relative;
-    padding-left: 10px;
+/* 操作列 - 按钮不换行 */
+:deep(.actions-cell) {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    flex-wrap: nowrap;
+    white-space: nowrap;
 }
 
-:deep(.metric-cell.realtime-cell::before) {
-    content: '';
-    position: absolute;
-    left: 0;
-    top: 50%;
-    transform: translateY(-50%);
-    width: 5px;
-    height: 5px;
-    border-radius: 50%;
-    background: #10B981;
-    animation: pulse-dot 2s ease-in-out infinite;
+/* IP 单元格 - IP 与归属地分行显示 */
+:deep(.ip-cell) {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    font-size: 12px;
+    min-width: 0;
 }
 
-@keyframes pulse-dot {
-    0%, 100% { opacity: 0.5; }
-    50% { opacity: 1; box-shadow: 0 0 8px rgba(16, 185, 129, 0.5); }
+:deep(.ip-cell .ip-address) {
+    color: #475569;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+}
+
+:deep(.ip-cell .ip-location) {
+    color: #94a3b8;
+    font-size: 11px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
 }
 
 .pagination-wrapper {

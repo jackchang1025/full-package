@@ -45,8 +45,9 @@ const submit = () => {
             <div class="register-content">
                 <!-- Logo 和标题 -->
                 <div class="register-header">
-                    <div class="logo-wrapper">
-                        <svg viewBox="0 0 24 24" fill="none" class="logo-svg">
+                    <div class="logo-wrapper" :class="{ 'logo-wrapper--custom': page.props.appLogo }">
+                        <img v-if="page.props.appLogo" :src="page.props.appLogo" :alt="page.props.appName" class="logo-img" />
+                        <svg v-else viewBox="0 0 24 24" fill="none" class="logo-svg">
                             <path d="M12 2L2 7L12 12L22 7L12 2Z" fill="white" />
                             <path d="M2 17L12 22L22 17" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
                             <path d="M2 12L12 17L22 12" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
@@ -246,6 +247,17 @@ const submit = () => {
     align-items: center;
     justify-content: center;
     box-shadow: 0 12px 32px rgba(16, 185, 129, 0.35);
+}
+
+.logo-wrapper--custom {
+    background: transparent;
+    box-shadow: none;
+}
+
+.logo-wrapper .logo-img {
+    width: 48px;
+    height: 48px;
+    object-fit: contain;
 }
 
 .logo-svg {

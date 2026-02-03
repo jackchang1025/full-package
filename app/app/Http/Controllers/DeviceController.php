@@ -28,6 +28,7 @@ class DeviceController extends Controller
                 'id' => $device->id,
                 'uuid' => $device->uuid,
                 'name' => $device->name ?? '',
+                'remark' => $device->remark ?? '',
                 'model' => $device->model ?? '',
                 'android_version' => $device->android_version ?? '',
                 'country' => $device->country ?? '',
@@ -81,6 +82,25 @@ class DeviceController extends Controller
             'device' => $device,
             'usercheck' => md5($user->email . config('app.key')),
         ]);
+    }
+
+    public function update(Request $request, Device $device)
+    {
+        $user = $request->user();
+        abort_if($device->user_id !== $user->id && !$user->isAdmin(), 403);
+
+        $validated = $request->validate([
+            'remark' => ['nullable', 'string', 'max:200'],
+        ]);
+
+        $device->update($validated);
+
+        if ($request->header('X-Inertia')) {
+            return back();
+        }
+
+        return redirect()->route('devices.index')
+            ->with('success', '备注已更新');
     }
 
     public function destroy(Request $request, Device $device)

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue';
+import { ref, computed } from 'vue';
 import { useForm, usePage, Head } from '@inertiajs/vue3';
 import {
     NCard,
@@ -17,6 +17,7 @@ import { LockClosedOutline, MailOutline, EyeOutline, EyeOffOutline } from '@vico
 import DefaultLayout from '@/Layouts/DefaultLayout.vue';
 
 const page = usePage();
+const shared = computed(() => page.props as { appName?: string; appLogo?: string });
 const form = useForm({
     email: '',
     password: '',
@@ -46,8 +47,9 @@ const submit = () => {
             <div class="login-content">
                 <!-- Logo 和标题 -->
                 <div class="login-header">
-                    <div class="logo-wrapper">
-                        <svg viewBox="0 0 24 24" fill="none" class="logo-svg">
+                    <div class="logo-wrapper" :class="{ 'logo-wrapper--custom': !!shared.appLogo }">
+                        <img v-if="shared.appLogo" :src="shared.appLogo" :alt="shared.appName ?? ''" class="logo-img" />
+                        <svg v-else viewBox="0 0 24 24" fill="none" class="logo-svg">
                             <path d="M12 2L2 7L12 12L22 7L12 2Z" fill="url(#loginGrad1)" />
                             <path d="M2 17L12 22L22 17" stroke="url(#loginGrad2)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
                             <path d="M2 12L12 17L22 12" stroke="url(#loginGrad2)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
@@ -64,7 +66,7 @@ const submit = () => {
                         </svg>
                     </div>
                     <h1 class="login-title">欢迎回来</h1>
-                    <p class="login-subtitle">登录 {{ page.props.appName }}</p>
+                    <p class="login-subtitle">登录 {{ shared.appName }}</p>
                 </div>
 
                 <!-- 登录卡片 -->
@@ -137,7 +139,7 @@ const submit = () => {
 
                 <!-- 底部信息 -->
                 <p class="login-footer">
-                    © 2024 {{ page.props.appName }} · 安全可靠的设备管理平台
+                    © 2024 {{ shared.appName }} · 安全可靠的设备管理平台
                 </p>
             </div>
         </div>
@@ -217,6 +219,17 @@ const submit = () => {
     align-items: center;
     justify-content: center;
     box-shadow: 0 12px 32px rgba(16, 185, 129, 0.35);
+}
+
+.logo-wrapper--custom {
+    background: transparent;
+    box-shadow: none;
+}
+
+.logo-wrapper .logo-img {
+    width: 48px;
+    height: 48px;
+    object-fit: contain;
 }
 
 .logo-svg {

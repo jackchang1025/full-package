@@ -134,8 +134,9 @@ const userInitial = computed(() => {
                 <!-- Logo 区域 -->
                 <div class="sidebar-header">
                     <div class="logo-container">
-                        <div class="logo-icon">
-                            <svg viewBox="0 0 24 24" fill="none" class="w-8 h-8">
+                        <div class="logo-icon" :class="{ 'logo-icon--custom': page.props.appLogo }">
+                            <img v-if="page.props.appLogo" :src="page.props.appLogo" :alt="page.props.appName" class="logo-img" />
+                            <svg v-else viewBox="0 0 24 24" fill="none" class="w-8 h-8">
                                 <path d="M12 2L2 7L12 12L22 7L12 2Z" fill="url(#gradient1)" />
                                 <path d="M2 17L12 22L22 17" stroke="url(#gradient2)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
                                 <path d="M2 12L12 17L22 12" stroke="url(#gradient2)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
@@ -247,6 +248,18 @@ const userInitial = computed(() => {
     align-items: center;
     justify-content: center;
     box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+}
+
+.logo-icon .logo-img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    border-radius: 8px;
+}
+
+.logo-icon--custom {
+    background: transparent;
+    box-shadow: none;
 }
 
 .logo-text {

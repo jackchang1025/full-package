@@ -21,7 +21,7 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/home', [DashboardController::class, 'index'])->name('dashboard');
     Route::get('/dashboard', [DashboardController::class, 'index']);
 
-    Route::resource('devices', DeviceController::class)->only(['index', 'show', 'destroy']);
+    Route::resource('devices', DeviceController::class)->only(['index', 'show', 'update', 'destroy']);
     Route::get('/devices/{device}/control', [DeviceController::class, 'control'])->name('devices.control');
 
     Route::get('/builds/stream', [AppBuildController::class, 'stream'])->name('builds.stream');

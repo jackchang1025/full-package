@@ -60,6 +60,10 @@ const goToRegister = () => router.visit('/register');
             <!-- Hero 区域 -->
             <section class="hero-section">
                 <div class="hero-content">
+                    <!-- 自定义 Logo（.env APP_LOGO 设置时显示） -->
+                    <div v-if="page.props.appLogo" class="hero-logo">
+                        <img :src="page.props.appLogo" :alt="page.props.appName" class="hero-logo-img" />
+                    </div>
                     <!-- 徽章 -->
                     <div class="hero-badge">
                         <NIcon :component="RocketOutline" size="16" />
@@ -301,6 +305,16 @@ const goToRegister = () => router.visit('/register');
 
 .hero-content {
     max-width: 600px;
+}
+
+.hero-logo {
+    margin-bottom: 24px;
+}
+
+.hero-logo-img {
+    width: 80px;
+    height: 80px;
+    object-fit: contain;
 }
 
 .hero-badge {
