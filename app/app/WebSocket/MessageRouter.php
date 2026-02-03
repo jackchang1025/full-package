@@ -9,7 +9,6 @@ use App\WebSocket\Handlers\PanelHandler;
 use App\WebSocket\Handlers\PanelSendHandler;
 use App\WebSocket\Handlers\SubscribeHandler;
 use App\WebSocket\Services\HeartbeatService;
-use Illuminate\Support\Facades\Log;
 
 final class MessageRouter
 {
@@ -37,7 +36,7 @@ final class MessageRouter
         $data = $this->parseMessage($rawData);
 
         if ($data === null) {
-            Log::channel('websocket')->warning("Invalid JSON message: fd={$fd}");
+            WebSocketLog::getLogger()->warning("Invalid JSON message: fd={$fd}");
             return;
         }
 
@@ -85,6 +84,6 @@ final class MessageRouter
 
     private function handleUnknownType(int $fd, ?string $itype): void
     {
-        Log::channel('websocket')->warning("Unknown message type: fd={$fd}, itype={$itype}");
+        WebSocketLog::getLogger()->warning("Unknown message type: fd={$fd}, itype={$itype}");
     }
 }

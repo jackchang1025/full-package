@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\WebSocket\Handlers;
 
 use App\WebSocket\ConnectionManager;
-use Illuminate\Support\Facades\Log;
+use App\WebSocket\WebSocketLog;
 
 final class PanelSendHandler
 {
@@ -22,7 +22,7 @@ final class PanelSendHandler
         $subc = $data['subc'] ?? null;
 
         if ($phoneId === null) {
-            Log::channel('websocket')->warning("PanelSend message missing pid: fd={$fd}");
+            WebSocketLog::getLogger()->warning("PanelSend message missing pid: fd={$fd}");
             return;
         }
 
@@ -417,7 +417,7 @@ final class PanelSendHandler
 
     private function logOperation(string $logType, string $phoneId, string $userCheck): void
     {
-        Log::channel('websocket')->info("Operation: {$logType}", [
+        WebSocketLog::getLogger()->info("Operation: {$logType}", [
             'phone_id' => $phoneId,
             'user_check' => $userCheck,
         ]);

@@ -6,7 +6,6 @@ namespace App\WebSocket;
 
 use App\WebSocket\Services\HeartbeatService;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
 use Swoole\Http\Request;
 use Swoole\Table;
 use Swoole\WebSocket\Frame;
@@ -76,7 +75,7 @@ final class Server
         $this->panelUserSubscriptions->column('is_admin', Table::TYPE_INT, 1);
         $this->panelUserSubscriptions->create();
 
-        Log::channel('websocket')->info('Shared tables initialized before server start');
+        WebSocketLog::getLogger()->info('Shared tables initialized before server start');
     }
 
     public function start(): void
@@ -84,7 +83,7 @@ final class Server
         $host = config('websocket.host');
         $port = config('websocket.port');
 
-        Log::channel('websocket')->debug("WebSocket server starting on {$host}:{$port}");
+        WebSocketLog::getLogger()->debug("WebSocket server starting on {$host}:{$port}");
 
         $this->server->start();
     }
@@ -103,7 +102,7 @@ final class Server
         $masterPid = $server->master_pid;
         $managerPid = $server->manager_pid;
 
-        Log::channel('websocket')->debug('Server started', [
+        WebSocketLog::getLogger()->debug('Server started', [
             'master_pid' => $masterPid,
             'manager_pid' => $managerPid,
         ]);
@@ -114,12 +113,15 @@ final class Server
 
     public function onWorkerStart(SwooleServer $server, int $workerId): void
     {
+        // Worker 内使用 Laravel 的 websocket channel（config/logging.php），统一配置与按日分割
+        WebSocketLog::useLaravelChannel();
+
         // 重置数据库连接 - Swoole 每个 Worker 需要独立的连接
         // 使用懒加载模式：只清除旧连接，不立即建立新连接
         // 新连接会在首次数据库查询时自动建立
         $this->resetDatabaseConnections(lazy: true);
 
-        Log::channel('websocket')->info("Worker {$workerId} started");
+        WebSocketLog::getLogger()->info("Worker {$workerId} started");
 
         if ($workerId === 0) {
             $this->startHeartbeatTimer($server);
@@ -143,7 +145,7 @@ final class Server
                 DB::reconnect();
             }
         } catch (\Throwable $e) {
-            Log::channel('websocket')->warning('Failed to reset database connections', [
+            WebSocketLog::getLogger()->warning('Failed to reset database connections', [
                 'error' => $e->getMessage(),
             ]);
         }
@@ -154,7 +156,7 @@ final class Server
         $fd = $request->fd;
         $path = $request->server['request_uri'] ?? '/';
 
-        Log::channel('websocket')->debug("Connection opened: fd={$fd}, path={$path}");
+        WebSocketLog::getLogger()->debug("Connection opened: fd={$fd}, path={$path}");
     }
 
     public function onMessage(SwooleServer $server, Frame $frame): void
@@ -162,7 +164,7 @@ final class Server
         $fd = $frame->fd;
         $data = $frame->data;
 
-        Log::channel('websocket')->debug("Message received: fd={$fd}", ['data' => substr($data, 0, 500)]);
+        WebSocketLog::getLogger()->debug("Message received: fd={$fd}", ['data' => substr($data, 0, 500)]);
 
         try {
             $this->messageRouter->route($fd, $data);
@@ -171,7 +173,7 @@ final class Server
             if ($this->isDatabaseConnectionError($e)) {
                 $this->handleDatabaseConnectionError($fd, $data, $e);
             } else {
-                Log::channel('websocket')->error("Message handling error: fd={$fd}", [
+                WebSocketLog::getLogger()->error("Message handling error: fd={$fd}", [
                     'error' => $e->getMessage(),
                     'trace' => $e->getTraceAsString(),
                 ]);
@@ -191,7 +193,7 @@ final class Server
         for ($attempt = 1; $attempt <= $maxRetries; $attempt++) {
             $delay = $retryDelays[$attempt - 1] ?? 1000;
 
-            Log::channel('websocket')->warning("Database connection error, retry {$attempt}/{$maxRetries} after {$delay}ms: fd={$fd}");
+            WebSocketLog::getLogger()->warning("Database connection error, retry {$attempt}/{$maxRetries} after {$delay}ms: fd={$fd}");
 
             // 等待一段时间再重试（Swoole 协程友好的方式）
             usleep($delay * 1000);
@@ -201,11 +203,11 @@ final class Server
 
             try {
                 $this->messageRouter->route($fd, $data);
-                Log::channel('websocket')->info("Database connection recovered after retry {$attempt}: fd={$fd}");
+                WebSocketLog::getLogger()->info("Database connection recovered after retry {$attempt}: fd={$fd}");
                 return; // 成功，退出
             } catch (\Throwable $retryException) {
                 if ($attempt === $maxRetries) {
-                    Log::channel('websocket')->error("Message handling failed after {$maxRetries} retries: fd={$fd}", [
+                    WebSocketLog::getLogger()->error("Message handling failed after {$maxRetries} retries: fd={$fd}", [
                         'error' => $retryException->getMessage(),
                     ]);
                     $this->sendErrorResponse($fd, 'Database temporarily unavailable, please retry');
@@ -260,7 +262,7 @@ final class Server
 
     public function onClose(SwooleServer $server, int $fd): void
     {
-        Log::channel('websocket')->debug("Connection closed: fd={$fd}");
+        WebSocketLog::getLogger()->debug("Connection closed: fd={$fd}");
 
         $this->connectionManager->handleDisconnect($fd);
     }

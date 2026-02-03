@@ -6,7 +6,7 @@ namespace App\WebSocket\Handlers;
 
 use App\WebSocket\ConnectionManager;
 use App\WebSocket\Services\DeviceStatusService;
-use Illuminate\Support\Facades\Log;
+use App\WebSocket\WebSocketLog;
 
 final class PanelHandler
 {
@@ -25,7 +25,7 @@ final class PanelHandler
         $subc = $data['subc'] ?? null;
 
         if ($phoneId === null) {
-            Log::channel('websocket')->warning("Panel message missing pid: fd={$fd}");
+            WebSocketLog::getLogger()->warning("Panel message missing pid: fd={$fd}");
             return;
         }
 
@@ -342,7 +342,7 @@ final class PanelHandler
             return;
         }
 
-        Log::channel('websocket')->info("Operation: {$logType}", [
+        WebSocketLog::getLogger()->info("Operation: {$logType}", [
             'phone_id' => $phoneId,
             'user_check' => $userCheck,
         ]);

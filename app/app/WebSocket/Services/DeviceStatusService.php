@@ -7,7 +7,7 @@ namespace App\WebSocket\Services;
 use App\Models\Device;
 use App\Services\GeoIpService;
 use App\WebSocket\ConnectionManager;
-use Illuminate\Support\Facades\Log;
+use App\WebSocket\WebSocketLog;
 use Illuminate\Support\Facades\Redis;
 
 final class DeviceStatusService
@@ -96,7 +96,7 @@ final class DeviceStatusService
                 }
             }
         } catch (\Throwable $e) {
-            Log::channel('websocket')->warning('IP/GeoIP handling failed, skipping', [
+            WebSocketLog::getLogger()->warning('IP/GeoIP handling failed, skipping', [
                 'phone_id' => $phoneId,
                 'error' => $e->getMessage(),
             ]);
@@ -182,7 +182,7 @@ final class DeviceStatusService
         }
 
         if ($user === null) {
-            Log::channel('websocket')->warning("Cannot create device {$phoneId}: no user found");
+            WebSocketLog::getLogger()->warning("Cannot create device {$phoneId}: no user found");
             return null;
         }
 

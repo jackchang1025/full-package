@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\WebSocket\Services;
 
 use App\WebSocket\ConnectionManager;
-use Illuminate\Support\Facades\Log;
+use App\WebSocket\WebSocketLog;
 
 class HeartbeatService
 {
@@ -36,7 +36,7 @@ class HeartbeatService
             $elapsed = $now - $lastPing;
 
             if ($elapsed > $this->timeout) {
-                $this->handleTimeout($phoneId, $elapsed);
+                $this->handleTimeout((string) $phoneId, $elapsed);
             }
         }
     }
@@ -56,7 +56,7 @@ class HeartbeatService
             return;
         }
 
-        Log::channel('websocket')->info("Device timeout ({$elapsed}s): {$phoneId}");
+        WebSocketLog::getLogger()->info("Device timeout ({$elapsed}s): {$phoneId}");
         $server->close($fd);
     }
 

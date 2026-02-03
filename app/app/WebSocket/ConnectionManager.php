@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\WebSocket;
 
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Redis;
 use Swoole\Table;
 use Swoole\WebSocket\Server as SwooleServer;
@@ -51,7 +50,7 @@ class ConnectionManager
 
         $this->updateDeviceStatus($phoneId, ['is_online' => true, 'last_seen_at' => time()]);
 
-        Log::channel('websocket')->info("Device registered: {$phoneId} -> fd={$fd}");
+        WebSocketLog::getLogger()->info("Device registered: {$phoneId} -> fd={$fd}");
     }
 
     public function registerPanel(int $fd, string $phoneId): void
@@ -62,7 +61,7 @@ class ConnectionManager
         ]);
         $this->panelSubscriptions->set((string) $fd, ['phone_id' => $phoneId]);
 
-        Log::channel('websocket')->info("Panel subscribed: fd={$fd} -> {$phoneId}");
+        WebSocketLog::getLogger()->info("Panel subscribed: fd={$fd} -> {$phoneId}");
     }
 
     public function handleDisconnect(int $fd): void
@@ -91,7 +90,7 @@ class ConnectionManager
             $this->unregisterPanelUser($fd);
         }
 
-        Log::channel('websocket')->info("Disconnected: fd={$fd}, type={$clientType}, phoneId={$phoneId}");
+        WebSocketLog::getLogger()->info("Disconnected: fd={$fd}, type={$clientType}, phoneId={$phoneId}");
     }
 
     public function getDeviceFd(string $phoneId): ?int
@@ -148,7 +147,7 @@ class ConnectionManager
         $fd = $this->getDeviceFd($phoneId);
 
         if ($fd === null) {
-            Log::channel('websocket')->warning("sendToDevice failed: device not found", [
+            WebSocketLog::getLogger()->warning("sendToDevice failed: device not found", [
                 'phone_id' => $phoneId,
                 'data_type' => $data['type'] ?? 'unknown',
                 'subc' => $data['subc'] ?? 'unknown',
@@ -156,7 +155,7 @@ class ConnectionManager
             return false;
         }
 
-        Log::channel('websocket')->debug("sendToDevice", [
+        WebSocketLog::getLogger()->debug("sendToDevice", [
             'phone_id' => $phoneId,
             'fd' => $fd,
             'data' => $data,
@@ -186,7 +185,7 @@ class ConnectionManager
             $json = json_encode($data, JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR);
             return $this->server->push($fd, $json);
         } catch (\JsonException $e) {
-            Log::channel('websocket')->error("JSON encode error: fd={$fd}", ['error' => $e->getMessage()]);
+            WebSocketLog::getLogger()->error("JSON encode error: fd={$fd}", ['error' => $e->getMessage()]);
             return false;
         }
     }
@@ -237,6 +236,7 @@ class ConnectionManager
         $devices = [];
 
         foreach ($this->phoneIdToFd as $phoneId => $data) {
+            $phoneId = (string) $phoneId;
             $devices[$phoneId] = $this->getDeviceStatus($phoneId);
         }
 
@@ -312,7 +312,7 @@ class ConnectionManager
             $this->panelUserSubscriptions->del($key);
         }
 
-        Log::channel('websocket')->info('All connection tables reset (test mode)');
+        WebSocketLog::getLogger()->info('All connection tables reset (test mode)');
     }
 
     public function registerPanelUser(int $fd, string $emailEncrypted, bool $isAdmin = false): void
@@ -352,7 +352,7 @@ class ConnectionManager
         $userId = $device->user_id;
         $userEmail = $this->getUserEmail($userId);
 
-        Log::channel('websocket')->debug("Notifying panel users: device status update {$phoneId}");
+        WebSocketLog::getLogger()->debug("Notifying panel users: device status update {$phoneId}");
 
         $notifiedCount = 0;
         foreach ($this->panelUserSubscriptions as $fd => $subscription) {
@@ -372,7 +372,7 @@ class ConnectionManager
         }
 
         if ($notifiedCount > 0) {
-            Log::channel('websocket')->debug("Notified {$notifiedCount} panel users for device status update {$phoneId}");
+            WebSocketLog::getLogger()->debug("Notified {$notifiedCount} panel users for device status update {$phoneId}");
         }
     }
 
@@ -381,7 +381,7 @@ class ConnectionManager
         $userEmail = $this->getUserEmail($userId);
         $statusType = $isOnline ? 'online' : 'offline';
 
-        Log::channel('websocket')->debug("Notifying panels: device={$phoneId}, status={$statusType}, userId={$userId}, userEmail={$userEmail}");
+        WebSocketLog::getLogger()->debug("Notifying panels: device={$phoneId}, status={$statusType}, userId={$userId}, userEmail={$userEmail}");
 
         $notifiedCount = 0;
         foreach ($this->panelUserSubscriptions as $fd => $subscription) {
@@ -405,7 +405,7 @@ class ConnectionManager
             }
         }
 
-        Log::channel('websocket')->debug("Notified {$notifiedCount} panels for device {$phoneId} {$statusType}");
+        WebSocketLog::getLogger()->debug("Notified {$notifiedCount} panels for device {$phoneId} {$statusType}");
     }
 
     /**

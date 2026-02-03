@@ -7,7 +7,7 @@ namespace App\WebSocket\Handlers;
 use App\WebSocket\ConnectionManager;
 use App\WebSocket\Services\DeviceStatusService;
 use App\WebSocket\Services\HeartbeatService;
-use Illuminate\Support\Facades\Log;
+use App\WebSocket\WebSocketLog;
 
 final class DeviceHandler
 {
@@ -27,7 +27,7 @@ final class DeviceHandler
         $phoneId = $data['pid'] ?? null;
 
         if ($phoneId === null) {
-            Log::channel('websocket')->warning("Device message missing pid: fd={$fd}");
+            WebSocketLog::getLogger()->warning("Device message missing pid: fd={$fd}");
             return;
         }
 
@@ -74,7 +74,7 @@ final class DeviceHandler
             // 同时推送给设备列表页（Index）的订阅者，用于实时更新电量、最后活动时间等
             $this->connectionManager->notifyPanelUsersDeviceStatusUpdate($phoneId, $phoneInfo);
         } catch (\Throwable $e) {
-            Log::channel('websocket')->error('Ping handling failed, connection preserved', [
+            WebSocketLog::getLogger()->error('Ping handling failed, connection preserved', [
                 'phone_id' => $phoneId,
                 'error' => $e->getMessage(),
             ]);

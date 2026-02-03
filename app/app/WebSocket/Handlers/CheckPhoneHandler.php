@@ -6,7 +6,7 @@ namespace App\WebSocket\Handlers;
 
 use App\Models\Device;
 use App\WebSocket\ConnectionManager;
-use Illuminate\Support\Facades\Log;
+use App\WebSocket\WebSocketLog;
 
 final class CheckPhoneHandler
 {
@@ -29,7 +29,7 @@ final class CheckPhoneHandler
         // 根据 admins 表判断是否为总管理员
         $isAdmin = \App\Models\Admin::where('email', $email)->exists();
 
-        Log::channel('websocket')->debug("CheckPhone: fd={$fd}, email={$email}, isAdmin=" . ($isAdmin ? 'true' : 'false'));
+        WebSocketLog::getLogger()->debug("CheckPhone: fd={$fd}, email={$email}, isAdmin=" . ($isAdmin ? 'true' : 'false'));
 
         // 注册面板用户
         $this->connectionManager->registerPanelUser($fd, $email, $isAdmin);
@@ -46,7 +46,7 @@ final class CheckPhoneHandler
         $this->applyFilters($query, $filters);
 
         $total = $query->count();
-        Log::channel('websocket')->debug("CheckPhone: found {$total} devices for email={$email}");
+        WebSocketLog::getLogger()->debug("CheckPhone: found {$total} devices for email={$email}");
         $pageCount = (int) ceil($total / $pageSize);
 
         $devices = $query
