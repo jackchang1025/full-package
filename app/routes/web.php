@@ -41,9 +41,9 @@ Route::middleware(['auth', 'subscription'])->group(function () {
     });
 
     // 构建相关：需对应权限（builds.view / builds.create / builds.delete）
+    // 注意：静态路径 /builds/create、/builds/stream 必须写在 /builds/{build} 之前，否则 "create" 会被当作 {build} 匹配导致 404
     Route::middleware(['permission:builds.view'])->group(function () {
         Route::get('/builds', [AppBuildController::class, 'index'])->name('builds.index');
-        Route::get('/builds/{build}', [AppBuildController::class, 'show'])->name('builds.show');
     });
     Route::middleware(['permission:builds.create'])->group(function () {
         Route::get('/builds/stream', [AppBuildController::class, 'stream'])->name('builds.stream');
@@ -58,6 +58,9 @@ Route::middleware(['auth', 'subscription'])->group(function () {
             Route::delete('/backgrounds', [BuildAssetController::class, 'deleteBackground'])->name('builds.assets.backgrounds.delete');
         });
     });
+    Route::get('/builds/{build}', [AppBuildController::class, 'show'])
+        ->middleware('permission:builds.view')
+        ->name('builds.show');
     Route::delete('/builds/{build}', [AppBuildController::class, 'destroy'])
         ->middleware('permission:builds.delete')
         ->name('builds.destroy');
