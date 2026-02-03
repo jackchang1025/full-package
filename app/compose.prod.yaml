@@ -11,6 +11,8 @@ services:
         image: 'feiying-app:latest'
         container_name: feiying-app
         restart: unless-stopped
+        # 防止 restart 时无限等待：Swoole/Queue/Scheduler 可能无法快速响应 SIGTERM
+        stop_grace_period: 25s
         ports:
             - '${APP_PORT:-80}:80'              # Web 应用
             - '${WEBSOCKET_PORT:-8081}:8081'    # WebSocket 直接对外

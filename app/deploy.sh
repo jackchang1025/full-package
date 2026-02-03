@@ -168,8 +168,9 @@ update() {
     print_msg "前端构建完成"
     
     # 重启 app 容器，使 PHP/WebSocket/队列/调度器 等常驻进程加载新代码
+    # 使用 stop+start 替代 restart，并显式指定超时，避免 Swoole/Queue 无响应导致无限卡死
     print_msg "重启 app 容器..."
-    $DC restart app
+    $DC stop -t 25 app && $DC start app
     print_msg "容器已重启"
     
     print_msg "=== 更新完成 ==="
