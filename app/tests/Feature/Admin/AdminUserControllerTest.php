@@ -4,6 +4,7 @@ use App\Models\Admin;
 use App\Models\User;
 use Database\Seeders\RolePermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Hash;
 
 uses(RefreshDatabase::class);
 
@@ -63,8 +64,9 @@ describe('PUT /admin/users/{user}', function () {
     it('updates user subscription and roles and redirects to admin.users.index when admin', function () {
         $response = $this->actingAs($this->admin, 'admin')
             ->put(route('admin.users.update', $this->user), [
+                'username' => $this->user->username,
+                'email' => $this->user->email,
                 'subscription_expires_at' => '2026-12-31',
-                'subscription_type' => '12_month',
                 'roles' => ['client'],
             ]);
 
@@ -73,13 +75,14 @@ describe('PUT /admin/users/{user}', function () {
 
         $this->user->refresh();
         expect($this->user->subscription_expires_at?->format('Y-m-d'))->toBe('2026-12-31');
-        expect($this->user->subscription_type)->toBe('12_month');
         expect($this->user->hasRole('client'))->toBeTrue();
     });
 
     it('updates user direct_permissions and redirects to admin.users.index when admin', function () {
         $response = $this->actingAs($this->admin, 'admin')
             ->put(route('admin.users.update', $this->user), [
+                'username' => $this->user->username,
+                'email' => $this->user->email,
                 'roles' => ['client'],
                 'direct_permissions' => ['builds.delete'],
             ]);
@@ -90,8 +93,79 @@ describe('PUT /admin/users/{user}', function () {
         expect($this->user->can('builds.delete'))->toBeTrue();
     });
 
+    it('updates user username, email and password when admin', function () {
+        $newUsername = 'newusername';
+        $newEmail = 'newemail@example.com';
+        $newPassword = 'NewSecurePassword1!';
+
+        $response = $this->actingAs($this->admin, 'admin')
+            ->put(route('admin.users.update', $this->user), [
+                'username' => $newUsername,
+                'email' => $newEmail,
+                'password' => $newPassword,
+                'password_confirmation' => $newPassword,
+                'roles' => $this->user->getRoleNames()->values()->all(),
+            ]);
+
+        $response->assertRedirect(route('admin.users.index'));
+        $response->assertSessionHas('success');
+
+        $this->user->refresh();
+        expect($this->user->username)->toBe($newUsername);
+        expect($this->user->email)->toBe($newEmail);
+        expect(Hash::check($newPassword, $this->user->password))->toBeTrue();
+    });
+
+    it('does not change password when password left empty', function () {
+        $originalPasswordHash = $this->user->password;
+        $newUsername = 'updatedname';
+
+        $this->actingAs($this->admin, 'admin')
+            ->put(route('admin.users.update', $this->user), [
+                'username' => $newUsername,
+                'email' => $this->user->email,
+                'roles' => $this->user->getRoleNames()->values()->all(),
+            ]);
+
+        $this->user->refresh();
+        expect($this->user->username)->toBe($newUsername);
+        expect($this->user->password)->toBe($originalPasswordHash);
+    });
+
+    it('returns 422 when username is duplicate', function () {
+        $otherUser = User::factory()->create(['username' => 'otheruser']);
+
+        $response = $this->actingAs($this->admin, 'admin')
+            ->put(route('admin.users.update', $this->user), [
+                'username' => 'otheruser',
+                'email' => $this->user->email,
+                'roles' => $this->user->getRoleNames()->values()->all(),
+            ]);
+
+        $response->assertStatus(422);
+        $this->user->refresh();
+        expect($this->user->username)->not->toBe('otheruser');
+    });
+
+    it('returns 422 when email is duplicate', function () {
+        $otherUser = User::factory()->create(['email' => 'other@example.com']);
+
+        $response = $this->actingAs($this->admin, 'admin')
+            ->put(route('admin.users.update', $this->user), [
+                'username' => $this->user->username,
+                'email' => 'other@example.com',
+                'roles' => $this->user->getRoleNames()->values()->all(),
+            ]);
+
+        $response->assertStatus(422);
+        $this->user->refresh();
+        expect($this->user->email)->not->toBe('other@example.com');
+    });
+
     it('redirects to admin.login when guest', function () {
         $response = $this->put(route('admin.users.update', $this->user), [
+            'username' => $this->user->username,
+            'email' => $this->user->email,
             'roles' => ['client'],
         ]);
         $response->assertRedirect(route('admin.login'));

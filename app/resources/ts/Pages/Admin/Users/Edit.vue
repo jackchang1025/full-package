@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import { Head, useForm, router } from '@inertiajs/vue3';
 import { NCard, NForm, NFormItem, NInput, NButton, NDatePicker, NSelect, NSpace } from 'naive-ui';
 import AdminLayout from '@/Layouts/AdminLayout.vue';
@@ -24,10 +24,17 @@ const props = defineProps<{
 }>();
 
 const form = useForm({
+    username: props.user.username,
+    email: props.user.email,
+    password: '',
+    password_confirmation: '',
     subscription_expires_at: props.user.subscription_expires_at || null,
     roles: props.user.roles ?? [],
     direct_permissions: props.user.direct_permissions ?? [],
 });
+
+const showPassword = ref(false);
+const showConfirmPassword = ref(false);
 
 const roleOptions = computed(() => {
     const labels = props.roleLabels ?? {};
@@ -49,12 +56,47 @@ const submit = () => {
     <AdminLayout>
         <template #header-title>编辑用户</template>
         <div class="admin-form-page">
-            <NCard title="基本信息" class="admin-form-card">
-                <p><strong>用户名</strong> {{ user.username }}</p>
-                <p><strong>邮箱</strong> {{ user.email }}</p>
-            </NCard>
-            <NCard title="到期与权限" class="admin-form-card">
-                <NForm @submit.prevent="submit">
+            <NForm @submit.prevent="submit">
+                <NCard title="基本信息" class="admin-form-card">
+                    <NFormItem label="用户名" required :validation-status="form.errors.username ? 'error' : undefined" :feedback="form.errors.username">
+                        <NInput
+                            v-model:value="form.username"
+                            placeholder="请输入用户名"
+                            maxlength="50"
+                            show-count
+                            clearable
+                            :disabled="form.processing"
+                        />
+                    </NFormItem>
+                    <NFormItem label="邮箱" required :validation-status="form.errors.email ? 'error' : undefined" :feedback="form.errors.email">
+                        <NInput
+                            v-model:value="form.email"
+                            type="email"
+                            placeholder="请输入邮箱"
+                            clearable
+                            :disabled="form.processing"
+                        />
+                    </NFormItem>
+                    <NFormItem label="新密码" :validation-status="form.errors.password ? 'error' : undefined" :feedback="form.errors.password || '留空则不修改'">
+                        <NInput
+                            v-model:value="form.password"
+                            :type="showPassword ? 'text' : 'password'"
+                            placeholder="留空则不修改"
+                            show-password-on="click"
+                            :disabled="form.processing"
+                        />
+                    </NFormItem>
+                    <NFormItem label="确认新密码" :validation-status="form.errors.password_confirmation ? 'error' : undefined" :feedback="form.errors.password_confirmation">
+                        <NInput
+                            v-model:value="form.password_confirmation"
+                            :type="showConfirmPassword ? 'text' : 'password'"
+                            placeholder="留空则不修改"
+                            show-password-on="click"
+                            :disabled="form.processing"
+                        />
+                    </NFormItem>
+                </NCard>
+                <NCard title="到期与权限" class="admin-form-card">
                     <NFormItem label="到期时间">
                         <NDatePicker
                             v-model:formatted-value="form.subscription_expires_at"
@@ -86,8 +128,8 @@ const submit = () => {
                             <NButton @click="router.visit('/admin/users')">取消</NButton>
                         </NSpace>
                     </NFormItem>
-                </NForm>
-            </NCard>
+                </NCard>
+            </NForm>
         </div>
     </AdminLayout>
 </template>

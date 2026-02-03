@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Password;
 use Laravel\Fortify\Contracts\CreatesNewUsers;
+use Spatie\Permission\Models\Role;
 
 class CreateNewUser implements CreatesNewUsers
 {
@@ -27,7 +28,12 @@ class CreateNewUser implements CreatesNewUsers
             'subscription_expires_at' => now()->addDays(7),
         ]);
 
-        $user->assignRole('client');
+        $defaultRole = Role::where('name', config('permission_labels.default_role', 'client'))
+            ->where('guard_name', 'web')
+            ->first();
+        if ($defaultRole) {
+            $user->assignRole($defaultRole);
+        }
 
         return $user;
     }

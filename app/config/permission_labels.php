@@ -14,4 +14,12 @@ return [
     */
     'permissions' => file_exists($langBase . '/permissions.php') ? require $langBase . '/permissions.php' : [],
     'roles' => file_exists($langBase . '/roles.php') ? require $langBase . '/roles.php' : [],
+
+    /*
+    |--------------------------------------------------------------------------
+    | 默认角色名（新建用户未选角色时使用）
+    |--------------------------------------------------------------------------
+    | 仅当该角色在数据库中存在时才会分配，避免生产环境未执行 RolePermissionSeeder 时报错。
+    */
+    'default_role' => 'client',
 ];

@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Password;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -80,6 +81,9 @@ class UserController extends Controller
     public function update(Request $request, User $user)
     {
         $validated = $request->validate([
+            'username' => ['required', 'string', 'max:50', Rule::unique('users', 'username')->ignore($user->id)],
+            'email' => ['required', 'string', 'email', 'max:255', Rule::unique('users', 'email')->ignore($user->id)],
+            'password' => ['nullable', 'string', Password::default(), 'confirmed'],
             'subscription_expires_at' => ['nullable', 'date'],
             'roles' => ['array'],
             'roles.*' => ['string', 'exists:roles,name'],
@@ -87,6 +91,11 @@ class UserController extends Controller
             'direct_permissions.*' => ['string', 'exists:permissions,name'],
         ]);
 
+        $user->username = $validated['username'];
+        $user->email = $validated['email'];
+        if ($request->filled('password')) {
+            $user->password = Hash::make($validated['password']);
+        }
         if (array_key_exists('subscription_expires_at', $validated)) {
             $user->subscription_expires_at = $validated['subscription_expires_at'];
         }
@@ -136,7 +145,12 @@ class UserController extends Controller
         if (!empty($validated['roles'])) {
             $user->syncRoles($validated['roles']);
         } else {
-            $user->assignRole('client');
+            $defaultRole = Role::where('name', config('permission_labels.default_role', 'client'))
+                ->where('guard_name', 'web')
+                ->first();
+            if ($defaultRole) {
+                $user->assignRole($defaultRole);
+            }
         }
 
         return redirect()->route('admin.users.index')->with('success', '用户已创建');
