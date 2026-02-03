@@ -108,7 +108,7 @@ const goTo = (route: string) => router.visit(route);
                         欢迎回来，<span class="username">{{ user?.username }}</span> 👋
                     </h1>
                     <p class="welcome-subtitle">
-                        这是您的飞鹰管理系统控制台，查看设备状态和系统概览
+                        这是您的 {{ page.props.appName }} 控制台，查看设备状态和系统概览
                     </p>
                 </div>
                 <div class="welcome-actions">

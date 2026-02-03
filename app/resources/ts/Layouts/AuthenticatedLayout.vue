@@ -152,7 +152,7 @@ const userInitial = computed(() => {
                             </svg>
                         </div>
                         <transition name="fade">
-                            <span v-if="!collapsed" class="logo-text">飞鹰系统</span>
+                            <span v-if="!collapsed" class="logo-text">{{ page.props.appName }}</span>
                         </transition>
                     </div>
                 </div>

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue';
-import { useForm, Head } from '@inertiajs/vue3';
+import { useForm, usePage, Head } from '@inertiajs/vue3';
 import {
     NForm,
     NFormItem,
@@ -13,6 +13,7 @@ import {
 import { PersonOutline, MailOutline, LockClosedOutline, EyeOutline, EyeOffOutline } from '@vicons/ionicons5';
 import DefaultLayout from '@/Layouts/DefaultLayout.vue';
 
+const page = usePage();
 const form = useForm({
     username: '',
     email: '',
@@ -52,7 +53,7 @@ const submit = () => {
                         </svg>
                     </div>
                     <h1 class="register-title">创建账号</h1>
-                    <p class="register-subtitle">加入飞鹰管理系统</p>
+                    <p class="register-subtitle">加入 {{ page.props.appName }}</p>
                 </div>
 
                 <!-- 注册卡片 -->

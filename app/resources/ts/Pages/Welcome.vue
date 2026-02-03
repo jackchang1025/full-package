@@ -9,9 +9,10 @@ import {
     LockClosedOutline,
     ArrowForwardOutline,
 } from '@vicons/ionicons5';
-import { router } from '@inertiajs/vue3';
+import { router, usePage } from '@inertiajs/vue3';
 import DefaultLayout from '@/Layouts/DefaultLayout.vue';
 
+const page = usePage();
 const features = [
     {
         icon: PhonePortraitOutline,
@@ -74,7 +75,7 @@ const goToRegister = () => router.visit('/register');
 
                     <!-- 副标题 -->
                     <p class="hero-subtitle">
-                        飞鹰管理系统 V2 — 基于 Laravel 12 + Vue 3 构建的现代化设备管理平台，
+                        {{ page.props.appName }} — 基于 Laravel 12 + Vue 3 构建的现代化设备管理平台，
                         提供实时监控、远程控制、APK 构建等一站式服务。
                     </p>
 
@@ -209,7 +210,7 @@ const goToRegister = () => router.visit('/register');
 
             <!-- 页脚 -->
             <footer class="welcome-footer">
-                <p>© 2024 飞鹰管理系统 · 专业的 Android 设备管理平台</p>
+                <p>© 2024 {{ page.props.appName }} · 专业的 Android 设备管理平台</p>
             </footer>
         </div>
     </DefaultLayout>

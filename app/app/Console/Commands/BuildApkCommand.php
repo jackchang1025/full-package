@@ -40,7 +40,7 @@ class BuildApkCommand extends Command
     {
         $this->info('');
         $this->info('╔════════════════════════════════════════╗');
-        $this->info('║       飞鹰管理系统 - APK 构建工具       ║');
+        $this->info('║       ' . config('app.name') . ' - APK 构建工具       ║');
         $this->info('╚════════════════════════════════════════╝');
         $this->info('');
 
@@ -275,5 +275,4 @@ class BuildApkCommand extends Command
 
         $this->table(['参数', '值'], $rows);
     }
-
 }

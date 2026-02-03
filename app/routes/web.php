@@ -7,8 +7,11 @@ use App\Http\Controllers\DeviceController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
+// 根路径：未登录重定向到登录页，已登录重定向到控制台
 Route::get('/', function () {
-    return Inertia::render('Welcome');
+    return auth()->check()
+        ? redirect()->route('dashboard')
+        : redirect()->route('login');
 });
 
 // 公开的 APK 下载页面（无需登录）

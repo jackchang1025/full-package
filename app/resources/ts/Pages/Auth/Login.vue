@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue';
-import { useForm, Head } from '@inertiajs/vue3';
+import { useForm, usePage, Head } from '@inertiajs/vue3';
 import {
     NCard,
     NForm,
@@ -16,6 +16,7 @@ import {
 import { LockClosedOutline, MailOutline, EyeOutline, EyeOffOutline } from '@vicons/ionicons5';
 import DefaultLayout from '@/Layouts/DefaultLayout.vue';
 
+const page = usePage();
 const form = useForm({
     email: '',
     password: '',
@@ -63,7 +64,7 @@ const submit = () => {
                         </svg>
                     </div>
                     <h1 class="login-title">欢迎回来</h1>
-                    <p class="login-subtitle">登录飞鹰管理系统</p>
+                    <p class="login-subtitle">登录 {{ page.props.appName }}</p>
                 </div>
 
                 <!-- 登录卡片 -->
@@ -136,7 +137,7 @@ const submit = () => {
 
                 <!-- 底部信息 -->
                 <p class="login-footer">
-                    © 2024 飞鹰管理系统 · 安全可靠的设备管理平台
+                    © 2024 {{ page.props.appName }} · 安全可靠的设备管理平台
                 </p>
             </div>
         </div>
