@@ -17,6 +17,7 @@ class AppBuildController extends Controller
 {
     public function index(Request $request): Response
     {
+        $this->authorize('builds.view');
         $builds = AppBuild::where('user_id', $request->user()->id)
             ->with('template')
             ->orderBy('created_at', 'desc')
@@ -69,6 +70,7 @@ class AppBuildController extends Controller
 
     public function create(Request $request): Response
     {
+        $this->authorize('builds.create');
         $templates = AppTemplate::where('is_active', true)->get();
         $userId = $request->user()->id;
 
@@ -87,6 +89,7 @@ class AppBuildController extends Controller
 
     public function store(Request $request)
     {
+        $this->authorize('builds.create');
         $validated = $this->validateBuildRequest($request);
 
         $packageName = $validated['package_name'] ?? $this->generatePackageName();
@@ -113,6 +116,7 @@ class AppBuildController extends Controller
 
     public function stream(Request $request): StreamedResponse
     {
+        $this->authorize('builds.create');
         // 预处理布尔值参数（URL 参数是字符串）
         $this->preprocessBooleanParams($request);
         $validated = $this->validateBuildRequest($request);
@@ -230,6 +234,7 @@ class AppBuildController extends Controller
 
     public function show(Request $request, AppBuild $build): Response
     {
+        $this->authorize('builds.view');
         abort_if($build->user_id !== $request->user()->id, 403);
 
         $build->load('template');
@@ -237,11 +242,13 @@ class AppBuildController extends Controller
 
         return Inertia::render('Builds/Show', [
             'build' => $build,
+            'backUrl' => route('builds.index'),
         ]);
     }
 
     public function destroy(Request $request, AppBuild $build)
     {
+        $this->authorize('builds.delete');
         abort_if($build->user_id !== $request->user()->id, 403);
 
         $build->delete();

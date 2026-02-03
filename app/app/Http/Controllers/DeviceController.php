@@ -11,17 +11,11 @@ class DeviceController extends Controller
 {
     public function index(Request $request): Response
     {
+        $this->authorize('devices.view');
         $user = $request->user();
-        $isAdmin = $user->isAdmin();
 
-        // 构建查询
-        $query = Device::where('is_removed', false);
-        if (!$isAdmin) {
-            $query->where('user_id', $user->id);
-        }
-
-        // 分页获取设备列表
-        $devices = $query
+        $devices = Device::where('is_removed', false)
+            ->where('user_id', $user->id)
             ->orderByDesc('last_seen_at')
             ->paginate(50)
             ->through(fn(Device $device) => [
@@ -41,12 +35,7 @@ class DeviceController extends Controller
                 'installed_at' => $device->installed_at?->toISOString(),
             ]);
 
-        // 统计数据
-        $statsQuery = Device::where('is_removed', false);
-        if (!$isAdmin) {
-            $statsQuery->where('user_id', $user->id);
-        }
-
+        $statsQuery = Device::where('is_removed', false)->where('user_id', $user->id);
         $total = (clone $statsQuery)->count();
         $online = (clone $statsQuery)->where('is_online', true)->count();
 
@@ -64,8 +53,9 @@ class DeviceController extends Controller
 
     public function show(Request $request, Device $device): Response
     {
+        $this->authorize('devices.view');
+        abort_if($device->user_id !== $request->user()->id, 403);
         $user = $request->user();
-        abort_if($device->user_id !== $user->id && !$user->isAdmin(), 403);
 
         return Inertia::render('Devices/Show', [
             'device' => $device,
@@ -75,19 +65,21 @@ class DeviceController extends Controller
 
     public function control(Request $request, Device $device): Response
     {
+        $this->authorize('devices.control');
+        abort_if($device->user_id !== $request->user()->id, 403);
         $user = $request->user();
-        abort_if($device->user_id !== $user->id && !$user->isAdmin(), 403);
 
         return Inertia::render('Devices/Control', [
             'device' => $device,
             'usercheck' => md5($user->email . config('app.key')),
+            'backUrl' => route('devices.index'),
         ]);
     }
 
     public function update(Request $request, Device $device)
     {
-        $user = $request->user();
-        abort_if($device->user_id !== $user->id && !$user->isAdmin(), 403);
+        $this->authorize('devices.view');
+        abort_if($device->user_id !== $request->user()->id, 403);
 
         $validated = $request->validate([
             'remark' => ['nullable', 'string', 'max:200'],
@@ -105,6 +97,7 @@ class DeviceController extends Controller
 
     public function destroy(Request $request, Device $device)
     {
+        $this->authorize('devices.delete');
         abort_if($device->user_id !== $request->user()->id, 403);
 
         $device->update(['is_removed' => true]);

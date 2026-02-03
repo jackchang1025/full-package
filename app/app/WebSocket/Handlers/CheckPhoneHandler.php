@@ -26,9 +26,8 @@ final class CheckPhoneHandler
 
         \Illuminate\Support\Facades\DB::reconnect();
 
-        // 查询用户判断是否为管理员
-        $user = \App\Models\User::where('email', $email)->first();
-        $isAdmin = $user !== null && $user->isAdmin();
+        // 根据 admins 表判断是否为总管理员
+        $isAdmin = \App\Models\Admin::where('email', $email)->exists();
 
         Log::channel('websocket')->debug("CheckPhone: fd={$fd}, email={$email}, isAdmin=" . ($isAdmin ? 'true' : 'false'));
 

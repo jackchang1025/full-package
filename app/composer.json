@@ -14,7 +14,8 @@
         "laravel/fortify": "^1.34",
         "laravel/framework": "^12.0",
         "laravel/tinker": "^2.10.1",
-        "maxmind-db/reader": "^1.13"
+        "maxmind-db/reader": "^1.13",
+        "spatie/laravel-permission": "^6.24"
     },
     "require-dev": {
         "fakerphp/faker": "^1.23",

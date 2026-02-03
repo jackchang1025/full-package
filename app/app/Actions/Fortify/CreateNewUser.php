@@ -19,13 +19,16 @@ class CreateNewUser implements CreatesNewUsers
             'password' => ['required', 'string', Password::default(), 'confirmed'],
         ])->validate();
 
-        return User::create([
+        $user = User::create([
             'username' => $input['username'],
             'email' => $input['email'],
             'password' => Hash::make($input['password']),
-            'role' => 'client',
             'subscription_type' => 'trial',
             'subscription_expires_at' => now()->addDays(7),
         ]);
+
+        $user->assignRole('client');
+
+        return $user;
     }
 }

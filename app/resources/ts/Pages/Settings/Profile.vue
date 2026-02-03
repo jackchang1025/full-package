@@ -89,8 +89,14 @@ const daysRemaining = computed(() => {
                     <h2 class="user-name">{{ user?.username }}</h2>
                     <p class="user-email">{{ user?.email }}</p>
                     <div class="user-badges">
-                        <NTag :type="user?.role === 'admin' ? 'success' : 'info'" size="small" round>
-                            {{ user?.role === 'admin' ? '管理员' : '普通用户' }}
+                        <NTag
+                            v-for="r in (user?.roles ?? [])"
+                            :key="r"
+                            type="info"
+                            size="small"
+                            round
+                        >
+                            {{ (page.props.roleLabels as Record<string, string>)?.[r] ?? r }}
                         </NTag>
                         <NTag 
                             v-if="subscriptionStatus === 'active'" 

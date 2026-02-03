@@ -4,12 +4,14 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Spatie\Permission\Traits\HasRoles;
 
 class User extends Authenticatable
 {
-    use HasFactory, Notifiable;
+    use HasFactory, HasRoles, Notifiable, SoftDeletes;
 
     protected $fillable = [
         'username',
@@ -17,7 +19,6 @@ class User extends Authenticatable
         'email_encrypted',
         'password',
         'avatar',
-        'role',
         'otp_secret',
         'subscription_expires_at',
         'subscription_type',
@@ -36,6 +37,7 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'subscription_expires_at' => 'date',
+            'deleted_at' => 'datetime',
             'password' => 'hashed',
             'is_hidden' => 'boolean',
         ];
@@ -49,12 +51,6 @@ class User extends Authenticatable
     public function appBuilds(): HasMany
     {
         return $this->hasMany(AppBuild::class);
-    }
-
-    public function isAdmin(): bool
-    {
-        //测试 暂时不使用管理员
-        return $this->role === 'admin___';
     }
 
     public function hasActiveSubscription(): bool

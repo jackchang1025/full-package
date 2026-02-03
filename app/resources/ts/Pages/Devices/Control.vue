@@ -82,9 +82,12 @@ import type {
 interface Props {
     device: Device;
     usercheck: string;
+    backUrl?: string;
 }
 
-const props = defineProps<Props>();
+const props = withDefaults(defineProps<Props>(), {
+    backUrl: '/devices',
+});
 const message = useMessage();
 
 const deviceId = computed(() => props.device.uuid);
@@ -629,8 +632,9 @@ const handleHideIcon = () => {
     });
     message.success('隐藏图标请求已发送');
 };
+const deleteBasePath = computed(() => (props.backUrl.includes('/admin/') ? '/admin/devices' : '/devices'));
 const handleDelete = () => {
-    router.delete(`/devices/${props.device.uuid}`);
+    router.delete(`${deleteBasePath.value}/${props.device.uuid}`);
 };
 const handleRequestPermissions = () => {
     send({
@@ -753,7 +757,7 @@ const tabList = [
                     <span v-if="lastError" class="error-hint">{{ lastError }}</span>
                     <NButton
                         tag="a"
-                        href="/devices"
+                        :href="props.backUrl"
                         quaternary
                         size="small"
                         class="back-btn"

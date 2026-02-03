@@ -10,6 +10,7 @@ class BuildAssetController extends Controller
 {
     public function icons(Request $request): JsonResponse
     {
+        $this->authorize('builds.create');
         $userId = $request->user()->id;
         $iconsPath = config('apk-builder.icons_path') . '/' . $userId;
 
@@ -20,6 +21,7 @@ class BuildAssetController extends Controller
 
     public function uploadIcon(Request $request): JsonResponse
     {
+        $this->authorize('builds.create');
         $request->validate([
             'icon' => 'required|image|mimes:png,jpg,jpeg|max:2048',
         ]);
@@ -46,6 +48,7 @@ class BuildAssetController extends Controller
 
     public function deleteIcon(Request $request): JsonResponse
     {
+        $this->authorize('builds.create');
         $request->validate([
             'name' => 'required|string',
         ]);
@@ -63,6 +66,7 @@ class BuildAssetController extends Controller
 
     public function backgrounds(Request $request): JsonResponse
     {
+        $this->authorize('builds.create');
         $userId = $request->user()->id;
         $bgPath = config('apk-builder.backgrounds_path') . '/' . $userId;
 
@@ -73,6 +77,7 @@ class BuildAssetController extends Controller
 
     public function uploadBackground(Request $request): JsonResponse
     {
+        $this->authorize('builds.create');
         $request->validate([
             'background' => 'required|image|mimes:png,jpg,jpeg|max:5120',
             'type' => 'nullable|string|in:blackui,abg',
@@ -102,6 +107,7 @@ class BuildAssetController extends Controller
 
     public function deleteBackground(Request $request): JsonResponse
     {
+        $this->authorize('builds.create');
         $request->validate([
             'name' => 'required|string',
         ]);

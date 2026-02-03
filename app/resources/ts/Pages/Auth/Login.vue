@@ -17,7 +17,7 @@ import { LockClosedOutline, MailOutline, EyeOutline, EyeOffOutline } from '@vico
 import DefaultLayout from '@/Layouts/DefaultLayout.vue';
 
 const page = usePage();
-const shared = computed(() => page.props as { appName?: string; appLogo?: string });
+const shared = computed(() => page.props as { appName?: string; appLogo?: string; subscriptionExpired?: boolean });
 const form = useForm({
     email: '',
     password: '',
@@ -71,6 +71,9 @@ const submit = () => {
 
                 <!-- 登录卡片 -->
                 <div class="login-card">
+                    <NAlert v-if="shared.subscriptionExpired" type="warning" class="mb-6" closable>
+                        您的账号订阅已过期，无法继续使用。请联系管理员续费后再登录。
+                    </NAlert>
                     <NAlert v-if="form.errors.email" type="error" class="mb-6" closable>
                         {{ form.errors.email }}
                     </NAlert>

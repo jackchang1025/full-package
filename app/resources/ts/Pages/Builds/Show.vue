@@ -27,6 +27,7 @@ import {
     LinkOutline,
 } from '@vicons/ionicons5';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
+import AdminLayout from '@/Layouts/AdminLayout.vue';
 
 interface AppBuild {
     id: number;
@@ -58,9 +59,12 @@ interface AppBuild {
 
 interface Props {
     build: AppBuild;
+    backUrl?: string;
 }
 
-const props = defineProps<Props>();
+const props = withDefaults(defineProps<Props>(), {
+    backUrl: '/builds',
+});
 
 const buildParams = computed(() => {
     const params = [];
@@ -187,18 +191,20 @@ const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
 };
 
+const deleteBasePath = computed(() => (props.backUrl.includes('/admin/') ? '/admin/builds' : '/builds'));
 const handleDelete = () => {
-    router.delete(`/builds/${props.build.id}`, {
-        onSuccess: () => router.visit('/builds'),
+    router.delete(`${deleteBasePath.value}/${props.build.id}`, {
+        onSuccess: () => router.visit(props.backUrl),
     });
 };
 
-const goBack = () => router.visit('/builds');
+const goBack = () => router.visit(props.backUrl);
+const layoutComponent = computed(() => (props.backUrl.includes('/admin/') ? AdminLayout : AuthenticatedLayout));
 </script>
 
 <template>
     <Head :title="`构建: ${build.name}`" />
-    <AuthenticatedLayout>
+    <component :is="layoutComponent">
         <template #header-title>构建详情</template>
 
         <div class="build-detail-container">
@@ -304,7 +310,7 @@ const goBack = () => router.visit('/builds');
                             <div class="param-value" :class="{ mono: param.mono }">
                                 <NTag 
                                     v-if="param.tag" 
-                                    :type="param.tagType" 
+                                    :type="(param.tagType as 'success' | 'default' | 'info' | 'primary' | 'warning' | 'error') ?? undefined" 
                                     size="small" 
                                     round
                                 >
@@ -434,7 +440,7 @@ const goBack = () => router.visit('/builds');
                 </NPopconfirm>
             </div>
         </div>
-    </AuthenticatedLayout>
+    </component>
 </template>
 
 <style scoped>

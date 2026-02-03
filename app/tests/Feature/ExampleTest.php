@@ -8,12 +8,12 @@ use Tests\TestCase;
 class ExampleTest extends TestCase
 {
     /**
-     * A basic test example.
+     * Root path redirects to login when unauthenticated.
      */
-    public function test_the_application_returns_a_successful_response(): void
+    public function test_the_application_redirects_to_login_when_unauthenticated(): void
     {
         $response = $this->get('/');
 
-        $response->assertStatus(200);
+        $response->assertStatus(302)->assertRedirect(route('login'));
     }
 }

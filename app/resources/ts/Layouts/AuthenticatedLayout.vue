@@ -200,7 +200,7 @@ const userInitial = computed(() => {
                                 <transition name="fade">
                                     <div class="user-info">
                                         <span class="user-name">{{ user?.username }}</span>
-                                        <span class="user-role">{{ user?.role === 'admin' ? '管理员' : '用户' }}</span>
+                                        <span class="user-role">{{ (user?.roles?.length && user.roles[0] === 'client') ? '普通用户' : (user?.roles?.[0] ?? '用户') }}</span>
                                     </div>
                                 </transition>
                             </div>
