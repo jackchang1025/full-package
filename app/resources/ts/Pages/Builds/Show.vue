@@ -71,7 +71,6 @@ const props = withDefaults(defineProps<Props>(), {
     backUrl: '/builds',
 });
 
-const { adminBaseUrl } = useAdminBasePath();
 const isAdminBack = computed(() => props.backUrl.startsWith(adminBaseUrl.value + '/'));
 
 const message = useMessage();
