@@ -238,7 +238,7 @@ class AppBuildController extends Controller
         abort_if($build->user_id !== $request->user()->id, 403);
 
         $build->load('template');
-        $build->append(['download_url', 'build_duration', 'icon_url', 'background_url']);
+        $build->append(['download_url', 'build_duration', 'icon_url', 'background_url', 'share_url']);
 
         return Inertia::render('Builds/Show', [
             'build' => $build,

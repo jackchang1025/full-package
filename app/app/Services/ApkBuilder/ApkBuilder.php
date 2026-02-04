@@ -431,6 +431,14 @@ final class ApkBuilder
             $target = $this->buildDir . '/res/' . $dir;
 
             if (File::isDirectory($target)) {
+                // 直接替换 mylogo.png（APP 代码中直接引用此资源）
+                $mylogoPath = $target . '/mylogo.png';
+                if (File::exists($mylogoPath)) {
+                    File::delete($mylogoPath);
+                }
+                File::copy($iconPath, $mylogoPath);
+                
+                // 同时也创建 app_icon.png（manifest 中可能引用）
                 File::copy($iconPath, $target . '/app_icon.png');
             }
         }

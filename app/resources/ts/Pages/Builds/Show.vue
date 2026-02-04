@@ -7,6 +7,7 @@ import {
     NPopconfirm,
     NIcon,
     NQrCode,
+    useMessage,
 } from 'naive-ui';
 import {
     CloudDownloadOutline,
@@ -47,6 +48,7 @@ interface AppBuild {
     build_stats: Record<string, any> | null;
     build_duration: number | null;
     download_url: string | null;
+    share_url: string | null;
     created_at: string;
     started_at: string | null;
     completed_at: string | null;
@@ -65,6 +67,58 @@ interface Props {
 const props = withDefaults(defineProps<Props>(), {
     backUrl: '/builds',
 });
+
+const message = useMessage();
+
+// 分享功能
+const shareUrl = computed(() => props.build.share_url || '');
+
+// 检测是否为移动设备
+const isMobileDevice = () => {
+    return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
+        (navigator.maxTouchPoints > 0 && window.innerWidth <= 768);
+};
+
+const handleShare = async () => {
+    if (!shareUrl.value) {
+        message.warning('分享链接不可用');
+        return;
+    }
+    
+    const shareData = {
+        title: props.build.name,
+        text: `下载 ${props.build.name} APK`,
+        url: shareUrl.value,
+    };
+    
+    // 只在移动设备上使用原生分享 API
+    // 桌面浏览器 (Windows/Mac/Linux) 的 Web Share API 经常不稳定
+    const canUseNativeShare = isMobileDevice() &&
+        'share' in navigator && 
+        'canShare' in navigator && 
+        navigator.canShare(shareData);
+    
+    if (canUseNativeShare) {
+        try {
+            await navigator.share(shareData);
+            return;
+        } catch (err: any) {
+            // 用户取消分享 (AbortError) 不需要回退
+            if (err?.name === 'AbortError') {
+                return;
+            }
+            // 其他错误回退到复制链接
+        }
+    }
+    
+    // 回退：复制链接到剪贴板
+    try {
+        await navigator.clipboard.writeText(shareUrl.value);
+        message.success('下载页面链接已复制到剪贴板');
+    } catch (err) {
+        message.error('复制失败，请手动复制链接');
+    }
+};
 
 const buildParams = computed(() => {
     const params = [];
@@ -280,7 +334,7 @@ const layoutComponent = computed(() => (props.backUrl.includes('/admin/') ? Admi
                         </template>
                         下载 APK
                     </NButton>
-                    <NButton size="large" class="share-btn">
+                    <NButton size="large" class="share-btn" @click="handleShare">
                         <template #icon>
                             <NIcon :component="ShareSocialOutline" />
                         </template>
@@ -391,7 +445,7 @@ const layoutComponent = computed(() => (props.backUrl.includes('/admin/') ? Admi
             </div>
 
             <!-- 下载二维码 -->
-            <div class="section-card qr-section" v-if="build.download_url">
+            <div class="section-card qr-section" v-if="shareUrl">
                 <h2 class="section-title">
                     <NIcon :component="ShareSocialOutline" size="20" />
                     扫码下载
@@ -399,17 +453,17 @@ const layoutComponent = computed(() => (props.backUrl.includes('/admin/') ? Admi
                 
                 <div class="qr-content">
                     <NQrCode 
-                        :value="build.download_url" 
+                        :value="shareUrl" 
                         :size="160"
                         class="qr-code"
                     />
                     <p class="qr-hint">使用手机扫描二维码下载应用</p>
                     <div class="download-link">
-                        <code>{{ build.download_url }}</code>
+                        <code>{{ shareUrl }}</code>
                         <NButton 
                             size="small" 
                             quaternary 
-                            @click="copyToClipboard(build.download_url!)"
+                            @click="copyToClipboard(shareUrl)"
                         >
                             <template #icon>
                                 <NIcon :component="CopyOutline" />

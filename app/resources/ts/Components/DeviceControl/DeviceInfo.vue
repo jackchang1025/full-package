@@ -391,9 +391,9 @@ const wallpaperUrl = computed(() => {
 }
 
 .wallpaper-thumbnail {
-    width: 48px;
+    width: 27px;
     height: 48px;
-    border-radius: 8px;
+    border-radius: 4px;
     overflow: hidden;
     border: 1px solid #e2e8f0;
     background: #f8fafc;

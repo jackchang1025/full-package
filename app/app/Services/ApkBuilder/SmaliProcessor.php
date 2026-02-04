@@ -40,8 +40,10 @@ final class SmaliProcessor
     {
         $value = str_replace('\\', '\\\\', $value);
         $value = str_replace('"', '\\"', $value);
-        // 换行等控制字符替换为空格，避免破坏单行 const-string
-        $value = preg_replace('/\s+/u', ' ', $value);
+        // 将换行符转换为 \n 转义序列（保留换行语义，APK 运行时会正确显示换行）
+        $value = str_replace(["\r\n", "\r", "\n"], '\\n', $value);
+        // 其他连续空白（空格、制表符）压缩为单个空格
+        $value = preg_replace('/[ \t]+/u', ' ', $value);
         return trim($value);
     }
 

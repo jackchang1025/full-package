@@ -1011,9 +1011,9 @@ const columns = computed<DataTableColumns<DeviceRow>>(() => {
 }
 
 :deep(.wallpaper-thumbnail) {
-    width: 36px;
-    height: 36px;
-    border-radius: 6px;
+    width: 27px;
+    height: 48px;
+    border-radius: 4px;
     object-fit: cover;
     border: 1px solid #e2e8f0;
     background: #f8fafc;
