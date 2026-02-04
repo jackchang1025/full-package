@@ -34,7 +34,9 @@ import {
     BatteryDeadOutline,
     EllipseOutline,
     HardwareChipOutline,
-    PencilOutline,
+    CreateOutline,
+    DocumentTextOutline,
+    CalendarOutline,
 } from '@vicons/ionicons5';
 import { useGlobalWebSocket } from '@/composables/useGlobalWebSocket';
 import type { DeviceOnlineMessage, DeviceOfflineMessage, DeviceUpdateMessage } from '@/types/websocket';
@@ -239,6 +241,19 @@ function formatLastSeen(dateStr: string | null) {
     if (diffHours < 24) return `${diffHours}小时前`;
     if (diffDays < 7) return `${diffDays}天前`;
     return date.toLocaleDateString('zh-CN');
+}
+
+function formatInstallTime(dateStr: string | null | undefined): string {
+    if (!dateStr) return '-';
+    const date = new Date(dateStr);
+    const now = new Date();
+    const diffDays = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24));
+    
+    if (diffDays === 0) return '今天';
+    if (diffDays === 1) return '昨天';
+    if (diffDays < 7) return `${diffDays}天前`;
+    
+    return date.toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' });
 }
 
 function getBatteryIcon(level: number | null) {
@@ -457,15 +472,28 @@ const columns = computed<DataTableColumns<DeviceRow>>(() => {
         {
             title: '无障碍',
             key: 'has_accessibility',
-            width: 90,
+            minWidth: 100,
+            width: 100,
             align: 'center',
             render: (row) => {
                 const active = row.has_accessibility ?? false;
                 return h(NTooltip, { trigger: 'hover' }, {
                     trigger: () =>
-                        h('div', { class: 'metric-cell' }, [
-                            h(NIcon, { component: AccessibilityOutline, size: 16, color: active ? '#10B981' : '#cbd5e1' }),
-                            h('span', { style: { color: active ? '#10B981' : '#94a3b8', marginLeft: '4px', fontWeight: 500 } }, active ? '开启' : '关闭'),
+                        h('div', { class: ['accessibility-cell', active ? 'accessibility-cell--on' : 'accessibility-cell--off'] }, [
+                            h('span', { class: 'accessibility-icon-wrap' }, [
+                                h(NIcon, { component: AccessibilityOutline, size: 18 }),
+                            ]),
+                            h(
+                                NTag,
+                                {
+                                    size: 'small',
+                                    round: true,
+                                    bordered: false,
+                                    type: active ? 'success' : undefined,
+                                    class: active ? 'accessibility-tag-on' : 'accessibility-tag-off',
+                                },
+                                { default: () => (active ? '开启' : '关闭') }
+                            ),
                         ]),
                     default: () => (isConnected && row.is_online ? '无障碍状态 · 实时更新' : active ? '已开启' : '未开启'),
                 });
@@ -488,13 +516,32 @@ const columns = computed<DataTableColumns<DeviceRow>>(() => {
                             ? `最后活动: ${new Date(row.last_seen_at).toLocaleString('zh-CN')}${isConnected && row.is_online ? ' · 实时更新' : ''}`
                             : '暂无活动记录',
                 }),
+        },
+        {
+            title: '安装时间',
+            key: 'installed_at',
+            width: 120,
+            align: 'center',
+            render: (row) =>
+                h(NTooltip, { trigger: 'hover' }, {
+                    trigger: () =>
+                        h('div', { class: 'metric-cell' }, [
+                            h(NIcon, { component: CalendarOutline, size: 14, color: '#64748b' }),
+                            h('span', { style: { color: '#64748b', marginLeft: '4px' } }, formatInstallTime(row.installed_at)),
+                        ]),
+                    default: () =>
+                        row.installed_at
+                            ? `安装时间: ${new Date(row.installed_at).toLocaleString('zh-CN')}`
+                            : '暂无安装记录',
+                }),
         }
     );
 
     cols.push({
         title: '操作',
         key: 'actions',
-        width: 140,
+        minWidth: 152,
+        width: 152,
         align: 'center',
         render: (row) => {
             const actionButtons: ReturnType<typeof h>[] = [];
@@ -502,8 +549,8 @@ const columns = computed<DataTableColumns<DeviceRow>>(() => {
                 actionButtons.push(
                     h(NTooltip, { trigger: 'hover' }, {
                         trigger: () =>
-                            h(NButton, { size: 'small', quaternary: true, circle: true, onClick: () => goToEdit(row.uuid) }, {
-                                icon: () => h(NIcon, { component: PencilOutline, color: '#64748b' }),
+                            h(NButton, { size: 'small', quaternary: true, circle: true, class: 'action-btn action-btn--edit', onClick: () => goToEdit(row.uuid) }, {
+                                icon: () => h(NIcon, { component: CreateOutline, size: 16 }),
                             }),
                         default: () => '编辑',
                     })
@@ -513,8 +560,8 @@ const columns = computed<DataTableColumns<DeviceRow>>(() => {
                 actionButtons.push(
                     h(NTooltip, { trigger: 'hover' }, {
                         trigger: () =>
-                            h(NButton, { size: 'small', quaternary: true, circle: true, onClick: () => openEditRemarkModal(row) }, {
-                                icon: () => h(NIcon, { component: PencilOutline, color: '#64748b' }),
+                            h(NButton, { size: 'small', quaternary: true, circle: true, class: 'action-btn action-btn--remark', onClick: () => openEditRemarkModal(row) }, {
+                                icon: () => h(NIcon, { component: DocumentTextOutline, size: 16 }),
                             }),
                         default: () => '修改备注',
                     })
@@ -524,8 +571,8 @@ const columns = computed<DataTableColumns<DeviceRow>>(() => {
                 actionButtons.push(
                     h(NTooltip, { trigger: 'hover' }, {
                         trigger: () =>
-                            h(NButton, { size: 'small', quaternary: true, circle: true, onClick: () => openControl(row.uuid) }, {
-                                icon: () => h(NIcon, { component: EyeOutline, color: '#3B82F6' }),
+                            h(NButton, { size: 'small', quaternary: true, circle: true, class: 'action-btn action-btn--control', onClick: () => openControl(row.uuid) }, {
+                                icon: () => h(NIcon, { component: EyeOutline, size: 16 }),
                             }),
                         default: () => '查看控制',
                     })
@@ -535,8 +582,8 @@ const columns = computed<DataTableColumns<DeviceRow>>(() => {
                 actionButtons.push(
                     h(NPopconfirm, { onPositiveClick: () => deleteDevice(row.uuid), positiveButtonProps: { type: 'error' } }, {
                         trigger: () =>
-                            h(NButton, { size: 'small', quaternary: true, circle: true }, {
-                                icon: () => h(NIcon, { component: TrashOutline, color: '#EF4444' }),
+                            h(NButton, { size: 'small', quaternary: true, circle: true, class: 'action-btn action-btn--delete' }, {
+                                icon: () => h(NIcon, { component: TrashOutline, size: 16 }),
                             }),
                         default: () => '确定要移除此设备吗？',
                     })
@@ -640,7 +687,8 @@ const columns = computed<DataTableColumns<DeviceRow>>(() => {
 
 <style scoped>
 .devices-container {
-    max-width: 1400px;
+    max-width: 100%;
+    width: 100%;
 }
 
 .stats-bar {
@@ -737,6 +785,7 @@ const columns = computed<DataTableColumns<DeviceRow>>(() => {
 
 .table-wrapper {
     padding: 0 8px 8px;
+    overflow-x: auto;
 }
 
 .devices-table :deep(.n-data-table-th) {
@@ -818,13 +867,81 @@ const columns = computed<DataTableColumns<DeviceRow>>(() => {
     font-size: 13px;
 }
 
-:deep(.actions-cell) {
-    display: flex;
+:deep(.accessibility-cell) {
+    display: inline-flex;
     align-items: center;
     justify-content: center;
-    gap: 4px;
+    gap: 6px;
+    min-width: 0;
+    white-space: nowrap;
+}
+
+:deep(.accessibility-icon-wrap) {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    color: #94a3b8;
+}
+
+:deep(.accessibility-cell--on .accessibility-icon-wrap) {
+    color: #059669;
+}
+
+:deep(.accessibility-tag-on) {
+    --n-color: #059669;
+    --n-color-hover: #059669;
+    --n-color-pressed: #047857;
+    background: rgba(5, 150, 105, 0.12);
+    color: #059669;
+}
+
+:deep(.accessibility-tag-off) {
+    background: #f1f5f9;
+    color: #64748b;
+}
+
+:deep(.actions-cell) {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
     flex-wrap: nowrap;
     white-space: nowrap;
+    min-width: 0;
+    padding: 4px 0;
+}
+
+:deep(.actions-cell .action-btn) {
+    flex-shrink: 0;
+}
+
+:deep(.actions-cell .action-btn--edit .n-icon),
+:deep(.actions-cell .action-btn--edit:hover .n-icon) {
+    color: #64748b;
+}
+
+:deep(.actions-cell .action-btn--remark .n-icon),
+:deep(.actions-cell .action-btn--remark:hover .n-icon) {
+    color: #64748b;
+}
+
+:deep(.actions-cell .action-btn--control .n-icon),
+:deep(.actions-cell .action-btn--control:hover .n-icon) {
+    color: #3b82f6;
+}
+
+:deep(.actions-cell .action-btn--delete .n-icon),
+:deep(.actions-cell .action-btn--delete:hover .n-icon) {
+    color: #ef4444;
+}
+
+:deep(.actions-cell .action-btn--edit:hover .n-icon) {
+    color: #0d9488;
+}
+
+:deep(.actions-cell .action-btn--remark:hover .n-icon) {
+    color: #0d9488;
 }
 
 :deep(.ip-cell) {

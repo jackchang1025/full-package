@@ -27,10 +27,12 @@ import {
 } from '@vicons/ionicons5';
 import { h } from 'vue';
 import DefaultLayout from './DefaultLayout.vue';
+import SidebarLogo from '@/Components/SidebarLogo.vue';
 import { useGlobalWebSocket } from '@/composables/useGlobalWebSocket';
 
 const page = usePage();
-const user = computed(() => page.props.auth?.user);
+type AuthProps = { auth?: { user?: { username?: string; email?: string; roles?: string[] } } };
+const user = computed(() => (page.props as AuthProps).auth?.user);
 const collapsed = ref(false);
 
 const { connect, disconnect, connectionState } = useGlobalWebSocket();
@@ -120,87 +122,71 @@ const userInitial = computed(() => {
 
 <template>
     <DefaultLayout>
-        <NLayout has-sider class="min-h-screen">
-            <!-- 现代化侧边栏 -->
+        <NLayout has-sider class="user-root min-h-screen">
+            <!-- 用户后台侧边栏：设计系统 + 精致菜单 -->
             <NLayoutSider
                 bordered
-                :width="240"
-                :collapsed-width="64"
+                :width="260"
+                :collapsed-width="72"
                 :collapsed="collapsed"
                 collapse-mode="width"
                 :native-scrollbar="false"
-                class="sidebar-modern"
+                class="user-sidebar"
             >
                 <!-- Logo 区域 -->
-                <div class="sidebar-header">
-                    <div class="logo-container">
-                        <div class="logo-icon" :class="{ 'logo-icon--custom': page.props.appLogo }">
-                            <img v-if="page.props.appLogo" :src="page.props.appLogo" :alt="page.props.appName" class="logo-img" />
-                            <svg v-else viewBox="0 0 24 24" fill="none" class="w-8 h-8">
-                                <path d="M12 2L2 7L12 12L22 7L12 2Z" fill="url(#gradient1)" />
-                                <path d="M2 17L12 22L22 17" stroke="url(#gradient2)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
-                                <path d="M2 12L12 17L22 12" stroke="url(#gradient2)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
-                                <defs>
-                                    <linearGradient id="gradient1" x1="2" y1="7" x2="22" y2="7">
-                                        <stop stop-color="#10B981" />
-                                        <stop offset="1" stop-color="#059669" />
-                                    </linearGradient>
-                                    <linearGradient id="gradient2" x1="2" y1="17" x2="22" y2="17">
-                                        <stop stop-color="#10B981" />
-                                        <stop offset="1" stop-color="#059669" />
-                                    </linearGradient>
-                                </defs>
-                            </svg>
-                        </div>
-                        <transition name="fade">
-                            <span v-if="!collapsed" class="logo-text">{{ page.props.appName }}</span>
-                        </transition>
-                    </div>
+                <div class="user-sidebar-header" :class="{ 'user-sidebar-header--collapsed': collapsed }">
+                    <SidebarLogo
+                        :collapsed="collapsed"
+                        variant="user"
+                        :size="44"
+                    />
                 </div>
 
-                <!-- 导航菜单 -->
-                <NMenu
-                    :options="menuOptions"
-                    :value="currentPath"
-                    :collapsed="collapsed"
-                    :collapsed-width="64"
-                    :collapsed-icon-size="22"
-                    @update:value="handleMenuSelect"
-                    class="menu-modern"
-                />
+                <!-- 导航菜单：带错峰入场 -->
+                <div class="user-menu-wrap" :class="{ 'user-menu-wrap--collapsed': collapsed }">
+                    <NMenu
+                        :options="menuOptions"
+                        :value="currentPath"
+                        :collapsed="collapsed"
+                        :collapsed-width="72"
+                        :collapsed-icon-size="22"
+                        @update:value="handleMenuSelect"
+                        class="user-menu"
+                        :class="{ 'user-menu--collapsed': collapsed }"
+                    />
+                </div>
 
                 <!-- 折叠按钮 -->
-                <div class="collapse-trigger" @click="collapsed = !collapsed">
+                <div class="user-collapse-trigger" @click="collapsed = !collapsed" aria-label="折叠侧边栏">
                     <NIcon size="18" :component="collapsed ? ChevronForwardOutline : ChevronBackOutline" />
                 </div>
             </NLayoutSider>
 
             <NLayout>
-                <!-- 现代化顶部导航 -->
-                <NLayoutHeader bordered class="header-modern">
-                    <div class="header-title">
+                <!-- 顶部导航 -->
+                <NLayoutHeader bordered class="user-header">
+                    <div class="user-header-title">
                         <slot name="header-title" />
                     </div>
-                    
-                    <div class="header-actions">
+                    <div class="user-header-actions">
                         <NDropdown
                             :options="userMenuOptions"
                             @select="handleUserMenuSelect"
                             trigger="click"
                             placement="bottom-end"
                         >
-                            <div class="user-dropdown">
+                            <div class="user-dropdown-trigger">
                                 <NAvatar
                                     round
                                     :size="36"
-                                    class="user-avatar"
+                                    class="user-header-avatar"
                                 >
                                     {{ userInitial }}
                                 </NAvatar>
-                                <transition name="fade">
-                                    <div class="user-info">
-                                        <span class="user-name">{{ user?.username }}</span>
-                                        <span class="user-role">{{ (user?.roles?.length && user.roles[0] === 'client') ? '普通用户' : (user?.roles?.[0] ?? '用户') }}</span>
+                                <transition name="sidebar-fade" mode="out-in">
+                                    <div v-if="user?.username" class="user-header-info">
+                                        <span class="user-header-name">{{ user.username }}</span>
+                                        <span class="user-header-role">{{ (user?.roles?.length && user.roles[0] === 'client') ? '普通用户' : (user?.roles?.[0] ?? '用户') }}</span>
                                     </div>
                                 </transition>
                             </div>
@@ -209,8 +195,8 @@ const userInitial = computed(() => {
                 </NLayoutHeader>
 
                 <!-- 内容区域 -->
-                <NLayoutContent class="content-modern">
-                    <div class="content-wrapper">
+                <NLayoutContent class="user-content">
+                    <div class="user-content-wrapper">
                         <slot />
                     </div>
                 </NLayoutContent>
@@ -220,233 +206,277 @@ const userInitial = computed(() => {
 </template>
 
 <style scoped>
-/* 侧边栏样式 */
-.sidebar-modern {
-    background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
-    border-right: 1px solid #e2e8f0;
+/* ========== 用户后台设计系统（设计变量） ========== */
+.user-root {
+    --user-bg: #f8fafc;
+    --user-surface: #ffffff;
+    --user-surface-soft: #fafbfc;
+    --user-border: #e2e8f0;
+    --user-border-soft: #f1f5f9;
+    --user-accent: #10b981;
+    --user-accent-strong: #059669;
+    --user-accent-muted: rgba(16, 185, 129, 0.12);
+    --user-accent-muted-hover: rgba(16, 185, 129, 0.18);
+    --user-text: #1e293b;
+    --user-text-muted: #64748b;
+    --user-radius: 12px;
+    --user-radius-lg: 16px;
+    --user-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    --user-shadow-hover: 0 4px 12px rgba(16, 185, 129, 0.12);
+    font-family: var(--font-sans, ui-sans-serif, system-ui, sans-serif);
+}
+
+/* ========== 侧边栏 ========== */
+.user-sidebar {
+    display: flex;
+    flex-direction: column;
+    background: var(--user-surface) !important;
+    border-right: 1px solid var(--user-border) !important;
+    box-shadow: var(--user-shadow);
+    position: relative;
+}
+
+.user-sidebar-header {
+    padding: 24px 20px;
+    border-bottom: 1px solid var(--user-border);
+    flex-shrink: 0;
+    transition: padding 0.3s ease;
+}
+
+/* 折叠时 Logo 区域居中 */
+.user-sidebar :deep(.n-layout-sider-scroll-container) {
     display: flex;
     flex-direction: column;
 }
 
-.sidebar-header {
-    padding: 20px 16px;
-    border-bottom: 1px solid #e2e8f0;
-}
-
-.logo-container {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-}
-
-.logo-icon {
-    width: 40px;
-    height: 40px;
-    background: linear-gradient(135deg, #10B981 0%, #059669 100%);
-    border-radius: 12px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
-}
-
-.logo-icon .logo-img {
-    width: 100%;
-    height: 100%;
-    object-fit: contain;
-    border-radius: 8px;
-}
-
-.logo-icon--custom {
-    background: transparent;
-    box-shadow: none;
-}
-
-.logo-text {
-    font-size: 18px;
-    font-weight: 700;
-    background: linear-gradient(135deg, #10B981 0%, #059669 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-}
-
-.menu-modern {
+/* 导航菜单容器：错峰入场 */
+.user-menu-wrap {
     flex: 1;
-    padding: 12px 8px;
+    padding: 16px 12px 0;
+    overflow: auto;
+    transition: padding 0.3s ease;
 }
 
-.menu-modern :deep(.n-menu-item) {
-    margin: 4px 0;
-    border-radius: 10px;
-    transition: all 0.2s ease;
+.user-menu {
+    display: block;
 }
 
-.menu-modern :deep(.n-menu-item:hover) {
-    background: linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, rgba(5, 150, 105, 0.1) 100%);
+.user-menu :deep(.n-menu-item) {
+    margin: 2px 0;
+    border-radius: var(--user-radius);
+    transition: background 0.2s ease, color 0.2s ease, transform 0.2s ease;
+    animation: user-menu-item-in 0.35s ease backwards;
 }
 
-.menu-modern :deep(.n-menu-item-content--selected) {
-    background: linear-gradient(135deg, #10B981 0%, #059669 100%) !important;
-    color: white !important;
-    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+.user-menu :deep(.n-menu-item:nth-child(1)) { animation-delay: 0.04s; }
+.user-menu :deep(.n-menu-item:nth-child(2)) { animation-delay: 0.08s; }
+.user-menu :deep(.n-menu-item:nth-child(3)) { animation-delay: 0.12s; }
+.user-menu :deep(.n-menu-item:nth-child(4)) { animation-delay: 0.16s; }
+.user-menu :deep(.n-menu-item:nth-child(5)) { animation-delay: 0.2s; }
+
+@keyframes user-menu-item-in {
+    from {
+        opacity: 0;
+        transform: translateX(-6px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
 }
 
-.menu-modern :deep(.n-menu-item-content--selected .n-icon) {
-    color: white !important;
+.user-menu :deep(.n-menu-item-content) {
+    position: relative;
+    margin: 0 8px;
+    padding: 10px 14px;
+    border-radius: var(--user-radius);
+    transition: margin 0.3s ease, padding 0.3s ease;
 }
 
-.collapse-trigger {
-    padding: 12px;
-    margin: 8px;
-    border-radius: 8px;
-    cursor: pointer;
+.user-menu :deep(.n-menu-item-content:hover) {
+    background: var(--user-accent-muted);
+}
+
+.user-menu :deep(.n-menu-item-content--selected) {
+    background: var(--user-accent-muted);
+    color: var(--user-accent);
+}
+
+.user-menu :deep(.n-menu-item-content--selected::before) {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 3px;
+    height: 20px;
+    background: var(--user-accent);
+    border-radius: 0 2px 2px 0;
+}
+
+.user-menu :deep(.n-menu-item-content--selected .n-icon) {
+    color: var(--user-accent);
+}
+
+/* ========== 折叠状态样式 ========== */
+.user-sidebar-header--collapsed {
+    padding: 20px 14px !important;
+}
+
+.user-menu-wrap--collapsed {
+    padding: 16px 0 0 !important;
+}
+
+.user-menu--collapsed :deep(.n-menu-item-content) {
+    margin: 0 10px !important;
+    padding: 10px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+}
+
+.user-menu--collapsed :deep(.n-menu-item-content--selected::before) {
+    left: -10px !important;
+}
+
+/* 折叠按钮 */
+.user-collapse-trigger {
+    position: absolute;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 36px;
+    height: 36px;
     display: flex;
     align-items: center;
     justify-content: center;
-    color: #64748b;
-    transition: all 0.2s ease;
-    background: #f1f5f9;
+    border-radius: var(--user-radius);
+    background: var(--user-border-soft);
+    cursor: pointer;
+    color: var(--user-text-muted);
+    transition: background 0.2s, color 0.2s;
 }
 
-.collapse-trigger:hover {
-    background: #e2e8f0;
-    color: #10B981;
+.user-collapse-trigger:hover {
+    background: var(--user-accent-muted);
+    color: var(--user-accent);
 }
 
-/* 顶部导航样式 */
-.header-modern {
-    height: 64px;
+/* ========== 顶部导航 ========== */
+.user-header {
+    min-height: 64px;
     padding: 0 24px;
     display: flex;
     align-items: center;
     justify-content: space-between;
-    background: #ffffff;
-    border-bottom: 1px solid #e2e8f0;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    background: var(--user-surface) !important;
+    border-bottom: 1px solid var(--user-border) !important;
+    box-shadow: var(--user-shadow);
 }
 
-.header-title {
-    font-size: 20px;
+.user-header-title {
+    font-size: 18px;
     font-weight: 600;
-    color: #1e293b;
+    letter-spacing: -0.02em;
+    color: var(--user-text);
 }
 
-.header-actions {
+.user-header-actions {
     display: flex;
     align-items: center;
     gap: 16px;
 }
 
-.user-dropdown {
+.user-dropdown-trigger {
     display: flex;
     align-items: center;
     gap: 12px;
-    padding: 6px 12px 6px 6px;
+    padding: 6px 14px 6px 6px;
     border-radius: 50px;
     cursor: pointer;
-    transition: all 0.2s ease;
-    background: #f8fafc;
-    border: 1px solid #e2e8f0;
+    transition: background 0.2s, border-color 0.2s, box-shadow 0.2s;
+    background: var(--user-border-soft);
+    border: 1px solid var(--user-border);
 }
 
-.user-dropdown:hover {
-    background: #f1f5f9;
-    border-color: #10B981;
-    box-shadow: 0 2px 8px rgba(16, 185, 129, 0.15);
+.user-dropdown-trigger:hover {
+    background: var(--user-accent-muted);
+    border-color: var(--user-accent);
+    box-shadow: var(--user-shadow-hover);
 }
 
-.user-avatar {
-    background: linear-gradient(135deg, #10B981 0%, #059669 100%);
+.user-header-avatar {
+    background: linear-gradient(145deg, var(--user-accent) 0%, var(--user-accent-strong) 100%);
     color: white;
     font-weight: 600;
 }
 
-.user-info {
+.user-header-info {
     display: flex;
     flex-direction: column;
+    text-align: left;
 }
 
-.user-name {
+.user-header-name {
     font-size: 14px;
     font-weight: 600;
-    color: #1e293b;
-    line-height: 1.2;
+    color: var(--user-text);
+    line-height: 1.25;
 }
 
-.user-role {
+.user-header-role {
     font-size: 12px;
-    color: #64748b;
-    line-height: 1.2;
+    color: var(--user-text-muted);
+    line-height: 1.25;
 }
 
-/* 内容区域样式 */
-.content-modern {
-    background: #f8fafc;
+/* ========== 内容区 ========== */
+.user-content {
+    background: var(--user-bg);
     min-height: calc(100vh - 64px);
 }
 
-.content-wrapper {
+.user-content-wrapper {
     padding: 24px;
-    max-width: 1400px;
+    max-width: 1600px;
     margin: 0 auto;
 }
 
-/* 过渡动画 */
-.fade-enter-active,
-.fade-leave-active {
+/* ========== 过渡动画 ========== */
+.sidebar-fade-enter-active,
+.sidebar-fade-leave-active {
     transition: opacity 0.2s ease;
 }
 
-.fade-enter-from,
-.fade-leave-to {
+.sidebar-fade-enter-from,
+.sidebar-fade-leave-to {
     opacity: 0;
 }
 
-/* 暗色模式支持 */
-:deep(.dark) .sidebar-modern {
-    background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%);
-    border-right-color: #334155;
+/* ========== 暗色模式 ========== */
+:deep(.dark) .user-root {
+    --user-bg: #0f172a;
+    --user-surface: #1e293b;
+    --user-surface-soft: #334155;
+    --user-border: #334155;
+    --user-border-soft: #475569;
+    --user-text: #f1f5f9;
+    --user-text-muted: #94a3b8;
+    --user-accent-muted: rgba(52, 211, 153, 0.15);
+    --user-accent-muted-hover: rgba(52, 211, 153, 0.22);
 }
 
-:deep(.dark) .sidebar-header {
-    border-bottom-color: #334155;
+:deep(.dark) .user-logo-text {
+    color: var(--user-text);
 }
 
-:deep(.dark) .logo-text {
-    background: linear-gradient(135deg, #34d399 0%, #10B981 100%);
-    -webkit-background-clip: text;
-    background-clip: text;
+:deep(.dark) .user-collapse-trigger {
+    background: var(--user-surface-soft);
+    color: var(--user-text-muted);
 }
 
-:deep(.dark) .header-modern {
-    background: #1e293b;
-    border-bottom-color: #334155;
-}
-
-:deep(.dark) .header-title {
-    color: #f1f5f9;
-}
-
-:deep(.dark) .user-dropdown {
-    background: #334155;
-    border-color: #475569;
-}
-
-:deep(.dark) .user-name {
-    color: #f1f5f9;
-}
-
-:deep(.dark) .user-role {
-    color: #94a3b8;
-}
-
-:deep(.dark) .content-modern {
-    background: #0f172a;
-}
-
-:deep(.dark) .collapse-trigger {
-    background: #334155;
-    color: #94a3b8;
+:deep(.dark) .user-collapse-trigger:hover {
+    background: var(--user-accent-muted);
+    color: #34d399;
 }
 </style>

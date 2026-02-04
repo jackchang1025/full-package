@@ -53,7 +53,6 @@ const isConnecting = computed(() => connectionState.value === 'connecting' || co
             :allow-control="true"
             :allow-delete="true"
             :allow-edit-remark="true"
-            :allow-edit-link="true"
             :filters="props.filters ?? {}"
         />
     </AdminLayout>

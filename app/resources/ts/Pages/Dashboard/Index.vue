@@ -2,65 +2,53 @@
 import { computed } from 'vue';
 import { Head, usePage, router } from '@inertiajs/vue3';
 import {
-    NCard,
-    NGrid,
-    NGi,
-    NStatistic,
     NIcon,
     NButton,
-    NSpace,
-    NProgress,
     NTag,
 } from 'naive-ui';
 import {
     PhonePortraitOutline,
     CloudDownloadOutline,
-    CheckmarkCircleOutline,
-    TimeOutline,
-    TrendingUpOutline,
     ArrowForwardOutline,
     PulseOutline,
     ServerOutline,
+    CalendarOutline,
+    TodayOutline,
 } from '@vicons/ionicons5';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
+import StatsGrid, { type StatCard } from '@/Components/Dashboard/StatsGrid.vue';
 
 interface Props {
     stats: {
         totalDevices: number;
         onlineDevices: number;
         totalBuilds: number;
-        completedBuilds: number;
+        todayInstalled: number;
+        monthInstalled: number;
     };
 }
 
 const props = defineProps<Props>();
 
 const page = usePage();
-const user = computed(() => page.props.auth?.user);
+const user = computed(() => (page.props.auth as { user?: { username: string } })?.user);
 
 const onlinePercentage = computed(() => {
     if (props.stats.totalDevices === 0) return 0;
     return Math.round((props.stats.onlineDevices / props.stats.totalDevices) * 100);
 });
 
-const buildSuccessRate = computed(() => {
-    if (props.stats.totalBuilds === 0) return 0;
-    return Math.round((props.stats.completedBuilds / props.stats.totalBuilds) * 100);
-});
-
-const statCards = computed(() => [
+const statCards = computed<StatCard[]>(() => [
     {
+        key: 'totalDevices',
         title: '设备总数',
-        value: props.stats.totalDevices,
         icon: PhonePortraitOutline,
         color: '#10B981',
         bgColor: 'rgba(16, 185, 129, 0.1)',
-        trend: '+12%',
-        trendUp: true,
     },
     {
+        key: 'onlineDevices',
         title: '在线设备',
-        value: props.stats.onlineDevices,
         icon: PulseOutline,
         color: '#3B82F6',
         bgColor: 'rgba(59, 130, 246, 0.1)',
@@ -68,21 +56,25 @@ const statCards = computed(() => [
         progress: onlinePercentage.value,
     },
     {
+        key: 'todayInstalled',
+        title: '今日安装',
+        icon: TodayOutline,
+        color: '#F59E0B',
+        bgColor: 'rgba(245, 158, 11, 0.1)',
+    },
+    {
+        key: 'monthInstalled',
+        title: '本月安装',
+        icon: CalendarOutline,
+        color: '#EC4899',
+        bgColor: 'rgba(236, 72, 153, 0.1)',
+    },
+    {
+        key: 'totalBuilds',
         title: 'APK 构建',
-        value: props.stats.totalBuilds,
         icon: CloudDownloadOutline,
         color: '#8B5CF6',
         bgColor: 'rgba(139, 92, 246, 0.1)',
-        trend: '+8%',
-        trendUp: true,
-    },
-    {
-        title: '构建成功',
-        value: props.stats.completedBuilds,
-        icon: CheckmarkCircleOutline,
-        color: '#F59E0B',
-        bgColor: 'rgba(245, 158, 11, 0.1)',
-        suffix: `(${buildSuccessRate.value}%)`,
     },
 ]);
 
@@ -122,40 +114,7 @@ const goTo = (route: string) => router.visit(route);
             </div>
 
             <!-- 统计卡片 -->
-            <div class="stats-grid">
-                <div 
-                    v-for="stat in statCards" 
-                    :key="stat.title" 
-                    class="stat-card"
-                >
-                    <div class="stat-header">
-                        <div class="stat-icon" :style="{ background: stat.bgColor, color: stat.color }">
-                            <NIcon :component="stat.icon" size="24" />
-                        </div>
-                        <div v-if="stat.trend" class="stat-trend" :class="{ up: stat.trendUp }">
-                            <NIcon :component="TrendingUpOutline" size="14" />
-                            {{ stat.trend }}
-                        </div>
-                    </div>
-                    <div class="stat-body">
-                        <div class="stat-value">
-                            {{ stat.value }}
-                            <span v-if="stat.suffix" class="stat-suffix">{{ stat.suffix }}</span>
-                        </div>
-                        <div class="stat-title">{{ stat.title }}</div>
-                    </div>
-                    <div v-if="stat.progress !== undefined" class="stat-progress">
-                        <NProgress
-                            type="line"
-                            :percentage="stat.progress"
-                            :color="stat.color"
-                            :rail-color="stat.bgColor"
-                            :height="6"
-                            :show-indicator="false"
-                        />
-                    </div>
-                </div>
-            </div>
+            <StatsGrid :stats="stats" :cards="statCards" class="stats-section" />
 
             <!-- 快捷操作 -->
             <div class="quick-section">
@@ -257,81 +216,12 @@ const goTo = (route: string) => router.visit(route);
 }
 
 /* 统计卡片 */
-.stats-grid {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 20px;
+.stats-section {
     margin-bottom: 28px;
 }
 
-.stat-card {
-    background: white;
-    border-radius: 16px;
-    padding: 24px;
-    border: 1px solid #e2e8f0;
-    transition: all 0.3s ease;
-}
-
-.stat-card:hover {
-    transform: translateY(-4px);
-    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.08);
-    border-color: transparent;
-}
-
-.stat-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    margin-bottom: 16px;
-}
-
-.stat-icon {
-    width: 48px;
-    height: 48px;
-    border-radius: 12px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.stat-trend {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    font-size: 13px;
-    font-weight: 600;
-    color: #10B981;
-    background: rgba(16, 185, 129, 0.1);
-    padding: 4px 10px;
-    border-radius: 20px;
-}
-
-.stat-body {
-    margin-bottom: 8px;
-}
-
-.stat-value {
-    font-size: 32px;
-    font-weight: 700;
-    color: #1e293b;
-    line-height: 1.2;
-}
-
-.stat-suffix {
-    font-size: 16px;
-    font-weight: 500;
-    color: #64748b;
-    margin-left: 4px;
-}
-
-.stat-title {
-    font-size: 14px;
-    color: #64748b;
-    margin-top: 4px;
-}
-
-.stat-progress {
-    margin-top: 12px;
+.stats-section :deep(.stats-grid--default) {
+    grid-template-columns: repeat(3, 1fr);
 }
 
 /* 快捷操作 */
@@ -448,7 +338,7 @@ const goTo = (route: string) => router.visit(route);
 
 /* 响应式 */
 @media (max-width: 1024px) {
-    .stats-grid {
+    .stats-section :deep(.stats-grid--default) {
         grid-template-columns: repeat(2, 1fr);
     }
     
@@ -473,7 +363,7 @@ const goTo = (route: string) => router.visit(route);
         font-size: 22px;
     }
     
-    .stats-grid {
+    .stats-section :deep(.stats-grid--default) {
         grid-template-columns: 1fr;
     }
     

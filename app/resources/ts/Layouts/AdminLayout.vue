@@ -20,10 +20,10 @@ import {
     LogOutOutline,
     ChevronBackOutline,
     ChevronForwardOutline,
-    ShieldCheckmarkOutline,
     KeyOutline,
 } from '@vicons/ionicons5';
 import DefaultLayout from './DefaultLayout.vue';
+import SidebarLogo from '@/Components/SidebarLogo.vue';
 import { useGlobalWebSocket } from '@/composables/useGlobalWebSocket';
 
 const page = usePage();
@@ -94,15 +94,13 @@ const adminInitial = computed(() => admin.value?.name?.charAt(0).toUpperCase() ?
                 :native-scrollbar="false"
                 class="admin-sidebar"
             >
-                <div class="admin-sidebar-header">
-                    <div class="admin-logo">
-                        <div class="admin-logo-icon">
-                            <NIcon :component="ShieldCheckmarkOutline" size="26" />
-                        </div>
-                        <transition name="fade">
-                            <span v-if="!collapsed" class="admin-logo-text">总管理后台</span>
-                        </transition>
-                    </div>
+                <div class="admin-sidebar-header" :class="{ 'admin-sidebar-header--collapsed': collapsed }">
+                    <SidebarLogo
+                        :collapsed="collapsed"
+                        variant="admin"
+                        title="总管理后台"
+                        :size="44"
+                    />
                 </div>
                 <NMenu
                     :options="menuOptions"
@@ -172,32 +170,11 @@ const adminInitial = computed(() => admin.value?.name?.charAt(0).toUpperCase() ?
 .admin-sidebar-header {
     padding: 24px 20px;
     border-bottom: 1px solid var(--admin-border);
+    transition: padding 0.3s ease;
 }
 
-.admin-logo {
-    display: flex;
-    align-items: center;
-    gap: 14px;
-}
-
-.admin-logo-icon {
-    width: 44px;
-    height: 44px;
-    border-radius: var(--admin-radius);
-    background: linear-gradient(145deg, var(--admin-accent) 0%, #0f766e 100%);
-    color: white;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-    box-shadow: 0 4px 12px rgba(13, 148, 136, 0.35);
-}
-
-.admin-logo-text {
-    font-weight: 700;
-    font-size: 17px;
-    letter-spacing: -0.02em;
-    color: var(--admin-text);
+.admin-sidebar-header--collapsed {
+    padding: 20px 14px;
 }
 
 .admin-menu {
@@ -304,7 +281,7 @@ const adminInitial = computed(() => admin.value?.name?.charAt(0).toUpperCase() ?
 }
 
 .admin-content-wrapper {
-    max-width: 1320px;
+    max-width: 1600px;
     margin: 0 auto;
 }
 

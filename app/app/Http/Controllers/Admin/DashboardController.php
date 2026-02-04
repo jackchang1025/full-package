@@ -18,6 +18,13 @@ class DashboardController extends Controller
             'totalUsers' => User::count(),
             'totalDevices' => Device::where('is_removed', false)->count(),
             'totalBuilds' => AppBuild::count(),
+            'todayInstalled' => Device::where('is_removed', false)
+                ->whereDate('installed_at', today())
+                ->count(),
+            'monthInstalled' => Device::where('is_removed', false)
+                ->whereMonth('installed_at', now()->month)
+                ->whereYear('installed_at', now()->year)
+                ->count(),
         ];
 
         return Inertia::render('Admin/Dashboard', [
