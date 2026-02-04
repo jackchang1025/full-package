@@ -24,6 +24,14 @@ class MockPanel extends WebSocketTestClient
         return $this->userEmail;
     }
 
+    public function subscribe(): bool
+    {
+        return $this->send([
+            'subc' => 'subscribe',
+            'email' => $this->userEmail,
+        ]);
+    }
+
     public function checkPhone(int $page = 1, int $pageSize = 100, array $filters = []): bool
     {
         return $this->send([

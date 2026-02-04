@@ -7,20 +7,16 @@ namespace App\WebSocket\Handlers;
 use App\WebSocket\ConnectionManager;
 use App\WebSocket\Services\DeviceStatusService;
 use App\WebSocket\Services\HeartbeatService;
+use App\WebSocket\Services\LastPingFormatter;
 use App\WebSocket\WebSocketLog;
 
 final class DeviceHandler
 {
-    private ConnectionManager $connectionManager;
-    private HeartbeatService $heartbeatService;
-    private DeviceStatusService $deviceStatusService;
-
-    public function __construct(ConnectionManager $connectionManager, HeartbeatService $heartbeatService)
-    {
-        $this->connectionManager = $connectionManager;
-        $this->heartbeatService = $heartbeatService;
-        $this->deviceStatusService = new DeviceStatusService($connectionManager);
-    }
+    public function __construct(
+        private readonly ConnectionManager $connectionManager,
+        private readonly HeartbeatService $heartbeatService,
+        private readonly DeviceStatusService $deviceStatusService
+    ) {}
 
     public function handle(int $fd, array $data): void
     {
@@ -55,14 +51,8 @@ final class DeviceHandler
             $status = $this->deviceStatusService->updateFromPing($phoneId, $encodedData);
 
             $phoneInfo = $this->deviceStatusService->formatForPanel($phoneId);
+            $lastPing = LastPingFormatter::format($phoneInfo['lastPing'] ?? null);
 
-            // 格式化 lastPing 时间戳
-            $lastPing = null;
-            if (isset($phoneInfo['lastPing']) && $phoneInfo['lastPing'] > 0) {
-                $lastPing = date('Y-m-d H:i:s', (int) ($phoneInfo['lastPing'] / 1000));
-            }
-
-            // passwords 数据包含在 phoneInfo.phone_password 中，由前端解析
             $this->connectionManager->sendToPanels($phoneId, [
                 'type' => 'statusBatch',
                 'pid' => $phoneId,
@@ -70,8 +60,6 @@ final class DeviceHandler
                 'lastPing' => $lastPing,
                 'phoneInfo' => $phoneInfo,
             ]);
-
-            // 同时推送给设备列表页（Index）的订阅者，用于实时更新电量、最后活动时间等
             $this->connectionManager->notifyPanelUsersDeviceStatusUpdate($phoneId, $phoneInfo);
         } catch (\Throwable $e) {
             WebSocketLog::getLogger()->error('Ping handling failed, connection preserved', [

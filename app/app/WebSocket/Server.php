@@ -4,6 +4,12 @@ declare(strict_types=1);
 
 namespace App\WebSocket;
 
+use App\WebSocket\Config\WebSocketConfig;
+use App\WebSocket\Handlers\DeviceHandler;
+use App\WebSocket\Handlers\PanelHandler;
+use App\WebSocket\Handlers\PanelSendHandler;
+use App\WebSocket\Handlers\SubscribeHandler;
+use App\WebSocket\Services\DeviceStatusService;
 use App\WebSocket\Services\HeartbeatService;
 use Illuminate\Support\Facades\DB;
 use Swoole\Http\Request;
@@ -46,7 +52,16 @@ final class Server
             'panelUserSubscriptions' => $this->panelUserSubscriptions,
         ]);
         $this->heartbeatService = new HeartbeatService($this->connectionManager);
-        $this->messageRouter = new MessageRouter($this->connectionManager, $this->heartbeatService);
+        $deviceStatusService = new DeviceStatusService($this->connectionManager);
+
+        $this->messageRouter = new MessageRouter(
+            $this->connectionManager,
+            $this->heartbeatService,
+            new DeviceHandler($this->connectionManager, $this->heartbeatService, $deviceStatusService),
+            new PanelHandler($this->connectionManager, $deviceStatusService),
+            new PanelSendHandler($this->connectionManager),
+            new SubscribeHandler($this->connectionManager)
+        );
 
         $this->registerEventHandlers();
     }
@@ -269,7 +284,7 @@ final class Server
 
     private function startHeartbeatTimer(SwooleServer $server): void
     {
-        $interval = config('websocket.heartbeat.check_interval', 25) * 1000;
+        $interval = WebSocketConfig::heartbeatCheckInterval() * 1000;
 
         \Swoole\Timer::tick($interval, function () {
             $this->heartbeatService->checkAll();

@@ -321,17 +321,22 @@
 
 #### deviceOnline 推送 (新设备上线)
 
+与 deviceUpdate 同构，使用 `phoneInfo` 携带完整信息（formatForPanel 格式）：
+
 ```json
 {
   "type": "deviceOnline",
   "pid": "device-uuid",
-  "deviceInfo": {
-    "phone_id": "device-uuid",
+  "phoneInfo": {
+    "pid": "device-uuid",
     "phone_name": "新设备",
     "model": "Pixel 9",
     "battery_charge": "95",
-    "is_online": true
-  }
+    "is_online": true,
+    "lastPing": 1738742400000,
+    "ip_location": ""
+  },
+  "stats": { "total": 10, "online": 2, "offline": 8 }
 }
 ```
 
@@ -341,7 +346,8 @@
 {
   "type": "deviceOffline",
   "pid": "device-uuid",
-  "deviceInfo": null
+  "phoneInfo": null,
+  "stats": { "total": 10, "online": 2, "offline": 8 }
 }
 ```
 
@@ -468,12 +474,12 @@ ws.onmessage = (event) => {
       break;
       
     case 'deviceOnline':
-      // 新设备上线或已有设备重新上线
-      const existing = devices.value.find(d => d.phone_id === msg.pid);
-      if (existing) {
-        Object.assign(existing, msg.deviceInfo);
-      } else {
-        devices.value.push(msg.deviceInfo);  // 新设备
+      // 新设备上线或已有设备重新上线（phoneInfo 与 deviceUpdate 同构，含完整信息）
+      const existing = devices.value.find(d => d.uuid === msg.pid);
+      if (existing && msg.phoneInfo) {
+        Object.assign(existing, msg.phoneInfo);
+      } else if (msg.phoneInfo) {
+        devices.value.unshift({ uuid: msg.pid, ...msg.phoneInfo });  // 新设备
       }
       break;
       

@@ -447,14 +447,14 @@ export interface SubscribeResponse {
 export interface DeviceOnlineMessage {
   type: 'deviceOnline';
   pid: string;
-  deviceInfo: CheckPhoneDevice;
+  phoneInfo: PhoneInfo;
   stats?: DeviceStats;
 }
 
 export interface DeviceOfflineMessage {
   type: 'deviceOffline';
   pid: string;
-  deviceInfo: null;
+  phoneInfo: null;
   stats?: DeviceStats;
 }
 

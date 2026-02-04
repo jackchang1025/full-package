@@ -4,18 +4,20 @@ declare(strict_types=1);
 
 namespace App\WebSocket\Services;
 
+use App\WebSocket\Config\WebSocketConfig;
 use App\WebSocket\ConnectionManager;
 use App\WebSocket\WebSocketLog;
 
-class HeartbeatService
+final class HeartbeatService
 {
-    private ConnectionManager $connectionManager;
-    private int $timeout;
+    public function __construct(
+        private readonly ConnectionManager $connectionManager
+    ) {
+    }
 
-    public function __construct(ConnectionManager $connectionManager)
+    private function timeout(): int
     {
-        $this->connectionManager = $connectionManager;
-        $this->timeout = config('websocket.heartbeat.timeout', 75);
+        return WebSocketConfig::heartbeatTimeout();
     }
 
     public function recordPing(string $phoneId): void
@@ -35,7 +37,7 @@ class HeartbeatService
             $lastPing = (int) ($status['last_ping'] ?? 0);
             $elapsed = $now - $lastPing;
 
-            if ($elapsed > $this->timeout) {
+            if ($elapsed > $this->timeout()) {
                 $this->handleTimeout((string) $phoneId, $elapsed);
             }
         }
@@ -62,6 +64,6 @@ class HeartbeatService
 
     public function getTimeout(): int
     {
-        return $this->timeout;
+        return $this->timeout();
     }
 }

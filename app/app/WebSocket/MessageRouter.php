@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\WebSocket;
 
+use App\WebSocket\Config\WebSocketConfig;
 use App\WebSocket\Handlers\DeviceHandler;
 use App\WebSocket\Handlers\PanelHandler;
 use App\WebSocket\Handlers\PanelSendHandler;
@@ -12,24 +13,14 @@ use App\WebSocket\Services\HeartbeatService;
 
 final class MessageRouter
 {
-    private ConnectionManager $connectionManager;
-    private HeartbeatService $heartbeatService;
-
-    private DeviceHandler $deviceHandler;
-    private PanelHandler $panelHandler;
-    private PanelSendHandler $panelSendHandler;
-    private SubscribeHandler $subscribeHandler;
-
-    public function __construct(ConnectionManager $connectionManager, HeartbeatService $heartbeatService)
-    {
-        $this->connectionManager = $connectionManager;
-        $this->heartbeatService = $heartbeatService;
-
-        $this->deviceHandler = new DeviceHandler($connectionManager, $heartbeatService);
-        $this->panelHandler = new PanelHandler($connectionManager);
-        $this->panelSendHandler = new PanelSendHandler($connectionManager);
-        $this->subscribeHandler = new SubscribeHandler($connectionManager);
-    }
+    public function __construct(
+        private readonly ConnectionManager $connectionManager,
+        private readonly HeartbeatService $heartbeatService,
+        private readonly DeviceHandler $deviceHandler,
+        private readonly PanelHandler $panelHandler,
+        private readonly PanelSendHandler $panelSendHandler,
+        private readonly SubscribeHandler $subscribeHandler
+    ) {}
 
     public function route(int $fd, string $rawData): void
     {
@@ -62,7 +53,7 @@ final class MessageRouter
             return;
         }
 
-        $clientTypes = config('websocket.client_types');
+        $clientTypes = WebSocketConfig::clientTypes();
 
         match ($itype) {
             $clientTypes['device'] => $this->deviceHandler->handle($fd, $data),

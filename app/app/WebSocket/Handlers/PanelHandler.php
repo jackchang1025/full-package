@@ -6,18 +6,15 @@ namespace App\WebSocket\Handlers;
 
 use App\WebSocket\ConnectionManager;
 use App\WebSocket\Services\DeviceStatusService;
+use App\WebSocket\Services\LastPingFormatter;
 use App\WebSocket\WebSocketLog;
 
 final class PanelHandler
 {
-    private ConnectionManager $connectionManager;
-    private DeviceStatusService $deviceStatusService;
-
-    public function __construct(ConnectionManager $connectionManager)
-    {
-        $this->connectionManager = $connectionManager;
-        $this->deviceStatusService = new DeviceStatusService($connectionManager);
-    }
+    public function __construct(
+        private readonly ConnectionManager $connectionManager,
+        private readonly DeviceStatusService $deviceStatusService
+    ) {}
 
     public function handle(int $fd, array $data): void
     {
@@ -55,15 +52,8 @@ final class PanelHandler
 
         $isOnline = $this->connectionManager->isDeviceOnline($phoneId);
         $phoneInfo = $this->deviceStatusService->formatForPanel($phoneId);
+        $lastPing = LastPingFormatter::format($phoneInfo['lastPing'] ?? null);
 
-        // 格式化 lastPing 时间戳
-        $lastPing = null;
-        if (isset($phoneInfo['lastPing']) && $phoneInfo['lastPing'] > 0) {
-            $lastPing = date('Y-m-d H:i:s', (int) ($phoneInfo['lastPing'] / 1000));
-        }
-
-        // 统一使用 statusBatch 消息类型（与 ping 响应一致）
-        // passwords 数据包含在 phoneInfo.phone_password 中，由前端解析
         $this->connectionManager->send($fd, [
             'type' => 'statusBatch',
             'pid' => $phoneId,
@@ -84,20 +74,10 @@ final class PanelHandler
     private function handlePing(int $fd, string $phoneId): void
     {
         $phoneInfo = $this->deviceStatusService->formatForPanel($phoneId);
-
-        // 使用共享表判断设备是否在线
-        // 注意：不能使用 isEstablished()，因为它只能检查当前 Worker 管理的连接
-        // 跨 Worker 时，isEstablished() 会返回 false，即使连接实际存在
         $isOnline = $this->connectionManager->isDeviceOnline($phoneId);
         $serverToPhone = $isOnline ? 'OPEN' : 'CLOSED';
+        $lastPing = LastPingFormatter::format($phoneInfo['lastPing'] ?? null);
 
-        // Format lastPing timestamp
-        $lastPing = null;
-        if (isset($phoneInfo['lastPing']) && $phoneInfo['lastPing'] > 0) {
-            $lastPing = date('Y-m-d H:i:s', (int) ($phoneInfo['lastPing'] / 1000));
-        }
-
-        // passwords 数据包含在 phoneInfo.phone_password 中，由前端解析
         $this->connectionManager->send($fd, [
             'type' => 'statusBatch',
             'pid' => $phoneId,

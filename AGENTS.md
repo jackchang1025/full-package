@@ -69,6 +69,17 @@ cd app
 
 > ⚠️ **开发环境注意**: 开发环境使用 `npm run dev` 启动 Vite 开发服务器，不要执行 `npm run build`。构建后的文件会启用缓存，导致热重载失效。
 
+### WebSocket 功能测试
+
+```bash
+cd app
+./vendor/bin/sail pest tests/Feature/WebSocket/
+```
+
+- **测试专用服务器**：PHPUnit Extension 自动启动使用随机端口的 WebSocket 服务器，测试结束后自动关闭
+- **端口隔离**：每次运行分配随机可用端口，避免与开发环境或容器内服务冲突
+- **数据隔离**：使用手动清理（非事务），因 WebSocket 为独立进程无法看到测试事务数据
+
 ---
 
 ## 📚 扩展文档索引
@@ -99,7 +110,8 @@ cd app
 | [WEBSOCKET_CLIENT.md](./docs/migration/WEBSOCKET_CLIENT.md) | **WebSocket 系统架构** - 三端架构 (设备/Web/服务器)、数据流、消息协议、前后端实现 | ⭐ WebSocket 开发首选 |
 | [WEBSOCKET_SERVER_PHP.md](./docs/migration/WEBSOCKET_SERVER_PHP.md) | **PHP WebSocket 服务器** - Swoole 实现、Handler 详解、配置说明 | 开发/维护 PHP WebSocket 服务 |
 | [DEVICE_STATUS_FIELDS.md](./docs/migration/DEVICE_STATUS_FIELDS.md) | **设备状态字段参考** - statusBatch 消息结构、phoneInfo 字段详解、电池/密码格式解析 | 理解设备数据结构、前端字段映射 |
-| [WEBSOCKET_TESTING.md](./docs/migration/WEBSOCKET_TESTING.md) | **WebSocket 测试套件** - Unit Tests (Pest) + E2E Tests (Node.js)、Mock 客户端、测试命令 | 编写/运行 WebSocket 测试 |
+| [WebSocket 功能测试 README](./app/tests/Feature/WebSocket/README.md) | **WebSocket 功能测试** - 测试专用服务器、随机端口、MockPanel/MockDevice、运行命令 | ⭐ 运行/编写 WebSocket 功能测试 |
+| [WEBSOCKET_TESTING.md](./docs/migration/WEBSOCKET_TESTING.md) | **WebSocket 测试套件** - Unit Tests (Pest) + E2E Tests (Node.js)、Mock 客户端、测试命令 | 测试架构总览 |
 | [WEBSOCKET_SERVER.md](./docs/WEBSOCKET_SERVER.md) | **Node.js WebSocket 服务器** - 原始实现分析、消息协议、命令列表 | 理解原始协议、对比参考 |
 | [FRONTEND_WEBSOCKET_CLIENT.md](./docs/FRONTEND_WEBSOCKET_CLIENT.md) | **前端 WebSocket 客户端分析** - 编译后代码逆向、消息处理、触摸事件、状态管理 | 理解旧前端实现 |
 
@@ -148,6 +160,11 @@ docs/migration/FRONTEND.md → docs/migration/WEBSOCKET_CLIENT.md
 **WebSocket 开发**:
 ```
 docs/WEBSOCKET_SERVER.md → docs/migration/WEBSOCKET_SERVER_PHP.md → docs/migration/WEBSOCKET_CLIENT.md
+```
+
+**WebSocket 功能测试**:
+```
+app/tests/Feature/WebSocket/README.md → ./vendor/bin/sail pest tests/Feature/WebSocket/
 ```
 
 **APK 构建开发**:

@@ -232,13 +232,13 @@ function parsePasswords(passwordStr: string): Record<string, string> {
 
 ### deviceOnline / deviceOffline
 
-设备上线/下线时推送给订阅的 Panel：
+设备上线/下线时推送给订阅的 Panel。deviceOnline 使用 `phoneInfo` 携带完整信息（与 deviceUpdate 同构）：
 
 ```json
 {
     "type": "deviceOnline",
     "pid": "14027005124596051",
-    "deviceInfo": { ... },
+    "phoneInfo": { ... },
     "stats": {
         "total": 10,
         "online": 5,
@@ -246,6 +246,8 @@ function parsePasswords(passwordStr: string): Record<string, string> {
     }
 }
 ```
+
+deviceOffline 中 `phoneInfo` 为 `null`。
 
 ### deviceUpdate
 

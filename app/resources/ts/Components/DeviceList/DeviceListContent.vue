@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, onMounted, onUnmounted, watch, h } from 'vue';
+import { computed, ref, h } from 'vue';
 import { router } from '@inertiajs/vue3';
 import {
     NDataTable,
@@ -37,10 +37,8 @@ import {
     CreateOutline,
     DocumentTextOutline,
     CalendarOutline,
-    LockClosedOutline,
 } from '@vicons/ionicons5';
 import { useGlobalWebSocket } from '@/composables/useGlobalWebSocket';
-import type { DeviceOnlineMessage, DeviceOfflineMessage, DeviceUpdateMessage } from '@/types/websocket';
 
 export interface DeviceRow {
     id: number;
@@ -101,24 +99,34 @@ const props = withDefaults(
     }
 );
 
-const { connectionState, onMessage } = useGlobalWebSocket();
-const localDevices = ref<DeviceRow[]>([...(props.devices.data as DeviceRow[])]);
-const localStats = ref<Stats>({ ...props.stats });
+// [solid-srp] 从 useGlobalWebSocket 获取所有状态
+// [core-dry] 设备列表由 WebSocket 的 phoneInfo 驱动（deviceOnline / deviceUpdate 同构，统一用 phoneInfo）
+const {
+    connectionState,
+    stats: globalStats,
+    devices: wsDevices,
+    hasReceivedWsData,
+} = useGlobalWebSocket();
 
-watch(
-    () => props.devices.data,
-    (newData) => {
-        localDevices.value = [...(newData as DeviceRow[])];
-    },
-    { deep: true }
-);
-watch(
-    () => props.stats,
-    (newStats) => {
-        localStats.value = { ...newStats };
-    },
-    { deep: true }
-);
+// [core-kiss] 简化数据源逻辑：优先使用 WebSocket 数据
+const localDevices = computed<DeviceRow[]>(() => {
+    // WebSocket 已连接且收到过数据，使用 WebSocket 设备列表
+    if (hasReceivedWsData.value && wsDevices.value.length > 0) {
+        return wsDevices.value as DeviceRow[];
+    }
+    // 否则使用 HTTP props 数据作为 fallback
+    return props.devices.data as DeviceRow[];
+});
+
+// [solid-ocp] 统计数据源：WebSocket 优先，HTTP fallback
+const displayStats = computed(() => {
+    // WebSocket 已收到数据，使用实时统计
+    if (hasReceivedWsData.value) {
+        return globalStats.value;
+    }
+    // 否则使用 HTTP 初始数据
+    return props.stats;
+});
 
 const searchQuery = ref('');
 const statusFilter = ref<string>('all');
@@ -150,98 +158,19 @@ const filteredDevices = computed(() => {
 const isConnected = computed(() => connectionState.value === 'connected');
 const isConnecting = computed(() => connectionState.value === 'connecting' || connectionState.value === 'reconnecting');
 
-let unsubscribe: (() => void) | null = null;
-onMounted(() => {
-    unsubscribe = onMessage((msg) => {
-        const msgType = (msg as { type?: string }).type;
-        if (msgType === 'deviceOnline') {
-            const data = msg as DeviceOnlineMessage;
-            handleDeviceOnline(data.pid, data.deviceInfo);
-            if (data.stats) localStats.value = data.stats;
-        } else if (msgType === 'deviceOffline') {
-            const data = msg as DeviceOfflineMessage;
-            handleDeviceOffline(data.pid);
-            if (data.stats) localStats.value = data.stats;
-        } else if (msgType === 'deviceUpdate') {
-            const data = msg as DeviceUpdateMessage;
-            handleDeviceUpdate(data.pid, (data.phoneInfo || {}) as Record<string, unknown>);
-        }
-    });
-});
-onUnmounted(() => {
-    if (unsubscribe) unsubscribe();
-});
-
-function parseBattery(batteryCharge: string | undefined): { isCharging: boolean; level: number | null } {
-    if (!batteryCharge || typeof batteryCharge !== 'string') return { isCharging: false, level: null };
-    const parts = batteryCharge.split('~');
-    if (parts.length >= 2) {
-        const level = parseInt(parts[1], 10);
-        return { isCharging: parts[0] === 't', level: isNaN(level) ? null : level };
-    }
-    const level = parseInt(batteryCharge, 10);
-    return { isCharging: false, level: isNaN(level) ? null : level };
-}
-
-function handleDeviceOnline(pid: string, deviceInfo: any) {
-    const index = localDevices.value.findIndex((d) => d.uuid === pid);
-    if (index >= 0) {
-        const updates: Partial<DeviceRow> = {
-            ...localDevices.value[index],
-            is_online: true,
-            name: deviceInfo?.phone_name || localDevices.value[index].name,
-        };
-        if (deviceInfo?.battery_charge != null) {
-            const { isCharging, level } = parseBattery(deviceInfo.battery_charge);
-            if (level !== null) updates.battery_level = level;
-            updates.battery_is_charging = isCharging;
-        }
-        localDevices.value[index] = { ...localDevices.value[index], ...updates };
-    }
-}
-
-function handleDeviceOffline(pid: string) {
-    const index = localDevices.value.findIndex((d) => d.uuid === pid);
-    if (index >= 0) {
-        localDevices.value[index] = { ...localDevices.value[index], is_online: false };
-    }
-}
-
-function handleDeviceUpdate(pid: string, phoneInfo: Record<string, unknown>) {
-    const index = localDevices.value.findIndex((d) => d.uuid === pid);
-    if (index < 0) return;
-    const updates: Partial<DeviceRow> = {};
-    if (phoneInfo.phone_name != null && String(phoneInfo.phone_name).trim()) updates.name = String(phoneInfo.phone_name).trim();
-    if (phoneInfo.model != null && String(phoneInfo.model).trim()) updates.model = String(phoneInfo.model).trim();
-    if (phoneInfo.android_version != null) updates.android_version = String(phoneInfo.android_version);
-    if (phoneInfo.battery_charge != null) {
-        const { isCharging, level } = parseBattery(phoneInfo.battery_charge as string);
-        if (level !== null) updates.battery_level = level;
-        updates.battery_is_charging = isCharging;
-    }
-    if (phoneInfo.lastPing != null) {
-        const ts = typeof phoneInfo.lastPing === 'number' ? phoneInfo.lastPing : parseInt(String(phoneInfo.lastPing), 10);
-        if (!isNaN(ts)) updates.last_seen_at = new Date(ts).toISOString();
-    }
-    if (phoneInfo.accessibility != null) updates.has_accessibility = phoneInfo.accessibility === '1';
-    if (phoneInfo.ip != null) updates.ip_address = String(phoneInfo.ip);
-    if (phoneInfo.ip_location != null) updates.ip_location = String(phoneInfo.ip_location);
-    if (phoneInfo.network != null) updates.network_type = String(phoneInfo.network);
-    if (phoneInfo.wallpap != null) updates.wallpap = String(phoneInfo.wallpap);
-    if (phoneInfo.activz != null) updates.screen_status = String(phoneInfo.activz);
-    if (Object.keys(updates).length > 0) {
-        localDevices.value[index] = { ...localDevices.value[index], ...updates };
-    }
-}
+// [solid-srp] 设备状态更新逻辑已移至 useGlobalWebSocket
+// 组件只需响应 computed 属性的变化，无需手动处理消息
 
 function formatLastSeen(dateStr: string | null) {
     if (!dateStr) return '从未';
     const date = new Date(dateStr);
+    if (Number.isNaN(date.getTime())) return '从未';
     const now = new Date();
     const diffMs = now.getTime() - date.getTime();
     const diffMins = Math.floor(diffMs / 60000);
     const diffHours = Math.floor(diffMs / 3600000);
     const diffDays = Math.floor(diffMs / 86400000);
+    if (diffMs < 0) return date.toLocaleDateString('zh-CN');
     if (diffMins < 1) return '刚刚';
     if (diffMins < 60) return `${diffMins}分钟前`;
     if (diffHours < 24) return `${diffHours}小时前`;
@@ -252,13 +181,16 @@ function formatLastSeen(dateStr: string | null) {
 function formatInstallTime(dateStr: string | null | undefined): string {
     if (!dateStr) return '-';
     const date = new Date(dateStr);
+    if (Number.isNaN(date.getTime())) return '-';
     const now = new Date();
     const diffDays = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24));
-    
+
+    // 未来或当天零点（仅日期时区导致 diffDays 为 -1）时显示日期，避免 "-1天前"
+    if (diffDays < 0) return date.toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' });
     if (diffDays === 0) return '今天';
     if (diffDays === 1) return '昨天';
     if (diffDays < 7) return `${diffDays}天前`;
-    
+
     return date.toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' });
 }
 
@@ -287,12 +219,13 @@ function getNetworkInfo(type: string | null) {
 }
 
 function getScreenStatusInfo(status: string | undefined) {
+    const basePath = '/images/activz/';
     switch (status) {
-        case '0': return { label: '亮屏已锁', color: '#10B981', isOn: true, isLocked: true };
-        case '1': return { label: '息屏已锁', color: '#94a3b8', isOn: false, isLocked: true };
-        case '2': return { label: '亮屏解锁', color: '#10B981', isOn: true, isLocked: false };
-        case '3': return { label: '息屏解锁', color: '#94a3b8', isOn: false, isLocked: false };
-        default: return { label: '未知', color: '#cbd5e1', isOn: false, isLocked: false };
+        case '0': return { label: '亮屏已锁', image: `${basePath}ON_LOCK.png`, isOn: true, isLocked: true };
+        case '1': return { label: '息屏已锁', image: `${basePath}OFF_LOCK.png`, isOn: false, isLocked: true };
+        case '2': return { label: '亮屏解锁', image: `${basePath}ON.png`, isOn: true, isLocked: false };
+        case '3': return { label: '息屏解锁', image: `${basePath}OFF.png`, isOn: false, isLocked: false };
+        default: return { label: '未知', image: `${basePath}known.png`, isOn: false, isLocked: false };
     }
 }
 
@@ -518,20 +451,18 @@ const columns = computed<DataTableColumns<DeviceRow>>(() => {
         {
             title: '屏幕状态',
             key: 'screen_status',
-            width: 100,
+            width: 80,
             align: 'center',
             render: (row) => {
                 const info = getScreenStatusInfo(row.screen_status);
                 return h(NTooltip, { trigger: 'hover' }, {
                     trigger: () =>
-                        h('div', { class: 'metric-cell' }, [
-                            h('div', { class: 'screen-status-icon-wrap' }, [
-                                h(NIcon, { component: PhonePortraitOutline, size: 18, color: info.color }),
-                                info.isLocked ? h('span', { class: 'screen-lock-badge' }, [
-                                    h(NIcon, { component: LockClosedOutline, size: 8, color: '#fff' }),
-                                ]) : null,
-                            ]),
-                            h('span', { style: { color: info.color, marginLeft: '6px', fontWeight: 500, fontSize: '12px' } }, info.label),
+                        h('div', { class: 'screen-status-cell' }, [
+                            h('img', { 
+                                src: info.image, 
+                                alt: info.label,
+                                class: 'screen-status-img',
+                            }),
                         ]),
                     default: () => `屏幕状态: ${info.label}${isConnected && row.is_online ? ' · 实时更新' : ''}`,
                 });
@@ -671,19 +602,19 @@ const columns = computed<DataTableColumns<DeviceRow>>(() => {
         <div class="stats-bar">
             <div class="stat-item">
                 <span class="stat-label">全部设备</span>
-                <span class="stat-value">{{ localStats.total }}</span>
+                <span class="stat-value">{{ displayStats.total }}</span>
             </div>
             <div class="stat-divider"></div>
             <div class="stat-item">
                 <div class="status-dot online"></div>
                 <span class="stat-label">在线</span>
-                <span class="stat-value text-emerald-600">{{ localStats.online }}</span>
+                <span class="stat-value text-emerald-600">{{ displayStats.online }}</span>
             </div>
             <div class="stat-divider"></div>
             <div class="stat-item">
                 <div class="status-dot offline"></div>
                 <span class="stat-label">离线</span>
-                <span class="stat-value text-slate-400">{{ localStats.offline }}</span>
+                <span class="stat-value text-slate-400">{{ displayStats.offline }}</span>
             </div>
         </div>
 
@@ -970,27 +901,16 @@ const columns = computed<DataTableColumns<DeviceRow>>(() => {
     color: #64748b;
 }
 
-:deep(.screen-status-icon-wrap) {
-    position: relative;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-}
-
-:deep(.screen-lock-badge) {
-    position: absolute;
-    bottom: -2px;
-    right: -4px;
-    width: 14px;
-    height: 14px;
-    background: #f59e0b;
-    border-radius: 50%;
+:deep(.screen-status-cell) {
     display: flex;
     align-items: center;
     justify-content: center;
-    border: 1.5px solid #fff;
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+:deep(.screen-status-img) {
+    width: 32px;
+    height: 32px;
+    object-fit: contain;
 }
 
 :deep(.actions-cell) {

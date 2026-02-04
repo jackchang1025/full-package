@@ -10,7 +10,7 @@
 
 | 组件 | 技术 | 说明 |
 |------|------|------|
-| 运行时 | PHP 8.5 + Swoole | 高性能异步框架 |
+| 运行时 | PHP 8.2+ + Swoole | 高性能异步框架 |
 | 框架 | Laravel 12 | 配置、日志、数据库集成 |
 | 连接存储 | Swoole\Table | 跨 Worker 共享内存 |
 | 状态缓存 | Redis | 设备状态持久化 |
@@ -48,19 +48,21 @@
 ┌─────────────────────────────────────────────────────────────────────────┐
 │                        MessageRouter.php (消息路由)                       │
 │  - JSON 解析                                                             │
+│  - subscribe/checkphone → SubscribeHandler                               │
+│  - ping (无 itype) → 直接返回 pong                                        │
 │  - 根据 itype 分发到对应 Handler                                          │
-│  - checkphone 特殊处理                                                    │
 └─────────────────────────────────────────────────────────────────────────┘
                                     │
-            ┌───────────────────────┼───────────────────────┐
-            ▼                       ▼                       ▼
-┌───────────────────┐   ┌───────────────────┐   ┌───────────────────┐
-│  DeviceHandler    │   │   PanelHandler    │   │ PanelSendHandler  │
-│  (Slr_client)     │   │   (slr_panel)     │   │ (slr_panelsend)   │
-│  - 设备注册        │   │  - join/out/ping  │   │  - 数据操作命令    │
-│  - ping 处理       │   │  - 屏幕控制       │   │  - 文件/应用管理   │
-│  - 数据转发到面板  │   │  - 浏览器/代理    │   │  - 摄像头/麦克风   │
-└───────────────────┘   └───────────────────┘   └───────────────────┘
+            ┌───────────────────────┼───────────────────────┬─────────────────┐
+            ▼                       ▼                       ▼                 ▼
+┌───────────────────┐   ┌───────────────────┐   ┌───────────────────┐  ┌──────────────┐
+│  SubscribeHandler │   │  DeviceHandler    │   │   PanelHandler    │  │PanelSendHandler│
+│  (subscribe/      │   │  (Slr_client)     │   │   (slr_panel)     │  │(slr_panelsend)│
+│   checkphone)     │   │  - 设备注册        │   │  - join/out/ping  │  │  - 数据操作   │
+│  - 面板用户注册    │   │  - ping 处理       │   │  - 屏幕控制       │  │  - 文件/应用  │
+│  - 返回设备列表    │   │  - 数据转发到面板  │   │  - 浏览器/代理    │  │  - 摄像头等   │
+│  - 返回 stats     │   │                   │   │                   │  │               │
+└───────────────────┘   └───────────────────┘   └───────────────────┘  └──────────────┘
             │                       │                       │
             └───────────────────────┼───────────────────────┘
                                     ▼
@@ -69,7 +71,15 @@
 │  - Swoole\Table 存储连接映射                                              │
 │  - 设备/面板注册与断开                                                    │
 │  - 消息发送 (sendToDevice, sendToPanels)                                 │
+│  - getDeviceListForUser / getDeviceStats                                 │
 │  - Redis 状态同步                                                        │
+└─────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│  Services: DeviceStatusService | HeartbeatService | BatteryParser |      │
+│            LastPingFormatter | EncryptionService                         │
+│  Config: WebSocketConfig                                                 │
 └─────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -88,14 +98,20 @@ app/
 │       ├── Server.php                   # Swoole 服务器主类
 │       ├── ConnectionManager.php        # 连接管理器
 │       ├── MessageRouter.php            # 消息路由分发
+│       ├── WebSocketLog.php             # 日志封装
+│       ├── Config/
+│       │   └── WebSocketConfig.php      # 配置集中访问
 │       ├── Handlers/
+│       │   ├── SubscribeHandler.php     # 面板订阅 (subscribe/checkphone)
 │       │   ├── DeviceHandler.php        # 设备消息处理
 │       │   ├── PanelHandler.php         # 面板控制命令
 │       │   ├── PanelSendHandler.php     # 面板数据操作
-│       │   └── CheckPhoneHandler.php    # 设备列表查询
+│       │   └── CheckPhoneHandler.php    # 分页设备列表 (保留兼容)
 │       └── Services/
 │           ├── DeviceStatusService.php  # 设备状态管理
 │           ├── HeartbeatService.php     # 心跳检测
+│           ├── BatteryParser.php        # 电池字段解析
+│           ├── LastPingFormatter.php    # lastPing 格式化
 │           └── EncryptionService.php    # AES 加密服务
 ```
 
@@ -113,26 +129,38 @@ return [
 
     // Swoole 设置
     // ⚠️ 重要：worker_num 必须为 1，否则跨 Worker 通信会失败
-    // 详见下方 "Swoole 多 Worker 限制" 章节
     'settings' => [
-        'worker_num' => 1,                    // Worker 进程数 (必须为 1)
-        'max_connection' => 10000,            // 最大连接数
-        'heartbeat_check_interval' => 25,     // 心跳检查间隔 (秒)
-        'heartbeat_idle_time' => 75,          // 空闲超时 (秒)
-        'package_max_length' => 10 * 1024 * 1024,  // 10MB 最大消息
+        'worker_num' => (int) env('WEBSOCKET_WORKERS', 1),
+        'max_connection' => (int) env('WEBSOCKET_MAX_CONNECTIONS', 1024),
+        'daemonize' => env('WEBSOCKET_DAEMONIZE', false),
+        'log_file' => storage_path('logs/websocket/swoole.log'),
+        'log_level' => (int) env('SWOOLE_LOG_LEVEL', 4),
+        'heartbeat_check_interval' => 25,
+        'heartbeat_idle_time' => 75,
+        'package_max_length' => 10 * 1024 * 1024,
+        'buffer_output_size' => 32 * 1024 * 1024,
     ],
 
     // 心跳配置
     'heartbeat' => [
-        'timeout' => 75,           // 超时时间 (秒)
-        'check_interval' => 25,    // 检查间隔 (秒)
+        'timeout' => 75,
+        'check_interval' => 25,
+        'probe_interval' => 10,
+        'max_probes' => 3,
     ],
 
     // 加密配置 (必须与旧系统一致)
     'encryption' => [
-        'key' => '@zxfNM=q>Drm`6VP)!:u-A~;92E<.?wR',
-        'iv' => 'G8v!h3*Y.P+pFm/;',
+        'key' => env('WEBSOCKET_ENCRYPTION_KEY', '@zxfNM=q>Drm`6VP)!:u-A~;92E<.?wR'),
+        'iv' => env('WEBSOCKET_ENCRYPTION_IV', 'G8v!h3*Y.P+pFm/;'),
         'method' => 'AES-256-CBC',
+    ],
+
+    // Redis 配置
+    'redis' => [
+        'connection' => env('WEBSOCKET_REDIS_CONNECTION', 'default'),
+        'prefix' => 'ws:',
+        'device_status_ttl' => 86400,
     ],
 
     // 客户端类型标识 (协议兼容)
@@ -140,12 +168,6 @@ return [
         'device' => 'Slr_client',
         'panel' => 'slr_panel',
         'panel_send' => 'slr_panelsend',
-    ],
-
-    // Redis 配置
-    'redis' => [
-        'prefix' => 'ws:',
-        'device_status_ttl' => 86400,  // 24 小时
     ],
 ];
 ```
@@ -323,54 +345,77 @@ $connectionManager->sendToDevice($phoneId, ['type' => 'xxx', ...]);
 // 发送消息到所有订阅面板 (单设备)
 $connectionManager->sendToPanels($phoneId, ['type' => 'xxx', ...]);
 
-// 推送设备上线通知给相关 Panel 用户
-$connectionManager->notifyPanelUsersDeviceOnline($phoneId, $userId, $deviceInfo);
-
-// 推送设备离线通知给相关 Panel 用户
+// 推送设备上线/离线通知给相关 Panel 用户（deviceOnline 使用 formatForPanel 的 phoneInfo 完整信息）
+$connectionManager->notifyPanelUsersDeviceOnline($phoneId, $userId, $phoneInfo);
 $connectionManager->notifyPanelUsersDeviceOffline($phoneId, $userId);
 
-// 获取设备客户端 IP
-$connectionManager->getClientIp($phoneId);  // 支持 IPv6-mapped IPv4 转换
+// 获取设备列表和统计 (供 SubscribeHandler 使用)
+$connectionManager->getDeviceListForUser($userId);  // 返回 formatDeviceForList 格式
+$connectionManager->getDeviceStats($userId);        // { total, online, offline }
+
+// 获取设备客户端 IP (支持 IPv6-mapped IPv4 转换)
+$connectionManager->getClientIp($phoneId);
 ```
+
+### WebSocketConfig.php
+
+集中访问 WebSocket 相关配置，便于测试和避免硬编码：
+
+```php
+WebSocketConfig::redisPrefix();
+WebSocketConfig::deviceStatusTtl();
+WebSocketConfig::deviceStatusKey($phoneId);
+WebSocketConfig::lastNotifiedKey($phoneId);
+WebSocketConfig::heartbeatCheckInterval();
+WebSocketConfig::heartbeatTimeout();
+WebSocketConfig::clientTypes();
+```
+
+### BatteryParser.php / LastPingFormatter.php
+
+工具类，供 ConnectionManager、DeviceStatusService 等复用：
+
+- `BatteryParser::parseLevel($batteryCharge)` - 解析电池电量
+- `BatteryParser::parseCharging($batteryCharge)` - 判断是否充电中
+- `LastPingFormatter::format($lastPingMs)` - 格式化 lastPing 为 `Y-m-d H:i:s`
 
 ### MessageRouter.php
 
-消息路由分发器：
+消息路由分发器，使用 `WebSocketConfig::clientTypes()` 获取客户端类型：
 
 ```php
-public function route(int $fd, string $rawData): void
-{
-    $data = json_decode($rawData, true);
-    $itype = $data['itype'] ?? null;
-
-    // checkphone 特殊处理
-    if ($data['subc'] === 'checkphone') {
-        $this->checkPhoneHandler->handle($fd, $data);
-        return;
-    }
-
-    // 根据 itype 分发
-    match ($itype) {
-        'Slr_client' => $this->deviceHandler->handle($fd, $data),
-        'slr_panel' => $this->panelHandler->handle($fd, $data),
-        'slr_panelsend' => $this->panelSendHandler->handle($fd, $data),
-        default => $this->handleUnknownType($fd, $itype),
-    };
+// 路由逻辑
+if ($subc === 'subscribe' || $subc === 'checkphone') {
+    $this->subscribeHandler->handle($fd, $data);  // 两者统一由 SubscribeHandler 处理
+    return;
 }
+if ($subc === 'ping' && $itype === null) {
+    $this->connectionManager->send($fd, ['type' => 'pong', 'timestamp' => time()]);
+    return;
+}
+// 测试环境专用：重置服务器状态
+if ($subc === '__test_reset' && app()->environment('local', 'testing')) { ... }
+
+// 根据 itype 分发到 DeviceHandler / PanelHandler / PanelSendHandler
+match ($itype) {
+    'Slr_client' => $this->deviceHandler->handle($fd, $data),
+    'slr_panel' => $this->panelHandler->handle($fd, $data),
+    'slr_panelsend' => $this->panelSendHandler->handle($fd, $data),
+    default => $this->handleUnknownType($fd, $itype),
+};
 ```
 
 ### HeartbeatService.php
 
-简化版心跳检测服务：
+心跳检测服务，使用 `WebSocketConfig::heartbeatCheckInterval()` 和 `heartbeatTimeout()`：
 
 ```php
 // 记录设备 ping
 $heartbeatService->recordPing($phoneId);
 
-// 检查所有设备 (由定时器调用)
+// 检查所有设备 (由 Server 定时器调用)
 $heartbeatService->checkAll();
-// - 超过 75 秒无心跳 → 直接断开连接
-// - 与 Node.js 行为一致，无 probe 机制
+// 超过 timeout 秒无心跳 → 直接断开连接
 ```
 
 ---
@@ -510,56 +555,60 @@ $heartbeatService->checkAll();
 }
 ```
 
-### CheckPhoneHandler
+### SubscribeHandler
 
-设备列表查询，支持分页、过滤和推送模式注册：
+处理面板订阅请求，**subscribe 和 checkphone 统一由此 Handler 处理**。注册 Panel 用户订阅，并立即返回完整设备列表和统计数据：
 
 ```php
-// 请求
+// 请求 (subscribe 或 checkphone)
 {
-    "subc": "checkphone",
-    "email": "加密的邮箱",
-    "page": 1,
-    "pageSize": 10,
-    "filters": {
-        "user_email": "",
-        "phone_name": "",
-        "country": "",
-        "model": "",
-        "accessibility": "",
-        "install_date": ""
-    }
+    "subc": "subscribe",  // 或 "checkphone"
+    "email": "user@example.com"
 }
 
 // 响应
 {
-    "type": "checkphone",
-    "list": [...],
-    "total": 100,
-    "pageCount": 10,
-    "page": 1,
-    "pageSize": 10,
-    "fileLastModified": "2026-01-31 08:00:00"
+    "type": "subscribe",
+    "success": true,
+    "isAdmin": false,
+    "devices": [  // 完整设备列表，formatDeviceForList 格式
+        {
+            "id": 1,
+            "uuid": "xxx",
+            "name": "...",
+            "is_online": true,
+            "battery_level": 85,
+            "user": { "id": 1, "username": "...", "email": "..." },
+            ...
+        }
+    ],
+    "stats": {
+        "total": 10,
+        "online": 3,
+        "offline": 7
+    }
 }
 ```
 
-**推送模式注册：** `checkphone` 请求会自动注册 Panel 用户订阅，后续设备状态变化会主动推送。
+**流程**：根据 email 判断 isAdmin → 注册 `registerPanelUser` → 调用 `getDeviceListForUser` / `getDeviceStats` → 返回 devices + stats。
+
+### CheckPhoneHandler (保留)
+
+保留用于兼容旧协议，支持分页、过滤。当前 MessageRouter 将 checkphone 路由到 SubscribeHandler，若需分页设备列表可单独调用。
 
 ### DeviceStatusService
 
 设备状态管理服务，负责：
 - 解析设备 ping 消息中的状态信息
 - 同步状态到 Redis 缓存
-- **自动创建新设备记录** (首次上线时)
+- **自动创建新设备记录** (首次上线时，通过 `findUserByEmail` 关联 user_email)
 - **触发设备上线/离线推送**
+- **新 WebSocket 连接检测** (`isNewWebSocketConnection`) - 用于识别设备重装后的首次连接，确保推送
 
 ```php
-// 设备上线时自动创建数据库记录
+// 设备上线时
 $deviceStatusService->updateFromPing($phoneId, $encodedData);
-// - 解析设备状态
-// - 首次上线时创建 Device 记录
-// - 通过 user_email 关联用户
-// - 触发 notifyPanelUsersDeviceOnline()
+// 首次上线 / 从离线恢复 / 新 WebSocket 连接 → notifyPanelUsersDeviceOnline()
 
 // 标记设备离线
 $deviceStatusService->markOffline($phoneId);
@@ -652,15 +701,16 @@ kill $(cat storage/app/websocket.pid)
 ├─────────────────────────────────────────────────────────────────────────────┤
 │                                                                             │
 │  1. Panel 首次连接                                                          │
-│     ┌─────────┐   checkphone    ┌─────────────┐                            │
+│     ┌─────────┐   subscribe     ┌─────────────┐                            │
 │     │ Panel A │ ───────────────► │   Swoole    │                            │
 │     └─────────┘                  │   Server    │                            │
 │          │                       └─────────────┘                            │
 │          │                             │                                    │
 │          │    registerPanelUser(fd, emailA, isAdmin=false)                  │
+│          │    getDeviceListForUser / getDeviceStats                         │
 │          │                             │                                    │
 │          ◄─────────────────────────────┤                                    │
-│     checkphone response (设备列表)      │                                    │
+│     subscribe response (devices + stats)│                                    │
 │                                        │                                    │
 │  2. 新设备上线                          │                                    │
 │     ┌─────────┐      ping             │                                    │
@@ -681,7 +731,7 @@ kill $(cat storage/app/websocket.pid)
 │          │                                                                  │
 │          ▼                                                                  │
 │     ┌─────────┐                                                            │
-│     │ Panel A │ ◄── deviceOnline { pid, deviceInfo }                       │
+│     │ Panel A │ ◄── deviceOnline { pid, phoneInfo }                        │
 │     └─────────┘                                                            │
 │                                                                             │
 │  3. 设备离线                                                                │
@@ -693,7 +743,7 @@ kill $(cat storage/app/websocket.pid)
 │          • notifyPanelUsersDeviceOffline()   │                              │
 │                                              │                              │
 │     ┌─────────┐                              │                              │
-│     │ Panel A │ ◄── deviceOffline { pid }  ──┘                              │
+│     │ Panel A │ ◄── deviceOffline { pid, phoneInfo: null }                 │
 │     └─────────┘                                                            │
 │                                                                             │
 └─────────────────────────────────────────────────────────────────────────────┘
@@ -701,18 +751,21 @@ kill $(cat storage/app/websocket.pid)
 
 ### 推送消息格式
 
-**设备上线 (deviceOnline)**:
+**设备上线 (deviceOnline)**（与 deviceUpdate 同构，使用 phoneInfo 完整信息）:
 ```json
 {
   "type": "deviceOnline",
   "pid": "device-123",
-  "deviceInfo": {
-    "phone_id": "device-123",
+  "phoneInfo": {
+    "pid": "device-123",
     "phone_name": "Test Device",
     "model": "Pixel 8",
     "battery_charge": "85",
-    "is_online": true
-  }
+    "is_online": true,
+    "lastPing": 1738742400000,
+    "ip_location": ""
+  },
+  "stats": { "total": 10, "online": 2, "offline": 8 }
 }
 ```
 
@@ -721,7 +774,18 @@ kill $(cat storage/app/websocket.pid)
 {
   "type": "deviceOffline",
   "pid": "device-123",
-  "deviceInfo": null
+  "phoneInfo": null,
+  "stats": { "total": 10, "online": 2, "offline": 8 }
+}
+```
+
+**设备状态更新 (deviceUpdate)**:
+```json
+{
+  "type": "deviceUpdate",
+  "pid": "device-123",
+  "phoneInfo": { ... },
+  "stats": { "total": 10, "online": 3, "offline": 7 }
 }
 ```
 
@@ -803,8 +867,22 @@ $connectionManager->getPanelCount();       // 面板数
 
 ---
 
+## 功能测试
+
+WebSocket 功能测试使用**测试专用服务器**和**随机端口**，避免与开发环境冲突：
+
+```bash
+cd app
+./vendor/bin/sail pest tests/Feature/WebSocket/
+```
+
+详见 [app/tests/Feature/WebSocket/README.md](../../app/tests/Feature/WebSocket/README.md)。
+
+---
+
 ## 相关文档
 
 - [WEBSOCKET_SERVER.md](../WEBSOCKET_SERVER.md) - Node.js 原始实现分析
 - [WEBSOCKET_CLIENT.md](./WEBSOCKET_CLIENT.md) - 前端客户端实现
+- [WEBSOCKET_TESTING.md](./WEBSOCKET_TESTING.md) - 测试套件文档
 - [DEVELOPMENT.md](./DEVELOPMENT.md) - 开发环境配置

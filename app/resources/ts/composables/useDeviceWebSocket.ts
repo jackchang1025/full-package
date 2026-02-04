@@ -132,6 +132,7 @@ export function useDeviceWebSocket() {
                         deviceStatus.value = {
                             ...deviceStatus.value,
                             connectionStatus: DEVICE_ONLINE_STATUS,
+                            phoneInfo: msg.phoneInfo ?? deviceStatus.value.phoneInfo,
                         };
                     }
                     break;
