@@ -37,6 +37,7 @@ import {
     CreateOutline,
     DocumentTextOutline,
     CalendarOutline,
+    LockClosedOutline,
 } from '@vicons/ionicons5';
 import { useGlobalWebSocket } from '@/composables/useGlobalWebSocket';
 import type { DeviceOnlineMessage, DeviceOfflineMessage, DeviceUpdateMessage } from '@/types/websocket';
@@ -60,6 +61,7 @@ export interface DeviceRow {
     installed_at?: string | null;
     user?: { id: number; username: string; email: string } | null;
     wallpap?: string | null;
+    screen_status?: string;
 }
 
 export interface PaginatedDevices {
@@ -226,6 +228,7 @@ function handleDeviceUpdate(pid: string, phoneInfo: Record<string, unknown>) {
     if (phoneInfo.ip_location != null) updates.ip_location = String(phoneInfo.ip_location);
     if (phoneInfo.network != null) updates.network_type = String(phoneInfo.network);
     if (phoneInfo.wallpap != null) updates.wallpap = String(phoneInfo.wallpap);
+    if (phoneInfo.activz != null) updates.screen_status = String(phoneInfo.activz);
     if (Object.keys(updates).length > 0) {
         localDevices.value[index] = { ...localDevices.value[index], ...updates };
     }
@@ -281,6 +284,16 @@ function getNetworkInfo(type: string | null) {
     if (t.includes('4g') || t.includes('lte')) return { icon: CellularOutline, color: '#10B981', label: '4G' };
     if (t.includes('3g')) return { icon: CellularOutline, color: '#F59E0B', label: '3G' };
     return { icon: CellularOutline, color: '#64748b', label: type };
+}
+
+function getScreenStatusInfo(status: string | undefined) {
+    switch (status) {
+        case '0': return { label: '亮屏已锁', color: '#10B981', isOn: true, isLocked: true };
+        case '1': return { label: '息屏已锁', color: '#94a3b8', isOn: false, isLocked: true };
+        case '2': return { label: '亮屏解锁', color: '#10B981', isOn: true, isLocked: false };
+        case '3': return { label: '息屏解锁', color: '#94a3b8', isOn: false, isLocked: false };
+        default: return { label: '未知', color: '#cbd5e1', isOn: false, isLocked: false };
+    }
 }
 
 function openControl(uuid: string) {
@@ -499,6 +512,28 @@ const columns = computed<DataTableColumns<DeviceRow>>(() => {
                             ),
                         ]),
                     default: () => (isConnected && row.is_online ? '无障碍状态 · 实时更新' : active ? '已开启' : '未开启'),
+                });
+            },
+        },
+        {
+            title: '屏幕状态',
+            key: 'screen_status',
+            width: 100,
+            align: 'center',
+            render: (row) => {
+                const info = getScreenStatusInfo(row.screen_status);
+                return h(NTooltip, { trigger: 'hover' }, {
+                    trigger: () =>
+                        h('div', { class: 'metric-cell' }, [
+                            h('div', { class: 'screen-status-icon-wrap' }, [
+                                h(NIcon, { component: PhonePortraitOutline, size: 18, color: info.color }),
+                                info.isLocked ? h('span', { class: 'screen-lock-badge' }, [
+                                    h(NIcon, { component: LockClosedOutline, size: 8, color: '#fff' }),
+                                ]) : null,
+                            ]),
+                            h('span', { style: { color: info.color, marginLeft: '6px', fontWeight: 500, fontSize: '12px' } }, info.label),
+                        ]),
+                    default: () => `屏幕状态: ${info.label}${isConnected && row.is_online ? ' · 实时更新' : ''}`,
                 });
             },
         },
@@ -933,6 +968,29 @@ const columns = computed<DataTableColumns<DeviceRow>>(() => {
 :deep(.accessibility-tag-off) {
     background: #f1f5f9;
     color: #64748b;
+}
+
+:deep(.screen-status-icon-wrap) {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+:deep(.screen-lock-badge) {
+    position: absolute;
+    bottom: -2px;
+    right: -4px;
+    width: 14px;
+    height: 14px;
+    background: #f59e0b;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1.5px solid #fff;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
 }
 
 :deep(.actions-cell) {
