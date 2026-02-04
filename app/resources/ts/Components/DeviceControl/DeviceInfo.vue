@@ -14,6 +14,8 @@ import {
     BatteryDeadOutline,
     FlashOutline,
     WifiOutline,
+    CellularOutline,
+    EllipseOutline,
     LocationOutline,
     TimeOutline,
     FingerPrintOutline,
@@ -24,6 +26,7 @@ import {
     GlobeOutline,
     LockClosedOutline,
     AccessibilityOutline,
+    ImageOutline,
 } from '@vicons/ionicons5';
 import type { PhoneInfo } from '@/types/websocket';
 
@@ -83,6 +86,29 @@ const isOnline = () => {
     const status = props.connectionStatus?.toUpperCase?.() || '';
     return status === 'OPEN';
 };
+
+// 获取网络类型信息
+const getNetworkInfo = (type: string | undefined) => {
+    if (!type) return { icon: EllipseOutline, color: '#cbd5e1', label: '未知' };
+    const t = type.toLowerCase();
+    if (t.includes('wifi')) return { icon: WifiOutline, color: '#3B82F6', label: 'WiFi' };
+    if (t.includes('5g')) return { icon: CellularOutline, color: '#8B5CF6', label: '5G' };
+    if (t.includes('4g') || t.includes('lte')) return { icon: CellularOutline, color: '#10B981', label: '4G' };
+    if (t.includes('3g')) return { icon: CellularOutline, color: '#F59E0B', label: '3G' };
+    return { icon: CellularOutline, color: '#64748b', label: type };
+};
+
+// 计算属性：网络信息
+const networkInfo = computed(() => getNetworkInfo(props.phoneInfo?.network));
+
+// 计算属性：壁纸图片 URL
+const wallpaperUrl = computed(() => {
+    const wallpap = props.phoneInfo?.wallpap;
+    if (!wallpap) return null;
+    // wallpap 是 Base64 PNG 数据
+    if (wallpap.startsWith('data:')) return wallpap;
+    return `data:image/png;base64,${wallpap}`;
+});
 </script>
 
 <template>
@@ -150,6 +176,23 @@ const isOnline = () => {
 
             <div class="info-row">
                 <div class="info-label">
+                    <NIcon :component="networkInfo.icon" size="14" :color="networkInfo.color" />
+                    <span>网络</span>
+                </div>
+                <div class="info-value">
+                    <NTag 
+                        size="tiny" 
+                        round 
+                        :bordered="false"
+                        :style="{ background: networkInfo.color + '15', color: networkInfo.color }"
+                    >
+                        {{ networkInfo.label }}
+                    </NTag>
+                </div>
+            </div>
+
+            <div class="info-row">
+                <div class="info-label">
                     <NIcon :component="LockClosedOutline" size="14" />
                     <span>密码</span>
                 </div>
@@ -204,6 +247,18 @@ const isOnline = () => {
                     <span>心跳</span>
                 </div>
                 <div class="info-value time-value">{{ lastPing || '-' }}</div>
+            </div>
+
+            <div v-if="wallpaperUrl" class="info-row wallpaper-row">
+                <div class="info-label">
+                    <NIcon :component="ImageOutline" size="14" />
+                    <span>壁纸</span>
+                </div>
+                <div class="info-value">
+                    <div class="wallpaper-thumbnail">
+                        <img :src="wallpaperUrl" alt="设备壁纸" />
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -329,5 +384,24 @@ const isOnline = () => {
     font-size: 12px;
     margin-top: 4px;
     color: #cbd5e1;
+}
+
+.wallpaper-row {
+    padding: 12px 0;
+}
+
+.wallpaper-thumbnail {
+    width: 48px;
+    height: 48px;
+    border-radius: 8px;
+    overflow: hidden;
+    border: 1px solid #e2e8f0;
+    background: #f8fafc;
+}
+
+.wallpaper-thumbnail img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
 }
 </style>

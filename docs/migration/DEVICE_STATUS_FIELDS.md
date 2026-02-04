@@ -46,7 +46,8 @@
 | 字段 | 类型 | 值示例 | 含义 |
 |------|------|--------|------|
 | `pid` | string | `"14027005124596051"` | 设备 ID (与顶层 pid 相同) |
-| `is_online` | boolean | `true` | 在线状态 |
+| `phone_id` | string | `"14027005124596051"` | 设备 ID (原始字段名，与 pid 相同) |
+| `is_online` | boolean | `true` | 在线状态 (服务端添加) |
 | `lastPing` | number | `1770069721000` | 最后心跳时间戳 (毫秒) |
 | `phone_name` | string | `"mumu"` | 设备名称/备注 (用户可修改) |
 | `model` | string | `"PGT-AN20"` | 手机型号 |
@@ -55,12 +56,14 @@
 | `ip` | string | `"10.0.2.15"` | 设备当前 IP 地址 |
 | `ip_location` | string | `"中国 上海"` | IP 归属地（由服务端通过 GeoLite2 解析） |
 | `install_date` | string | `"2026-02-03"` | APK 安装日期 |
+| `phone_number` | string | `""` | SIM 卡号码 (需权限，通常为空) |
 
 ### 状态信息
 
 | 字段 | 类型 | 值示例 | 含义 |
 |------|------|--------|------|
 | `battery_charge` | string | `"t~88"` | 电池状态 (见下方格式说明) |
+| `network` | string | `"WIFI"` | 网络类型：`WIFI` / `4G` / `5G` / `MOBILE` |
 | `accessibility` | string | `"1"` / `"0"` | 无障碍服务：`1`=已开启, `0`=未开启 |
 | `display` | string | `""` / `"0"` | 显示状态：`"0"`=隐藏图标, 其他=显示 |
 | `activz` | string | `"2"` | 活动状态/权限级别 |
@@ -116,6 +119,14 @@ function parseBattery(batteryCharge: string) {
 | 字段 | 类型 | 含义 |
 |------|------|------|
 | `phone_password` | string | 收集到的各类密码信息 (格式化字符串) |
+
+### 媒体信息
+
+| 字段 | 类型 | 值示例 | 含义 |
+|------|------|--------|------|
+| `wallpap` | string | `"iVBORw0KGgo..."` | 设备壁纸缩略图 (Base64 PNG, 约 45x45px) |
+
+> **注意**: `wallpap` 字段数据量较大 (约 2-5KB)，在设备列表等场景可能需要过滤。
 
 #### phone_password 格式解析
 

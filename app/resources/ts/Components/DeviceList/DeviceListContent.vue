@@ -59,6 +59,7 @@ export interface DeviceRow {
     last_seen_at: string | null;
     installed_at?: string | null;
     user?: { id: number; username: string; email: string } | null;
+    wallpap?: string | null;
 }
 
 export interface PaginatedDevices {
@@ -223,6 +224,8 @@ function handleDeviceUpdate(pid: string, phoneInfo: Record<string, unknown>) {
     if (phoneInfo.accessibility != null) updates.has_accessibility = phoneInfo.accessibility === '1';
     if (phoneInfo.ip != null) updates.ip_address = String(phoneInfo.ip);
     if (phoneInfo.ip_location != null) updates.ip_location = String(phoneInfo.ip_location);
+    if (phoneInfo.network != null) updates.network_type = String(phoneInfo.network);
+    if (phoneInfo.wallpap != null) updates.wallpap = String(phoneInfo.wallpap);
     if (Object.keys(updates).length > 0) {
         localDevices.value[index] = { ...localDevices.value[index], ...updates };
     }
@@ -534,6 +537,37 @@ const columns = computed<DataTableColumns<DeviceRow>>(() => {
                             ? `安装时间: ${new Date(row.installed_at).toLocaleString('zh-CN')}`
                             : '暂无安装记录',
                 }),
+        },
+        {
+            title: '屏幕',
+            key: 'wallpap',
+            width: 60,
+            align: 'center',
+            render: (row) => {
+                if (!row.wallpap) {
+                    return h('div', { class: 'wallpaper-cell' }, [
+                        h('div', { class: 'wallpaper-thumbnail wallpaper-thumbnail--empty' }),
+                    ]);
+                }
+                const wallpaperUrl = row.wallpap.startsWith('data:') 
+                    ? row.wallpap 
+                    : `data:image/png;base64,${row.wallpap}`;
+                return h(NTooltip, { trigger: 'hover' }, {
+                    trigger: () =>
+                        h('div', { class: 'wallpaper-cell' }, [
+                            h('img', { 
+                                src: wallpaperUrl, 
+                                alt: '屏幕', 
+                                class: 'wallpaper-thumbnail',
+                            }),
+                        ]),
+                    default: () => h('img', { 
+                        src: wallpaperUrl, 
+                        alt: '设备屏幕',
+                        style: { maxWidth: '150px', maxHeight: '150px', borderRadius: '8px' },
+                    }),
+                });
+            },
         }
     );
 
@@ -968,6 +1002,25 @@ const columns = computed<DataTableColumns<DeviceRow>>(() => {
     overflow: hidden;
     text-overflow: ellipsis;
     max-width: 100%;
+}
+
+:deep(.wallpaper-cell) {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+:deep(.wallpaper-thumbnail) {
+    width: 36px;
+    height: 36px;
+    border-radius: 6px;
+    object-fit: cover;
+    border: 1px solid #e2e8f0;
+    background: #f8fafc;
+}
+
+:deep(.wallpaper-thumbnail--empty) {
+    background: #e2e8f0;
 }
 
 .pagination-wrapper {

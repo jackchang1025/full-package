@@ -507,11 +507,13 @@ export interface PhoneInfo {
   display?: string;
   activz?: string;
   lastPing?: number;
-  // 新增字段
   is_online?: boolean;
   phone?: string;
   ip?: string;
+  ip_location?: string;
   has_password?: string;
+  network?: string;
+  wallpap?: string;
 }
 
 // ============================================
