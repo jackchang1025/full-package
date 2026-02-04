@@ -29,12 +29,14 @@ import { h } from 'vue';
 import DefaultLayout from './DefaultLayout.vue';
 import SidebarLogo from '@/Components/SidebarLogo.vue';
 import { useGlobalWebSocket } from '@/composables/useGlobalWebSocket';
+import { useAdminBasePath } from '@/composables/useAdminBasePath';
 
 const page = usePage();
 type AuthProps = { auth?: { user?: { username?: string; email?: string; roles?: string[] } } };
 const user = computed(() => (page.props as AuthProps).auth?.user);
 const collapsed = ref(false);
 
+const { userRoute, userBaseUrl } = useAdminBasePath();
 const { connect, disconnect, connectionState } = useGlobalWebSocket();
 
 onMounted(() => {
@@ -89,10 +91,10 @@ const userMenuOptions = [
 
 const handleMenuSelect = (key: string) => {
     const routes: Record<string, string> = {
-        dashboard: '/dashboard',
-        devices: '/devices',
-        builds: '/builds',
-        settings: '/settings/profile',
+        dashboard: userRoute('/dashboard'),
+        devices: userRoute('/devices'),
+        builds: userRoute('/builds'),
+        settings: userRoute('/settings/profile'),
     };
     if (routes[key]) {
         router.visit(routes[key]);
@@ -101,17 +103,19 @@ const handleMenuSelect = (key: string) => {
 
 const handleUserMenuSelect = (key: string) => {
     if (key === 'logout') {
-        router.post('/logout');
+        router.post(userRoute('/logout'));
     } else if (key === 'profile') {
-        router.visit('/settings/profile');
+        router.visit(userRoute('/settings/profile'));
     }
 };
 
 const currentPath = computed(() => {
     const path = window.location.pathname;
-    if (path.startsWith('/devices')) return 'devices';
-    if (path.startsWith('/builds')) return 'builds';
-    if (path.startsWith('/settings')) return 'settings';
+    const base = userBaseUrl.value;
+    const relativePath = base && path.startsWith(base) ? path.slice(base.length) : path;
+    if (relativePath.startsWith('/devices')) return 'devices';
+    if (relativePath.startsWith('/builds')) return 'builds';
+    if (relativePath.startsWith('/settings')) return 'settings';
     return 'dashboard';
 });
 

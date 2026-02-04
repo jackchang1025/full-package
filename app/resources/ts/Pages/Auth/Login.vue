@@ -15,9 +15,12 @@ import {
 } from 'naive-ui';
 import { LockClosedOutline, MailOutline, EyeOutline, EyeOffOutline } from '@vicons/ionicons5';
 import DefaultLayout from '@/Layouts/DefaultLayout.vue';
+import { useAdminBasePath } from '@/composables/useAdminBasePath';
 
 const page = usePage();
 const shared = computed(() => page.props as { appName?: string; appLogo?: string; subscriptionExpired?: boolean });
+const { userRoute } = useAdminBasePath();
+
 const form = useForm({
     email: '',
     password: '',
@@ -27,7 +30,7 @@ const form = useForm({
 const showPassword = ref(false);
 
 const submit = () => {
-    form.post('/login', {
+    form.post(userRoute('/login'), {
         onFinish: () => form.reset('password'),
     });
 };
@@ -123,7 +126,7 @@ const submit = () => {
                             <NCheckbox v-model:checked="form.remember" class="remember-checkbox">
                                 记住我
                             </NCheckbox>
-                            <NA href="/forgot-password" class="forgot-link">忘记密码？</NA>
+                            <NA :href="userRoute('/forgot-password')" class="forgot-link">忘记密码？</NA>
                         </div>
 
                         <NButton

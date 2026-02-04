@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { h } from 'vue';
+import { h, computed } from 'vue';
 import { Head, router, useForm } from '@inertiajs/vue3';
 import { NDataTable, NButton, NInput, NInputGroup, NPopconfirm } from 'naive-ui';
 import type { DataTableColumns } from 'naive-ui';
 import { NIcon } from 'naive-ui';
 import { PencilOutline, AddOutline, TrashOutline } from '@vicons/ionicons5';
 import AdminLayout from '@/Layouts/AdminLayout.vue';
+import { useAdminBasePath } from '@/composables/useAdminBasePath';
 
 interface UserRow {
     id: number;
@@ -32,11 +33,13 @@ const props = defineProps<{
     filters?: { search?: string };
 }>();
 
-const searchForm = useForm({ search: props.filters?.search ?? '' });
-const submitSearch = () => searchForm.get('/admin/users', { preserveState: true, data: { search: searchForm.search } });
+const { adminRoute, adminBaseUrl } = useAdminBasePath();
 
-const roleLabels = () => props.roleLabels ?? {};
-const deleteUser = (id: number) => router.delete(`/admin/users/${id}`);
+const searchForm = useForm({ search: props.filters?.search ?? '' });
+const submitSearch = () => searchForm.get(adminRoute('/users'), { preserveState: true, data: { search: searchForm.search } });
+
+const roleLabelsMap = computed(() => props.roleLabels ?? {});
+const deleteUser = (id: number) => router.delete(adminRoute(`/users/${id}`));
 
 const columns: DataTableColumns<UserRow> = [
     { title: 'ID', key: 'id', width: 70 },
@@ -48,7 +51,7 @@ const columns: DataTableColumns<UserRow> = [
         width: 120,
         render: (row) =>
             row.roles?.length
-                ? row.roles.map((r) => roleLabels()[r] ?? r).join(', ')
+                ? row.roles.map((r) => roleLabelsMap.value[r] ?? r).join(', ')
                 : '-',
     },
     { title: '到期时间', key: 'subscription_expires_at', width: 120 },
@@ -60,7 +63,7 @@ const columns: DataTableColumns<UserRow> = [
             h('div', { class: 'actions-cell' }, [
                 h(NButton, {
                     size: 'small',
-                    onClick: () => router.visit(`/admin/users/${row.id}/edit`),
+                    onClick: () => router.visit(adminRoute(`/users/${row.id}/edit`)),
                 }, { default: () => '编辑' }),
                 h(NPopconfirm, {
                     positiveButtonProps: { type: 'error' },
@@ -93,7 +96,7 @@ const columns: DataTableColumns<UserRow> = [
                     />
                     <NButton type="primary" @click="submitSearch">搜索</NButton>
                 </NInputGroup>
-                <NButton type="primary" @click="router.visit('/admin/users/create')">
+                <NButton type="primary" @click="router.visit(adminRoute('/users/create'))">
                     <template #icon>
                         <NIcon :component="AddOutline" />
                     </template>
@@ -111,14 +114,14 @@ const columns: DataTableColumns<UserRow> = [
             <div v-if="users.last_page > 1" class="admin-pagination">
                 <NButton
                     :disabled="users.current_page <= 1"
-                    @click="router.get('/admin/users', { page: users.current_page - 1 })"
+                    @click="router.get(adminRoute('/users'), { page: users.current_page - 1 })"
                 >
                     上一页
                 </NButton>
                 <span class="page-info">{{ users.current_page }} / {{ users.last_page }}</span>
                 <NButton
                     :disabled="users.current_page >= users.last_page"
-                    @click="router.get('/admin/users', { page: users.current_page + 1 })"
+                    @click="router.get(adminRoute('/users'), { page: users.current_page + 1 })"
                 >
                     下一页
                 </NButton>

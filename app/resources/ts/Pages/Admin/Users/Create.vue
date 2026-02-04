@@ -1,14 +1,17 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed } from 'vue';
 import { Head, useForm, router } from '@inertiajs/vue3';
 import { NCard, NForm, NFormItem, NInput, NButton, NDatePicker, NSelect, NSpace, NIcon } from 'naive-ui';
 import { ArrowBackOutline } from '@vicons/ionicons5';
 import AdminLayout from '@/Layouts/AdminLayout.vue';
+import { useAdminBasePath } from '@/composables/useAdminBasePath';
 
 const props = defineProps<{
     roles: string[];
     roleLabels?: Record<string, string>;
 }>();
+
+const { adminRoute } = useAdminBasePath();
 
 const form = useForm({
     username: '',
@@ -19,21 +22,18 @@ const form = useForm({
     roles: ['client'] as string[],
 });
 
-const showPassword = ref(false);
-const showConfirmPassword = ref(false);
-
 const roleOptions = computed(() => {
     const labels = props.roleLabels ?? {};
     return (props.roles ?? []).map((r) => ({ label: labels[r] ?? r, value: r }));
 });
 
 const submit = () => {
-    form.post('/admin/users', {
-        onSuccess: () => router.visit('/admin/users'),
+    form.post(adminRoute('/users'), {
+        onSuccess: () => router.visit(adminRoute('/users')),
     });
 };
 
-const goBack = () => router.visit('/admin/users');
+const goBack = () => router.visit(adminRoute('/users'));
 </script>
 
 <template>

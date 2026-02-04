@@ -13,7 +13,13 @@ import {
 import SubscriptionExpiredHandler from './Components/SubscriptionExpiredHandler.vue';
 import PermissionDeniedHandler from './Components/PermissionDeniedHandler.vue';
 
-const appName = import.meta.env.VITE_APP_NAME || 'Laravel';
+// 使用后端注入的动态应用名称，回退到 Vite 环境变量或默认值
+declare global {
+    interface Window {
+        __APP_NAME__?: string;
+    }
+}
+const appName = window.__APP_NAME__ || import.meta.env.VITE_APP_NAME || 'Laravel';
 
 type InvalidResponse = {
     status: number;

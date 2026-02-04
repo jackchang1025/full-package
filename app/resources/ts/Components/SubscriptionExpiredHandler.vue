@@ -3,6 +3,7 @@ import { ref, onMounted, onUnmounted } from 'vue';
 import { NModal, NButton } from 'naive-ui';
 import { router } from '@inertiajs/vue3';
 import { CalendarOutline } from '@vicons/ionicons5';
+import { useAdminBasePath } from '@/composables/useAdminBasePath';
 
 export interface SubscriptionExpiredDetail {
     title?: string;
@@ -14,6 +15,7 @@ const defaultTitle = '订阅已过期';
 const defaultContent = '您的账号订阅已过期，无法继续使用。请联系管理员续费。点击确定将退出登录。';
 const defaultPositiveText = '确定退出';
 
+const { userRoute } = useAdminBasePath();
 const visible = ref(false);
 const detail = ref<SubscriptionExpiredDetail>({});
 
@@ -29,7 +31,7 @@ function showExpiredDialog(event: Event) {
 
 function handleConfirm() {
     visible.value = false;
-    router.post('/logout');
+    router.post(userRoute('/logout'));
 }
 
 onMounted(() => {

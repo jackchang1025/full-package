@@ -29,9 +29,12 @@ import {
     EyeOffOutline,
 } from '@vicons/ionicons5';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
+import { useAdminBasePath } from '@/composables/useAdminBasePath';
 
 const page = usePage();
 const user = computed(() => page.props.auth?.user);
+
+const { userRoute } = useAdminBasePath();
 
 const profileForm = useForm({
     username: user.value?.username || '',
@@ -50,11 +53,11 @@ const showNewPassword = ref(false);
 const showConfirmPassword = ref(false);
 
 const submitProfile = () => {
-    profileForm.put('/user/profile-information');
+    profileForm.put(userRoute('/user/profile-information'));
 };
 
 const submitPassword = () => {
-    passwordForm.put('/user/password', {
+    passwordForm.put(userRoute('/user/password'), {
         onSuccess: () => passwordForm.reset(),
     });
 };

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { Head, router } from '@inertiajs/vue3';
+import { useAdminBasePath } from '@/composables/useAdminBasePath';
 import {
     NTag,
     NButton,
@@ -64,9 +65,14 @@ interface Props {
     backUrl?: string;
 }
 
+const { adminBaseUrl, userRoute } = useAdminBasePath();
+
 const props = withDefaults(defineProps<Props>(), {
     backUrl: '/builds',
 });
+
+const { adminBaseUrl } = useAdminBasePath();
+const isAdminBack = computed(() => props.backUrl.startsWith(adminBaseUrl.value + '/'));
 
 const message = useMessage();
 
@@ -245,7 +251,7 @@ const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
 };
 
-const deleteBasePath = computed(() => (props.backUrl.includes('/admin/') ? '/admin/builds' : '/builds'));
+const deleteBasePath = computed(() => (isAdminBack.value ? adminBaseUrl.value + '/builds' : userRoute('/builds')));
 const handleDelete = () => {
     router.delete(`${deleteBasePath.value}/${props.build.id}`, {
         onSuccess: () => router.visit(props.backUrl),
@@ -253,7 +259,7 @@ const handleDelete = () => {
 };
 
 const goBack = () => router.visit(props.backUrl);
-const layoutComponent = computed(() => (props.backUrl.includes('/admin/') ? AdminLayout : AuthenticatedLayout));
+const layoutComponent = computed(() => (isAdminBack.value ? AdminLayout : AuthenticatedLayout));
 </script>
 
 <template>

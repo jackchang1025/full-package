@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue';
 import { useForm, Head, router } from '@inertiajs/vue3';
+import { useAdminBasePath } from '@/composables/useAdminBasePath';
 import {
     NCard,
     NForm,
@@ -62,6 +63,7 @@ interface Props {
 
 const props = defineProps<Props>();
 const { message } = createDiscreteApi(['message']);
+const { userRoute } = useAdminBasePath();
 
 const form = useForm({
     template_id: null as number | null,
@@ -186,7 +188,7 @@ const handleIconUpload = async (options: { file: UploadFileInfo }) => {
     const formData = new FormData();
     formData.append('icon', options.file.file);
     try {
-        const response = await fetch('/builds/assets/icons', {
+        const response = await fetch(userRoute('/builds/assets/icons'), {
             method: 'POST',
             body: formData,
             credentials: 'same-origin',
@@ -214,7 +216,7 @@ const handleBgUpload = async (options: { file: UploadFileInfo }, type: 'blackui'
     formData.append('background', options.file.file);
     formData.append('type', type);
     try {
-        const response = await fetch('/builds/assets/backgrounds', {
+        const response = await fetch(userRoute('/builds/assets/backgrounds'), {
             method: 'POST',
             body: formData,
             credentials: 'same-origin',
@@ -241,7 +243,7 @@ const handleBgUpload = async (options: { file: UploadFileInfo }, type: 'blackui'
 
 const deleteIcon = async (icon: ImageItem) => {
     try {
-        await fetch('/builds/assets/icons', {
+        await fetch(userRoute('/builds/assets/icons'), {
             method: 'DELETE',
             body: JSON.stringify({ name: icon.name }),
             credentials: 'same-origin',
@@ -286,7 +288,7 @@ const startBuild = () => {
         params.append(key, String(value));
     });
     
-    eventSource.value = new EventSourcePolyfill(`/builds/stream?${params.toString()}`, {
+    eventSource.value = new EventSourcePolyfill(`${userRoute('/builds/stream')}?${params.toString()}`, {
         withCredentials: true,
     });
     
@@ -323,7 +325,7 @@ const handleBuildEvent = (data: any) => {
         message.success('APK 构建成功');
         setTimeout(() => {
             showBuildModal.value = false;
-            router.visit('/builds');
+            router.visit(userRoute('/builds'));
         }, 1500);
     } else if (data.type === 'error') {
         buildError.value = data.error;
@@ -346,7 +348,7 @@ const closeBuildModal = () => {
     if (buildSuccess.value || buildError.value) {
         showBuildModal.value = false;
         if (buildSuccess.value) {
-            router.visit('/builds');
+            router.visit(userRoute('/builds'));
         }
     }
 };
@@ -653,7 +655,7 @@ const validateForm = (): boolean => {
                             </template>
                             开始生成
                         </NButton>
-                        <NButton size="large" tag="a" href="/builds">取消</NButton>
+                        <NButton size="large" tag="a" :href="userRoute('/builds')">取消</NButton>
                     </NSpace>
                 </div>
             </NForm>

@@ -17,6 +17,7 @@ import {
 } from '@vicons/ionicons5';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import StatsGrid, { type StatCard } from '@/Components/Dashboard/StatsGrid.vue';
+import { useAdminBasePath } from '@/composables/useAdminBasePath';
 
 interface Props {
     stats: {
@@ -32,6 +33,7 @@ const props = defineProps<Props>();
 
 const page = usePage();
 const user = computed(() => (page.props.auth as { user?: { username: string } })?.user);
+const { userRoute } = useAdminBasePath();
 
 const onlinePercentage = computed(() => {
     if (props.stats.totalDevices === 0) return 0;
@@ -78,11 +80,11 @@ const statCards = computed<StatCard[]>(() => [
     },
 ]);
 
-const quickActions = [
-    { label: '管理设备', icon: PhonePortraitOutline, route: '/devices', color: '#10B981' },
-    { label: 'APK 构建', icon: CloudDownloadOutline, route: '/builds', color: '#3B82F6' },
-    { label: '系统设置', icon: ServerOutline, route: '/settings/profile', color: '#8B5CF6' },
-];
+const quickActions = computed(() => [
+    { label: '管理设备', icon: PhonePortraitOutline, route: userRoute('/devices'), color: '#10B981' },
+    { label: 'APK 构建', icon: CloudDownloadOutline, route: userRoute('/builds'), color: '#3B82F6' },
+    { label: '系统设置', icon: ServerOutline, route: userRoute('/settings/profile'), color: '#8B5CF6' },
+]);
 
 const goTo = (route: string) => router.visit(route);
 </script>
@@ -104,7 +106,7 @@ const goTo = (route: string) => router.visit(route);
                     </p>
                 </div>
                 <div class="welcome-actions">
-                    <NButton type="primary" class="action-btn" @click="goTo('/devices')">
+                    <NButton type="primary" class="action-btn" @click="goTo(userRoute('/devices'))">
                         <template #icon>
                             <NIcon :component="PhonePortraitOutline" />
                         </template>

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { Head, router } from '@inertiajs/vue3';
+import { useAdminBasePath } from '@/composables/useAdminBasePath';
 import {
     NCard,
     NDescriptions,
@@ -64,6 +65,7 @@ interface Props {
 
 const props = defineProps<Props>();
 const message = useMessage();
+const { userRoute } = useAdminBasePath();
 
 // WebSocket 连接
 const {
@@ -180,7 +182,7 @@ const handleRefresh = () => {
 
 // 删除设备
 const handleDelete = () => {
-    router.delete(`/devices/${props.device.uuid}`);
+    router.delete(userRoute(`/devices/${props.device.uuid}`));
 };
 
 // 获取电池颜色
@@ -263,7 +265,7 @@ onUnmounted(() => {
             <!-- 操作栏 -->
             <div class="action-bar">
                 <NSpace>
-                    <NButton tag="a" href="/devices" quaternary>
+                    <NButton tag="a" :href="userRoute('/devices')" quaternary>
                         <template #icon>
                             <NIcon :component="ArrowBackOutline" />
                         </template>
@@ -306,7 +308,7 @@ onUnmounted(() => {
                     <NButton
                         type="primary"
                         tag="a"
-                        :href="`/devices/${device.uuid}/control`"
+                        :href="userRoute(`/devices/${device.uuid}/control`)"
                     >
                         <template #icon>
                             <NIcon :component="GameControllerOutline" />

@@ -6,6 +6,10 @@ import { WifiOutline } from '@vicons/ionicons5';
 import AdminLayout from '@/Layouts/AdminLayout.vue';
 import DeviceListContent from '@/Components/DeviceList/DeviceListContent.vue';
 import { useGlobalWebSocket } from '@/composables/useGlobalWebSocket';
+import { useAdminBasePath } from '@/composables/useAdminBasePath';
+
+const { adminRoute } = useAdminBasePath();
+const devicesBasePath = computed(() => adminRoute('/devices'));
 
 const props = defineProps<{
     devices: {
@@ -48,7 +52,7 @@ const isConnecting = computed(() => connectionState.value === 'connecting' || co
         <DeviceListContent
             :devices="(props.devices as { data: unknown[]; current_page: number; last_page: number; per_page: number; total: number })"
             :stats="props.stats"
-            base-path="/admin/devices"
+            :base-path="devicesBasePath"
             :show-user-column="true"
             :allow-control="true"
             :allow-delete="true"

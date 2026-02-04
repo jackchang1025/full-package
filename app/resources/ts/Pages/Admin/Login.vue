@@ -12,9 +12,11 @@ import {
 } from 'naive-ui';
 import { LockClosedOutline, MailOutline, EyeOutline, EyeOffOutline, ShieldCheckmarkOutline } from '@vicons/ionicons5';
 import DefaultLayout from '@/Layouts/DefaultLayout.vue';
+import { useAdminBasePath } from '@/composables/useAdminBasePath';
 
 const page = usePage();
 const shared = computed(() => page.props as { appName?: string; appLogo?: string });
+const { adminRoute } = useAdminBasePath();
 const form = useForm({
     email: '',
     password: '',
@@ -24,7 +26,7 @@ const form = useForm({
 const showPassword = ref(false);
 
 const submit = () => {
-    form.post('/admin/login', {
+    form.post(adminRoute('/login'), {
         onFinish: () => form.reset('password'),
     });
 };

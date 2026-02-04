@@ -3,11 +3,14 @@ import { computed } from 'vue';
 import { Head, useForm, router } from '@inertiajs/vue3';
 import { NCard, NForm, NFormItem, NInput, NButton, NSelect, NSpace } from 'naive-ui';
 import AdminLayout from '@/Layouts/AdminLayout.vue';
+import { useAdminBasePath } from '@/composables/useAdminBasePath';
 
 const props = defineProps<{
     permissions: string[];
     permissionLabels?: Record<string, string>;
 }>();
+
+const { adminRoute } = useAdminBasePath();
 
 const form = useForm({
     name: '',
@@ -20,8 +23,8 @@ const permissionOptions = computed(() => {
 });
 
 const submit = () => {
-    form.post('/admin/roles', {
-        onSuccess: () => router.visit('/admin/roles'),
+    form.post(adminRoute('/roles'), {
+        onSuccess: () => router.visit(adminRoute('/roles')),
     });
 };
 </script>
@@ -57,7 +60,7 @@ const submit = () => {
                     <NFormItem>
                         <NSpace>
                             <NButton type="primary" attr-type="submit" :loading="form.processing">创建</NButton>
-                            <NButton @click="router.visit('/admin/roles')">取消</NButton>
+                            <NButton @click="router.visit(adminRoute('/roles'))">取消</NButton>
                         </NSpace>
                     </NFormItem>
                 </NForm>

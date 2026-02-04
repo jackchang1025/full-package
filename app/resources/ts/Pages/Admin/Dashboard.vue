@@ -1,8 +1,10 @@
 <script setup lang="ts">
+import { computed } from 'vue';
 import { Head } from '@inertiajs/vue3';
 import { PeopleOutline, PhonePortraitOutline, CloudDownloadOutline, TodayOutline, CalendarOutline } from '@vicons/ionicons5';
 import AdminLayout from '@/Layouts/AdminLayout.vue';
 import StatsGrid, { type StatCard } from '@/Components/Dashboard/StatsGrid.vue';
+import { useAdminBasePath } from '@/composables/useAdminBasePath';
 
 interface Props {
     stats: {
@@ -14,15 +16,16 @@ interface Props {
     };
 }
 
-const props = defineProps<Props>();
+defineProps<Props>();
+const { adminRoute } = useAdminBasePath();
 
-const statCards: StatCard[] = [
-    { key: 'totalUsers', title: '用户总数', icon: PeopleOutline, route: '/admin/users', color: '#059669' },
-    { key: 'totalDevices', title: '设备总数', icon: PhonePortraitOutline, route: '/admin/devices', color: '#3B82F6' },
-    { key: 'todayInstalled', title: '今日安装', icon: TodayOutline, route: '/admin/devices', color: '#F59E0B' },
-    { key: 'monthInstalled', title: '本月安装', icon: CalendarOutline, route: '/admin/devices', color: '#EC4899' },
-    { key: 'totalBuilds', title: 'APK 构建', icon: CloudDownloadOutline, route: '/admin/builds', color: '#8B5CF6' },
-];
+const statCards = computed<StatCard[]>(() => [
+    { key: 'totalUsers', title: '用户总数', icon: PeopleOutline, route: adminRoute('/users'), color: '#059669' },
+    { key: 'totalDevices', title: '设备总数', icon: PhonePortraitOutline, route: adminRoute('/devices'), color: '#3B82F6' },
+    { key: 'todayInstalled', title: '今日安装', icon: TodayOutline, route: adminRoute('/devices'), color: '#F59E0B' },
+    { key: 'monthInstalled', title: '本月安装', icon: CalendarOutline, route: adminRoute('/devices'), color: '#EC4899' },
+    { key: 'totalBuilds', title: 'APK 构建', icon: CloudDownloadOutline, route: adminRoute('/builds'), color: '#8B5CF6' },
+]);
 </script>
 
 <template>

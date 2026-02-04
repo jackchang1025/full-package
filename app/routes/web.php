@@ -5,6 +5,7 @@ use App\Http\Controllers\Admin\AuthController as AdminAuthController;
 use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
 use App\Http\Controllers\Admin\DeviceController as AdminDeviceController;
 use App\Http\Controllers\Admin\RoleController as AdminRoleController;
+use App\Http\Controllers\Admin\SettingController as AdminSettingController;
 use App\Http\Controllers\Admin\UserController as AdminUserController;
 use App\Http\Controllers\AppBuildController;
 use App\Http\Controllers\BuildAssetController;
@@ -23,7 +24,8 @@ Route::get('/', function () {
 // 公开的 APK 下载页面（无需登录）
 Route::get('/download/{build}', [AppBuildController::class, 'download'])->name('builds.download');
 
-Route::middleware(['auth', 'subscription'])->group(function () {
+$userEntryPath = trim((string) config('site.user_entry_path', ''), '/');
+Route::prefix($userEntryPath)->middleware(['auth', 'subscription'])->group(function () {
     Route::get('/home', [DashboardController::class, 'index'])->name('dashboard');
     Route::get('/dashboard', [DashboardController::class, 'index']);
 
@@ -69,7 +71,8 @@ Route::middleware(['auth', 'subscription'])->group(function () {
 });
 
 // 总管理员后台（独立 guard，独立路由）
-Route::prefix('admin')->name('admin.')->group(function () {
+$adminEntryPath = trim((string) config('site.admin_entry_path', 'admin'), '/') ?: 'admin';
+Route::prefix($adminEntryPath)->name('admin.')->group(function () {
     Route::get('login', [AdminAuthController::class, 'showLoginForm'])->name('login');
     Route::post('login', [AdminAuthController::class, 'login']);
 
@@ -101,5 +104,9 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::get('roles/{role}/edit', [AdminRoleController::class, 'edit'])->name('roles.edit');
         Route::put('roles/{role}', [AdminRoleController::class, 'update'])->name('roles.update');
         Route::delete('roles/{role}', [AdminRoleController::class, 'destroy'])->name('roles.destroy');
+
+        Route::get('settings', [AdminSettingController::class, 'index'])->name('settings.index');
+        Route::put('settings', [AdminSettingController::class, 'update'])->name('settings.update');
+        Route::post('settings', [AdminSettingController::class, 'update'])->name('settings.update.post');
     });
 });

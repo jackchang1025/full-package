@@ -2,6 +2,7 @@
 import { Head, useForm, router } from '@inertiajs/vue3';
 import { NCard, NForm, NFormItem, NInput, NButton, NSpace } from 'naive-ui';
 import AdminLayout from '@/Layouts/AdminLayout.vue';
+import { useAdminBasePath } from '@/composables/useAdminBasePath';
 
 const props = defineProps<{
     device: {
@@ -12,10 +13,12 @@ const props = defineProps<{
     };
 }>();
 
+const { adminRoute } = useAdminBasePath();
+
 const form = useForm({ remark: props.device.remark ?? '' });
 
 const submit = () => {
-    form.put(`/admin/devices/${props.device.uuid}`, { onSuccess: () => router.visit('/admin/devices') });
+    form.put(adminRoute(`/devices/${props.device.uuid}`), { onSuccess: () => router.visit(adminRoute('/devices')) });
 };
 </script>
 
@@ -37,7 +40,7 @@ const submit = () => {
                     <NFormItem>
                         <NSpace>
                             <NButton type="primary" attr-type="submit" :loading="form.processing">保存</NButton>
-                            <NButton @click="router.visit('/admin/devices')">取消</NButton>
+                            <NButton @click="router.visit(adminRoute('/devices'))">取消</NButton>
                         </NSpace>
                     </NFormItem>
                 </NForm>

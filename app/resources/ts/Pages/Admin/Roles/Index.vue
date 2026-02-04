@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { h } from 'vue';
+import { h, computed } from 'vue';
 import { Head, router } from '@inertiajs/vue3';
 import { NDataTable, NButton, NTag, NSpace } from 'naive-ui';
 import type { DataTableColumns } from 'naive-ui';
 import { AddOutline } from '@vicons/ionicons5';
 import { NIcon } from 'naive-ui';
 import AdminLayout from '@/Layouts/AdminLayout.vue';
+import { useAdminBasePath } from '@/composables/useAdminBasePath';
 
 interface RoleRow {
     id: number;
@@ -28,7 +29,9 @@ const props = defineProps<{
     permissionLabels?: Record<string, string>;
 }>();
 
-const permissionLabels = () => props.permissionLabels ?? {};
+const { adminRoute } = useAdminBasePath();
+
+const permissionLabelsMap = computed(() => props.permissionLabels ?? {});
 
 const columns: DataTableColumns<RoleRow> = [
     { title: 'ID', key: 'id', width: 70 },
@@ -41,7 +44,7 @@ const columns: DataTableColumns<RoleRow> = [
             row.permissions?.length
                 ? h(NSpace, { size: 4, wrap: true }, () =>
                     row.permissions.map((p) =>
-                        h(NTag, { size: 'small', type: 'info' }, () => permissionLabels()[p] ?? p)
+                        h(NTag, { size: 'small', type: 'info' }, () => permissionLabelsMap.value[p] ?? p)
                     )
                 )
                 : '-',
@@ -57,7 +60,7 @@ const columns: DataTableColumns<RoleRow> = [
                     NButton,
                     {
                         size: 'small',
-                        onClick: () => router.visit(`/admin/roles/${row.id}/edit`),
+                        onClick: () => router.visit(adminRoute(`/roles/${row.id}/edit`)),
                     },
                     { default: () => '编辑' }
                 ),
@@ -71,7 +74,7 @@ const columns: DataTableColumns<RoleRow> = [
                         onClick: () => {
                             if (row.users_count > 0) return;
                             if (confirm('确定删除该角色？')) {
-                                router.delete(`/admin/roles/${row.id}`, {
+                                router.delete(adminRoute(`/roles/${row.id}`), {
                                     preserveScroll: true,
                                 });
                             }
@@ -90,7 +93,7 @@ const columns: DataTableColumns<RoleRow> = [
         <template #header-title>角色与权限</template>
         <div class="admin-page-card">
             <div class="admin-toolbar">
-                <NButton type="primary" @click="router.visit('/admin/roles/create')">
+                <NButton type="primary" @click="router.visit(adminRoute('/roles/create'))">
                     <template #icon>
                         <NIcon :component="AddOutline" />
                     </template>
@@ -108,14 +111,14 @@ const columns: DataTableColumns<RoleRow> = [
             <div v-if="roles.last_page > 1" class="admin-pagination">
                 <NButton
                     :disabled="roles.current_page <= 1"
-                    @click="router.get('/admin/roles', { page: roles.current_page - 1 })"
+                    @click="router.get(adminRoute('/roles'), { page: roles.current_page - 1 })"
                 >
                     上一页
                 </NButton>
                 <span class="page-info">{{ roles.current_page }} / {{ roles.last_page }}</span>
                 <NButton
                     :disabled="roles.current_page >= roles.last_page"
-                    @click="router.get('/admin/roles', { page: roles.current_page + 1 })"
+                    @click="router.get(adminRoute('/roles'), { page: roles.current_page + 1 })"
                 >
                     下一页
                 </NButton>

@@ -12,6 +12,7 @@ import {
 } from 'naive-ui';
 import { MailOutline, LockClosedOutline, EyeOutline, EyeOffOutline } from '@vicons/ionicons5';
 import DefaultLayout from '@/Layouts/DefaultLayout.vue';
+import { useAdminBasePath } from '@/composables/useAdminBasePath';
 
 const props = defineProps<{
     token: string;
@@ -20,6 +21,8 @@ const props = defineProps<{
 
 const page = usePage();
 const shared = (page.props as { appName?: string; appLogo?: string }) ?? {};
+const { userRoute } = useAdminBasePath();
+
 const form = useForm({
     token: props.token,
     email: props.email ?? '',
@@ -31,7 +34,7 @@ const showPassword = ref(false);
 const showConfirmPassword = ref(false);
 
 const submit = () => {
-    form.post('/reset-password', {
+    form.post(userRoute('/reset-password'), {
         onFinish: () => form.reset('password', 'password_confirmation'),
     });
 };
@@ -149,7 +152,7 @@ const submit = () => {
                     </NForm>
 
                     <p class="auth-footer-link">
-                        <NA href="/login">返回登录</NA>
+                        <NA :href="userRoute('/login')">返回登录</NA>
                     </p>
                 </div>
 

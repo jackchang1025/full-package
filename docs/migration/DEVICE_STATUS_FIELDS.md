@@ -66,7 +66,7 @@
 | `network` | string | `"WIFI"` | 网络类型：`WIFI` / `4G` / `5G` / `MOBILE` |
 | `accessibility` | string | `"1"` / `"0"` | 无障碍服务：`1`=已开启, `0`=未开启 |
 | `display` | string | `""` / `"0"` | 显示状态：`"0"`=隐藏图标, 其他=显示 |
-| `activz` | string | `"2"` | 活动状态/权限级别 |
+| `activz` | string | `"2"` | 屏幕状态 (见下方格式说明) |
 | `has_password` | string | `"0"` / `"1"` | 锁屏密码：`0`=无, `1`=有 |
 
 #### battery_charge 格式
@@ -86,6 +86,31 @@ function parseBattery(batteryCharge: string) {
   return {
     isCharging: charging === 't',
     level: parseInt(level, 10)
+  }
+}
+```
+
+#### activz 屏幕状态格式
+
+设备上报的屏幕亮灭和锁定状态，前端根据此值显示对应的状态图标。
+
+| 值 | 含义 | 对应图片 |
+|----|------|----------|
+| `"0"` | 屏幕亮 + 已锁定 | `ON_LOCK.png` |
+| `"1"` | 屏幕灭 + 已锁定 | `OFF_LOCK.png` |
+| `"2"` | 屏幕亮 + 未锁定 | `ON.png` |
+| `"3"` | 屏幕灭 + 未锁定 | `OFF.png` |
+| 其他 | 未知状态 | `known.png` |
+
+**解析代码示例 (TypeScript):**
+```typescript
+function getScreenStatus(activz: string): { isScreenOn: boolean; isLocked: boolean; label: string } {
+  switch (activz) {
+    case '0': return { isScreenOn: true, isLocked: true, label: '亮屏已锁' };
+    case '1': return { isScreenOn: false, isLocked: true, label: '息屏已锁' };
+    case '2': return { isScreenOn: true, isLocked: false, label: '亮屏解锁' };
+    case '3': return { isScreenOn: false, isLocked: false, label: '息屏解锁' };
+    default: return { isScreenOn: false, isLocked: false, label: '未知' };
   }
 }
 ```

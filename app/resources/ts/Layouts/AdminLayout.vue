@@ -21,15 +21,18 @@ import {
     ChevronBackOutline,
     ChevronForwardOutline,
     KeyOutline,
+    SettingsOutline,
 } from '@vicons/ionicons5';
 import DefaultLayout from './DefaultLayout.vue';
 import SidebarLogo from '@/Components/SidebarLogo.vue';
 import { useGlobalWebSocket } from '@/composables/useGlobalWebSocket';
+import { useAdminBasePath } from '@/composables/useAdminBasePath';
 
 const page = usePage();
 const admin = computed(() => (page.props.auth as { admin?: { id: number; name: string; email: string } })?.admin);
 const collapsed = ref(false);
 const { connect, disconnect } = useGlobalWebSocket();
+const { adminBaseUrl, adminRoute } = useAdminBasePath();
 
 onMounted(() => {
     if (admin.value?.email) {
@@ -47,6 +50,7 @@ const menuOptions = [
     { label: '角色与权限', key: 'roles', icon: () => h(NIcon, null, { default: () => h(KeyOutline) }) },
     { label: 'APK 构建', key: 'builds', icon: () => h(NIcon, null, { default: () => h(CloudDownloadOutline) }) },
     { label: '设备管理', key: 'devices', icon: () => h(NIcon, null, { default: () => h(PhonePortraitOutline) }) },
+    { label: '系统设置', key: 'settings', icon: () => h(NIcon, null, { default: () => h(SettingsOutline) }) },
 ];
 
 const userMenuOptions = [
@@ -54,28 +58,22 @@ const userMenuOptions = [
 ];
 
 const handleMenuSelect = (key: string) => {
-    const routes: Record<string, string> = {
-        dashboard: '/admin/dashboard',
-        users: '/admin/users',
-        roles: '/admin/roles',
-        builds: '/admin/builds',
-        devices: '/admin/devices',
-    };
-    if (routes[key]) router.visit(routes[key]);
+    router.visit(adminRoute(`/${key}`));
 };
 
 const handleUserMenuSelect = (key: string) => {
     if (key === 'logout') {
-        router.post('/admin/logout');
+        router.post(adminRoute('/logout'));
     }
 };
 
 const currentPath = computed(() => {
     const path = window.location.pathname;
-    if (path.startsWith('/admin/users')) return 'users';
-    if (path.startsWith('/admin/roles')) return 'roles';
-    if (path.startsWith('/admin/builds')) return 'builds';
-    if (path.startsWith('/admin/devices')) return 'devices';
+    const base = adminBaseUrl.value;
+    const routes = ['users', 'roles', 'builds', 'devices', 'settings'];
+    for (const route of routes) {
+        if (path.startsWith(`${base}/${route}`)) return route;
+    }
     return 'dashboard';
 });
 

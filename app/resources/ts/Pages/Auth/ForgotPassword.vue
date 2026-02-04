@@ -3,15 +3,18 @@ import { useForm, usePage, Head } from '@inertiajs/vue3';
 import { NForm, NFormItem, NInput, NButton, NA, NAlert, NIcon } from 'naive-ui';
 import { MailOutline } from '@vicons/ionicons5';
 import DefaultLayout from '@/Layouts/DefaultLayout.vue';
+import { useAdminBasePath } from '@/composables/useAdminBasePath';
 
 const page = usePage();
 const shared = (page.props as { appName?: string; appLogo?: string }) ?? {};
+const { userRoute } = useAdminBasePath();
+
 const form = useForm({
     email: '',
 });
 
 const submit = () => {
-    form.post('/forgot-password', {
+    form.post(userRoute('/forgot-password'), {
         onFinish: () => form.reset('email'),
     });
 };
@@ -82,7 +85,7 @@ const submit = () => {
                     </NForm>
 
                     <p class="auth-footer-link">
-                        <NA href="/login">返回登录</NA>
+                        <NA :href="userRoute('/login')">返回登录</NA>
                     </p>
                 </div>
 

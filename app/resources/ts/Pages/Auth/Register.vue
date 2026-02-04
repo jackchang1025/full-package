@@ -12,8 +12,11 @@ import {
 } from 'naive-ui';
 import { PersonOutline, MailOutline, LockClosedOutline, EyeOutline, EyeOffOutline } from '@vicons/ionicons5';
 import DefaultLayout from '@/Layouts/DefaultLayout.vue';
+import { useAdminBasePath } from '@/composables/useAdminBasePath';
 
 const page = usePage();
+const { userRoute } = useAdminBasePath();
+
 const form = useForm({
     username: '',
     email: '',
@@ -25,7 +28,7 @@ const showPassword = ref(false);
 const showConfirmPassword = ref(false);
 
 const submit = () => {
-    form.post('/register', {
+    form.post(userRoute('/register'), {
         onFinish: () => form.reset('password', 'password_confirmation'),
     });
 };
@@ -160,7 +163,7 @@ const submit = () => {
 
                         <div class="login-link">
                             已有账号？
-                            <NA href="/login" class="link-highlight">立即登录</NA>
+                            <NA :href="userRoute('/login')" class="link-highlight">立即登录</NA>
                         </div>
                     </NForm>
                 </div>

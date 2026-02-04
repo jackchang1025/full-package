@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
-import { Head, router } from '@inertiajs/vue3';
+import { Head, router, usePage } from '@inertiajs/vue3';
+import { useAdminBasePath } from '@/composables/useAdminBasePath';
 import {
     NTabs,
     NTab,
@@ -88,6 +89,9 @@ interface Props {
 const props = withDefaults(defineProps<Props>(), {
     backUrl: '/devices',
 });
+const page = usePage();
+const { adminBaseUrl, userRoute } = useAdminBasePath();
+const isAdminBack = computed(() => props.backUrl.startsWith(adminBaseUrl.value + '/'));
 const message = useMessage();
 
 const deviceId = computed(() => props.device.uuid);
@@ -632,7 +636,7 @@ const handleHideIcon = () => {
     });
     message.success('隐藏图标请求已发送');
 };
-const deleteBasePath = computed(() => (props.backUrl.includes('/admin/') ? '/admin/devices' : '/devices'));
+const deleteBasePath = computed(() => (isAdminBack.value ? adminBaseUrl.value + '/devices' : userRoute('/devices')));
 const handleDelete = () => {
     router.delete(`${deleteBasePath.value}/${props.device.uuid}`);
 };

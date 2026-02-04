@@ -11,8 +11,11 @@ import {
 } from '@vicons/ionicons5';
 import { router, usePage } from '@inertiajs/vue3';
 import DefaultLayout from '@/Layouts/DefaultLayout.vue';
+import { useAdminBasePath } from '@/composables/useAdminBasePath';
 
 const page = usePage();
+const { userRoute } = useAdminBasePath();
+
 const features = [
     {
         icon: PhonePortraitOutline,
@@ -40,8 +43,8 @@ const features = [
     },
 ];
 
-const goToLogin = () => router.visit('/login');
-const goToRegister = () => router.visit('/register');
+const goToLogin = () => router.visit(userRoute('/login'));
+const goToRegister = () => router.visit(userRoute('/register'));
 </script>
 
 <template>

@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed } from 'vue';
 import { Head, useForm, router } from '@inertiajs/vue3';
 import { NCard, NForm, NFormItem, NInput, NButton, NDatePicker, NSelect, NSpace } from 'naive-ui';
 import AdminLayout from '@/Layouts/AdminLayout.vue';
+import { useAdminBasePath } from '@/composables/useAdminBasePath';
 
 interface UserForm {
     id: number;
@@ -23,6 +24,8 @@ const props = defineProps<{
     permissionLabels?: Record<string, string>;
 }>();
 
+const { adminRoute } = useAdminBasePath();
+
 const form = useForm({
     username: props.user.username,
     email: props.user.email,
@@ -32,9 +35,6 @@ const form = useForm({
     roles: props.user.roles ?? [],
     direct_permissions: props.user.direct_permissions ?? [],
 });
-
-const showPassword = ref(false);
-const showConfirmPassword = ref(false);
 
 const roleOptions = computed(() => {
     const labels = props.roleLabels ?? {};
@@ -47,7 +47,7 @@ const permissionOptions = computed(() => {
 });
 
 const submit = () => {
-    form.put(`/admin/users/${props.user.id}`, { onSuccess: () => router.visit('/admin/users') });
+    form.put(adminRoute(`/users/${props.user.id}`), { onSuccess: () => router.visit(adminRoute('/users')) });
 };
 </script>
 
@@ -125,7 +125,7 @@ const submit = () => {
                     <NFormItem>
                         <NSpace>
                             <NButton type="primary" attr-type="submit" :loading="form.processing">保存</NButton>
-                            <NButton @click="router.visit('/admin/users')">取消</NButton>
+                            <NButton @click="router.visit(adminRoute('/users'))">取消</NButton>
                         </NSpace>
                     </NFormItem>
                 </NCard>
