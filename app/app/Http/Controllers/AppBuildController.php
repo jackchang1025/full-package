@@ -181,12 +181,7 @@ class AppBuildController extends Controller
                     'path' => $result->path,
                     'duration' => $result->totalTimeMs,
                 ]);
-            } catch (ApkBuildException $e) {
-                $this->sendSSE([
-                    'type' => 'error',
-                    'error' => $e->getMessage(),
-                ]);
-            } catch (\Throwable $e) {
+            } catch (ApkBuildException|\Throwable $e) {
                 $this->sendSSE([
                     'type' => 'error',
                     'error' => '构建失败: ' . $e->getMessage(),
