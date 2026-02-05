@@ -93,6 +93,7 @@ cd app
 | [DEVELOPMENT.md](./docs/migration/DEVELOPMENT.md) | 开发环境详解 | 环境配置、常用命令 |
 | [APK_BUILDER.md](./docs/migration/APK_BUILDER.md) | **APK 构建服务** - Laravel 版构建服务、配置参数、使用示例 | 开发/维护 APK 构建功能 |
 | [DOCKER_SUPERVISOR.md](./docs/migration/DOCKER_SUPERVISOR.md) | **Docker Supervisor 配置** - 容器内服务管理、WebSocket 自动启动、添加新服务 | 配置容器后台服务 |
+| [CONTROL_PANEL_SCREEN_OPERATIONS.md](./docs/migration/CONTROL_PANEL_SCREEN_OPERATIONS.md) | **控制面板屏幕操作** - 投屏点击/滑动/长按实现、坐标换算、PanelHandler 与 PanelSendHandler 分工 | 开发设备控制页、触摸转发、WebSocket 消息流 |
 
 ### 核心系统文档 (位于 `docs/legacy/`)
 
@@ -114,6 +115,7 @@ cd app
 | [WEBSOCKET_TESTING.md](./docs/migration/WEBSOCKET_TESTING.md) | **WebSocket 测试套件** - Unit Tests (Pest) + E2E Tests (Node.js)、Mock 客户端、测试命令 | 测试架构总览 |
 | [WEBSOCKET_SERVER.md](./docs/WEBSOCKET_SERVER.md) | **Node.js WebSocket 服务器** - 原始实现分析、消息协议、命令列表 | 理解原始协议、对比参考 |
 | [FRONTEND_WEBSOCKET_CLIENT.md](./docs/FRONTEND_WEBSOCKET_CLIENT.md) | **前端 WebSocket 客户端分析** - 编译后代码逆向、消息处理、触摸事件、状态管理 | 理解旧前端实现 |
+| [CONTROL_PANEL_SCREEN_OPERATIONS.md](./docs/migration/CONTROL_PANEL_SCREEN_OPERATIONS.md) | **控制面板屏幕操作** - ScreenViewer 坐标与事件、mov 消息格式、PanelHandler 转发 | 实现/调试投屏点击滑动长按 |
 
 ### APK 构建系统文档 (位于 `docs/legacy/`)
 
@@ -155,6 +157,11 @@ AGENTS.md → docs/migration/DEVELOPMENT.md → docs/legacy/SYSTEM_FEATURES.md
 **前端开发**:
 ```
 docs/migration/FRONTEND.md → docs/migration/WEBSOCKET_CLIENT.md
+```
+
+**设备控制页 / 屏幕操作**:
+```
+docs/migration/CONTROL_PANEL_SCREEN_OPERATIONS.md → docs/migration/WEBSOCKET_CLIENT.md
 ```
 
 **WebSocket 开发**:
