@@ -86,6 +86,7 @@ const submit = () => {
                             <NInput
                                 v-model:value="form.email"
                                 type="text"
+                                autocomplete="email"
                                 placeholder="请输入邮箱"
                                 size="large"
                                 :disabled="form.processing"
@@ -101,6 +102,7 @@ const submit = () => {
                             <NInput
                                 v-model:value="form.password"
                                 :type="showPassword ? 'text' : 'password'"
+                                autocomplete="current-password"
                                 placeholder="请输入密码"
                                 size="large"
                                 :disabled="form.processing"

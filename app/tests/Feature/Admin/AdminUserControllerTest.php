@@ -132,7 +132,7 @@ describe('PUT /admin/users/{user}', function () {
         expect($this->user->password)->toBe($originalPasswordHash);
     });
 
-    it('returns 422 when username is duplicate', function () {
+    it('returns validation redirect when username is duplicate', function () {
         $otherUser = User::factory()->create(['username' => 'otheruser']);
 
         $response = $this->actingAs($this->admin, 'admin')
@@ -142,12 +142,12 @@ describe('PUT /admin/users/{user}', function () {
                 'roles' => $this->user->getRoleNames()->values()->all(),
             ]);
 
-        $response->assertStatus(422);
+        $response->assertSessionHasErrors(['username']);
         $this->user->refresh();
         expect($this->user->username)->not->toBe('otheruser');
     });
 
-    it('returns 422 when email is duplicate', function () {
+    it('returns validation redirect when email is duplicate', function () {
         $otherUser = User::factory()->create(['email' => 'other@example.com']);
 
         $response = $this->actingAs($this->admin, 'admin')
@@ -157,7 +157,7 @@ describe('PUT /admin/users/{user}', function () {
                 'roles' => $this->user->getRoleNames()->values()->all(),
             ]);
 
-        $response->assertStatus(422);
+        $response->assertSessionHasErrors(['email']);
         $this->user->refresh();
         expect($this->user->email)->not->toBe('other@example.com');
     });
@@ -169,5 +169,53 @@ describe('PUT /admin/users/{user}', function () {
             'roles' => ['client'],
         ]);
         $response->assertRedirect(route('admin.login'));
+    });
+});
+
+describe('admin user edit page full flow', function () {
+    it('visits edit page, submits form with username email password roles and permissions, and updates user in database', function () {
+        $newUsername = 'edited_username';
+        $newEmail = 'edited@example.com';
+        $newPassword = 'NewSecurePassword1!';
+        $newRoles = ['client'];
+        $newDirectPermissions = ['builds.delete', 'builds.view'];
+        $newSubscriptionExpiresAt = '2026-12-31';
+
+        $editResponse = $this->actingAs($this->admin, 'admin')
+            ->get(route('admin.users.edit', $this->user));
+
+        $editResponse->assertStatus(200)
+            ->assertInertia(
+                fn($page) => $page
+                    ->component('Admin/Users/Edit', false)
+                    ->has('user')
+                    ->has('roles')
+                    ->has('permissions')
+                    ->where('user.id', $this->user->id)
+            );
+
+        $updateResponse = $this->actingAs($this->admin, 'admin')
+            ->put(route('admin.users.update', $this->user), [
+                'username' => $newUsername,
+                'email' => $newEmail,
+                'password' => $newPassword,
+                'password_confirmation' => $newPassword,
+                'subscription_expires_at' => $newSubscriptionExpiresAt,
+                'roles' => $newRoles,
+                'direct_permissions' => $newDirectPermissions,
+            ]);
+
+        $updateResponse->assertRedirect(route('admin.users.index'));
+        $updateResponse->assertSessionHas('success');
+
+        $this->user->refresh();
+        expect($this->user->username)->toBe($newUsername);
+        expect($this->user->email)->toBe($newEmail);
+        expect(Hash::check($newPassword, $this->user->password))->toBeTrue();
+        expect($this->user->subscription_expires_at?->format('Y-m-d'))->toBe($newSubscriptionExpiresAt);
+        expect($this->user->getRoleNames()->values()->all())->toEqual($newRoles);
+        $savedPermissions = $this->user->getDirectPermissions()->pluck('name')->values()->all();
+        expect($savedPermissions)->toContain('builds.delete')->toContain('builds.view');
+        expect($savedPermissions)->toHaveCount(2);
     });
 });

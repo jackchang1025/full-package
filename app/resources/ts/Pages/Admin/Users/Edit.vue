@@ -80,7 +80,7 @@ const submit = () => {
                     <NFormItem label="新密码" :validation-status="form.errors.password ? 'error' : undefined" :feedback="form.errors.password || '留空则不修改'">
                         <NInput
                             v-model:value="form.password"
-                            :type="showPassword ? 'text' : 'password'"
+                            type="password"
                             placeholder="留空则不修改"
                             show-password-on="click"
                             :disabled="form.processing"
@@ -89,7 +89,7 @@ const submit = () => {
                     <NFormItem label="确认新密码" :validation-status="form.errors.password_confirmation ? 'error' : undefined" :feedback="form.errors.password_confirmation">
                         <NInput
                             v-model:value="form.password_confirmation"
-                            :type="showConfirmPassword ? 'text' : 'password'"
+                            type="password"
                             placeholder="留空则不修改"
                             show-password-on="click"
                             :disabled="form.processing"

@@ -40,11 +40,11 @@ echo "🧹 清理缓存..."
 ./vendor/bin/sail artisan cache:clear
 ./vendor/bin/sail artisan route:clear
 
-# 修复日志目录权限（确保 WebSocket 服务可以写入）
-echo "🔧 修复日志目录权限..."
+# 修复目录权限（确保 artisan 可写入 storage、bootstrap/cache、lang）
+echo "🔧 修复目录权限..."
 ./vendor/bin/sail exec -T -u root laravel.test bash -c "
-    chown -R sail:sail /var/www/html/storage/logs/
-    chmod -R 775 /var/www/html/storage/logs/
+    chown -R sail:sail /var/www/html/storage /var/www/html/bootstrap/cache /var/www/html/lang
+    chmod -R 775 /var/www/html/storage /var/www/html/bootstrap/cache /var/www/html/lang
 " 2>/dev/null || true
 
 echo ""

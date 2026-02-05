@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, h } from 'vue';
+import { computed, ref, h, watch } from 'vue';
 import { router } from '@inertiajs/vue3';
 import {
     NDataTable,
@@ -136,6 +136,16 @@ const statusOptions = [
     { label: '离线', value: 'offline' },
 ];
 
+// 客户端分页状态
+const currentPage = ref(1);
+const pageSize = ref(10);
+const pageSizeOptions = [
+    { label: '10 条/页', value: 10 },
+    { label: '20 条/页', value: 20 },
+    { label: '50 条/页', value: 50 },
+    { label: '100 条/页', value: 100 },
+];
+
 const filteredDevices = computed(() => {
     let result = localDevices.value;
     if (searchQuery.value) {
@@ -153,6 +163,21 @@ const filteredDevices = computed(() => {
     if (statusFilter.value === 'online') result = result.filter((d) => d.is_online);
     else if (statusFilter.value === 'offline') result = result.filter((d) => !d.is_online);
     return result;
+});
+
+// 分页后的设备列表
+const paginatedDevices = computed(() => {
+    const start = (currentPage.value - 1) * pageSize.value;
+    const end = start + pageSize.value;
+    return filteredDevices.value.slice(start, end);
+});
+
+const totalPages = computed(() => Math.ceil(filteredDevices.value.length / pageSize.value) || 1);
+const totalCount = computed(() => filteredDevices.value.length);
+
+// 筛选条件变化时重置页码
+watch([searchQuery, statusFilter], () => {
+    currentPage.value = 1;
 });
 
 const isConnected = computed(() => connectionState.value === 'connected');
@@ -302,17 +327,17 @@ const columns = computed<DataTableColumns<DeviceRow>>(() => {
         {
             title: '设备',
             key: 'device',
-            minWidth: 220,
+            minWidth: 160,
             render: (row) =>
                 h(NTooltip, { trigger: 'hover' }, {
                     trigger: () =>
                         h('div', { class: 'device-cell' }, [
-                            h('div', { class: ['device-avatar', { online: row.is_online }] }, [h(NIcon, { component: PhonePortraitOutline, size: 20 })]),
+                            h('div', { class: ['device-avatar', { online: row.is_online }] }, [h(NIcon, { component: PhonePortraitOutline, size: 18 })]),
                             h('div', { class: 'device-info' }, [
                                 h('div', { class: 'device-name' }, row.name || '未命名设备'),
                                 h('div', { class: 'device-model' }, [
-                                    h(NIcon, { component: HardwareChipOutline, size: 12, color: '#94a3b8' }),
-                                    h('span', { style: { marginLeft: '4px' } }, row.model || '未知型号'),
+                                    h(NIcon, { component: HardwareChipOutline, size: 11, color: '#94a3b8' }),
+                                    h('span', { style: { marginLeft: '3px' } }, row.model || '未知型号'),
                                 ]),
                             ]),
                         ]),
@@ -322,7 +347,7 @@ const columns = computed<DataTableColumns<DeviceRow>>(() => {
         {
             title: '备注',
             key: 'remark',
-            width: 120,
+            width: 90,
             ellipsis: { tooltip: true },
             render: (row) => (row.remark ? h('span', { class: 'remark-cell' }, row.remark) : h('span', { class: 'text-slate-400' }, '-')),
         },
@@ -330,9 +355,9 @@ const columns = computed<DataTableColumns<DeviceRow>>(() => {
 
     if (props.showUserColumn) {
         cols.push({
-            title: '所属用户',
+            title: '用户',
             key: 'user',
-            width: 160,
+            width: 80,
             ellipsis: { tooltip: true },
             render: (row) => (row.user ? row.user.username : '-'),
         });
@@ -340,30 +365,30 @@ const columns = computed<DataTableColumns<DeviceRow>>(() => {
 
     cols.push(
         {
-            title: 'Android',
+            title: '系统',
             key: 'android_version',
-            width: 90,
+            width: 60,
             align: 'center',
             render: (row) =>
-                h(NTag, { size: 'small', round: true, bordered: false, style: { background: '#f1f5f9', color: '#475569' } }, () =>
-                    row.android_version ? `v${row.android_version}` : '-'
+                h(NTag, { size: 'tiny', round: true, bordered: false, style: { background: '#f1f5f9', color: '#475569', fontSize: '11px' } }, () =>
+                    row.android_version ? `${row.android_version}` : '-'
                 ),
         },
         {
             title: '状态',
             key: 'is_online',
-            width: 90,
+            width: 70,
             align: 'center',
             render: (row) =>
                 h('div', { class: 'status-cell' }, [
                     h('span', { class: ['status-dot', row.is_online ? 'online' : 'offline'] }),
-                    h('span', { style: { color: row.is_online ? '#059669' : '#94a3b8', fontWeight: 500 } }, row.is_online ? '在线' : '离线'),
+                    h('span', { style: { color: row.is_online ? '#059669' : '#94a3b8', fontWeight: 500, fontSize: '12px' } }, row.is_online ? '在线' : '离线'),
                 ]),
         },
         {
             title: '电量',
             key: 'battery_level',
-            width: 100,
+            width: 65,
             align: 'center',
             render: (row) => {
                 const isCharging = row.battery_is_charging ?? false;
@@ -373,8 +398,8 @@ const columns = computed<DataTableColumns<DeviceRow>>(() => {
                 return h(NTooltip, { trigger: 'hover' }, {
                     trigger: () =>
                         h('div', { class: 'metric-cell' }, [
-                            h(NIcon, { component: icon, size: 16, color }),
-                            h('span', { style: { color, marginLeft: '4px', fontWeight: 500 } }, label),
+                            h(NIcon, { component: icon, size: 14, color }),
+                            h('span', { style: { color, marginLeft: '2px', fontWeight: 500, fontSize: '12px' } }, label),
                         ]),
                     default: () =>
                         isCharging
@@ -392,26 +417,26 @@ const columns = computed<DataTableColumns<DeviceRow>>(() => {
         {
             title: '网络',
             key: 'network_type',
-            width: 90,
+            width: 60,
             align: 'center',
             render: (row) => {
                 const info = getNetworkInfo(row.network_type ?? null);
                 return h('div', { class: 'metric-cell' }, [
-                    h(NIcon, { component: info.icon, size: 16, color: info.color }),
-                    h('span', { style: { color: info.color, marginLeft: '4px', fontWeight: 500 } }, info.label),
+                    h(NIcon, { component: info.icon, size: 14, color: info.color }),
+                    h('span', { style: { color: info.color, marginLeft: '2px', fontWeight: 500, fontSize: '12px' } }, info.label),
                 ]);
             },
         },
         {
             title: 'IP',
             key: 'ip_address',
-            width: 130,
+            width: 100,
             align: 'center',
             render: (row) =>
                 h(NTooltip, { trigger: 'hover' }, {
                     trigger: () =>
                         h('div', { class: 'ip-cell' }, [
-                            h('span', { class: 'ip-address', style: { fontFamily: 'monospace', fontSize: '12px' } }, row.ip_address || '-'),
+                            h('span', { class: 'ip-address', style: { fontFamily: 'monospace', fontSize: '11px' } }, row.ip_address || '-'),
                             row.ip_location ? h('span', { class: 'ip-location' }, row.ip_location) : null,
                         ].filter(Boolean)),
                     default: () =>
@@ -421,37 +446,23 @@ const columns = computed<DataTableColumns<DeviceRow>>(() => {
         {
             title: '无障碍',
             key: 'has_accessibility',
-            minWidth: 100,
-            width: 100,
+            width: 70,
             align: 'center',
             render: (row) => {
                 const active = row.has_accessibility ?? false;
                 return h(NTooltip, { trigger: 'hover' }, {
                     trigger: () =>
                         h('div', { class: ['accessibility-cell', active ? 'accessibility-cell--on' : 'accessibility-cell--off'] }, [
-                            h('span', { class: 'accessibility-icon-wrap' }, [
-                                h(NIcon, { component: AccessibilityOutline, size: 18 }),
-                            ]),
-                            h(
-                                NTag,
-                                {
-                                    size: 'small',
-                                    round: true,
-                                    bordered: false,
-                                    type: active ? 'success' : undefined,
-                                    class: active ? 'accessibility-tag-on' : 'accessibility-tag-off',
-                                },
-                                { default: () => (active ? '开启' : '关闭') }
-                            ),
+                            h(NIcon, { component: AccessibilityOutline, size: 16 }),
                         ]),
                     default: () => (isConnected && row.is_online ? '无障碍状态 · 实时更新' : active ? '已开启' : '未开启'),
                 });
             },
         },
         {
-            title: '屏幕状态',
+            title: '屏幕',
             key: 'screen_status',
-            width: 80,
+            width: 50,
             align: 'center',
             render: (row) => {
                 const info = getScreenStatusInfo(row.screen_status);
@@ -469,16 +480,15 @@ const columns = computed<DataTableColumns<DeviceRow>>(() => {
             },
         },
         {
-            title: '活动时间',
+            title: '活动',
             key: 'last_seen_at',
-            width: 120,
+            width: 80,
             align: 'center',
             render: (row) =>
                 h(NTooltip, { trigger: 'hover' }, {
                     trigger: () =>
                         h('div', { class: 'metric-cell' }, [
-                            h(NIcon, { component: TimeOutline, size: 14, color: '#64748b' }),
-                            h('span', { style: { color: '#64748b', marginLeft: '4px' } }, formatLastSeen(row.last_seen_at)),
+                            h('span', { style: { color: '#64748b', fontSize: '12px' } }, formatLastSeen(row.last_seen_at)),
                         ]),
                     default: () =>
                         row.last_seen_at
@@ -487,16 +497,15 @@ const columns = computed<DataTableColumns<DeviceRow>>(() => {
                 }),
         },
         {
-            title: '安装时间',
+            title: '安装',
             key: 'installed_at',
-            width: 120,
+            width: 75,
             align: 'center',
             render: (row) =>
                 h(NTooltip, { trigger: 'hover' }, {
                     trigger: () =>
                         h('div', { class: 'metric-cell' }, [
-                            h(NIcon, { component: CalendarOutline, size: 14, color: '#64748b' }),
-                            h('span', { style: { color: '#64748b', marginLeft: '4px' } }, formatInstallTime(row.installed_at)),
+                            h('span', { style: { color: '#64748b', fontSize: '12px' } }, formatInstallTime(row.installed_at)),
                         ]),
                     default: () =>
                         row.installed_at
@@ -505,9 +514,9 @@ const columns = computed<DataTableColumns<DeviceRow>>(() => {
                 }),
         },
         {
-            title: '屏幕',
+            title: '截图',
             key: 'wallpap',
-            width: 60,
+            width: 45,
             align: 'center',
             render: (row) => {
                 if (!row.wallpap) {
@@ -540,8 +549,7 @@ const columns = computed<DataTableColumns<DeviceRow>>(() => {
     cols.push({
         title: '操作',
         key: 'actions',
-        minWidth: 152,
-        width: 152,
+        width: 120,
         align: 'center',
         render: (row) => {
             const actionButtons: ReturnType<typeof h>[] = [];
@@ -639,9 +647,9 @@ const columns = computed<DataTableColumns<DeviceRow>>(() => {
 
             <div class="table-wrapper">
                 <NDataTable
-                    v-if="filteredDevices.length > 0"
+                    v-if="paginatedDevices.length > 0"
                     :columns="columns"
-                    :data="filteredDevices"
+                    :data="paginatedDevices"
                     :bordered="false"
                     :single-line="true"
                     :row-key="(row: DeviceRow) => row.uuid"
@@ -673,13 +681,26 @@ const columns = computed<DataTableColumns<DeviceRow>>(() => {
                 </template>
             </NModal>
 
-            <div v-if="props.devices.last_page > 1" class="pagination-wrapper">
-                <NPagination
-                    :page="props.devices.current_page"
-                    :page-count="props.devices.last_page"
-                    :page-size="props.devices.per_page"
-                    @update:page="handlePageChange"
-                />
+            <div v-if="totalCount > 0" class="pagination-wrapper">
+                <div class="pagination-info">
+                    显示 {{ Math.min((currentPage - 1) * pageSize + 1, totalCount) }}-{{ Math.min(currentPage * pageSize, totalCount) }} / 共 {{ totalCount }} 条
+                </div>
+                <div class="pagination-controls">
+                    <NSelect 
+                        v-model:value="pageSize" 
+                        :options="pageSizeOptions" 
+                        size="small"
+                        style="width: 110px"
+                        @update:value="() => currentPage = 1"
+                    />
+                    <NPagination
+                        v-model:page="currentPage"
+                        :page-count="totalPages"
+                        :page-size="pageSize"
+                        :page-slot="5"
+                        size="medium"
+                    />
+                </div>
             </div>
         </div>
     </div>
@@ -785,7 +806,6 @@ const columns = computed<DataTableColumns<DeviceRow>>(() => {
 
 .table-wrapper {
     padding: 0 8px 8px;
-    overflow-x: auto;
 }
 
 .devices-table :deep(.n-data-table-th) {
@@ -1003,9 +1023,21 @@ const columns = computed<DataTableColumns<DeviceRow>>(() => {
 
 .pagination-wrapper {
     display: flex;
-    justify-content: center;
-    padding: 20px;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 24px;
     border-top: 1px solid #f1f5f9;
+}
+
+.pagination-info {
+    font-size: 13px;
+    color: #64748b;
+}
+
+.pagination-controls {
+    display: flex;
+    align-items: center;
+    gap: 16px;
 }
 
 .empty-state {

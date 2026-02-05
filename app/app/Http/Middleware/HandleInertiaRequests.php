@@ -38,6 +38,7 @@ class HandleInertiaRequests extends Middleware
             'appFavicon' => SettingController::resolveLogoUrl((string) config('app.favicon', '/favicon.ico')),
             'userBasePath' => $this->normalizePath(config('site.user_entry_path', '')),
             'adminBasePath' => $this->normalizePath(config('site.admin_entry_path', 'admin')) ?: 'admin',
+            'locale' => app()->getLocale(),
         ];
     }
 

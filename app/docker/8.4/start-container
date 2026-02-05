@@ -40,10 +40,14 @@ if [ -d /var/www/html/storage ]; then
     echo "Storage permissions fixed."
 fi
 
-# Also fix bootstrap/cache directory permissions
+# Also fix bootstrap/cache and lang directory permissions
 if [ -d /var/www/html/bootstrap/cache ]; then
     chown -R sail:sail /var/www/html/bootstrap/cache
     chmod -R 775 /var/www/html/bootstrap/cache
+fi
+if [ -d /var/www/html/lang ]; then
+    chown -R sail:sail /var/www/html/lang
+    chmod -R 775 /var/www/html/lang
 fi
 
 if [ $# -gt 0 ]; then

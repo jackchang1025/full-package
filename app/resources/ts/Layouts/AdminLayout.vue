@@ -273,12 +273,13 @@ const adminInitial = computed(() => admin.value?.name?.charAt(0).toUpperCase() ?
 }
 
 .admin-content {
-    padding: 28px;
     background: var(--admin-bg);
     min-height: calc(100vh - 60px);
+    overflow-x: hidden;
 }
 
 .admin-content-wrapper {
+    padding: 28px;
     max-width: 1600px;
     margin: 0 auto;
 }
