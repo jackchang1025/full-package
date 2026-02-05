@@ -21,6 +21,7 @@ const props = defineProps<{
     };
     stats: { total: number; online: number; offline: number };
     filters?: { search?: string };
+    canControl?: boolean;
 }>();
 
 const { connectionState } = useGlobalWebSocket();
@@ -57,6 +58,7 @@ const isConnecting = computed(() => connectionState.value === 'connecting' || co
             :allow-control="true"
             :allow-delete="true"
             :allow-edit-remark="true"
+            :can-control="props.canControl ?? true"
             :filters="props.filters ?? {}"
         />
     </AdminLayout>

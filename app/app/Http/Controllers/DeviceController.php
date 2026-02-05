@@ -48,6 +48,7 @@ class DeviceController extends Controller
         return Inertia::render('Devices/Index', [
             'devices' => $devices,
             'stats' => $stats,
+            'canControl' => $user->can('devices.control'),
         ]);
     }
 

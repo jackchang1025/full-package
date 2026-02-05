@@ -86,6 +86,7 @@ const props = withDefaults(
         allowDelete?: boolean;
         allowEditRemark?: boolean;
         allowEditLink?: boolean;
+        canControl?: boolean;
         filters?: Record<string, string>;
     }>(),
     {
@@ -95,6 +96,7 @@ const props = withDefaults(
         allowDelete: true,
         allowEditRemark: true,
         allowEditLink: false,
+        canControl: true,
         filters: () => ({}),
     }
 );
@@ -255,6 +257,10 @@ function getScreenStatusInfo(status: string | undefined) {
 }
 
 function openControl(uuid: string) {
+    if (!props.canControl) {
+        window.dispatchEvent(new CustomEvent('permission-denied', { detail: {} }));
+        return;
+    }
     window.open(`${props.basePath}/${uuid}/control`, '_blank');
 }
 

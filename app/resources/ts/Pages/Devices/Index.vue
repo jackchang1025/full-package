@@ -11,6 +11,7 @@ import { useAdminBasePath } from '@/composables/useAdminBasePath';
 const props = defineProps<{
     devices: { data: unknown[]; current_page: number; last_page: number; per_page: number; total: number };
     stats: { total: number; online: number; offline: number };
+    canControl?: boolean;
 }>();
 
 const { userRoute } = useAdminBasePath();
@@ -50,6 +51,7 @@ const isConnecting = computed(() => connectionState.value === 'connecting' || co
             :allow-control="true"
             :allow-delete="true"
             :allow-edit-remark="true"
+            :can-control="props.canControl ?? true"
         />
     </AuthenticatedLayout>
 </template>

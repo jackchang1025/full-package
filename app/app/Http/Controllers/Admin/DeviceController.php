@@ -56,6 +56,7 @@ class DeviceController extends Controller
             'devices' => $devices,
             'stats' => $stats,
             'filters' => ['search' => $request->input('search', '')],
+            'canControl' => true,
         ]);
     }
 

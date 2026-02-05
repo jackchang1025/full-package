@@ -1,6 +1,6 @@
 <?php
 
-$langBase = dirname(__DIR__) . '/lang/zh';
+$langBase = dirname(__DIR__) . '/lang/zh_CN';
 
 return [
     /*
