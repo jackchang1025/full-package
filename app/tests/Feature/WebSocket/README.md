@@ -10,6 +10,7 @@ tests/
 │   ├── WebSocketFunctionalTestTrait.php  # 测试 Trait (数据清理、协程支持)
 │   ├── SubscribeFunctionalTest.php       # 订阅功能测试
 │   ├── DevicePushFunctionalTest.php      # 设备推送测试
+│   ├── StatsFunctionalTest.php            # stats 统计功能测试
 │   ├── UserIsolationFunctionalTest.php   # 用户隔离测试
 │   └── PanelDeviceControlFunctionalTest.php # Panel 控制测试
 └── Support/
@@ -59,7 +60,8 @@ php -m | grep swoole
 | 测试文件 | 功能 | 测试数 |
 |---------|------|-------|
 | `SubscribeFunctionalTest` | Panel 订阅、设备列表、统计数据、心跳 | 4 |
-| `DevicePushFunctionalTest` | 设备上线/下线推送 | 2 |
+| `DevicePushFunctionalTest` | 设备上线/下线推送 | 3 |
+| `StatsFunctionalTest` | stats 统计：subscribe/deviceOnline/deviceUpdate/deviceOffline、用户与管理员隔离 | 8 |
 | `UserIsolationFunctionalTest` | 用户数据隔离、管理员权限 | 2 |
 | `PanelDeviceControlFunctionalTest` | 设备控制、SMS/联系人请求 | 3 |
 

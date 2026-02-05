@@ -93,8 +93,8 @@ init() {
     $DC exec -T app php artisan storage:link || true
 
     # GeoIP 数据库（~60MB 不随 git 推送，部署时需获取）
-    if [ -f .env ] && grep -q "MAXMIND_LICENSE_KEY" .env 2>/dev/null; then
-        export $(grep MAXMIND_LICENSE_KEY .env | xargs)
+    if [ -f .env ] && grep -qE '^MAXMIND_LICENSE_KEY=' .env 2>/dev/null; then
+        export $(grep -E '^MAXMIND_LICENSE_KEY=' .env | sed 's/[[:space:]]*#.*//' | xargs)
     fi
     if ./scripts/setup-geoip.sh 2>/dev/null; then
         print_msg "GeoIP 数据库已就绪"
@@ -306,7 +306,7 @@ case "${1:-help}" in
         fix_apk_permissions
         ;;
     setup-geoip)
-        [ -f .env ] && export $(grep MAXMIND_LICENSE_KEY .env | xargs) 2>/dev/null || true
+        [ -f .env ] && export $(grep -E '^MAXMIND_LICENSE_KEY=' .env 2>/dev/null | sed 's/[[:space:]]*#.*//' | xargs) 2>/dev/null || true
         ./scripts/setup-geoip.sh
         ;;
     help|*)

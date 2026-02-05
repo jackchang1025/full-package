@@ -39,7 +39,7 @@ final class Obfuscator
     public function shuffleClassNames(): int
     {
         $classMap = [];
-        $smaliDirs = ['smali', 'smali_classes2', 'smali_classes3', 'smali_classes4'];
+        $smaliDirs = array_slice(ApkBuilderConstants::SMALI_DIRS, 0, 4);
 
         foreach ($smaliDirs as $smaliDir) {
             $basePath = $this->buildDir . '/' . $smaliDir;
