@@ -1,6 +1,6 @@
 <?php
 
-$langBase = dirname(__DIR__) . '/lang/zh_CN';
+$langBase = dirname(__DIR__) . '/lang/' . config('app.locale');
 
 return [
     /*
