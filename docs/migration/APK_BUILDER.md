@@ -415,6 +415,71 @@ try {
 | 依赖注入 | 无 | 服务容器单例 |
 | 错误处理 | 返回码 | 自定义异常 |
 
+## 已知问题和修复历史
+
+### 2026-02-06: APK 加载页面乱码问题
+
+#### 问题描述
+
+构建的 APK 在加载页面出现乱码，表现为：
+- "欢迎使用" 界面正常显示，进度条加载到一半后页面变空白
+- 随后显示大量无法识别的字符（二进制乱码）
+
+#### 根本原因
+
+**问题 1: Assets 文件未被加密**
+
+PHP 的 `glob()` 函数不支持 `**` 递归通配符语法：
+
+```php
+// 错误：glob('/**/*') 在 PHP 中不能递归匹配
+$files = glob($assetsPath . '/**/*');
+// 只匹配到 dexopt/ 子目录的文件，没有匹配根目录的 .bt 文件
+```
+
+导致 `0.bt` ~ `10.bt` 这些 HTML 文件没有被加密。
+
+**问题 2: APK 解密逻辑**
+
+APK 运行时检测 `AsstsKey` 是否等于默认占位符 `[AST-PAS]`：
+- 如果等于默认值，直接读取文件（假设未加密）
+- 如果不等于默认值，使用 AsstsKey 进行 XOR 解密
+
+由于 `AsstsKey` 已被替换为新密钥，APK 尝试解密未加密的 HTML 文件，XOR 操作将正常内容变成乱码。
+
+**问题 3: `[USE-AUTOGRANT]` 占位符映射错误**
+
+`[USE-AUTOGRANT]` 在 APK 模板中被赋值给 `loadingText` 字段（加载页标题），但代码错误地将其映射为 `useAtoprims`（"0" 或 "1"）。
+
+#### 修复方案
+
+1. **修复 assets 加密 glob 模式** (`ApkBuilder.php`)：
+   ```php
+   // 修复前
+   $files = $this->fileSystem->glob($assetsPath . '/**/*');
+   
+   // 修复后：只加密根目录文件（与 VB.NET EncryptFolder 行为一致）
+   $files = $this->fileSystem->glob($assetsPath . '/*');
+   ```
+
+2. **修复 `[USE-AUTOGRANT]` 映射** (`SmaliProcessor.php`)：
+   ```php
+   // 修复前
+   '[USE-AUTOGRANT]' => $config->useAtoprims,
+   
+   // 修复后
+   '[USE-AUTOGRANT]' => $this->escapeForSmaliString($config->loginTitle),
+   ```
+
+#### 技术细节
+
+| 占位符 | APK 模板用途 | 修复前映射 | 修复后映射 |
+|--------|-------------|-----------|-----------|
+| `[USE-AUTOGRANT]` | `loadingText`（加载页标题） | `useAtoprims` ("0"/"1") | `loginTitle` ("欢迎使用") |
+| `[AST-PAS]` | `AsstsKey`（assets 解密密钥） | 正确 | 正确 |
+
+---
+
 ## 相关文档
 
 - [APK_BUILD_SYSTEM.md](../legacy/APK_BUILD_SYSTEM.md) - 旧系统构建流程

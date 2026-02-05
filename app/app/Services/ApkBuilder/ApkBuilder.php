@@ -615,7 +615,9 @@ final class ApkBuilder
             return;
         }
 
-        $files = $this->fileSystem->glob($assetsPath . '/**/*');
+        // 只加密 assets 根目录下的文件（与 VB.NET EncryptFolder 行为一致）
+        // PHP glob() 不支持 ** 递归语法，使用 /* 只匹配根目录文件
+        $files = $this->fileSystem->glob($assetsPath . '/*');
 
         foreach ($files as $file) {
             if (is_file($file)) {

