@@ -52,4 +52,57 @@ final class ApkBuilderConstants
     public const APK_UNSIGNED = 'app-unsigned.apk';
     public const APK_ALIGNED = 'app-aligned.apk';
     public const APK_SIGNED = 'app-signed.apk';
+
+    /** 进程轮询间隔（微秒），100ms */
+    public const PROCESS_POLL_INTERVAL_US = 100_000;
+
+    // ========== 文件路径常量 ==========
+
+    /** AndroidManifest.xml 相对路径 */
+    public const MANIFEST_PATH = '/AndroidManifest.xml';
+
+    /** strings.xml 相对路径 */
+    public const STRINGS_XML_PATH = '/res/values/strings.xml';
+
+    /** public.xml 相对路径 */
+    public const PUBLIC_XML_PATH = '/res/values/public.xml';
+
+    /** apktool.yml 相对路径 */
+    public const APKTOOL_YML_PATH = '/apktool.yml';
+
+    /** assets 目录相对路径 */
+    public const ASSETS_PATH = '/assets';
+
+    /** xml 资源目录相对路径 */
+    public const XML_DIR_PATH = '/res/xml';
+
+    /** blackui 背景图相对路径 */
+    public const BLACKUI_PATH = '/res/drawable/blackui.png';
+
+    /** 默认图标文件名 */
+    public const ICON_FILENAME = 'mylogo.png';
+
+    /** 新图标文件名 */
+    public const APP_ICON_FILENAME = 'app_icon.png';
+
+    // ========== 默认 XML 内容 ==========
+
+    /** 默认无障碍服务 XML */
+    public const DEFAULT_ACCESSIBILITY_XML = '<?xml version="1.0" encoding="utf-8"?>' .
+        '<accessibility-service xmlns:android="http://schemas.android.com/apk/res/android" ' .
+        'android:accessibilityEventTypes="typeAllMask" android:canRetrieveWindowContent="true"/>';
+
+    // ========== ZipArchive 错误消息 ==========
+
+    public const ZIP_ERROR_MESSAGES = [
+        \ZipArchive::ER_EXISTS => '文件已存在',
+        \ZipArchive::ER_INCONS => '压缩包不一致',
+        \ZipArchive::ER_INVAL => '无效参数',
+        \ZipArchive::ER_MEMORY => '内存分配失败',
+        \ZipArchive::ER_NOENT => '文件不存在',
+        \ZipArchive::ER_NOZIP => '不是有效的 ZIP 文件',
+        \ZipArchive::ER_OPEN => '无法打开文件',
+        \ZipArchive::ER_READ => '读取错误',
+        \ZipArchive::ER_SEEK => '定位错误',
+    ];
 }
