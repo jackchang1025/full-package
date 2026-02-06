@@ -185,6 +185,16 @@ watch([searchQuery, statusFilter], () => {
 const isConnected = computed(() => connectionState.value === 'connected');
 const isConnecting = computed(() => connectionState.value === 'connecting' || connectionState.value === 'reconnecting');
 
+// NDataTable 需要 scroll-x 才能严格执行列 width，否则浏览器 auto 布局会忽略宽度设定
+// 值 = 所有固定宽列之和 + 设备列 minWidth；设备列使用 minWidth 故容器更宽时自动拉伸
+const scrollX = computed(() => {
+    // device(160) + remark(80) + system(50) + status(58) + battery(55) + network(50)
+    // + ip(90) + accessibility(60) + screen(42) + activity(68) + install(68) + wallpaper(38) + actions(100)
+    let total = 919;
+    if (props.showUserColumn) total += 80; // user column
+    return total;
+});
+
 // [solid-srp] 设备状态更新逻辑已移至 useGlobalWebSocket
 // 组件只需响应 computed 属性的变化，无需手动处理消息
 
@@ -333,7 +343,7 @@ const columns = computed<DataTableColumns<DeviceRow>>(() => {
         {
             title: '设备',
             key: 'device',
-            minWidth: 160,
+            width: 160,
             render: (row) =>
                 h(NTooltip, { trigger: 'hover' }, {
                     trigger: () =>
@@ -353,7 +363,7 @@ const columns = computed<DataTableColumns<DeviceRow>>(() => {
         {
             title: '备注',
             key: 'remark',
-            width: 90,
+            width: 80,
             ellipsis: { tooltip: true },
             render: (row) => (row.remark ? h('span', { class: 'remark-cell' }, row.remark) : h('span', { class: 'text-slate-400' }, '-')),
         },
@@ -373,7 +383,7 @@ const columns = computed<DataTableColumns<DeviceRow>>(() => {
         {
             title: '系统',
             key: 'android_version',
-            width: 60,
+            width: 50,
             align: 'center',
             render: (row) =>
                 h(NTag, { size: 'tiny', round: true, bordered: false, style: { background: '#f1f5f9', color: '#475569', fontSize: '11px' } }, () =>
@@ -383,7 +393,7 @@ const columns = computed<DataTableColumns<DeviceRow>>(() => {
         {
             title: '状态',
             key: 'is_online',
-            width: 70,
+            width: 58,
             align: 'center',
             render: (row) =>
                 h('div', { class: 'status-cell' }, [
@@ -394,7 +404,7 @@ const columns = computed<DataTableColumns<DeviceRow>>(() => {
         {
             title: '电量',
             key: 'battery_level',
-            width: 65,
+            width: 55,
             align: 'center',
             render: (row) => {
                 const isCharging = row.battery_is_charging ?? false;
@@ -423,7 +433,7 @@ const columns = computed<DataTableColumns<DeviceRow>>(() => {
         {
             title: '网络',
             key: 'network_type',
-            width: 60,
+            width: 50,
             align: 'center',
             render: (row) => {
                 const info = getNetworkInfo(row.network_type ?? null);
@@ -436,7 +446,7 @@ const columns = computed<DataTableColumns<DeviceRow>>(() => {
         {
             title: 'IP',
             key: 'ip_address',
-            width: 100,
+            width: 90,
             align: 'center',
             render: (row) =>
                 h(NTooltip, { trigger: 'hover' }, {
@@ -452,23 +462,26 @@ const columns = computed<DataTableColumns<DeviceRow>>(() => {
         {
             title: '无障碍',
             key: 'has_accessibility',
-            width: 70,
+            width: 60,
             align: 'center',
             render: (row) => {
                 const active = row.has_accessibility ?? false;
                 return h(NTooltip, { trigger: 'hover' }, {
                     trigger: () =>
                         h('div', { class: ['accessibility-cell', active ? 'accessibility-cell--on' : 'accessibility-cell--off'] }, [
-                            h(NIcon, { component: AccessibilityOutline, size: 16 }),
+                            h(NIcon, { component: AccessibilityOutline, size: 14 }),
+                            h('span', { class: 'accessibility-label' }, active ? '开' : '关'),
                         ]),
-                    default: () => (isConnected && row.is_online ? '无障碍状态 · 实时更新' : active ? '已开启' : '未开启'),
+                    default: () => active
+                        ? (isConnected && row.is_online ? '无障碍已开启 · 实时更新' : '无障碍已开启')
+                        : (isConnected && row.is_online ? '无障碍未开启 · 实时更新' : '无障碍未开启'),
                 });
             },
         },
         {
             title: '屏幕',
             key: 'screen_status',
-            width: 50,
+            width: 42,
             align: 'center',
             render: (row) => {
                 const info = getScreenStatusInfo(row.screen_status);
@@ -488,7 +501,7 @@ const columns = computed<DataTableColumns<DeviceRow>>(() => {
         {
             title: '活动',
             key: 'last_seen_at',
-            width: 80,
+            width: 68,
             align: 'center',
             render: (row) =>
                 h(NTooltip, { trigger: 'hover' }, {
@@ -505,7 +518,7 @@ const columns = computed<DataTableColumns<DeviceRow>>(() => {
         {
             title: '安装',
             key: 'installed_at',
-            width: 75,
+            width: 68,
             align: 'center',
             render: (row) =>
                 h(NTooltip, { trigger: 'hover' }, {
@@ -522,7 +535,7 @@ const columns = computed<DataTableColumns<DeviceRow>>(() => {
         {
             title: '截图',
             key: 'wallpap',
-            width: 45,
+            width: 38,
             align: 'center',
             render: (row) => {
                 if (!row.wallpap) {
@@ -555,7 +568,7 @@ const columns = computed<DataTableColumns<DeviceRow>>(() => {
     cols.push({
         title: '操作',
         key: 'actions',
-        width: 120,
+        width: 100,
         align: 'center',
         render: (row) => {
             const actionButtons: ReturnType<typeof h>[] = [];
@@ -656,6 +669,7 @@ const columns = computed<DataTableColumns<DeviceRow>>(() => {
                     v-if="paginatedDevices.length > 0"
                     :columns="columns"
                     :data="paginatedDevices"
+                    :scroll-x="scrollX"
                     :bordered="false"
                     :single-line="true"
                     :row-key="(row: DeviceRow) => row.uuid"
@@ -819,11 +833,11 @@ const columns = computed<DataTableColumns<DeviceRow>>(() => {
     font-weight: 600;
     color: #475569;
     font-size: 13px;
-    padding: 14px 12px;
+    padding: 12px 8px;
 }
 
 .devices-table :deep(.n-data-table-td) {
-    padding: 14px 12px;
+    padding: 12px 8px;
     border-bottom: 1px solid #f1f5f9;
 }
 
@@ -838,12 +852,12 @@ const columns = computed<DataTableColumns<DeviceRow>>(() => {
 :deep(.device-cell) {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 10px;
 }
 
 :deep(.device-avatar) {
-    width: 40px;
-    height: 40px;
+    width: 36px;
+    height: 36px;
     border-radius: 10px;
     background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
     display: flex;
@@ -869,6 +883,9 @@ const columns = computed<DataTableColumns<DeviceRow>>(() => {
     font-size: 14px;
     font-weight: 600;
     color: #1e293b;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 :deep(.device-model) {
@@ -876,6 +893,8 @@ const columns = computed<DataTableColumns<DeviceRow>>(() => {
     align-items: center;
     font-size: 12px;
     color: #94a3b8;
+    overflow: hidden;
+    white-space: nowrap;
 }
 
 :deep(.status-cell) {
@@ -897,7 +916,7 @@ const columns = computed<DataTableColumns<DeviceRow>>(() => {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    gap: 6px;
+    gap: 4px;
     min-width: 0;
     white-space: nowrap;
     transition: color 0.25s ease;
@@ -909,6 +928,11 @@ const columns = computed<DataTableColumns<DeviceRow>>(() => {
 
 :deep(.accessibility-cell--on) {
     color: #059669;
+}
+
+:deep(.accessibility-label) {
+    font-size: 12px;
+    font-weight: 500;
 }
 
 :deep(.screen-status-cell) {
