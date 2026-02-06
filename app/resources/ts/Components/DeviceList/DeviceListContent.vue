@@ -900,31 +900,15 @@ const columns = computed<DataTableColumns<DeviceRow>>(() => {
     gap: 6px;
     min-width: 0;
     white-space: nowrap;
+    transition: color 0.25s ease;
 }
 
-:deep(.accessibility-icon-wrap) {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
+:deep(.accessibility-cell--off) {
     color: #94a3b8;
 }
 
-:deep(.accessibility-cell--on .accessibility-icon-wrap) {
+:deep(.accessibility-cell--on) {
     color: #059669;
-}
-
-:deep(.accessibility-tag-on) {
-    --n-color: #059669;
-    --n-color-hover: #059669;
-    --n-color-pressed: #047857;
-    background: rgba(5, 150, 105, 0.12);
-    color: #059669;
-}
-
-:deep(.accessibility-tag-off) {
-    background: #f1f5f9;
-    color: #64748b;
 }
 
 :deep(.screen-status-cell) {

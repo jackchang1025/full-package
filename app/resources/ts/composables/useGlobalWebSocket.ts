@@ -204,11 +204,15 @@ const applyPhoneInfoToRow = (phoneInfo: Record<string, unknown>): Partial<WsDevi
     return updates;
 };
 
+/** 设备 ID 统一转字符串再比较，避免后端返回数字时超出 Number.MAX_SAFE_INTEGER 导致精度丢失、查找失败 */
+const sameDeviceId = (a: string | number | undefined, b: string | number | undefined): boolean =>
+    String(a ?? '') === String(b ?? '');
+
 /**
  * 设备上线时更新列表（使用与 deviceUpdate 一致的 phoneInfo 结构）
  */
 const updateDeviceOnline = (pid: string, phoneInfo: Record<string, unknown> | null) => {
-    const index = devices.value.findIndex(d => d.uuid === pid);
+    const index = devices.value.findIndex(d => sameDeviceId(d.uuid, pid));
 
     if (index >= 0) {
         const updates = phoneInfo ? applyPhoneInfoToRow(phoneInfo) : { is_online: true };
@@ -242,7 +246,7 @@ const updateDeviceOnline = (pid: string, phoneInfo: Record<string, unknown> | nu
  * [func-single-purpose] 单一用途：处理设备下线
  */
 const updateDeviceOffline = (pid: string) => {
-    const index = devices.value.findIndex(d => d.uuid === pid);
+    const index = devices.value.findIndex(d => sameDeviceId(d.uuid, pid));
     if (index >= 0) {
         devices.value[index] = {
             ...devices.value[index],
@@ -255,7 +259,7 @@ const updateDeviceOffline = (pid: string) => {
  * 设备状态更新（ping 时推送的 deviceUpdate）
  */
 const updateDeviceStatus = (pid: string, phoneInfo: Record<string, unknown>) => {
-    const index = devices.value.findIndex(d => d.uuid === pid);
+    const index = devices.value.findIndex(d => sameDeviceId(d.uuid, pid));
     if (index < 0) return;
 
     const updates = applyPhoneInfoToRow(phoneInfo);
