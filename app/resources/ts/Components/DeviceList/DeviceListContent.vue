@@ -130,8 +130,11 @@ const displayStats = computed(() => {
     return props.stats;
 });
 
-const searchQuery = ref('');
-const statusFilter = ref<string>('all');
+// 从 URL 恢复筛选状态，刷新后保持
+const urlParams = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '');
+const initStatus = urlParams.get('status') || 'all';
+const searchQuery = ref(urlParams.get('search') || urlParams.get('q') || '');
+const statusFilter = ref<string>(['all', 'online', 'offline'].includes(initStatus) ? initStatus : 'all');
 const statusOptions = [
     { label: '全部状态', value: 'all' },
     { label: '在线', value: 'online' },
@@ -181,6 +184,21 @@ const totalCount = computed(() => filteredDevices.value.length);
 watch([searchQuery, statusFilter], () => {
     currentPage.value = 1;
 });
+
+// 筛选变化时同步到 URL，刷新后保持筛选状态
+watch(
+    [statusFilter, searchQuery],
+    ([status, search]) => {
+        if (typeof window === 'undefined') return;
+        const params = new URLSearchParams();
+        if (status && status !== 'all') params.set('status', status);
+        if (search) params.set('search', search);
+        const query = params.toString();
+        const url = `${window.location.pathname}${query ? `?${query}` : ''}`;
+        history.replaceState(null, '', url);
+    },
+    { immediate: true }
+);
 
 const isConnected = computed(() => connectionState.value === 'connected');
 const isConnecting = computed(() => connectionState.value === 'connecting' || connectionState.value === 'reconnecting');
@@ -331,6 +349,8 @@ function refresh() {
 
 function handlePageChange(page: number) {
     const params = new URLSearchParams({ page: String(page) });
+    if (statusFilter.value && statusFilter.value !== 'all') params.set('status', statusFilter.value);
+    if (searchQuery.value) params.set('search', searchQuery.value);
     Object.entries(props.filters).forEach(([k, v]) => {
         if (v != null && v !== '') params.set(k, v);
     });
