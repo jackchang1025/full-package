@@ -175,7 +175,7 @@ const submit = () => {
                                             <NIcon :component="ImageOutline" :size="32" />
                                         </div>
                                         <span class="logo-empty-text">点击或拖拽上传 Logo</span>
-                                        <span class="logo-empty-hint">建议尺寸 44×44 或正方形</span>
+                                        <span class="logo-empty-hint">登录页将按图片比例显示，建议宽度 80–200px</span>
                                     </div>
                                 </template>
                             </div>

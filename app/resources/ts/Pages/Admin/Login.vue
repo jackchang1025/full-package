@@ -127,12 +127,13 @@ const submit = () => {
 </template>
 
 <style scoped>
+/* 与用户后台认证页一致的浅色背景与装饰 */
 .admin-login-container {
     min-height: 100vh;
     display: flex;
     align-items: center;
     justify-content: center;
-    background: linear-gradient(145deg, #0f172a 0%, #1e293b 40%, #134e4a 100%);
+    background: linear-gradient(135deg, #f0fdf4 0%, #ecfdf5 50%, #f0fdfa 100%);
     position: relative;
     overflow: hidden;
     padding: 20px;
@@ -148,13 +149,13 @@ const submit = () => {
 .bg-circle {
     position: absolute;
     border-radius: 50%;
-    opacity: 0.2;
+    opacity: 0.5;
 }
 
 .bg-circle-1 {
     width: 600px;
     height: 600px;
-    background: linear-gradient(135deg, rgba(13, 148, 136, 0.2) 0%, rgba(15, 118, 110, 0.1) 100%);
+    background: linear-gradient(135deg, rgba(16, 185, 129, 0.15) 0%, rgba(5, 150, 105, 0.1) 100%);
     top: -200px;
     right: -200px;
 }
@@ -162,7 +163,7 @@ const submit = () => {
 .bg-circle-2 {
     width: 400px;
     height: 400px;
-    background: linear-gradient(135deg, rgba(20, 184, 166, 0.15) 0%, rgba(13, 148, 136, 0.2) 100%);
+    background: linear-gradient(135deg, rgba(52, 211, 153, 0.1) 0%, rgba(16, 185, 129, 0.15) 100%);
     bottom: -100px;
     left: -100px;
 }
@@ -170,7 +171,7 @@ const submit = () => {
 .bg-circle-3 {
     width: 200px;
     height: 200px;
-    background: linear-gradient(135deg, rgba(13, 148, 136, 0.25) 0%, rgba(20, 184, 166, 0.1) 100%);
+    background: linear-gradient(135deg, rgba(16, 185, 129, 0.2) 0%, rgba(5, 150, 105, 0.1) 100%);
     top: 50%;
     left: 10%;
 }
@@ -191,23 +192,38 @@ const submit = () => {
     width: 72px;
     height: 72px;
     margin: 0 auto 20px;
-    background: linear-gradient(145deg, #0d9488 0%, #0f766e 100%);
+    background: linear-gradient(135deg, #10B981 0%, #059669 100%);
     border-radius: 20px;
     display: flex;
     align-items: center;
     justify-content: center;
-    box-shadow: 0 12px 32px rgba(13, 148, 136, 0.4);
+    box-shadow: 0 12px 32px rgba(16, 185, 129, 0.35);
 }
 
 .logo-wrapper--custom {
     background: transparent;
     box-shadow: none;
+    width: auto;
+    height: auto;
+    min-width: 72px;
+    min-height: 72px;
+    max-width: 200px;
+    max-height: 120px;
 }
 
 .logo-wrapper .logo-img {
     width: 48px;
     height: 48px;
     object-fit: contain;
+}
+
+.logo-wrapper--custom .logo-img {
+    width: auto;
+    height: auto;
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+    display: block;
 }
 
 .logo-icon {
@@ -218,25 +234,26 @@ const submit = () => {
 .admin-login-title {
     font-size: 28px;
     font-weight: 700;
-    color: #f1f5f9;
+    color: #1e293b;
     margin: 0 0 8px;
 }
 
 .admin-login-subtitle {
     font-size: 15px;
-    color: #94a3b8;
+    color: #64748b;
     margin: 0;
 }
 
+/* 与用户后台一致的白色卡片与翠绿描边 */
 .admin-login-card {
-    background: rgba(255, 255, 255, 0.96);
+    background: white;
     border-radius: 24px;
     padding: 40px;
     box-shadow:
-        0 4px 6px rgba(0, 0, 0, 0.08),
-        0 12px 24px rgba(0, 0, 0, 0.06),
-        0 24px 48px rgba(13, 148, 136, 0.12);
-    border: 1px solid rgba(13, 148, 136, 0.2);
+        0 4px 6px rgba(0, 0, 0, 0.02),
+        0 12px 24px rgba(0, 0, 0, 0.04),
+        0 24px 48px rgba(16, 185, 129, 0.08);
+    border: 1px solid rgba(16, 185, 129, 0.1);
 }
 
 .admin-login-form {
@@ -258,8 +275,8 @@ const submit = () => {
 
 .custom-input :deep(.n-input--focus) {
     background: white;
-    border-color: #0d9488;
-    box-shadow: 0 0 0 4px rgba(13, 148, 136, 0.1);
+    border-color: #10B981;
+    box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.1);
 }
 
 .input-icon {
@@ -274,7 +291,7 @@ const submit = () => {
 }
 
 .password-toggle:hover {
-    color: #0d9488;
+    color: #10B981;
 }
 
 .form-options {
@@ -293,16 +310,16 @@ const submit = () => {
     border-radius: 12px;
     font-size: 16px;
     font-weight: 600;
-    background: linear-gradient(145deg, #0d9488 0%, #0f766e 100%);
+    background: linear-gradient(135deg, #10B981 0%, #059669 100%);
     border: none;
-    box-shadow: 0 4px 16px rgba(13, 148, 136, 0.35);
+    box-shadow: 0 4px 16px rgba(16, 185, 129, 0.35);
     transition: all 0.3s ease;
     margin-top: 8px;
 }
 
 .login-button:hover {
     transform: translateY(-2px);
-    box-shadow: 0 8px 24px rgba(13, 148, 136, 0.4);
+    box-shadow: 0 8px 24px rgba(16, 185, 129, 0.4);
 }
 
 .login-button:active {
@@ -312,7 +329,7 @@ const submit = () => {
 .admin-login-footer {
     text-align: center;
     font-size: 13px;
-    color: #64748b;
+    color: #94a3b8;
     margin-top: 32px;
 }
 
@@ -330,6 +347,13 @@ const submit = () => {
         width: 60px;
         height: 60px;
         border-radius: 16px;
+    }
+
+    .logo-wrapper--custom {
+        min-width: 60px;
+        min-height: 60px;
+        max-width: 140px;
+        max-height: 84px;
     }
 
     .logo-icon {

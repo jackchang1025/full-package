@@ -173,12 +173,27 @@ const submit = () => {
 .logo-wrapper--custom {
     background: transparent;
     box-shadow: none;
+    width: auto;
+    height: auto;
+    min-width: 72px;
+    min-height: 72px;
+    max-width: 200px;
+    max-height: 120px;
 }
 
 .logo-wrapper .logo-img {
     width: 48px;
     height: 48px;
     object-fit: contain;
+}
+
+.logo-wrapper--custom .logo-img {
+    width: auto;
+    height: auto;
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+    display: block;
 }
 
 .logo-svg {

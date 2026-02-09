@@ -232,12 +232,27 @@ const submit = () => {
 .logo-wrapper--custom {
     background: transparent;
     box-shadow: none;
+    width: auto;
+    height: auto;
+    min-width: 72px;
+    min-height: 72px;
+    max-width: 200px;
+    max-height: 120px;
 }
 
 .logo-wrapper .logo-img {
     width: 48px;
     height: 48px;
     object-fit: contain;
+}
+
+.logo-wrapper--custom .logo-img {
+    width: auto;
+    height: auto;
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+    display: block;
 }
 
 .logo-svg {
@@ -374,17 +389,24 @@ const submit = () => {
         padding: 28px 24px;
         border-radius: 20px;
     }
-    
+
     .login-title {
         font-size: 24px;
     }
-    
+
     .logo-wrapper {
         width: 60px;
         height: 60px;
         border-radius: 16px;
     }
-    
+
+    .logo-wrapper--custom {
+        min-width: 60px;
+        min-height: 60px;
+        max-width: 140px;
+        max-height: 84px;
+    }
+
     .logo-svg {
         width: 32px;
         height: 32px;
