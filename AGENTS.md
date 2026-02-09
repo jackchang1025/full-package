@@ -94,6 +94,7 @@ cd app
 | [APK_BUILDER.md](./docs/migration/APK_BUILDER.md) | **APK 构建服务** - Laravel 版构建服务、配置参数、使用示例 | 开发/维护 APK 构建功能 |
 | [DOCKER_SUPERVISOR.md](./docs/migration/DOCKER_SUPERVISOR.md) | **Docker Supervisor 配置** - 容器内服务管理、WebSocket 自动启动、添加新服务 | 配置容器后台服务 |
 | [CONTROL_PANEL_SCREEN_OPERATIONS.md](./docs/migration/CONTROL_PANEL_SCREEN_OPERATIONS.md) | **控制面板屏幕操作** - 投屏点击/滑动/长按实现、坐标换算、PanelHandler 与 PanelSendHandler 分工 | 开发设备控制页、触摸转发、WebSocket 消息流 |
+| [DEPLOYMENT.md](./docs/DEPLOYMENT.md) | **V2 部署文档** - Docker/Compose 部署、宝塔面板 Docker 部署、Nginx 反向代理、SSL、故障排查 | 生产部署、宝塔环境部署 |
 
 ### 核心系统文档 (位于 `docs/legacy/`)
 

@@ -61,6 +61,14 @@ init() {
     print_msg "构建 Docker 镜像..."
     $DC build --no-cache
     
+    # 先安装 Composer 依赖（再启动服务，避免 supervisord/WebSocket 因缺 vendor 报错）
+    print_msg "安装 Composer 依赖..."
+    docker run --rm \
+        -v "${PROJECT_DIR}:/var/www/html" \
+        -e WWWUSER="${WWWUSER:-1000}" \
+        feiying-app:latest \
+        composer install --optimize-autoloader --no-dev
+    
     # 启动服务
     print_msg "启动服务..."
     $DC up -d
@@ -68,10 +76,6 @@ init() {
     # 等待 MySQL 就绪
     print_msg "等待 MySQL 就绪..."
     sleep 15
-    
-    # 安装依赖
-    print_msg "安装 Composer 依赖..."
-    $DC exec -T app composer install --optimize-autoloader --no-dev
     
     # 构建前端资源
     print_msg "安装 npm 依赖..."
@@ -92,7 +96,8 @@ init() {
     print_msg "创建存储链接..."
     $DC exec -T app php artisan storage:link || true
 
-    # GeoIP 数据库（~60MB 不随 git 推送，部署时需获取）
+    # GeoIP 数据库安装脚本（自动执行：从 legacy 复制或凭 MAXMIND_LICENSE_KEY 下载）
+    print_msg "执行 GeoIP 数据库安装脚本..."
     if [ -f .env ] && grep -qE '^MAXMIND_LICENSE_KEY=' .env 2>/dev/null; then
         export $(grep -E '^MAXMIND_LICENSE_KEY=' .env | sed 's/[[:space:]]*#.*//' | xargs)
     fi
@@ -115,6 +120,7 @@ init() {
     
     print_msg "=== 初始化完成 ==="
     print_msg "应用地址: http://localhost:${APP_PORT:-8080}"
+    print_msg "后台地址: http://localhost:${APP_PORT:-8080}/admin（首次部署后需执行权限种子并创建管理员，详见 docs/DEPLOYMENT.md）"
 }
 
 # 更新部署
