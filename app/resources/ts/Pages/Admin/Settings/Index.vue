@@ -2,7 +2,7 @@
 import { computed, ref } from 'vue';
 import { Head, useForm, usePage, router } from '@inertiajs/vue3';
 import { NCard, NForm, NFormItem, NInput, NButton, NAlert, NSpace, NIcon } from 'naive-ui';
-import { GlobeOutline, ImageOutline, LinkOutline, CloudUploadOutline, TrashOutline } from '@vicons/ionicons5';
+import { GlobeOutline, ImageOutline, LinkOutline, CloudUploadOutline, TrashOutline, AlertCircleOutline } from '@vicons/ionicons5';
 import AdminLayout from '@/Layouts/AdminLayout.vue';
 import { useAdminBasePath } from '@/composables/useAdminBasePath';
 
@@ -10,6 +10,7 @@ interface SettingsData {
     app_name: string;
     app_logo: string;
     app_logo_url: string;
+    logo_max_size_label: string;
     user_entry_path: string;
     admin_entry_path: string;
 }
@@ -37,7 +38,19 @@ const isDragging = ref(false);
 
 const currentLogoUrl = computed(() => {
     if (logoPreview.value) return logoPreview.value;
+    if (form.app_logo === '') return '';
     return props.settings.app_logo_url || '';
+});
+
+const hasLogoError = computed(() => Boolean(form.errors.logo_file));
+
+const logoFileName = computed(() => form.logo_file?.name ?? null);
+
+const logoFileSize = computed(() => {
+    const file = form.logo_file;
+    if (!file?.size) return null;
+    const kb = file.size / 1024;
+    return kb >= 1024 ? `${(kb / 1024).toFixed(1)} MB` : `${Math.round(kb)} KB`;
 });
 
 const handleFile = (file: File) => {
@@ -77,7 +90,16 @@ const onDragLeave = () => {
 
 const removeLogo = () => {
     form.logo_file = null;
+    form.app_logo = '';
     logoPreview.value = null;
+    if (logoFileInput.value) logoFileInput.value.value = '';
+};
+
+const syncFormAfterSuccess = () => {
+    form.logo_file = null;
+    logoPreview.value = null;
+    // useForm 不会自动随 props 同步，手动将 app_logo 对齐到最新 props
+    form.app_logo = props.settings.app_logo ?? '';
     if (logoFileInput.value) logoFileInput.value.value = '';
 };
 
@@ -85,13 +107,12 @@ const submit = () => {
     if (form.logo_file) {
         form.post(settingsUrl.value, {
             forceFormData: true,
-            onSuccess: () => {
-                form.logo_file = null;
-                logoPreview.value = null;
-            },
+            onSuccess: syncFormAfterSuccess,
         });
     } else {
-        form.put(settingsUrl.value);
+        form.put(settingsUrl.value, {
+            onSuccess: syncFormAfterSuccess,
+        });
     }
 };
 </script>
@@ -138,12 +159,16 @@ const submit = () => {
                         />
                     </NFormItem>
 
-                    <NFormItem label="网站 Logo">
+                    <NFormItem label="网站 Logo" :validation-status="form.errors.logo_file ? 'error' : undefined">
                         <div class="logo-upload-area">
                             <!-- Drop Zone -->
                             <div
                                 class="logo-dropzone"
-                                :class="{ 'logo-dropzone--active': isDragging, 'logo-dropzone--has-logo': currentLogoUrl }"
+                                :class="{
+                                    'logo-dropzone--active': isDragging,
+                                    'logo-dropzone--has-logo': currentLogoUrl,
+                                    'logo-dropzone--error': hasLogoError,
+                                }"
                                 @drop="onDrop"
                                 @dragover="onDragOver"
                                 @dragleave="onDragLeave"
@@ -157,12 +182,27 @@ const submit = () => {
                                     @change="onLogoChange"
                                 />
 
+                                <!-- Error badge inside dropzone -->
+                                <div v-if="hasLogoError" class="logo-dropzone-error-badge">
+                                    <NIcon :component="AlertCircleOutline" :size="14" />
+                                    <span>{{ form.errors.logo_file }}</span>
+                                </div>
+
                                 <!-- Preview State -->
                                 <template v-if="currentLogoUrl">
                                     <div class="logo-preview-container">
+                                        <button
+                                            type="button"
+                                            class="logo-remove-btn-inner"
+                                            aria-label="移除 Logo"
+                                            @click.stop="removeLogo"
+                                        >
+                                            <NIcon :component="TrashOutline" :size="16" />
+                                        </button>
+                                        <div class="logo-preview-bg" />
                                         <img :src="currentLogoUrl" alt="Logo" class="logo-preview-img" />
                                         <div class="logo-preview-overlay">
-                                            <NIcon :component="CloudUploadOutline" :size="24" />
+                                            <NIcon :component="CloudUploadOutline" :size="20" />
                                             <span>更换图片</span>
                                         </div>
                                     </div>
@@ -180,22 +220,13 @@ const submit = () => {
                                 </template>
                             </div>
 
-                            <!-- Remove Button -->
-                            <NButton
-                                v-if="currentLogoUrl"
-                                size="small"
-                                quaternary
-                                type="error"
-                                class="logo-remove-btn"
-                                @click.stop="removeLogo"
-                            >
-                                <template #icon>
-                                    <NIcon :component="TrashOutline" />
-                                </template>
-                                移除 Logo
-                            </NButton>
+                            <!-- File info when new file selected -->
+                            <div v-if="logoFileName" class="logo-file-info">
+                                <span class="logo-file-info-name">{{ logoFileName }}</span>
+                                <span v-if="logoFileSize" class="logo-file-info-size">{{ logoFileSize }}</span>
+                            </div>
 
-                            <span class="logo-hint">留空则使用 .env 中的 APP_LOGO</span>
+                            <span class="logo-hint">留空则使用 .env 中的 APP_LOGO，单张图片不超过 {{ props.settings.logo_max_size_label }}</span>
                         </div>
                     </NFormItem>
                 </NCard>
@@ -377,8 +408,11 @@ const submit = () => {
     border: 2px dashed var(--admin-border, rgba(0, 0, 0, 0.12));
     border-radius: var(--admin-radius, 12px);
     background: var(--admin-bg, #f4f5f7);
+    background-image: radial-gradient(circle at 1px 1px, rgba(0, 0, 0, 0.06) 1px, transparent 0);
+    background-size: 12px 12px;
+    background-position: 0 0;
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition: border-color 0.2s ease, background-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -386,18 +420,60 @@ const submit = () => {
 
 .logo-dropzone:hover {
     border-color: var(--admin-accent, #0d9488);
-    background: var(--admin-accent-muted, rgba(13, 148, 136, 0.06));
+    background-color: rgba(13, 148, 136, 0.04);
 }
 
 .logo-dropzone--active {
     border-color: var(--admin-accent, #0d9488);
-    background: var(--admin-accent-muted, rgba(13, 148, 136, 0.12));
     border-style: solid;
+    background-color: var(--admin-accent-muted, rgba(13, 148, 136, 0.12));
+    transform: scale(1.01);
+    animation: logoDropzonePulse 1.2s ease-in-out infinite;
 }
 
 .logo-dropzone--has-logo {
     min-height: 120px;
-    background: var(--admin-surface, #ffffff);
+    background-color: var(--admin-surface, #ffffff);
+    background-image: none;
+}
+
+.logo-dropzone--error {
+    border-color: #e5484d;
+    border-style: dashed;
+    background-color: rgba(229, 72, 77, 0.06);
+    animation: logoDropzoneShake 0.4s ease-in-out;
+}
+
+@keyframes logoDropzonePulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(13, 148, 136, 0.2); }
+    50% { box-shadow: 0 0 0 6px rgba(13, 148, 136, 0); }
+}
+
+@keyframes logoDropzoneShake {
+    0%, 100% { transform: translateX(0); }
+    20% { transform: translateX(-4px); }
+    40% { transform: translateX(4px); }
+    60% { transform: translateX(-2px); }
+    80% { transform: translateX(2px); }
+}
+
+.logo-dropzone-error-badge {
+    position: absolute;
+    bottom: 10px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 10;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    border-radius: 8px;
+    background: rgba(229, 72, 77, 0.95);
+    color: #fff;
+    font-size: 12px;
+    font-weight: 500;
+    pointer-events: none;
+    box-shadow: 0 2px 8px rgba(229, 72, 77, 0.3);
 }
 
 .logo-file-input {
@@ -407,38 +483,94 @@ const submit = () => {
 /* Logo Preview */
 .logo-preview-container {
     position: relative;
-    padding: 20px;
+    padding: 24px;
+}
+
+.logo-preview-bg {
+    position: absolute;
+    inset: 24px;
+    border-radius: var(--admin-radius, 12px);
+    background-color: #fff;
+    background-image:
+        linear-gradient(45deg, #e5e7eb 25%, transparent 25%),
+        linear-gradient(-45deg, #e5e7eb 25%, transparent 25%),
+        linear-gradient(45deg, transparent 75%, #e5e7eb 75%),
+        linear-gradient(-45deg, transparent 75%, #e5e7eb 75%);
+    background-size: 12px 12px;
+    background-position: 0 0, 0 6px, 6px -6px, -6px 0;
 }
 
 .logo-preview-img {
-    width: 72px;
-    height: 72px;
+    position: relative;
+    width: 96px;
+    height: 96px;
     object-fit: contain;
     border-radius: var(--admin-radius, 12px);
     border: 1px solid var(--admin-border, rgba(0, 0, 0, 0.06));
-    background: white;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+    box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.04);
+    animation: logoPreviewIn 0.25s ease-out;
+}
+
+@keyframes logoPreviewIn {
+    from {
+        opacity: 0;
+        transform: scale(0.95);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
 }
 
 .logo-preview-overlay {
     position: absolute;
-    inset: 0;
+    left: 24px;
+    right: 24px;
+    bottom: 24px;
+    padding: 8px 12px;
     display: flex;
-    flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 4px;
-    background: rgba(13, 148, 136, 0.9);
+    gap: 6px;
+    background: linear-gradient(to top, rgba(13, 148, 136, 0.92), rgba(13, 148, 136, 0.7));
     color: white;
-    border-radius: var(--admin-radius, 12px);
+    border-radius: 0 0 var(--admin-radius, 12px) var(--admin-radius, 12px);
     opacity: 0;
     transition: opacity 0.2s ease;
-    font-size: 13px;
+    font-size: 12px;
     font-weight: 500;
 }
 
 .logo-dropzone:hover .logo-preview-overlay {
     opacity: 1;
+}
+
+.logo-remove-btn-inner {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    border-radius: 50%;
+    background: rgba(0, 0, 0, 0.5);
+    color: white;
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 0.2s ease, background-color 0.2s ease;
+    z-index: 2;
+}
+
+.logo-preview-container:hover .logo-remove-btn-inner,
+.logo-remove-btn-inner:focus {
+    opacity: 1;
+}
+
+.logo-remove-btn-inner:hover {
+    background: #e5484d;
 }
 
 /* Logo Empty State */
@@ -479,8 +611,25 @@ const submit = () => {
     color: var(--admin-text-muted, #6b7280);
 }
 
-.logo-remove-btn {
-    align-self: flex-start;
+.logo-file-info {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    font-size: 12px;
+    color: var(--admin-text-muted, #6b7280);
+}
+
+.logo-file-info-name {
+    font-weight: 500;
+    color: var(--admin-text, #1a1d21);
+    max-width: 280px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.logo-file-info-size {
+    flex-shrink: 0;
 }
 
 .logo-hint {

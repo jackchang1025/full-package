@@ -37,6 +37,7 @@ class SettingController extends Controller
                 'app_name' => $settings['app_name'] ?? config('app.name'),
                 'app_logo' => $appLogo,
                 'app_logo_url' => self::resolveLogoUrl($appLogo),
+                'logo_max_size_label' => self::formatLogoMaxSizeLabel(self::getLogoMaxSizeKb()),
                 'user_entry_path' => $settings['user_entry_path'] ?? config('site.user_entry_path', ''),
                 'admin_entry_path' => $settings['admin_entry_path'] ?? config('site.admin_entry_path', 'admin'),
             ],
@@ -61,7 +62,7 @@ class SettingController extends Controller
         $oldAdminPath = $this->normalizePath(config('site.admin_entry_path', 'admin')) ?: 'admin';
         $adminPathChanged = $adminPath !== $oldAdminPath;
 
-        $this->handleLogoUpload($request);
+        $this->handleLogoChange($request, $validated);
         $this->saveSettings($validated, $userPath, $adminPath);
         $this->clearCaches();
 
@@ -88,6 +89,22 @@ class SettingController extends Controller
     }
 
     /**
+     * Logo max file size in KB from config (default 10 MB).
+     */
+    private static function getLogoMaxSizeKb(): int
+    {
+        return (int) config('site.logo_max_size_kb', 10240);
+    }
+
+    /**
+     * Format logo max size (KB) for display, e.g. 10240 -> "10 MB".
+     */
+    private static function formatLogoMaxSizeLabel(int $kb): string
+    {
+        return $kb >= 1024 ? sprintf('%d MB', (int) round($kb / 1024)) : sprintf('%d KB', $kb);
+    }
+
+    /**
      * Validate the incoming request.
      */
     private function validateRequest(Request $request): array
@@ -95,7 +112,7 @@ class SettingController extends Controller
         return $request->validate([
             'app_name' => ['nullable', 'string', 'max:255'],
             'app_logo' => ['nullable', 'string', 'max:500'],
-            'logo_file' => ['nullable', 'image', 'max:2048'],
+            'logo_file' => ['nullable', 'image', 'max:' . self::getLogoMaxSizeKb()],
             'user_entry_path' => [
                 'nullable',
                 'string',
@@ -111,6 +128,7 @@ class SettingController extends Controller
                 Rule::notIn(self::RESERVED_PATHS),
             ],
         ], [
+            'logo_file.max' => 'logo file 不能大于 ' . self::getLogoMaxSizeKb() . ' KB。',
             'user_entry_path.regex' => '用户入口路径只能包含字母、数字、下划线、连字符和斜杠。',
             'admin_entry_path.regex' => '总后台入口路径只能包含字母、数字、下划线、连字符和斜杠。',
             'admin_entry_path.required' => '总后台入口路径不能为空。',
@@ -138,21 +156,28 @@ class SettingController extends Controller
     }
 
     /**
-     * Handle logo file upload if present.
+     * Handle logo changes: upload new file, or remove existing logo when app_logo is empty.
      */
-    private function handleLogoUpload(Request $request): void
+    private function handleLogoChange(Request $request, array $validated): void
     {
-        if (! $request->hasFile('logo_file')) {
+        // If a new file was uploaded, replace the old logo
+        if ($request->hasFile('logo_file')) {
+            $this->deleteOldLogo();
+
+            /** @var UploadedFile $file */
+            $file = $request->file('logo_file');
+            $path = $file->store(self::LOGO_DIRECTORY, self::STORAGE_DISK);
+
+            Setting::set('app_logo', self::STORAGE_URL_PREFIX . $path);
+
             return;
         }
 
-        $this->deleteOldLogo();
-
-        /** @var UploadedFile $file */
-        $file = $request->file('logo_file');
-        $path = $file->store(self::LOGO_DIRECTORY, self::STORAGE_DISK);
-
-        Setting::set('app_logo', self::STORAGE_URL_PREFIX . $path);
+        // If app_logo was explicitly set to empty, remove the existing logo
+        if (array_key_exists('app_logo', $validated) && empty($validated['app_logo'])) {
+            $this->deleteOldLogo();
+            Setting::set('app_logo', null);
+        }
     }
 
     /**

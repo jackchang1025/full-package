@@ -201,14 +201,12 @@ const submit = () => {
 }
 
 .logo-wrapper--custom {
-    background: transparent;
+    background: none;
     box-shadow: none;
     width: auto;
     height: auto;
-    min-width: 72px;
-    min-height: 72px;
-    max-width: 200px;
-    max-height: 120px;
+    border-radius: 0;
+    padding: 0;
 }
 
 .logo-wrapper .logo-img {
@@ -220,8 +218,7 @@ const submit = () => {
 .logo-wrapper--custom .logo-img {
     width: auto;
     height: auto;
-    max-width: 100%;
-    max-height: 100%;
+    max-width: 240px;
     object-fit: contain;
     display: block;
 }
@@ -349,11 +346,8 @@ const submit = () => {
         border-radius: 16px;
     }
 
-    .logo-wrapper--custom {
-        min-width: 60px;
-        min-height: 60px;
-        max-width: 140px;
-        max-height: 84px;
+    .logo-wrapper--custom .logo-img {
+        max-width: 180px;
     }
 
     .logo-icon {
