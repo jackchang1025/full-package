@@ -336,7 +336,7 @@ describe('POST /admin/users (store)', function () {
     });
 
     it('creates sub-account inheriting parent expiry and roles, permissions limited to parent assignable', function () {
-        $parent = User::factory()->create(['subscription_expires_at' => now()->addDays(60)]);
+        $parent = User::factory()->create(['subscription_expires_at' => now()->addDays(60), 'max_sub_accounts' => 5]);
         $parent->assignRole('client');
         $parent->givePermissionTo(['devices.view', 'devices.edit']);
 
@@ -360,7 +360,7 @@ describe('POST /admin/users (store)', function () {
     });
 
     it('sub-account cannot get teams.manage even when sent in direct_permissions', function () {
-        $parent = User::factory()->create();
+        $parent = User::factory()->create(['max_sub_accounts' => 5]);
         $parent->assignRole('client');
         $parent->givePermissionTo(['teams.manage', 'devices.view']);
 
@@ -381,8 +381,46 @@ describe('POST /admin/users (store)', function () {
         expect($newSub->getDirectPermissions()->pluck('name')->all())->toContain('devices.view');
     });
 
+    it('returns error when parent account sub-account quota is exceeded', function () {
+        $parent = User::factory()->create(['max_sub_accounts' => 1]);
+        $parent->assignRole('client');
+        // 先创建一个子账号占满配额
+        User::factory()->create(['parent_id' => $parent->id]);
+
+        $response = $this->actingAs($this->admin, 'admin')
+            ->post(route('admin.users.store'), [
+                'username' => 'overquota',
+                'email' => 'overquota@example.com',
+                'password' => 'Password123!',
+                'password_confirmation' => 'Password123!',
+                'parent_id' => $parent->id,
+            ]);
+
+        $response->assertSessionHasErrors(['parent_id']);
+        expect(User::where('username', 'overquota')->exists())->toBeFalse();
+    });
+
+    it('allows creating sub-account when quota not yet reached', function () {
+        $parent = User::factory()->create(['max_sub_accounts' => 2]);
+        $parent->assignRole('client');
+        // 先创建一个子账号，配额还有 1 个空位
+        User::factory()->create(['parent_id' => $parent->id]);
+
+        $response = $this->actingAs($this->admin, 'admin')
+            ->post(route('admin.users.store'), [
+                'username' => 'withinquota',
+                'email' => 'withinquota@example.com',
+                'password' => 'Password123!',
+                'password_confirmation' => 'Password123!',
+                'parent_id' => $parent->id,
+            ]);
+
+        assertRedirectsToUsersIndex($response);
+        expect(User::where('username', 'withinquota')->exists())->toBeTrue();
+    });
+
     it('redirect includes expanded with parent_id when creating sub-account', function () {
-        $parent = User::factory()->create();
+        $parent = User::factory()->create(['max_sub_accounts' => 5]);
         $parent->assignRole('client');
 
         $response = $this->actingAs($this->admin, 'admin')

@@ -389,6 +389,30 @@ const goPage = (pageNum: number) => {
 // 验证失败时 Laravel 302 重定向带回 errors，Inertia 跟随加载新页面，onError 不会被调用；
 // 错误在 page.props.errors，需同步到 editErrors/createErrors 以便表单展示。
 const pageErrors = computed(() => (page.props.errors as Record<string, string> | undefined) ?? {});
+
+const editFormFieldSet = new Set(['username', 'email', 'password', 'password_confirmation', 'subscription_expires_at', 'roles', 'direct_permissions', 'max_sub_accounts']);
+const createFormFieldSet = new Set(['username', 'email', 'password', 'password_confirmation', 'subscription_expires_at', 'roles', 'parent_id', 'direct_permissions', 'max_sub_accounts']);
+
+/**
+ * 当前表单中无法展示的错误（如编辑模式下的 parent_id 错误、idle 模式下的所有错误）。
+ * 用于在面板顶部以 NAlert 形式渲染，确保用户一定能看到。
+ */
+const unmatchedErrors = computed<string[]>(() => {
+    const errObj = pageErrors.value;
+    if (!errObj || Object.keys(errObj).length === 0) return [];
+
+    const inEditMode = !!props.selectedUser && !isCreating.value;
+    const visibleFields = inEditMode ? editFormFieldSet : isCreating.value ? createFormFieldSet : null;
+
+    const msgs: string[] = [];
+    for (const [key, msg] of Object.entries(errObj)) {
+        if (!visibleFields || !visibleFields.has(key)) {
+            msgs.push(msg as string);
+        }
+    }
+    return msgs;
+});
+
 watch(
     () => [pageErrors.value, props.selectedUser] as const,
     ([errors, selectedUser]) => {
@@ -398,12 +422,18 @@ watch(
             createErrors.value = {};
             return;
         }
-        if (selectedUser) {
+
+        const inEditMode = !!selectedUser && !isCreating.value;
+
+        if (inEditMode) {
             editErrors.value = { ...errObj };
             createErrors.value = {};
-        } else {
+        } else if (isCreating.value) {
             createErrors.value = { ...errObj };
             editErrors.value = {};
+        } else {
+            editErrors.value = {};
+            createErrors.value = {};
         }
     },
     { immediate: true }
@@ -525,6 +555,14 @@ watch(
 
             <!-- ━━ 右栏：详情面板 ━━━━━━━━━━━━━━━━━ -->
             <main class="um-detail">
+                <!-- 全局错误提示（当前表单无法展示的后端错误） -->
+                <NAlert v-if="unmatchedErrors.length" type="error" class="um-global-error" closable>
+                    <ul v-if="unmatchedErrors.length > 1" style="margin: 0; padding-left: 1.2em;">
+                        <li v-for="(msg, i) in unmatchedErrors" :key="i">{{ msg }}</li>
+                    </ul>
+                    <span v-else>{{ unmatchedErrors[0] }}</span>
+                </NAlert>
+
                 <!-- 空闲状态 -->
                 <div v-if="currentMode === 'idle'" class="um-idle">
                     <div class="um-idle__graphic">
@@ -1093,6 +1131,11 @@ watch(
     font-size: 12px;
     color: var(--admin-text-muted, #6b7280);
     line-height: 1.3;
+}
+
+.um-global-error {
+    margin: 16px 32px 0;
+    border-radius: 8px;
 }
 
 .um-sub-alert {

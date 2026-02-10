@@ -101,6 +101,12 @@ class UserController extends Controller
         $parent = isset($validated['parent_id']) ? User::find($validated['parent_id']) : null;
         $isSubAccount = $parent !== null;
 
+        if ($isSubAccount && $parent->subAccounts()->count() >= $parent->max_sub_accounts) {
+            return back()->withErrors([
+                'parent_id' => '该父账号子账号配额已满（上限 '.$parent->max_sub_accounts.' 个）',
+            ])->withInput();
+        }
+
         $user = User::create($this->buildUserDataForStore($validated, $parent));
 
         if ($isSubAccount) {
