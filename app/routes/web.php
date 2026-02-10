@@ -11,6 +11,7 @@ use App\Http\Controllers\AppBuildController;
 use App\Http\Controllers\BuildAssetController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DeviceController;
+use App\Http\Controllers\SubAccountController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -39,8 +40,10 @@ Route::prefix($userEntryPath)->middleware(['auth', 'subscription'])->group(funct
     Route::middleware(['permission:devices.view'])->group(function () {
         Route::get('/devices', [DeviceController::class, 'index'])->name('devices.index');
         Route::get('/devices/{device}', [DeviceController::class, 'show'])->name('devices.show');
-        Route::put('/devices/{device}', [DeviceController::class, 'update'])->name('devices.update');
     });
+    Route::put('/devices/{device}', [DeviceController::class, 'update'])
+        ->middleware('permission:devices.edit')
+        ->name('devices.update');
 
     // 构建相关：需对应权限（builds.view / builds.create / builds.delete）
     // 注意：静态路径 /builds/create、/builds/stream 必须写在 /builds/{build} 之前，否则 "create" 会被当作 {build} 匹配导致 404
@@ -51,14 +54,14 @@ Route::prefix($userEntryPath)->middleware(['auth', 'subscription'])->group(funct
         Route::get('/builds/stream', [AppBuildController::class, 'stream'])->name('builds.stream');
         Route::get('/builds/create', [AppBuildController::class, 'create'])->name('builds.create');
         Route::post('/builds', [AppBuildController::class, 'store'])->name('builds.store');
-        Route::prefix('builds/assets')->group(function () {
-            Route::get('/icons', [BuildAssetController::class, 'icons'])->name('builds.assets.icons');
-            Route::post('/icons', [BuildAssetController::class, 'uploadIcon'])->name('builds.assets.icons.upload');
-            Route::delete('/icons', [BuildAssetController::class, 'deleteIcon'])->name('builds.assets.icons.delete');
-            Route::get('/backgrounds', [BuildAssetController::class, 'backgrounds'])->name('builds.assets.backgrounds');
-            Route::post('/backgrounds', [BuildAssetController::class, 'uploadBackground'])->name('builds.assets.backgrounds.upload');
-            Route::delete('/backgrounds', [BuildAssetController::class, 'deleteBackground'])->name('builds.assets.backgrounds.delete');
-        });
+    });
+    Route::prefix('builds/assets')->middleware(['permission:builds.assets.manage'])->group(function () {
+        Route::get('/icons', [BuildAssetController::class, 'icons'])->name('builds.assets.icons');
+        Route::post('/icons', [BuildAssetController::class, 'uploadIcon'])->name('builds.assets.icons.upload');
+        Route::delete('/icons', [BuildAssetController::class, 'deleteIcon'])->name('builds.assets.icons.delete');
+        Route::get('/backgrounds', [BuildAssetController::class, 'backgrounds'])->name('builds.assets.backgrounds');
+        Route::post('/backgrounds', [BuildAssetController::class, 'uploadBackground'])->name('builds.assets.backgrounds.upload');
+        Route::delete('/backgrounds', [BuildAssetController::class, 'deleteBackground'])->name('builds.assets.backgrounds.delete');
     });
     Route::get('/builds/{build}', [AppBuildController::class, 'show'])
         ->middleware('permission:builds.view')
@@ -66,6 +69,11 @@ Route::prefix($userEntryPath)->middleware(['auth', 'subscription'])->group(funct
     Route::delete('/builds/{build}', [AppBuildController::class, 'destroy'])
         ->middleware('permission:builds.delete')
         ->name('builds.destroy');
+
+    // 子账号管理：需 teams.manage 权限
+    Route::middleware(['permission:teams.manage'])->group(function () {
+        Route::resource('sub-accounts', SubAccountController::class)->except(['show']);
+    });
 
     Route::get('/settings/profile', fn() => Inertia::render('Settings/Profile'))->name('settings.profile');
 });
@@ -82,9 +90,7 @@ Route::prefix($adminEntryPath)->name('admin.')->group(function () {
         Route::post('logout', [AdminAuthController::class, 'logout'])->name('logout');
 
         Route::get('users', [AdminUserController::class, 'index'])->name('users.index');
-        Route::get('users/create', [AdminUserController::class, 'create'])->name('users.create');
         Route::post('users', [AdminUserController::class, 'store'])->name('users.store');
-        Route::get('users/{user}/edit', [AdminUserController::class, 'edit'])->name('users.edit');
         Route::put('users/{user}', [AdminUserController::class, 'update'])->name('users.update');
         Route::delete('users/{user}', [AdminUserController::class, 'destroy'])->name('users.destroy');
 
