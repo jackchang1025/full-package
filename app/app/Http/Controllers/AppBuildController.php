@@ -121,8 +121,7 @@ class AppBuildController extends Controller
 
     public function stream(BuildRequest $request): StreamedResponse
     {
-        // 预处理布尔值参数（URL 参数是字符串）
-        $this->preprocessBooleanParams($request);
+        // 布尔值预处理已移至 BuildRequest::prepareForValidation()
         $validated = $request->validated();
         $userId = $request->user()->getResourceOwnerId();
         $userEmail = $request->user()->email;
@@ -319,25 +318,6 @@ class AppBuildController extends Controller
         $patch = rand(0, 9);
 
         return "{$major}.{$minor}.{$patch}";
-    }
-
-    /**
-     * 预处理布尔值参数（将字符串 "true"/"false" 转换为实际布尔值）
-     */
-    private function preprocessBooleanParams(Request $request): void
-    {
-        $booleanFields = ['is_custom'];
-
-        foreach ($booleanFields as $field) {
-            if ($request->has($field)) {
-                $value = $request->input($field);
-                if (is_string($value)) {
-                    $request->merge([
-                        $field => filter_var($value, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE) ?? false
-                    ]);
-                }
-            }
-        }
     }
 
     private function listUserImages(string $path, string $type, int $userId): array

@@ -57,17 +57,18 @@ init() {
     print_msg "设置目录权限..."
     chmod -R 775 storage bootstrap/cache
     
-    # 构建镜像
+    # 构建镜像（不加 --no-cache，重跑 init 时可复用缓存，节省时间）
     print_msg "构建 Docker 镜像..."
-    $DC build --no-cache
+    $DC build
     
     # 先安装 Composer 依赖（再启动服务，避免 supervisord/WebSocket 因缺 vendor 报错）
+    # 独立容器不在 compose 网络内，无法解析 mysql/redis，故用 --no-scripts 跳过 package:discover，待服务启动后再执行
     print_msg "安装 Composer 依赖..."
     docker run --rm \
         -v "${PROJECT_DIR}:/var/www/html" \
         -e WWWUSER="${WWWUSER:-1000}" \
         feiying-app:latest \
-        composer install --optimize-autoloader --no-dev
+        composer install --optimize-autoloader --no-dev --no-scripts
     
     # 启动服务
     print_msg "启动服务..."
@@ -76,6 +77,10 @@ init() {
     # 等待 MySQL 就绪
     print_msg "等待 MySQL 就绪..."
     sleep 15
+    
+    # 在已联网的 app 容器内执行 package:discover（composer install 时因 --no-scripts 被跳过）
+    print_msg "注册 Composer 包..."
+    $DC exec -T app composer run-script post-autoload-dump --no-interaction
     
     # 构建前端资源
     print_msg "安装 npm 依赖..."
@@ -91,6 +96,9 @@ init() {
     # 运行迁移
     print_msg "运行数据库迁移..."
     $DC exec -T app php artisan migrate --force
+
+    print_msg "运行数据库填充..."
+    $DC exec -T app php artisan db:seed --force
     
     # 创建存储链接
     print_msg "创建存储链接..."
@@ -119,8 +127,10 @@ init() {
     $DC exec -T app php artisan view:cache
     
     print_msg "=== 初始化完成 ==="
-    print_msg "应用地址: http://localhost:${APP_PORT:-8080}"
-    print_msg "后台地址: http://localhost:${APP_PORT:-8080}/admin（首次部署后需执行权限种子并创建管理员，详见 docs/DEPLOYMENT.md）"
+    app_url=$(grep -E '^APP_URL=' .env 2>/dev/null | sed 's/^APP_URL=//;s/^["'\''"]//;s/["'\''"]$//' | head -1)
+    [ -z "$app_url" ] && app_url="http://localhost:${APP_PORT:-80}"
+    print_msg "应用地址: $app_url"
+    print_msg "后台地址: ${app_url%/}/admin"
 }
 
 # 更新部署

@@ -14,6 +14,27 @@ class BuildRequest extends FormRequest
         return true;
     }
 
+    /**
+     * 在验证之前预处理参数：
+     * URL 查询参数中的布尔值是字符串 "true"/"false"，
+     * 需要转换为实际布尔值才能通过 boolean 验证规则。
+     */
+    protected function prepareForValidation(): void
+    {
+        $booleanFields = ['is_custom'];
+
+        foreach ($booleanFields as $field) {
+            if ($this->has($field)) {
+                $value = $this->input($field);
+                if (is_string($value)) {
+                    $this->merge([
+                        $field => filter_var($value, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE) ?? false,
+                    ]);
+                }
+            }
+        }
+    }
+
     public function rules(): array
     {
         return [
