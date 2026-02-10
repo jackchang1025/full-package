@@ -13,7 +13,7 @@ beforeEach(function () {
 
 describe('Inertia shared auth data', function () {
     it('auth.user contains roles and permissions as arrays and does not contain old role field', function () {
-        $user = User::factory()->create();
+        $user = User::factory()->create(['subscription_expires_at' => now()->addDays(30)]);
         $user->assignRole('client');
 
         $response = $this->actingAs($user)->get(route('dashboard'));

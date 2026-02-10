@@ -28,24 +28,38 @@ type InvalidResponse = {
         title?: string;
         content?: string;
         positive_text?: string;
+        error?: string;
     };
 };
 
-// 用户订阅过期 / 无权限：Inertia 收到 403 非 Inertia 响应时派发事件，由全局组件弹框（订阅过期则退出登录，无权限仅提示）
+// 用户订阅过期 / 无权限 / 业务拒绝：Inertia 收到 403 非 Inertia 响应时派发事件，由全局组件弹框
 router.on('invalid', (event) => {
     const res = event.detail.response as InvalidResponse;
     if (res.status !== 403 || !res.data?.message) return;
 
-    const detail = {
-        title: res.data?.title ?? '',
-        content: res.data?.content ?? '',
-        positiveText: res.data?.positive_text ?? '',
-    };
-
     if (res.data.message === 'subscription_expired') {
+        const detail = {
+            title: res.data?.title ?? '',
+            content: res.data?.content ?? '',
+            positiveText: res.data?.positive_text ?? '',
+        };
         event.preventDefault();
         window.dispatchEvent(new CustomEvent('subscription-expired', { detail }));
     } else if (res.data.message === 'permission_denied') {
+        const detail = {
+            title: res.data?.title ?? '',
+            content: res.data?.content ?? '',
+            positiveText: res.data?.positive_text ?? '',
+        };
+        event.preventDefault();
+        window.dispatchEvent(new CustomEvent('permission-denied', { detail }));
+    } else if (res.data.message === 'access_denied') {
+        // 资源归属 / 子账号业务异常：复用权限拒绝弹框，使用后端返回的具体错误信息
+        const detail = {
+            title: '操作被拒绝',
+            content: res.data?.error ?? '无权访问该资源',
+            positiveText: '知道了',
+        };
         event.preventDefault();
         window.dispatchEvent(new CustomEvent('permission-denied', { detail }));
     }

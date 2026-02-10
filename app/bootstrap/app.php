@@ -31,7 +31,7 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
-        // 用户端无权限（Spatie）：Inertia/AJAX 时返回 403 + 统一 JSON，供前端弹框提示
+        // Spatie 无权限：Inertia/AJAX 时返回 403 + 统一 JSON，供前端弹框提示
         $exceptions->render(function (\Spatie\Permission\Exceptions\UnauthorizedException $e, $request) {
             if ($request->header('X-Inertia') || $request->expectsJson()) {
                 return response()->json([
@@ -39,6 +39,16 @@ return Application::configure(basePath: dirname(__DIR__))
                     'title' => __('subscription.permission_denied.title'),
                     'content' => __('subscription.permission_denied.content'),
                     'positive_text' => __('subscription.permission_denied.positive_text'),
+                ], 403);
+            }
+        });
+
+        // 资源归属 / 子账号业务异常：Inertia/AJAX 时返回 403 + 具体错误信息
+        $exceptions->render(function (\Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException $e, $request) {
+            if ($request->header('X-Inertia') || $request->expectsJson()) {
+                return response()->json([
+                    'message' => 'access_denied',
+                    'error' => $e->getMessage() ?: '无权访问该资源',
                 ], 403);
             }
         });

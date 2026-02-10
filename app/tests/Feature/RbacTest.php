@@ -14,7 +14,7 @@ describe('RolePermissionSeeder', function () {
 
         expect(Role::where('guard_name', 'web')->count())->toBeGreaterThan(0);
         expect(Role::where('name', 'client')->where('guard_name', 'web')->exists())->toBeTrue();
-        expect(Permission::where('guard_name', 'web')->count())->toBe(6);
+        expect(Permission::where('guard_name', 'web')->count())->toBe(9);
     });
 
     it('assigns client role to users without roles', function () {
@@ -80,15 +80,15 @@ describe('User-end permission enforcement', function () {
     });
 
     it('returns 403 when user without devices.view accesses devices index', function () {
-        $user = User::factory()->create();
-        // 不分配任何角色，或分配一个没有 devices.view 的角色（当前 seeder 只有 client 且带全部权限，这里用无角色用户）
+        // 有效订阅但无权限 → Spatie 中间件返回 403
+        $user = User::factory()->create(['subscription_expires_at' => now()->addDays(30)]);
         $response = $this->actingAs($user)->get(route('devices.index'));
 
         $response->assertStatus(403);
     });
 
     it('returns 200 when user with client role accesses devices index', function () {
-        $user = User::factory()->create();
+        $user = User::factory()->create(['subscription_expires_at' => now()->addDays(30)]);
         $user->assignRole('client');
 
         $response = $this->actingAs($user)->get(route('devices.index'));
@@ -97,7 +97,7 @@ describe('User-end permission enforcement', function () {
     });
 
     it('returns 403 when user without builds.view accesses builds index', function () {
-        $user = User::factory()->create();
+        $user = User::factory()->create(['subscription_expires_at' => now()->addDays(30)]);
 
         $response = $this->actingAs($user)->get(route('builds.index'));
 
@@ -105,7 +105,7 @@ describe('User-end permission enforcement', function () {
     });
 
     it('returns 200 when user with client role accesses builds index', function () {
-        $user = User::factory()->create();
+        $user = User::factory()->create(['subscription_expires_at' => now()->addDays(30)]);
         $user->assignRole('client');
 
         $response = $this->actingAs($user)->get(route('builds.index'));

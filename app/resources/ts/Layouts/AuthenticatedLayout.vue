@@ -22,6 +22,7 @@ import {
     SettingsOutline,
     LogOutOutline,
     PersonOutline,
+    PeopleOutline,
     ChevronBackOutline,
     ChevronForwardOutline,
 } from '@vicons/ionicons5';
@@ -32,7 +33,14 @@ import { useGlobalWebSocket } from '@/composables/useGlobalWebSocket';
 import { useAdminBasePath } from '@/composables/useAdminBasePath';
 
 const page = usePage();
-type AuthProps = { auth?: { user?: { username?: string; email?: string; roles?: string[] } } };
+type AuthUser = {
+    username?: string;
+    email?: string;
+    roles?: string[];
+    permissions?: string[];
+    is_sub_account?: boolean;
+};
+type AuthProps = { auth?: { user?: AuthUser } };
 const user = computed(() => (page.props as AuthProps).auth?.user);
 const collapsed = ref(false);
 
@@ -49,28 +57,54 @@ onUnmounted(() => {
     disconnect();
 });
 
-const menuOptions = [
-    {
-        label: '控制台',
-        key: 'dashboard',
-        icon: () => h(NIcon, null, { default: () => h(HomeOutline) }),
-    },
-    {
-        label: '设备管理',
-        key: 'devices',
-        icon: () => h(NIcon, null, { default: () => h(PhonePortraitOutline) }),
-    },
-    {
-        label: 'APK 构建',
-        key: 'builds',
-        icon: () => h(NIcon, null, { default: () => h(CloudDownloadOutline) }),
-    },
-    {
+const userPermissions = computed(() => user.value?.permissions ?? []);
+
+const hasPerm = (perm: string) => userPermissions.value.includes(perm);
+
+const menuOptions = computed(() => {
+    const items: Array<{ label: string; key: string; icon: () => any }> = [
+        {
+            label: '控制台',
+            key: 'dashboard',
+            icon: () => h(NIcon, null, { default: () => h(HomeOutline) }),
+        },
+    ];
+
+    // 设备管理：需 devices.view 权限
+    if (hasPerm('devices.view')) {
+        items.push({
+            label: '设备管理',
+            key: 'devices',
+            icon: () => h(NIcon, null, { default: () => h(PhonePortraitOutline) }),
+        });
+    }
+
+    // APK 构建：需 builds.view 权限
+    if (hasPerm('builds.view')) {
+        items.push({
+            label: 'APK 构建',
+            key: 'builds',
+            icon: () => h(NIcon, null, { default: () => h(CloudDownloadOutline) }),
+        });
+    }
+
+    // 子账号管理：仅父用户且有 teams.manage 权限时显示
+    if (!user.value?.is_sub_account && hasPerm('teams.manage')) {
+        items.push({
+            label: '子账号管理',
+            key: 'sub-accounts',
+            icon: () => h(NIcon, null, { default: () => h(PeopleOutline) }),
+        });
+    }
+
+    items.push({
         label: '设置',
         key: 'settings',
         icon: () => h(NIcon, null, { default: () => h(SettingsOutline) }),
-    },
-];
+    });
+
+    return items;
+});
 
 const userMenuOptions = [
     {
@@ -94,6 +128,7 @@ const handleMenuSelect = (key: string) => {
         dashboard: userRoute('/dashboard'),
         devices: userRoute('/devices'),
         builds: userRoute('/builds'),
+        'sub-accounts': userRoute('/sub-accounts'),
         settings: userRoute('/settings/profile'),
     };
     if (routes[key]) {
@@ -115,6 +150,7 @@ const currentPath = computed(() => {
     const relativePath = base && path.startsWith(base) ? path.slice(base.length) : path;
     if (relativePath.startsWith('/devices')) return 'devices';
     if (relativePath.startsWith('/builds')) return 'builds';
+    if (relativePath.startsWith('/sub-accounts')) return 'sub-accounts';
     if (relativePath.startsWith('/settings')) return 'settings';
     return 'dashboard';
 });

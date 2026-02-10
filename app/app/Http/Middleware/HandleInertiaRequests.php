@@ -98,6 +98,9 @@ class HandleInertiaRequests extends Middleware
             'avatar' => $user->avatar,
             'subscription_expires_at' => $user->subscription_expires_at?->toDateString(),
             'subscription_type' => $user->subscription_type,
+            'is_sub_account' => $user->isSubAccount(),
+            'parent_id' => $user->parent_id,
+            'max_sub_accounts' => $user->max_sub_accounts,
         ];
     }
 
