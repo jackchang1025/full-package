@@ -9,9 +9,9 @@ uses(RefreshDatabase::class);
 
 beforeEach(function () {
     (new RolePermissionSeeder)->run();
-    $this->userA = User::factory()->create();
+    $this->userA = User::factory()->create(['subscription_expires_at' => now()->addDays(30)]);
     $this->userA->assignRole('client');
-    $this->userB = User::factory()->create();
+    $this->userB = User::factory()->create(['subscription_expires_at' => now()->addDays(30)]);
     $this->userB->assignRole('client');
     $this->deviceOfB = Device::factory()->create([
         'user_id' => $this->userB->id,

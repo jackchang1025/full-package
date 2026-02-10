@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Device\UpdateDeviceRequest;
 use App\Models\Device;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -74,13 +75,9 @@ class DeviceController extends Controller
         ]);
     }
 
-    public function update(Request $request, Device $device)
+    public function update(UpdateDeviceRequest $request, Device $device)
     {
-        $validated = $request->validate([
-            'remark' => ['nullable', 'string', 'max:200'],
-        ]);
-
-        $device->update($validated);
+        $device->update($request->validated());
 
         if ($request->header('X-Inertia')) {
             return back();

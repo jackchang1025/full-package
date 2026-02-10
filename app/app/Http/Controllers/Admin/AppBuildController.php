@@ -51,7 +51,7 @@ class AppBuildController extends Controller
         $build->load(['user', 'template']);
         $build->append(['download_url', 'build_duration', 'icon_url', 'background_url']);
 
-        return Inertia::render('Builds/Show', [
+        return Inertia::render('Admin/Builds/Show', [
             'build' => $build,
             'backUrl' => route('admin.builds.index'),
         ]);

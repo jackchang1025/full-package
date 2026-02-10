@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Exceptions\ApkBuilder\ApkBuildException;
+use App\Exceptions\ResourceAccessDeniedException;
+use App\Http\Requests\Build\BuildRequest;
 use App\Models\AppBuild;
 use App\Models\AppTemplate;
 use App\Services\ApkBuilder\ApkBuildConfig;
@@ -13,12 +15,17 @@ use Inertia\Inertia;
 use Inertia\Response;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
+/**
+ * APK 构建控制器。
+ *
+ * 权限检查由路由中间件 permission:builds.* 统一完成，
+ * 控制器内只处理资源归属校验。
+ */
 class AppBuildController extends Controller
 {
     public function index(Request $request): Response
     {
-        $this->authorize('builds.view');
-        $builds = AppBuild::where('user_id', $request->user()->id)
+        $builds = AppBuild::where('user_id', $request->user()->getResourceOwnerId())
             ->with('template')
             ->orderBy('created_at', 'desc')
             ->paginate(20);
@@ -70,15 +77,14 @@ class AppBuildController extends Controller
 
     public function create(Request $request): Response
     {
-        $this->authorize('builds.create');
         $templates = AppTemplate::where('is_active', true)->get();
-        $userId = $request->user()->id;
+        $ownerId = $request->user()->getResourceOwnerId();
 
-        $iconsPath = config('apk-builder.icons_path') . '/' . $userId;
-        $icons = $this->listUserImages($iconsPath, 'icons', $userId);
+        $iconsPath = config('apk-builder.icons_path') . '/' . $ownerId;
+        $icons = $this->listUserImages($iconsPath, 'icons', $ownerId);
 
-        $bgPath = config('apk-builder.backgrounds_path') . '/' . $userId;
-        $backgrounds = $this->listUserImages($bgPath, 'backgrounds', $userId);
+        $bgPath = config('apk-builder.backgrounds_path') . '/' . $ownerId;
+        $backgrounds = $this->listUserImages($bgPath, 'backgrounds', $ownerId);
 
         return Inertia::render('Builds/Create', [
             'templates' => $templates,
@@ -87,17 +93,16 @@ class AppBuildController extends Controller
         ]);
     }
 
-    public function store(Request $request)
+    public function store(BuildRequest $request)
     {
-        $this->authorize('builds.create');
-        $validated = $this->validateBuildRequest($request);
+        $validated = $request->validated();
 
         $packageName = $validated['package_name'] ?? $this->generatePackageName();
         $version = $validated['version'] ?? $this->generateVersion();
         $buildConfig = $this->prepareBuildConfig($validated);
 
         $build = AppBuild::create([
-            'user_id' => $request->user()->id,
+            'user_id' => $request->user()->getResourceOwnerId(),
             'template_id' => $validated['template_id'] ?? null,
             'name' => $validated['name'],
             'package_name' => $packageName,
@@ -114,13 +119,12 @@ class AppBuildController extends Controller
             ->with('success', 'APK 构建任务已创建');
     }
 
-    public function stream(Request $request): StreamedResponse
+    public function stream(BuildRequest $request): StreamedResponse
     {
-        $this->authorize('builds.create');
         // 预处理布尔值参数（URL 参数是字符串）
         $this->preprocessBooleanParams($request);
-        $validated = $this->validateBuildRequest($request);
-        $userId = $request->user()->id;
+        $validated = $request->validated();
+        $userId = $request->user()->getResourceOwnerId();
         $userEmail = $request->user()->email;
 
         $packageName = $validated['package_name'] ?? $this->generatePackageName();
@@ -229,8 +233,7 @@ class AppBuildController extends Controller
 
     public function show(Request $request, AppBuild $build): Response
     {
-        $this->authorize('builds.view');
-        abort_if($build->user_id !== $request->user()->id, 403);
+        $this->ensureBuildOwnership($build, $request->user());
 
         $build->load('template');
         $build->append(['download_url', 'build_duration', 'icon_url', 'background_url', 'share_url']);
@@ -243,8 +246,7 @@ class AppBuildController extends Controller
 
     public function destroy(Request $request, AppBuild $build)
     {
-        $this->authorize('builds.delete');
-        abort_if($build->user_id !== $request->user()->id, 403);
+        $this->ensureBuildOwnership($build, $request->user());
 
         $build->delete();
 
@@ -252,40 +254,16 @@ class AppBuildController extends Controller
             ->with('success', 'APK 构建已删除');
     }
 
-    private function validateBuildRequest(Request $request): array
+    /**
+     * 确保构建记录归属于当前用户（含子账号共享资源逻辑）。
+     *
+     * @throws ResourceAccessDeniedException
+     */
+    private function ensureBuildOwnership(AppBuild $build, mixed $user): void
     {
-        return $request->validate([
-            'template_id' => 'nullable|exists:app_templates,id',
-            'name' => 'required|string|max:32',
-            'package_name' => 'nullable|string|max:255|regex:/^[a-zA-Z][a-zA-Z0-9_]*(\.[a-zA-Z][a-zA-Z0-9_]*)*$/',
-            'version' => 'nullable|string|max:20|regex:/^\d+(\.\d+){0,2}$/',
-            'is_custom' => 'boolean',
-
-            'client_name' => 'nullable|string|max:16',
-            'app_url' => 'nullable|string|max:500',
-
-            'lng_short' => 'nullable|string|max:1000',
-            'use_atoprims' => 'nullable|string|max:100',
-            'login_dis' => 'nullable|string|max:50',
-            'login_btn' => 'nullable|string|max:50',
-
-            'install_type' => 'nullable|string|in:f,d',
-            'install_type2' => 'nullable|string|in:g,s',
-            'user_allprims' => 'nullable|string|in:0,1',
-            'user_blackprims' => 'nullable|string|in:0,1',
-
-            'hide_type' => 'nullable|string|in:direct,uninstall,prompt,f',
-            'use_antkill' => 'nullable|string|in:0,1',
-            'diao_type' => 'nullable|string|in:0,1',
-            'hidden_app' => 'nullable|string|in:0,1',
-            'use_draw' => 'nullable|string|in:0,1',
-            'open_access' => 'nullable|string|in:0,1',
-            'use_access' => 'nullable|string|in:0,1',
-
-            'icon_path' => 'nullable|string|max:255',
-            'background_path' => 'nullable|string|max:255',
-            'abg_path' => 'nullable|string|max:255',
-        ]);
+        if ($build->user_id !== $user->getResourceOwnerId()) {
+            throw new ResourceAccessDeniedException();
+        }
     }
 
     private function prepareBuildConfig(array $validated): array

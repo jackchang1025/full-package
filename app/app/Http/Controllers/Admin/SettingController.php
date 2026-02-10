@@ -3,24 +3,18 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Admin\UpdateSettingRequest;
 use App\Models\Setting;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class SettingController extends Controller
 {
-    /** Reserved path prefixes that cannot be used as entry paths. */
-    private const RESERVED_PATHS = ['download', 'up', 'api', 'sanctum'];
-
-    /** Regex for valid entry path characters. */
-    private const PATH_REGEX = '/^[a-zA-Z0-9_\-\/]+$/';
-
     /** Storage disk and directory for site assets. */
     private const STORAGE_DISK = 'public';
     private const LOGO_DIRECTORY = 'site';
@@ -47,9 +41,9 @@ class SettingController extends Controller
     /**
      * Update settings. Accepts POST (with optional logo_file) or PUT.
      */
-    public function update(Request $request): RedirectResponse
+    public function update(UpdateSettingRequest $request): RedirectResponse
     {
-        $validated = $this->validateRequest($request);
+        $validated = $request->validated();
 
         $userPath = $this->normalizePath($validated['user_entry_path'] ?? '');
         $adminPath = $this->normalizePath($validated['admin_entry_path'] ?? 'admin') ?: 'admin';
@@ -102,37 +96,6 @@ class SettingController extends Controller
     private static function formatLogoMaxSizeLabel(int $kb): string
     {
         return $kb >= 1024 ? sprintf('%d MB', (int) round($kb / 1024)) : sprintf('%d KB', $kb);
-    }
-
-    /**
-     * Validate the incoming request.
-     */
-    private function validateRequest(Request $request): array
-    {
-        return $request->validate([
-            'app_name' => ['nullable', 'string', 'max:255'],
-            'app_logo' => ['nullable', 'string', 'max:500'],
-            'logo_file' => ['nullable', 'image', 'max:' . self::getLogoMaxSizeKb()],
-            'user_entry_path' => [
-                'nullable',
-                'string',
-                'max:100',
-                'regex:' . self::PATH_REGEX,
-                Rule::notIn(self::RESERVED_PATHS),
-            ],
-            'admin_entry_path' => [
-                'required',
-                'string',
-                'max:100',
-                'regex:' . self::PATH_REGEX,
-                Rule::notIn(self::RESERVED_PATHS),
-            ],
-        ], [
-            'logo_file.max' => 'logo file 不能大于 ' . self::getLogoMaxSizeKb() . ' KB。',
-            'user_entry_path.regex' => '用户入口路径只能包含字母、数字、下划线、连字符和斜杠。',
-            'admin_entry_path.regex' => '总后台入口路径只能包含字母、数字、下划线、连字符和斜杠。',
-            'admin_entry_path.required' => '总后台入口路径不能为空。',
-        ]);
     }
 
     /**

@@ -10,8 +10,9 @@ use Illuminate\Http\UploadedFile;
 uses(RefreshDatabase::class);
 
 beforeEach(function () {
-    $this->user = User::factory()->create();
     (new RolePermissionSeeder)->run();
+    $this->user = User::factory()->create(['subscription_expires_at' => now()->addDays(30)]);
+    $this->user->assignRole('client');
 });
 
 describe('APK Build Stream API', function () {

@@ -5,6 +5,7 @@ import {
     NIcon,
     NButton,
     NTag,
+    NAlert,
 } from 'naive-ui';
 import {
     PhonePortraitOutline,
@@ -32,8 +33,13 @@ interface Props {
 const props = defineProps<Props>();
 
 const page = usePage();
-const user = computed(() => (page.props.auth as { user?: { username: string } })?.user);
+type AuthUser = { username?: string; permissions?: string[] };
+const user = computed(() => (page.props.auth as { user?: AuthUser })?.user);
 const { userRoute } = useAdminBasePath();
+
+const userPermissions = computed(() => user.value?.permissions ?? []);
+const hasPerm = (perm: string) => userPermissions.value.includes(perm);
+const hasNoCorePerm = computed(() => !hasPerm('devices.view') && !hasPerm('builds.view'));
 
 const onlinePercentage = computed(() => {
     if (props.stats.totalDevices === 0) return 0;
@@ -80,11 +86,17 @@ const statCards = computed<StatCard[]>(() => [
     },
 ]);
 
-const quickActions = computed(() => [
-    { label: '管理设备', icon: PhonePortraitOutline, route: userRoute('/devices'), color: '#10B981' },
-    { label: 'APK 构建', icon: CloudDownloadOutline, route: userRoute('/builds'), color: '#3B82F6' },
-    { label: '系统设置', icon: ServerOutline, route: userRoute('/settings/profile'), color: '#8B5CF6' },
-]);
+const quickActions = computed(() => {
+    const actions: Array<{ label: string; icon: any; route: string; color: string }> = [];
+    if (hasPerm('devices.view')) {
+        actions.push({ label: '管理设备', icon: PhonePortraitOutline, route: userRoute('/devices'), color: '#10B981' });
+    }
+    if (hasPerm('builds.view')) {
+        actions.push({ label: 'APK 构建', icon: CloudDownloadOutline, route: userRoute('/builds'), color: '#3B82F6' });
+    }
+    actions.push({ label: '系统设置', icon: ServerOutline, route: userRoute('/settings/profile'), color: '#8B5CF6' });
+    return actions;
+});
 
 const goTo = (route: string) => router.visit(route);
 </script>
@@ -105,7 +117,7 @@ const goTo = (route: string) => router.visit(route);
                         这是您的 {{ page.props.appName }} 控制台，查看设备状态和系统概览
                     </p>
                 </div>
-                <div class="welcome-actions">
+                <div v-if="hasPerm('devices.view')" class="welcome-actions">
                     <NButton type="primary" class="action-btn" @click="goTo(userRoute('/devices'))">
                         <template #icon>
                             <NIcon :component="PhonePortraitOutline" />
@@ -114,6 +126,12 @@ const goTo = (route: string) => router.visit(route);
                     </NButton>
                 </div>
             </div>
+
+            <!-- 无权限警告 -->
+            <NAlert v-if="hasNoCorePerm" type="warning" class="no-perm-alert">
+                <template #header>您的账号尚未分配功能权限</template>
+                当前账号没有设备管理、APK 构建等功能权限，无法使用核心功能。请联系管理员为您分配所需权限后即可正常使用。
+            </NAlert>
 
             <!-- 统计卡片 -->
             <StatsGrid :stats="stats" :cards="statCards" class="stats-section" />
@@ -215,6 +233,12 @@ const goTo = (route: string) => router.visit(route);
 .action-btn:hover {
     transform: translateY(-2px);
     box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+}
+
+/* 无权限警告 */
+.no-perm-alert {
+    margin-bottom: 28px;
+    border-radius: 14px;
 }
 
 /* 统计卡片 */

@@ -3,8 +3,8 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
-use Illuminate\Validation\Rule;
+use App\Http\Requests\Admin\StoreRoleRequest;
+use App\Http\Requests\Admin\UpdateRoleRequest;
 use Inertia\Inertia;
 use Inertia\Response;
 use Spatie\Permission\Models\Permission;
@@ -51,13 +51,9 @@ class RoleController extends Controller
         ]);
     }
 
-    public function store(Request $request)
+    public function store(StoreRoleRequest $request)
     {
-        $validated = $request->validate([
-            'name' => ['required', 'string', 'max:255', Rule::unique('roles', 'name')->where('guard_name', self::GUARD)],
-            'permissions' => ['array'],
-            'permissions.*' => ['string', 'exists:permissions,name'],
-        ]);
+        $validated = $request->validated();
 
         $role = Role::create([
             'name' => $validated['name'],
@@ -91,13 +87,9 @@ class RoleController extends Controller
         ]);
     }
 
-    public function update(Request $request, Role $role)
+    public function update(UpdateRoleRequest $request, Role $role)
     {
-        $validated = $request->validate([
-            'name' => ['sometimes', 'string', 'max:255', Rule::unique('roles', 'name')->where('guard_name', self::GUARD)->ignore($role->id)],
-            'permissions' => ['array'],
-            'permissions.*' => ['string', 'exists:permissions,name'],
-        ]);
+        $validated = $request->validated();
 
         if (array_key_exists('name', $validated)) {
             $role->name = $validated['name'];

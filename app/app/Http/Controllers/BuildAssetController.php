@@ -2,6 +2,9 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\Build\DeleteAssetRequest;
+use App\Http\Requests\Build\UploadBackgroundRequest;
+use App\Http\Requests\Build\UploadIconRequest;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\File;
@@ -10,8 +13,7 @@ class BuildAssetController extends Controller
 {
     public function icons(Request $request): JsonResponse
     {
-        $this->authorize('builds.create');
-        $userId = $request->user()->id;
+        $userId = $request->user()->getResourceOwnerId();
         $iconsPath = config('apk-builder.icons_path') . '/' . $userId;
 
         $icons = $this->listImages($iconsPath, 'icons', $userId);
@@ -19,14 +21,9 @@ class BuildAssetController extends Controller
         return response()->json(['icons' => $icons]);
     }
 
-    public function uploadIcon(Request $request): JsonResponse
+    public function uploadIcon(UploadIconRequest $request): JsonResponse
     {
-        $this->authorize('builds.create');
-        $request->validate([
-            'icon' => 'required|image|mimes:png,jpg,jpeg|max:2048',
-        ]);
-
-        $userId = $request->user()->id;
+        $userId = $request->user()->getResourceOwnerId();
         $iconsPath = config('apk-builder.icons_path') . '/' . $userId;
 
         File::ensureDirectoryExists($iconsPath);
@@ -46,15 +43,10 @@ class BuildAssetController extends Controller
         ]);
     }
 
-    public function deleteIcon(Request $request): JsonResponse
+    public function deleteIcon(DeleteAssetRequest $request): JsonResponse
     {
-        $this->authorize('builds.create');
-        $request->validate([
-            'name' => 'required|string',
-        ]);
-
-        $userId = $request->user()->id;
-        $iconPath = config('apk-builder.icons_path') . '/' . $userId . '/' . basename($request->name);
+        $userId = $request->user()->getResourceOwnerId();
+        $iconPath = config('apk-builder.icons_path') . '/' . $userId . '/' . basename($request->validated('name'));
 
         if (File::exists($iconPath)) {
             File::delete($iconPath);
@@ -66,8 +58,7 @@ class BuildAssetController extends Controller
 
     public function backgrounds(Request $request): JsonResponse
     {
-        $this->authorize('builds.create');
-        $userId = $request->user()->id;
+        $userId = $request->user()->getResourceOwnerId();
         $bgPath = config('apk-builder.backgrounds_path') . '/' . $userId;
 
         $backgrounds = $this->listImages($bgPath, 'backgrounds', $userId);
@@ -75,21 +66,15 @@ class BuildAssetController extends Controller
         return response()->json(['backgrounds' => $backgrounds]);
     }
 
-    public function uploadBackground(Request $request): JsonResponse
+    public function uploadBackground(UploadBackgroundRequest $request): JsonResponse
     {
-        $this->authorize('builds.create');
-        $request->validate([
-            'background' => 'required|image|mimes:png,jpg,jpeg|max:5120',
-            'type' => 'nullable|string|in:blackui,abg',
-        ]);
-
-        $userId = $request->user()->id;
+        $userId = $request->user()->getResourceOwnerId();
         $bgPath = config('apk-builder.backgrounds_path') . '/' . $userId;
 
         File::ensureDirectoryExists($bgPath);
 
         $file = $request->file('background');
-        $type = $request->input('type', 'blackui');
+        $type = $request->validated('type', 'blackui');
         $filename = md5($file->getClientOriginalName() . time()) . '.png';
         $outputPath = $bgPath . '/' . $filename;
 
@@ -105,15 +90,10 @@ class BuildAssetController extends Controller
         ]);
     }
 
-    public function deleteBackground(Request $request): JsonResponse
+    public function deleteBackground(DeleteAssetRequest $request): JsonResponse
     {
-        $this->authorize('builds.create');
-        $request->validate([
-            'name' => 'required|string',
-        ]);
-
-        $userId = $request->user()->id;
-        $bgPath = config('apk-builder.backgrounds_path') . '/' . $userId . '/' . basename($request->name);
+        $userId = $request->user()->getResourceOwnerId();
+        $bgPath = config('apk-builder.backgrounds_path') . '/' . $userId . '/' . basename($request->validated('name'));
 
         if (File::exists($bgPath)) {
             File::delete($bgPath);
