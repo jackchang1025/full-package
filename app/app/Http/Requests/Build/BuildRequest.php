@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Build;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 /**
  * APK 构建请求验证（store + stream 共享）。
@@ -40,8 +41,19 @@ class BuildRequest extends FormRequest
         return [
             'template_id' => 'nullable|exists:app_templates,id',
             'name' => 'required|string|max:32',
-            'package_name' => 'nullable|string|max:255|regex:/^[a-zA-Z][a-zA-Z0-9_]*(\.[a-zA-Z][a-zA-Z0-9_]*)*$/',
-            'version' => 'nullable|string|max:20|regex:/^\d+(\.\d+){0,2}$/',
+            // 留空时后端自动生成，仅在有值时校验格式
+            'package_name' => [
+                'nullable',
+                'string',
+                'max:255',
+                Rule::when($this->filled('package_name'), 'regex:/^[a-zA-Z][a-zA-Z0-9_]*(\.[a-zA-Z][a-zA-Z0-9_]*)*$/'),
+            ],
+            'version' => [
+                'nullable',
+                'string',
+                'max:20',
+                Rule::when($this->filled('version'), 'regex:/^\d+(\.\d+){0,2}$/'),
+            ],
             'is_custom' => 'boolean',
 
             'client_name' => 'nullable|string|max:16',

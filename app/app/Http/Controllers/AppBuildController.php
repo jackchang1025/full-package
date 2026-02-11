@@ -97,8 +97,12 @@ class AppBuildController extends Controller
     {
         $validated = $request->validated();
 
-        $packageName = $validated['package_name'] ?? $this->generatePackageName();
-        $version = $validated['version'] ?? $this->generateVersion();
+        $packageName = trim((string) ($validated['package_name'] ?? '')) !== ''
+            ? trim((string) $validated['package_name'])
+            : $this->generatePackageName();
+        $version = trim((string) ($validated['version'] ?? '')) !== ''
+            ? trim((string) $validated['version'])
+            : $this->generateVersion();
         $buildConfig = $this->prepareBuildConfig($validated);
 
         $build = AppBuild::create([
@@ -126,8 +130,12 @@ class AppBuildController extends Controller
         $userId = $request->user()->getResourceOwnerId();
         $userEmail = $request->user()->email;
 
-        $packageName = $validated['package_name'] ?? $this->generatePackageName();
-        $version = $validated['version'] ?? $this->generateVersion();
+        $packageName = trim((string) ($validated['package_name'] ?? '')) !== ''
+            ? trim((string) $validated['package_name'])
+            : $this->generatePackageName();
+        $version = trim((string) ($validated['version'] ?? '')) !== ''
+            ? trim((string) $validated['version'])
+            : $this->generateVersion();
         $buildConfigData = $this->prepareBuildConfig($validated);
 
         return response()->stream(function () use ($validated, $userId, $userEmail, $packageName, $version, $buildConfigData) {
