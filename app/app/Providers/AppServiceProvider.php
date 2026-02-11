@@ -5,6 +5,7 @@ namespace App\Providers;
 use App\Models\Setting;
 use App\Services\ApkBuilder\ApkBuilder;
 use Illuminate\Support\Facades\Config;
+use Illuminate\Support\Facades\URL;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -26,6 +27,11 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        // 当 APP_URL 为 https 时，强制所有生成的 URL 使用 HTTPS
+        if (str_starts_with(config('app.url'), 'https://')) {
+            URL::forceScheme('https');
+        }
+
         $this->applySettingsFromDatabase();
     }
 
