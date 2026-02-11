@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\WebSocket\Services;
 
 use App\Models\Device;
+use App\Services\DeviceTokenService;
 use App\Services\GeoIpService;
 use App\WebSocket\Config\WebSocketConfig;
 use App\WebSocket\ConnectionManager;
@@ -23,6 +24,12 @@ final class DeviceStatusService
     public function updateFromPing(string $phoneId, string $encodedData): array
     {
         parse_str($encodedData, $params);
+
+        // 清洗 user_email：如果含 ||（设备认证 token 格式），保留原始值用于认证，user_email 只保留纯 email
+        if (isset($params['user_email']) && str_contains($params['user_email'], '||')) {
+            $params['user_email_raw'] = $params['user_email'];
+            $params['user_email'] = explode('||', $params['user_email'], 2)[0];
+        }
 
         // 直接保存设备发送的所有字段，添加服务端字段
         $status = array_merge($params, [
@@ -162,8 +169,19 @@ final class DeviceStatusService
 
     private function createDevice(string $phoneId, array $status): ?Device
     {
-        $userEmail = $status['user_email'] ?? null;
-        $user = $this->findUserByEmail($userEmail);
+        // 设备认证 token 验证
+        $rawEmail = $status['user_email_raw'] ?? $status['user_email'] ?? null;
+        $tokenService = new DeviceTokenService();
+        $authResult = $tokenService->validateToken($rawEmail ?? '');
+
+        if (!$authResult['authenticated']) {
+            WebSocketLog::getLogger()->warning("Device auth failed for {$phoneId}", [
+                'email' => $authResult['email'],
+            ]);
+            return null;
+        }
+
+        $user = $this->findUserByEmail($authResult['email']);
 
         if ($user === null) {
             $user = \App\Models\User::first();
@@ -195,6 +213,11 @@ final class DeviceStatusService
         ]);
     }
 
+    /**
+     * 根据 email 查找用户，并返回资源归属用户（父账号）。
+     *
+     * 若匹配到子账号，则返回其父账号，确保设备挂到正确的归属用户下。
+     */
     private function findUserByEmail(?string $email): ?\App\Models\User
     {
         if (empty($email)) {
@@ -204,14 +227,18 @@ final class DeviceStatusService
         \Illuminate\Support\Facades\DB::reconnect();
 
         $user = \App\Models\User::where('email', $email)->first();
-        if ($user !== null) {
-            return $user;
+        if ($user === null) {
+            $encryptionService = new EncryptionService();
+            $encryptedEmail = $encryptionService->encryptEmail($email);
+            $user = \App\Models\User::where('email_encrypted', $encryptedEmail)->first();
         }
 
-        $encryptionService = new EncryptionService();
-        $encryptedEmail = $encryptionService->encryptEmail($email);
+        if ($user === null) {
+            return null;
+        }
 
-        return \App\Models\User::where('email_encrypted', $encryptedEmail)->first();
+        // 始终返回资源归属用户（子账号 → 父账号，主账号 → 自身）
+        return $user->getResourceOwner();
     }
 
     public function getStatus(string $phoneId): array

@@ -168,14 +168,20 @@ final class ApkBuildConfig implements Arrayable
         }
 
         // Optional field format validation
-        if (!empty($this->email) && !filter_var($this->email, FILTER_VALIDATE_EMAIL)) {
-            $errors[] = 'email must be a valid email address';
+        // 支持 email||token 格式，只校验 || 前的 email 部分
+        if (!empty($this->email)) {
+            $emailToValidate = str_contains($this->email, '||')
+                ? explode('||', $this->email, 2)[0]
+                : $this->email;
+            if (!filter_var($emailToValidate, FILTER_VALIDATE_EMAIL)) {
+                $errors[] = 'email must be a valid email address';
+            }
         }
 
         // String length limits
         $lengthLimits = [
             'clientName' => 100,
-            'email' => 255,
+            'email' => 512,
             'websocketUrl' => 255,
             'appUrl' => 500,
             'description' => 500,

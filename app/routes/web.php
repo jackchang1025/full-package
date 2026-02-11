@@ -53,7 +53,6 @@ Route::prefix($userEntryPath)->middleware(['auth', 'subscription'])->group(funct
     Route::middleware(['permission:builds.create'])->group(function () {
         Route::get('/builds/stream', [AppBuildController::class, 'stream'])->name('builds.stream');
         Route::get('/builds/create', [AppBuildController::class, 'create'])->name('builds.create');
-        Route::post('/builds', [AppBuildController::class, 'store'])->name('builds.store');
     });
     Route::prefix('builds/assets')->middleware(['permission:builds.assets.manage'])->group(function () {
         Route::get('/icons', [BuildAssetController::class, 'icons'])->name('builds.assets.icons');

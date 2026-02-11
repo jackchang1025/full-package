@@ -60,6 +60,7 @@ final class WebSocketTestServer
             'APP_ENV' => 'testing',
             'WEBSOCKET_HOST' => '127.0.0.1',
             'WEBSOCKET_PORT' => (string) self::$port,
+            'DEVICE_AUTH_SECRET' => self::getTestSecret(),
         ]);
 
         self::$process = proc_open($command, $descriptors, self::$pipes, $basePath, $env);
@@ -281,6 +282,14 @@ final class WebSocketTestServer
         }
 
         throw new \RuntimeException('Unable to locate project root');
+    }
+
+    /**
+     * 测试用固定密钥，与服务器启动时传入的 DEVICE_AUTH_SECRET 一致
+     */
+    public static function getTestSecret(): string
+    {
+        return 'websocket-test-secret-key-for-ci';
     }
 
     /**

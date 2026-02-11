@@ -17,6 +17,15 @@ class MockDevice extends WebSocketTestClient
         );
 
         $this->deviceId = $deviceId;
+
+        $userEmail = $options['user_email'] ?? 'test@example.com';
+
+        // 如果 user_email 已经包含 ||（调用方自行构造的 token），直接使用
+        // 否则自动生成有效的测试 token
+        if (!str_contains($userEmail, '||')) {
+            $userEmail = self::generateTestToken($userEmail);
+        }
+
         $this->deviceInfo = [
             'phone_name' => $options['phone_name'] ?? 'Mock Device',
             'model' => $options['model'] ?? 'Mock Pixel 8',
@@ -24,9 +33,31 @@ class MockDevice extends WebSocketTestClient
             'battery_charge' => $options['battery_charge'] ?? '85',
             'accessibility' => $options['accessibility'] ?? '1',
             'country' => $options['country'] ?? 'China',
-            'user_email' => $options['user_email'] ?? 'test@example.com',
+            'user_email' => $userEmail,
             'install_date' => $options['install_date'] ?? '2026-01-01',
         ];
+    }
+
+    /**
+     * 使用测试密钥生成有效的设备认证 token
+     */
+    public static function generateTestToken(string $email, int $buildId = 1): string
+    {
+        $secret = WebSocketTestServer::getTestSecret();
+        $timestamp = time();
+        $hmac = hash_hmac('sha256', "{$email}|{$buildId}|{$timestamp}", $secret);
+
+        return "{$email}||{$hmac}.{$buildId}.{$timestamp}";
+    }
+
+    /**
+     * 生成无效的 token（用于测试认证拒绝）
+     */
+    public static function generateInvalidToken(string $email): string
+    {
+        $fakeHmac = str_repeat('a', 64);
+
+        return "{$email}||{$fakeHmac}.1.0";
     }
 
     public function getDeviceId(): string

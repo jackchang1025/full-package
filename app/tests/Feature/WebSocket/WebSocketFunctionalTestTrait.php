@@ -91,6 +91,8 @@ trait WebSocketFunctionalTestTrait
             ->orWhere('uuid', 'like', 'control-%')
             ->orWhere('uuid', 'like', 'test-device-%')
             ->orWhere('uuid', 'like', 'stats-%')
+            ->orWhere('uuid', 'like', 'sub-share-%')
+            ->orWhere('uuid', 'like', 'auth-%')
             ->delete();
 
         // 删除测试用户

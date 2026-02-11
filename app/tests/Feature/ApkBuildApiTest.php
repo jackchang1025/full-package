@@ -13,6 +13,7 @@ beforeEach(function () {
     (new RolePermissionSeeder)->run();
     $this->user = User::factory()->create(['subscription_expires_at' => now()->addDays(30)]);
     $this->user->assignRole('client');
+    $this->user->givePermissionTo('builds.create');
 });
 
 describe('APK Build Stream API', function () {
@@ -57,6 +58,29 @@ describe('APK Build Stream API', function () {
     it('auto-generates package name when not provided', function () {
         $response = $this->actingAs($this->user)
             ->get('/builds/stream?name=test');
+
+        $response->assertStatus(200)
+            ->assertHeader('Content-Type', 'text/event-stream; charset=UTF-8');
+    });
+
+    it('sub-account stream uses resource owner and accepts valid request', function () {
+        $parent = User::factory()->create([
+            'subscription_expires_at' => now()->addDays(30),
+            'email' => 'parent-build@example.com',
+        ]);
+        $parent->assignRole('client');
+        $parent->givePermissionTo('builds.create');
+
+        $sub = User::factory()->create([
+            'parent_id' => $parent->id,
+            'subscription_expires_at' => now()->addDays(30),
+            'email' => 'sub-build@example.com',
+        ]);
+        $sub->assignRole('client');
+        $sub->givePermissionTo('builds.create');
+
+        $response = $this->actingAs($sub)
+            ->get('/builds/stream?name=test&package_name=com.test.sub&version=1.0');
 
         $response->assertStatus(200)
             ->assertHeader('Content-Type', 'text/event-stream; charset=UTF-8');
@@ -435,30 +459,10 @@ describe('APK Build CRUD API', function () {
             );
     });
 
-    it('creates build record with valid data', function () {
-        $data = [
-            'name' => 'Test Build',
-            'package_name' => 'com.test.build',
-            'version' => '1.0',
-            'is_custom' => true,
-        ];
-
+    it('store route is removed', function () {
         $response = $this->actingAs($this->user)
-            ->post('/builds', $data);
+            ->post('/builds', ['name' => 'Test Build']);
 
-        $response->assertRedirect();
-
-        $this->assertDatabaseHas('app_builds', [
-            'name' => 'Test Build',
-            'package_name' => 'com.test.build',
-            'user_id' => $this->user->id,
-        ]);
-    });
-
-    it('requires name field for build creation', function () {
-        $response = $this->actingAs($this->user)
-            ->post('/builds', []);
-
-        $response->assertSessionHasErrors(['name']);
+        $response->assertStatus(405);
     });
 });

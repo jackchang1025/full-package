@@ -49,6 +49,11 @@ return [
         'method' => 'AES-256-CBC',
     ],
 
+    // Device authentication (HMAC token signed during APK build)
+    'device_auth' => [
+        'secret' => env('DEVICE_AUTH_SECRET', ''),
+    ],
+
     // Admin email (encrypted) - can view all devices
     'admin_email_encrypted' => 'GCt/Suj1maxHZ3aCykJufw==',
 

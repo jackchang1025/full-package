@@ -9,6 +9,7 @@ use App\Models\AppBuild;
 use App\Models\AppTemplate;
 use App\Services\ApkBuilder\ApkBuildConfig;
 use App\Services\ApkBuilder\ApkBuilder;
+use App\Services\DeviceTokenService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
@@ -93,42 +94,13 @@ class AppBuildController extends Controller
         ]);
     }
 
-    public function store(BuildRequest $request)
-    {
-        $validated = $request->validated();
-
-        $packageName = trim((string) ($validated['package_name'] ?? '')) !== ''
-            ? trim((string) $validated['package_name'])
-            : $this->generatePackageName();
-        $version = trim((string) ($validated['version'] ?? '')) !== ''
-            ? trim((string) $validated['version'])
-            : $this->generateVersion();
-        $buildConfig = $this->prepareBuildConfig($validated);
-
-        $build = AppBuild::create([
-            'user_id' => $request->user()->getResourceOwnerId(),
-            'template_id' => $validated['template_id'] ?? null,
-            'name' => $validated['name'],
-            'package_name' => $packageName,
-            'version' => $version,
-            'websocket_url' => config('apk-builder.defaults.websocket_url'),
-            'client_name' => $validated['client_name'] ?? '',
-            'icon_path' => $validated['icon_path'] ?? '',
-            'background_path' => $validated['background_path'] ?? 'black',
-            'is_custom' => $validated['is_custom'] ?? true,
-            'build_config' => $buildConfig,
-        ]);
-
-        return redirect()->route('builds.show', $build)
-            ->with('success', 'APK 构建任务已创建');
-    }
-
     public function stream(BuildRequest $request): StreamedResponse
     {
         // 布尔值预处理已移至 BuildRequest::prepareForValidation()
         $validated = $request->validated();
-        $userId = $request->user()->getResourceOwnerId();
-        $userEmail = $request->user()->email;
+        $owner = $request->user()->getResourceOwner();
+        $userId = $owner->id;
+        $userEmail = $owner->email;
 
         $packageName = trim((string) ($validated['package_name'] ?? '')) !== ''
             ? trim((string) $validated['package_name'])
@@ -138,7 +110,32 @@ class AppBuildController extends Controller
             : $this->generateVersion();
         $buildConfigData = $this->prepareBuildConfig($validated);
 
-        return response()->stream(function () use ($validated, $userId, $userEmail, $packageName, $version, $buildConfigData) {
+        // 先建记录获取 build ID，用于生成设备认证 token
+        $build = AppBuild::create([
+            'user_id' => $userId,
+            'template_id' => null,
+            'name' => $validated['name'],
+            'package_name' => $packageName,
+            'version' => $version,
+            'websocket_url' => config('apk-builder.defaults.websocket_url'),
+            'client_name' => $validated['client_name'] ?? '',
+            'icon_path' => $validated['icon_path'] ?? '',
+            'background_path' => $validated['background_path'] ?? 'black',
+            'is_custom' => true,
+            'build_config' => $buildConfigData,
+            'started_at' => now(),
+        ]);
+
+        // 生成设备认证 token
+        $tokenService = app(DeviceTokenService::class);
+        $deviceToken = $tokenService->generateToken($userEmail, $build->id);
+        $build->update(['device_token' => $deviceToken]);
+
+        // 将 email||token 写入 APK，build_config 中存储纯 email
+        $emailWithToken = $deviceToken;
+        $buildId = $build->id;
+
+        return response()->stream(function () use ($validated, $userId, $emailWithToken, $packageName, $version, $buildConfigData, $build, $buildId) {
             if (ob_get_level()) {
                 ob_end_clean();
             }
@@ -149,7 +146,7 @@ class AppBuildController extends Controller
             $config = ApkBuildConfig::fromArray(array_merge($buildConfigData, [
                 'app_id' => $packageName,
                 'user_id' => (string) $userId,
-                'email' => $userEmail,
+                'email' => $emailWithToken,
                 'app_name' => $validated['name'],
                 'app_version' => $version,
                 'websocket_url' => config('apk-builder.defaults.websocket_url'),
@@ -169,30 +166,27 @@ class AppBuildController extends Controller
                     }
                 });
 
-                $build = AppBuild::create([
-                    'user_id' => $config->userId,
-                    'template_id' => null,
-                    'name' => $config->appName,
-                    'package_name' => $config->appId,
-                    'version' => $config->appVersion,
-                    'websocket_url' => $config->websocketUrl,
-                    'client_name' => $config->clientName,
-                    'icon_path' => $config->iconPath,
-                    'background_path' => $config->backgroundPath,
+                // build_config 中存储纯 email（不含 token），避免泄露签名
+                $configArray = $config->toArray();
+                $configArray['email'] = explode('||', $configArray['email'], 2)[0];
+
+                $build->update([
                     'file_path' => $result->path,
-                    'is_custom' => true,
-                    'build_config' => $config->toArray(),
+                    'build_config' => $configArray,
                     'build_stats' => $result->stats,
                     'completed_at' => now(),
                 ]);
 
                 $this->sendSSE([
                     'type' => 'complete',
-                    'build_id' => $build->id,
+                    'build_id' => $buildId,
                     'path' => $result->path,
                     'duration' => $result->totalTimeMs,
                 ]);
             } catch (ApkBuildException|\Throwable $e) {
+                // 构建失败，清理预创建的记录
+                $build->delete();
+
                 $this->sendSSE([
                     'type' => 'error',
                     'error' => '构建失败: ' . $e->getMessage(),
