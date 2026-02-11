@@ -17,6 +17,8 @@ app/
 │   ├── Events/               # 广播事件
 │   ├── Http/
 │   │   ├── Controllers/      # 控制器
+│   │   │   ├── Admin/        # 总后台控制器
+│   │   │   └── Auth/         # 认证控制器（覆盖 Fortify 登出）
 │   │   └── Middleware/       # 中间件
 │   ├── Models/               # Eloquent 模型
 │   └── Providers/            # 服务提供者

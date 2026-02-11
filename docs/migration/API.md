@@ -38,6 +38,14 @@ Content-Type: application/json
 POST /logout
 ```
 
+### 管理员登出
+
+```
+POST /admin/logout
+```
+
+> **Session 隔离**：用户登出与管理员登出互不影响。两个 guard（`web` / `admin`）共用同一个 session cookie，但登出时只清除对应 guard 的认证数据，不会调用 `session()->invalidate()` 销毁整个 session。
+
 ---
 
 ## 设备管理

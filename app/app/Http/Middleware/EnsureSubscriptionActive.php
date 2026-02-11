@@ -33,7 +33,6 @@ class EnsureSubscriptionActive
         }
 
         Auth::guard('web')->logout();
-        $request->session()->invalidate();
         $request->session()->regenerateToken();
         $request->session()->flash('subscription_expired', true);
 
