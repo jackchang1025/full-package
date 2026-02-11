@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+use App\Models\Device;
+use App\Models\User;
 use Tests\Feature\WebSocket\WebSocketFunctionalTestTrait;
 use Tests\Support\MockPanel;
 use Tests\Support\WebSocketTestClient;
@@ -89,6 +91,50 @@ describe('WebSocket Subscribe 功能测试', function () {
         expect($result)->not->toBeNull()
             ->and($result['stats']['total'])->toBeGreaterThan(0)
             ->and($result['devices'])->toBeArray()
+            ->and(collect($result['devices'])->pluck('uuid')->toArray())->toContain($deviceUuid);
+    });
+
+    it('子账号 subscribe 返回父账号的设备列表', function () {
+        $parent = User::create([
+            'username' => 'ws_parent_' . uniqid(),
+            'email' => 'parent_' . uniqid() . '@ws-test.local',
+            'password' => bcrypt('password'),
+        ]);
+        $sub = User::create([
+            'username' => 'ws_sub_' . uniqid(),
+            'email' => 'sub_' . uniqid() . '@ws-test.local',
+            'password' => bcrypt('password'),
+            'parent_id' => $parent->id,
+        ]);
+
+        $deviceUuid = 'sub-share-' . uniqid();
+        $device = Device::create([
+            'uuid' => $deviceUuid,
+            'user_id' => $parent->id,
+            'name' => 'Parent Device',
+            'is_online' => false,
+            'is_removed' => false,
+        ]);
+
+        $host = $this->getTestServerHost();
+        $port = $this->getTestServerPort();
+        $subEmail = $sub->email;
+
+        $result = $this->runWebSocketInCoroutine(function () use ($host, $port, $subEmail, $deviceUuid) {
+            $panel = new MockPanel($subEmail, ['host' => $host, 'port' => $port]);
+            if (! $panel->connect()) {
+                return null;
+            }
+            $panel->subscribe();
+            $msg = $panel->waitForMessage('subscribe', 5.0);
+            $panel->disconnect();
+
+            return $msg;
+        });
+
+        expect($result)->not->toBeNull()
+            ->and($result['success'])->toBeTrue()
+            ->and($result['stats']['total'])->toBeGreaterThan(0)
             ->and(collect($result['devices'])->pluck('uuid')->toArray())->toContain($deviceUuid);
     });
 

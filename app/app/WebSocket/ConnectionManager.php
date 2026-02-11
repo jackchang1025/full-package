@@ -411,14 +411,45 @@ class ConnectionManager
     }
 
     /**
-     * 获取用户的明文 email
+     * 获取用户的明文 email（返回资源归属用户的 email）
      */
     private function getUserEmail(int $userId): ?string
     {
         \Illuminate\Support\Facades\DB::reconnect();
         $user = \App\Models\User::find($userId);
 
-        return $user?->email;
+        if ($user === null) {
+            return null;
+        }
+
+        // 始终返回资源归属用户（父账号）的 email，确保与面板注册的 email 一致
+        $owner = $user->getResourceOwner();
+
+        return $owner->email;
+    }
+
+    /**
+     * 根据面板传入的 email 解析资源归属用户。
+     *
+     * 子账号 → 返回父账号的 id/email；主账号 → 返回自身的 id/email。
+     * Admin 或未找到用户 → 返回 null（表示管理员，查看全部设备）。
+     */
+    public function resolveResourceOwnerByEmail(string $email): ?array
+    {
+        // Admin 判断已在调用方完成，此处仅处理普通用户
+        \Illuminate\Support\Facades\DB::reconnect();
+
+        $user = \App\Models\User::where('email', $email)->first();
+        if ($user === null) {
+            return null;
+        }
+
+        $owner = $user->getResourceOwner();
+
+        return [
+            'id' => $owner->id,
+            'email' => $owner->email,
+        ];
     }
 
     public function getDeviceListForUser(?int $userId): array

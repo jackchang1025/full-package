@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\Admin;
 use App\Models\User;
 use Database\Seeders\RolePermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -27,6 +28,19 @@ describe('User model sub-account helpers', function () {
 
         expect($parent->getResourceOwnerId())->toBe($parent->id);
         expect($child->getResourceOwnerId())->toBe($parent->id);
+    });
+
+    it('getResourceOwner returns parent for sub-account and self for main', function () {
+        $parent = User::factory()->create(['email' => 'parent-owner@example.com']);
+        $child = User::factory()->create(['parent_id' => $parent->id, 'email' => 'child@example.com']);
+
+        $parentOwner = $parent->getResourceOwner();
+        $childOwner = $child->getResourceOwner();
+
+        expect($parentOwner->id)->toBe($parent->id);
+        expect($parentOwner->email)->toBe('parent-owner@example.com');
+        expect($childOwner->id)->toBe($parent->id);
+        expect($childOwner->email)->toBe('parent-owner@example.com');
     });
 
     it('hasActiveSubscription inherits from parent for sub-accounts', function () {
@@ -214,6 +228,49 @@ describe('SubAccount CRUD', function () {
         $response = $this->actingAs($sub)->get(route('sub-accounts.index'));
 
         $response->assertStatus(403);
+    });
+});
+
+// ── 管理后台级联删除 ─────────────────────────────
+
+describe('Admin cascade delete', function () {
+    it('deleting parent user cascades to sub-accounts', function () {
+        $admin = Admin::factory()->create();
+
+        $parent = User::factory()->create(['max_sub_accounts' => 5]);
+        $sub1 = User::factory()->create(['parent_id' => $parent->id]);
+        $sub2 = User::factory()->create(['parent_id' => $parent->id]);
+
+        $response = $this->actingAs($admin, 'admin')->delete(route('admin.users.destroy', $parent));
+
+        $response->assertRedirect(route('admin.users.index'));
+
+        // 父账号和子账号都应被物理删除
+        expect(User::withTrashed()->find($parent->id))->toBeNull();
+        expect(User::withTrashed()->find($sub1->id))->toBeNull();
+        expect(User::withTrashed()->find($sub2->id))->toBeNull();
+    });
+
+    it('deleting parent user cleans up sub-account permissions', function () {
+        $admin = Admin::factory()->create();
+
+        $parent = User::factory()->create(['max_sub_accounts' => 5]);
+        $sub = User::factory()->create(['parent_id' => $parent->id]);
+        $sub->givePermissionTo('devices.view');
+
+        $subId = $sub->id;
+
+        $this->actingAs($admin, 'admin')->delete(route('admin.users.destroy', $parent));
+
+        // 权限关联也应被清理
+        $this->assertDatabaseMissing('model_has_permissions', [
+            'model_id' => $subId,
+            'model_type' => User::class,
+        ]);
+        $this->assertDatabaseMissing('model_has_roles', [
+            'model_id' => $subId,
+            'model_type' => User::class,
+        ]);
     });
 });
 

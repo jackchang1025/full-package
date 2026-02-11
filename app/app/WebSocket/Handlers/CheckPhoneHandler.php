@@ -31,16 +31,24 @@ final class CheckPhoneHandler
 
         WebSocketLog::getLogger()->debug("CheckPhone: fd={$fd}, email={$email}, isAdmin=" . ($isAdmin ? 'true' : 'false'));
 
-        // 注册面板用户
-        $this->connectionManager->registerPanelUser($fd, $email, $isAdmin);
+        // 解析资源归属用户（子账号 → 父账号，主账号 → 自身）
+        $owner = $isAdmin ? null : $this->connectionManager->resolveResourceOwnerByEmail($email);
+        $ownerEmail = $owner['email'] ?? $email;
+
+        // 注册面板用户时使用归属用户的 email，确保与设备侧 email 一致
+        $this->connectionManager->registerPanelUser($fd, $ownerEmail, $isAdmin);
 
         $query = Device::query()->where('is_removed', false);
 
         if (!$isAdmin) {
-            // 使用明文 email 查询用户关联的设备
-            $query->whereHas('user', function ($q) use ($email) {
-                $q->where('email', $email);
-            });
+            // 按资源归属用户 ID 查询设备（子账号共享父账号的设备）
+            $ownerId = $owner['id'] ?? null;
+            if ($ownerId !== null) {
+                $query->where('user_id', $ownerId);
+            } else {
+                // 未找到用户，返回空结果
+                $query->whereRaw('1 = 0');
+            }
         }
 
         $this->applyFilters($query, $filters);

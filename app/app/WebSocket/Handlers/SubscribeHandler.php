@@ -37,11 +37,16 @@ final class SubscribeHandler
 
         WebSocketLog::getLogger()->info("Subscribe: fd={$fd}, email={$email}, isAdmin=" . ($isAdmin ? 'true' : 'false'));
 
-        // 注册面板用户，用于接收设备上线/下线通知
-        $this->connectionManager->registerPanelUser($fd, $email, $isAdmin);
+        // 解析资源归属用户（子账号 → 父账号，主账号 → 自身）
+        $owner = $isAdmin ? null : $this->connectionManager->resolveResourceOwnerByEmail($email);
+        $ownerEmail = $owner['email'] ?? $email;
+        $ownerId = $owner['id'] ?? null;
 
-        // 获取用户 ID（管理员看全部，普通用户看自己的）
-        $userId = $this->resolveUserId($email, $isAdmin);
+        // 注册面板用户时使用归属用户的 email，确保与设备侧 email 一致
+        $this->connectionManager->registerPanelUser($fd, $ownerEmail, $isAdmin);
+
+        // 获取用户 ID（管理员看全部，普通用户看归属用户的设备）
+        $userId = $isAdmin ? null : $ownerId;
 
         // 获取设备列表和统计数据
         // [core-dry] 复用 ConnectionManager 中的查询逻辑
@@ -58,15 +63,5 @@ final class SubscribeHandler
             'devices' => $devices,
             'stats' => $stats,
         ]);
-    }
-
-    private function resolveUserId(string $email, bool $isAdmin): ?int
-    {
-        if ($isAdmin) {
-            return null; // 管理员查看全部设备
-        }
-
-        $user = \App\Models\User::where('email', $email)->first();
-        return $user?->id;
     }
 }

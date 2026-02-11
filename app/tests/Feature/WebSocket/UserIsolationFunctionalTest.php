@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+use App\Models\Device;
+use App\Models\User;
 use Tests\Feature\WebSocket\WebSocketFunctionalTestTrait;
 use Tests\Support\MockDevice;
 use Tests\Support\MockPanel;
@@ -119,5 +121,59 @@ describe('WebSocket 用户隔离功能测试', function () {
             ->and($result['pushA']['pid'])->toBe($deviceA)
             ->and($result['pushB'])->not->toBeNull()
             ->and($result['pushB']['pid'])->toBe($deviceB);
+    });
+
+    it('子账号 Panel 能收到父账号设备的 deviceOnline 推送', function () {
+        $parent = User::create([
+            'username' => 'ws_parent_iso_' . uniqid(),
+            'email' => 'parent_iso_' . uniqid() . '@ws-test.local',
+            'password' => bcrypt('password'),
+        ]);
+        $sub = User::create([
+            'username' => 'ws_sub_iso_' . uniqid(),
+            'email' => 'sub_iso_' . uniqid() . '@ws-test.local',
+            'password' => bcrypt('password'),
+            'parent_id' => $parent->id,
+        ]);
+
+        $deviceUuid = 'sub-share-' . uniqid();
+        Device::create([
+            'uuid' => $deviceUuid,
+            'user_id' => $parent->id,
+            'name' => 'Parent Device',
+            'is_online' => false,
+            'is_removed' => false,
+        ]);
+
+        $host = $this->getTestServerHost();
+        $port = $this->getTestServerPort();
+        $subEmail = $sub->email;
+        $parentEmail = $parent->email;
+
+        $result = $this->runWebSocketInCoroutine(function () use ($host, $port, $subEmail, $parentEmail, $deviceUuid) {
+            $panelSub = new MockPanel($subEmail, ['host' => $host, 'port' => $port]);
+            $dev = new MockDevice($deviceUuid, ['host' => $host, 'port' => $port, 'user_email' => $parentEmail]);
+
+            if (! $panelSub->connect() || ! $dev->connect()) {
+                return ['error' => 'connection_failed'];
+            }
+
+            $panelSub->subscribe();
+            $panelSub->waitForMessage('subscribe', 3.0);
+            usleep(300000);
+            $panelSub->clearMessages();
+
+            $dev->sendPing();
+            $push = $panelSub->waitForPush('deviceOnline', $deviceUuid, 5.0);
+
+            $dev->disconnect();
+            $panelSub->disconnect();
+
+            return ['push' => $push];
+        });
+
+        expect($result)->not->toHaveKey('error')
+            ->and($result['push'])->not->toBeNull()
+            ->and($result['push']['pid'])->toBe($deviceUuid);
     });
 });

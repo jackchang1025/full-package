@@ -123,6 +123,21 @@ class User extends Authenticatable
     }
 
     /**
+     * 获取资源归属用户（父账号或自身）。
+     *
+     * 子账号共享父账号的资源，因此返回父账号实例；
+     * 父账号或独立用户返回自身。
+     */
+    public function getResourceOwner(): self
+    {
+        if ($this->isSubAccount()) {
+            return $this->parent ?? $this;
+        }
+
+        return $this;
+    }
+
+    /**
      * 获取资源归属用户 ID。
      *
      * 子账号共享父账号的资源，因此返回 parent_id；
