@@ -9,9 +9,9 @@ use App\Services\ApkBuilder\LaravelFileSystem;
 use Illuminate\Support\Facades\File;
 
 beforeEach(function () {
-    $this->tempDir = sys_get_temp_dir() . '/fs_test_' . uniqid();
+    $this->tempDir = sys_get_temp_dir().'/fs_test_'.uniqid();
     File::ensureDirectoryExists($this->tempDir);
-    $this->fileSystem = new LaravelFileSystem();
+    $this->fileSystem = new LaravelFileSystem;
 });
 
 afterEach(function () {
@@ -26,14 +26,14 @@ describe('LaravelFileSystem', function () {
     });
 
     it('exists returns true for existing file', function () {
-        $file = $this->tempDir . '/test.txt';
+        $file = $this->tempDir.'/test.txt';
         file_put_contents($file, 'content');
 
         expect($this->fileSystem->exists($file))->toBeTrue();
     });
 
     it('exists returns false for non-existing file', function () {
-        expect($this->fileSystem->exists($this->tempDir . '/nonexistent.txt'))->toBeFalse();
+        expect($this->fileSystem->exists($this->tempDir.'/nonexistent.txt'))->toBeFalse();
     });
 
     it('isDirectory returns true for directory', function () {
@@ -41,21 +41,21 @@ describe('LaravelFileSystem', function () {
     });
 
     it('isDirectory returns false for file', function () {
-        $file = $this->tempDir . '/test.txt';
+        $file = $this->tempDir.'/test.txt';
         file_put_contents($file, 'content');
 
         expect($this->fileSystem->isDirectory($file))->toBeFalse();
     });
 
     it('get reads file content', function () {
-        $file = $this->tempDir . '/test.txt';
+        $file = $this->tempDir.'/test.txt';
         file_put_contents($file, 'hello world');
 
         expect($this->fileSystem->get($file))->toBe('hello world');
     });
 
     it('put writes file content', function () {
-        $file = $this->tempDir . '/test.txt';
+        $file = $this->tempDir.'/test.txt';
 
         $this->fileSystem->put($file, 'new content');
 
@@ -63,8 +63,8 @@ describe('LaravelFileSystem', function () {
     });
 
     it('copy copies file', function () {
-        $src = $this->tempDir . '/src.txt';
-        $dst = $this->tempDir . '/dst.txt';
+        $src = $this->tempDir.'/src.txt';
+        $dst = $this->tempDir.'/dst.txt';
         file_put_contents($src, 'source content');
 
         $result = $this->fileSystem->copy($src, $dst);
@@ -74,7 +74,7 @@ describe('LaravelFileSystem', function () {
     });
 
     it('delete removes file', function () {
-        $file = $this->tempDir . '/test.txt';
+        $file = $this->tempDir.'/test.txt';
         file_put_contents($file, 'content');
 
         $result = $this->fileSystem->delete($file);
@@ -84,7 +84,7 @@ describe('LaravelFileSystem', function () {
     });
 
     it('ensureDirectoryExists creates nested directories', function () {
-        $nested = $this->tempDir . '/a/b/c';
+        $nested = $this->tempDir.'/a/b/c';
 
         $this->fileSystem->ensureDirectoryExists($nested);
 
@@ -92,16 +92,16 @@ describe('LaravelFileSystem', function () {
     });
 
     it('size returns file size', function () {
-        $file = $this->tempDir . '/test.txt';
+        $file = $this->tempDir.'/test.txt';
         file_put_contents($file, '12345');
 
         expect($this->fileSystem->size($file))->toBe(5);
     });
 
     it('deleteDirectory removes directory recursively', function () {
-        $subDir = $this->tempDir . '/subdir';
+        $subDir = $this->tempDir.'/subdir';
         mkdir($subDir);
-        file_put_contents($subDir . '/file.txt', 'content');
+        file_put_contents($subDir.'/file.txt', 'content');
 
         $result = $this->fileSystem->deleteDirectory($subDir);
 
@@ -110,25 +110,25 @@ describe('LaravelFileSystem', function () {
     });
 
     it('glob returns matching files', function () {
-        file_put_contents($this->tempDir . '/a.txt', '');
-        file_put_contents($this->tempDir . '/b.txt', '');
-        file_put_contents($this->tempDir . '/c.log', '');
+        file_put_contents($this->tempDir.'/a.txt', '');
+        file_put_contents($this->tempDir.'/b.txt', '');
+        file_put_contents($this->tempDir.'/c.log', '');
 
-        $result = $this->fileSystem->glob($this->tempDir . '/*.txt');
+        $result = $this->fileSystem->glob($this->tempDir.'/*.txt');
 
         expect($result)->toBeArray();
         expect(count($result))->toBe(2);
     });
 
     it('copyDirectory copies directory contents', function () {
-        $src = $this->tempDir . '/src';
-        $dst = $this->tempDir . '/dst';
+        $src = $this->tempDir.'/src';
+        $dst = $this->tempDir.'/dst';
         mkdir($src);
-        file_put_contents($src . '/file.txt', 'content');
+        file_put_contents($src.'/file.txt', 'content');
 
         $result = $this->fileSystem->copyDirectory($src, $dst);
 
         expect($result)->toBeTrue();
-        expect(file_exists($dst . '/file.txt'))->toBeTrue();
+        expect(file_exists($dst.'/file.txt'))->toBeTrue();
     });
 });

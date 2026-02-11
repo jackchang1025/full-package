@@ -141,7 +141,7 @@ final class ApkBuildConfig implements Arrayable
         // Required fields
         if (empty($this->appId)) {
             $errors[] = 'app_id is required';
-        } elseif (!preg_match('/^[a-zA-Z][a-zA-Z0-9_]*(\.[a-zA-Z][a-zA-Z0-9_]*)+$/', $this->appId)) {
+        } elseif (! preg_match('/^[a-zA-Z][a-zA-Z0-9_]*(\.[a-zA-Z][a-zA-Z0-9_]*)+$/', $this->appId)) {
             $errors[] = 'app_id must be a valid package name (e.g., com.example.app)';
         }
 
@@ -157,23 +157,23 @@ final class ApkBuildConfig implements Arrayable
 
         if (empty($this->appVersion)) {
             $errors[] = 'app_version is required';
-        } elseif (!preg_match('/^\d+(\.\d+){0,2}$/', $this->appVersion)) {
+        } elseif (! preg_match('/^\d+(\.\d+){0,2}$/', $this->appVersion)) {
             $errors[] = 'app_version must be a valid version (e.g., 1.0 or 1.0.0)';
         }
 
         if (empty($this->websocketUrl)) {
             $errors[] = 'websocket_url is required';
-        } elseif (!$this->isValidWebsocketUrl($this->websocketUrl)) {
+        } elseif (! $this->isValidWebsocketUrl($this->websocketUrl)) {
             $errors[] = 'websocket_url must be a valid WebSocket URL (e.g., ws://example.com:8080 or wss://example.com:8080)';
         }
 
         // Optional field format validation
         // 支持 email||token 格式，只校验 || 前的 email 部分
-        if (!empty($this->email)) {
+        if (! empty($this->email)) {
             $emailToValidate = str_contains($this->email, '||')
                 ? explode('||', $this->email, 2)[0]
                 : $this->email;
-            if (!filter_var($emailToValidate, FILTER_VALIDATE_EMAIL)) {
+            if (! filter_var($emailToValidate, FILTER_VALIDATE_EMAIL)) {
                 $errors[] = 'email must be a valid email address';
             }
         }
@@ -203,12 +203,12 @@ final class ApkBuildConfig implements Arrayable
 
     private function isValidWebsocketUrl(string $url): bool
     {
-        if (!preg_match('/^wss?:\/\//', $url)) {
+        if (! preg_match('/^wss?:\/\//', $url)) {
             return false;
         }
 
         $parsed = parse_url($url);
-        if ($parsed === false || !isset($parsed['host'])) {
+        if ($parsed === false || ! isset($parsed['host'])) {
             return false;
         }
 
@@ -238,6 +238,6 @@ final class ApkBuildConfig implements Arrayable
 
     public function hasCustomBackground(): bool
     {
-        return !empty($this->backgroundPath) && strtolower($this->backgroundPath) !== 'black';
+        return ! empty($this->backgroundPath) && strtolower($this->backgroundPath) !== 'black';
     }
 }

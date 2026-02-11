@@ -10,7 +10,7 @@ use Tests\Support\ApkBuilderTestFixtures;
 
 describe('SmaliProcessor modifyConfig', function () {
     it('modifyConfig throws when My_Configs.smali missing', function () {
-        $buildDir = sys_get_temp_dir() . '/apk_builder_test_' . uniqid();
+        $buildDir = sys_get_temp_dir().'/apk_builder_test_'.uniqid();
         File::ensureDirectoryExists($buildDir);
 
         $processor = new SmaliProcessor($buildDir);
@@ -21,9 +21,9 @@ describe('SmaliProcessor modifyConfig', function () {
             appVersion: '1.0',
             websocketUrl: 'ws://localhost:8081'
         );
-        $encryptor = new Encryptor();
+        $encryptor = new Encryptor;
 
-        expect(fn() => $processor->modifyConfig($config, 'key123', $encryptor))
+        expect(fn () => $processor->modifyConfig($config, 'key123', $encryptor))
             ->toThrow(ApkBuildException::class);
 
         File::deleteDirectory($buildDir);
@@ -50,11 +50,11 @@ const-string v1, "wss://"';
                 clientName: 'MyClient',
                 loginTitle: 'Welcome'
             );
-            $encryptor = new Encryptor();
+            $encryptor = new Encryptor;
 
             $processor->modifyConfig($config, 'asset_key_123', $encryptor);
 
-            $smaliPath = $buildDir . '/' . ApkBuilderConstants::CONFIGS_SMALI_RELATIVE;
+            $smaliPath = $buildDir.'/'.ApkBuilderConstants::CONFIGS_SMALI_RELATIVE;
             $result = File::get($smaliPath);
 
             expect($result)->toContain('MyClient');
@@ -81,11 +81,11 @@ const-string v1, "wss://"';
                 websocketUrl: 'ws://localhost:8081',
                 clientName: 'Test "quoted" and \backslash'
             );
-            $encryptor = new Encryptor();
+            $encryptor = new Encryptor;
 
             $processor->modifyConfig($config, 'key', $encryptor);
 
-            $smaliPath = $buildDir . '/' . ApkBuilderConstants::CONFIGS_SMALI_RELATIVE;
+            $smaliPath = $buildDir.'/'.ApkBuilderConstants::CONFIGS_SMALI_RELATIVE;
             $result = File::get($smaliPath);
 
             expect($result)->toContain('\\"');
@@ -104,12 +104,12 @@ describe('SmaliProcessor renamePackage', function () {
             $processor = new SmaliProcessor($buildDir);
             $processor->renamePackage(ApkBuilderConstants::DEFAULT_PACKAGE, 'com.new.package');
 
-            $oldPath = $buildDir . '/smali/com/icontrol/protector';
-            $newPath = $buildDir . '/smali/com/new/package';
+            $oldPath = $buildDir.'/smali/com/icontrol/protector';
+            $newPath = $buildDir.'/smali/com/new/package';
 
             expect(File::isDirectory($oldPath))->toBeFalse();
             expect(File::isDirectory($newPath))->toBeTrue();
-            expect(File::exists($newPath . '/SomeClass.smali'))->toBeTrue();
+            expect(File::exists($newPath.'/SomeClass.smali'))->toBeTrue();
         } finally {
             ApkBuilderTestFixtures::cleanupMockBuildDir($buildDir);
         }

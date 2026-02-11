@@ -4,7 +4,7 @@ use App\Services\ApkBuilder\Encryptor;
 
 describe('Encryptor encryptString and decryptString', function () {
     it('encryptString and decryptString roundtrip', function () {
-        $encryptor = new Encryptor();
+        $encryptor = new Encryptor;
         $plain = 'hello world';
 
         $encrypted = $encryptor->encryptString($plain);
@@ -15,7 +15,7 @@ describe('Encryptor encryptString and decryptString', function () {
     });
 
     it('encryptString produces deterministic output with fixed IV', function () {
-        $encryptor = new Encryptor();
+        $encryptor = new Encryptor;
         $plain = 'test';
 
         $e1 = $encryptor->encryptString($plain);
@@ -28,7 +28,7 @@ describe('Encryptor encryptString and decryptString', function () {
 
 describe('Encryptor encryptBytes and decryptBytes', function () {
     it('encryptBytes and decryptBytes are symmetric', function () {
-        $encryptor = new Encryptor();
+        $encryptor = new Encryptor;
         $data = 'binary content';
         $key = 'my_secret_key_16b';
 
@@ -39,7 +39,7 @@ describe('Encryptor encryptBytes and decryptBytes', function () {
     });
 
     it('XOR encryption is symmetric', function () {
-        $encryptor = new Encryptor();
+        $encryptor = new Encryptor;
         $original = 'test data';
 
         $enc = $encryptor->encryptBytes($original, 'key');
@@ -66,8 +66,8 @@ describe('Encryptor generateKey', function () {
 
 describe('Encryptor decryptString', function () {
     it('decryptString throws for invalid base64', function () {
-        $encryptor = new Encryptor();
+        $encryptor = new Encryptor;
 
-        expect(fn() => $encryptor->decryptString('not-valid-base64!!!'))->toThrow(RuntimeException::class);
+        expect(fn () => $encryptor->decryptString('not-valid-base64!!!'))->toThrow(RuntimeException::class);
     });
 });

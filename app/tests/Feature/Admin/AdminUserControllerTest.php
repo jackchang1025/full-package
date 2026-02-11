@@ -32,7 +32,7 @@ describe('GET /admin/users', function () {
 
         $response->assertStatus(200)
             ->assertInertia(
-                fn($page) => $page
+                fn ($page) => $page
                     ->component('Admin/Users/Index', false)
                     ->has('users')
                     ->has('roles')
@@ -53,7 +53,7 @@ describe('GET /admin/users?selected={user} (inline edit)', function () {
 
         $response->assertStatus(200)
             ->assertInertia(
-                fn($page) => $page
+                fn ($page) => $page
                     ->component('Admin/Users/Index', false)
                     ->has('selectedUser')
                     ->has('selectedUser.direct_permissions')
@@ -75,7 +75,7 @@ describe('GET /admin/users?selected={user} (inline edit)', function () {
 
         $response->assertStatus(200)
             ->assertInertia(
-                fn($page) => $page
+                fn ($page) => $page
                     ->component('Admin/Users/Index', false)
                     ->where('selectedUser.id', $sub->id)
                     ->where('selectedUser.is_sub_account', true)
@@ -116,11 +116,11 @@ describe('GET /admin/users?search= & ?expanded=', function () {
 
     it('returns filters.expanded as array of ids when expanded query present', function () {
         $response = $this->actingAs($this->admin, 'admin')
-            ->get(route('admin.users.index', ['expanded' => $this->user->id . ',99']));
+            ->get(route('admin.users.index', ['expanded' => $this->user->id.',99']));
 
         $response->assertStatus(200)
             ->assertInertia(
-                fn($page) => $page
+                fn ($page) => $page
                     ->has('filters.expanded')
                     ->where('filters.expanded', [$this->user->id, 99])
             );
@@ -424,7 +424,7 @@ describe('POST /admin/users (store)', function () {
         $parent->assignRole('client');
 
         $response = $this->actingAs($this->admin, 'admin')
-            ->post(route('admin.users.store', [], false) . '?expanded=999', [
+            ->post(route('admin.users.store', [], false).'?expanded=999', [
                 'username' => 'subexpand',
                 'email' => 'subexpand@example.com',
                 'password' => 'Password123!',
@@ -474,7 +474,7 @@ describe('DELETE /admin/users/{user} (destroy)', function () {
 
     it('redirect preserves expanded when provided', function () {
         $response = $this->actingAs($this->admin, 'admin')
-            ->delete(route('admin.users.destroy', $this->user) . '?expanded=1,2');
+            ->delete(route('admin.users.destroy', $this->user).'?expanded=1,2');
 
         $url = $response->headers->get('Location');
         expect($url)->toContain('expanded=');
@@ -501,7 +501,7 @@ describe('admin user inline edit full flow', function () {
 
         $indexResponse->assertStatus(200)
             ->assertInertia(
-                fn($page) => $page
+                fn ($page) => $page
                     ->component('Admin/Users/Index', false)
                     ->has('selectedUser')
                     ->has('roles')

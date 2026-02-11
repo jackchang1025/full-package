@@ -67,13 +67,14 @@ class AppBuildController extends Controller
     private function formatFileSize(int $bytes): string
     {
         if ($bytes >= 1073741824) {
-            return number_format($bytes / 1073741824, 1) . ' GB';
+            return number_format($bytes / 1073741824, 1).' GB';
         } elseif ($bytes >= 1048576) {
-            return number_format($bytes / 1048576, 1) . ' MB';
+            return number_format($bytes / 1048576, 1).' MB';
         } elseif ($bytes >= 1024) {
-            return number_format($bytes / 1024, 1) . ' KB';
+            return number_format($bytes / 1024, 1).' KB';
         }
-        return $bytes . ' B';
+
+        return $bytes.' B';
     }
 
     public function create(Request $request): Response
@@ -81,10 +82,10 @@ class AppBuildController extends Controller
         $templates = AppTemplate::where('is_active', true)->get();
         $ownerId = $request->user()->getResourceOwnerId();
 
-        $iconsPath = config('apk-builder.icons_path') . '/' . $ownerId;
+        $iconsPath = config('apk-builder.icons_path').'/'.$ownerId;
         $icons = $this->listUserImages($iconsPath, 'icons', $ownerId);
 
-        $bgPath = config('apk-builder.backgrounds_path') . '/' . $ownerId;
+        $bgPath = config('apk-builder.backgrounds_path').'/'.$ownerId;
         $backgrounds = $this->listUserImages($bgPath, 'backgrounds', $ownerId);
 
         return Inertia::render('Builds/Create', [
@@ -189,7 +190,7 @@ class AppBuildController extends Controller
 
                 $this->sendSSE([
                     'type' => 'error',
-                    'error' => '构建失败: ' . $e->getMessage(),
+                    'error' => '构建失败: '.$e->getMessage(),
                 ]);
             }
         }, 200, [
@@ -202,7 +203,7 @@ class AppBuildController extends Controller
 
     private function sendSSE(array $data): void
     {
-        echo "data: " . json_encode($data, JSON_UNESCAPED_UNICODE) . "\n\n";
+        echo 'data: '.json_encode($data, JSON_UNESCAPED_UNICODE)."\n\n";
 
         if (connection_aborted()) {
             exit;
@@ -263,7 +264,7 @@ class AppBuildController extends Controller
     private function ensureBuildOwnership(AppBuild $build, mixed $user): void
     {
         if ($build->user_id !== $user->getResourceOwnerId()) {
-            throw new ResourceAccessDeniedException();
+            throw new ResourceAccessDeniedException;
         }
     }
 
@@ -328,16 +329,19 @@ class AppBuildController extends Controller
         if (is_dir($path)) {
             $files = scandir($path);
             foreach ($files as $file) {
-                if ($file === '.' || $file === '..') continue;
+                if ($file === '.' || $file === '..') {
+                    continue;
+                }
                 $ext = strtolower(pathinfo($file, PATHINFO_EXTENSION));
                 if (in_array($ext, ['png', 'jpg', 'jpeg'])) {
                     $images[] = [
                         'name' => $file,
-                        'url' => '/storage/' . $type . '/' . $userId . '/' . $file,
+                        'url' => '/storage/'.$type.'/'.$userId.'/'.$file,
                     ];
                 }
             }
         }
+
         return $images;
     }
 }

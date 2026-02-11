@@ -7,10 +7,15 @@ namespace App\WebSocket\Config;
 final class WebSocketConfig
 {
     private const REDIS_PREFIX = 'ws:';
+
     private const DEVICE_STATUS_TTL = 86400;
+
     private const LAST_NOTIFIED_TTL = 300;
+
     private const NEW_CONNECTION_THRESHOLD = 60;
+
     private const HEARTBEAT_CHECK_INTERVAL = 25;
+
     private const HEARTBEAT_TIMEOUT = 75;
 
     public static function redisPrefix(): string
@@ -45,12 +50,12 @@ final class WebSocketConfig
 
     public static function deviceStatusKey(string $phoneId): string
     {
-        return self::redisPrefix() . 'device:' . $phoneId;
+        return self::redisPrefix().'device:'.$phoneId;
     }
 
     public static function lastNotifiedKey(string $phoneId): string
     {
-        return self::redisPrefix() . 'device:' . $phoneId . ':last_notified';
+        return self::redisPrefix().'device:'.$phoneId.':last_notified';
     }
 
     public static function clientTypes(): array

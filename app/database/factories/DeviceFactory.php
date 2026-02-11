@@ -15,7 +15,7 @@ class DeviceFactory extends Factory
         return [
             'uuid' => fake()->uuid(),
             'user_id' => User::factory(),
-            'name' => fake()->words(2, true) . ' Phone',
+            'name' => fake()->words(2, true).' Phone',
             'country' => fake()->country(),
             'ip_address' => fake()->ipv4(),
             'android_version' => fake()->randomElement(['12', '13', '14', '15']),

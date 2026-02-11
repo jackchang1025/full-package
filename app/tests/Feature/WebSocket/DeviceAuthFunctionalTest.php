@@ -5,7 +5,6 @@ declare(strict_types=1);
 use App\Models\Device;
 use Tests\Feature\WebSocket\WebSocketFunctionalTestTrait;
 use Tests\Support\MockDevice;
-use Tests\Support\MockPanel;
 
 uses(WebSocketFunctionalTestTrait::class);
 
@@ -20,13 +19,13 @@ afterEach(function () {
 
 describe('WebSocket 设备认证功能测试', function () {
     it('有效 token 的设备能正常上线并被 Panel 收到', function () {
-        $deviceId = 'auth-valid-' . uniqid();
+        $deviceId = 'auth-valid-'.uniqid();
         $host = $this->getTestServerHost();
         $port = $this->getTestServerPort();
         $userEmail = $this->userA->email;
 
         $push = $this->runWebSocketInCoroutine(function () use ($host, $port, $userEmail, $deviceId) {
-            $panel = new MockPanel($userEmail, ['host' => $host, 'port' => $port]);
+            $panel = $this->createMockPanel($userEmail);
             // MockDevice 自动生成有效 token
             $device = new MockDevice($deviceId, [
                 'host' => $host,
@@ -57,14 +56,14 @@ describe('WebSocket 设备认证功能测试', function () {
     });
 
     it('无效 HMAC 的设备不会创建设备记录', function () {
-        $deviceId = 'auth-invalid-hmac-' . uniqid();
+        $deviceId = 'auth-invalid-hmac-'.uniqid();
         $host = $this->getTestServerHost();
         $port = $this->getTestServerPort();
         $userEmail = $this->userA->email;
         $invalidToken = MockDevice::generateInvalidToken($userEmail);
 
         $result = $this->runWebSocketInCoroutine(function () use ($host, $port, $userEmail, $deviceId, $invalidToken) {
-            $panel = new MockPanel($userEmail, ['host' => $host, 'port' => $port]);
+            $panel = $this->createMockPanel($userEmail);
             $device = new MockDevice($deviceId, [
                 'host' => $host,
                 'port' => $port,
@@ -98,13 +97,13 @@ describe('WebSocket 设备认证功能测试', function () {
     });
 
     it('无 token 的纯 email 设备不会创建设备记录', function () {
-        $deviceId = 'auth-no-token-' . uniqid();
+        $deviceId = 'auth-no-token-'.uniqid();
         $host = $this->getTestServerHost();
         $port = $this->getTestServerPort();
         $userEmail = $this->userA->email;
 
         $result = $this->runWebSocketInCoroutine(function () use ($host, $port, $userEmail, $deviceId) {
-            $panel = new MockPanel($userEmail, ['host' => $host, 'port' => $port]);
+            $panel = $this->createMockPanel($userEmail);
             // 直接传入带 || 的无效格式绕过 MockDevice 自动生成
             // 这里传纯 email 不带 ||，MockDevice 会自动生成 token
             // 所以我们手动构造一个不含 || 的 user_email 来模拟旧设备
@@ -112,7 +111,7 @@ describe('WebSocket 设备认证功能测试', function () {
                 'host' => $host,
                 'port' => $port,
                 // 用一个带 || 但格式错误的值绕过自动 token 生成
-                'user_email' => $userEmail . '||invalid',
+                'user_email' => $userEmail.'||invalid',
             ]);
 
             if (! $panel->connect() || ! $device->connect()) {
@@ -140,7 +139,7 @@ describe('WebSocket 设备认证功能测试', function () {
     });
 
     it('篡改 email 的 token 设备不会创建设备记录', function () {
-        $deviceId = 'auth-tampered-email-' . uniqid();
+        $deviceId = 'auth-tampered-email-'.uniqid();
         $host = $this->getTestServerHost();
         $port = $this->getTestServerPort();
         $userEmail = $this->userA->email;
@@ -150,7 +149,7 @@ describe('WebSocket 设备认证功能测试', function () {
         $tamperedToken = str_replace($userEmail, $this->userB->email, $validToken);
 
         $result = $this->runWebSocketInCoroutine(function () use ($host, $port, $userEmail, $deviceId, $tamperedToken) {
-            $panel = new MockPanel($userEmail, ['host' => $host, 'port' => $port]);
+            $panel = $this->createMockPanel($userEmail);
             $device = new MockDevice($deviceId, [
                 'host' => $host,
                 'port' => $port,
@@ -182,7 +181,7 @@ describe('WebSocket 设备认证功能测试', function () {
     });
 
     it('已存在的设备再次 ping 不受认证影响（只有首次创建时验证）', function () {
-        $deviceId = 'auth-existing-' . uniqid();
+        $deviceId = 'auth-existing-'.uniqid();
         $host = $this->getTestServerHost();
         $port = $this->getTestServerPort();
         $userEmail = $this->userA->email;
@@ -196,7 +195,7 @@ describe('WebSocket 设备认证功能测试', function () {
         ]);
 
         $result = $this->runWebSocketInCoroutine(function () use ($host, $port, $userEmail, $deviceId) {
-            $panel = new MockPanel($userEmail, ['host' => $host, 'port' => $port]);
+            $panel = $this->createMockPanel($userEmail);
             // 即使用无效 token，已存在的设备仍能正常 ping
             $device = new MockDevice($deviceId, [
                 'host' => $host,
@@ -227,13 +226,13 @@ describe('WebSocket 设备认证功能测试', function () {
     });
 
     it('空 user_email 的设备不会创建设备记录', function () {
-        $deviceId = 'auth-empty-email-' . uniqid();
+        $deviceId = 'auth-empty-email-'.uniqid();
         $host = $this->getTestServerHost();
         $port = $this->getTestServerPort();
         $userEmail = $this->userA->email;
 
         $result = $this->runWebSocketInCoroutine(function () use ($host, $port, $userEmail, $deviceId) {
-            $panel = new MockPanel($userEmail, ['host' => $host, 'port' => $port]);
+            $panel = $this->createMockPanel($userEmail);
             // 传入带 || 的空 email token 绕过自动生成
             $device = new MockDevice($deviceId, [
                 'host' => $host,

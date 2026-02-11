@@ -26,7 +26,7 @@ describe('GET /admin/devices', function () {
 
         $response->assertStatus(200)
             ->assertInertia(
-                fn($page) => $page
+                fn ($page) => $page
                     ->component('Admin/Devices/Index', false)
                     ->has('devices')
                     ->has('stats')
@@ -47,7 +47,7 @@ describe('GET /admin/devices/{device}/edit', function () {
 
         $response->assertStatus(200)
             ->assertInertia(
-                fn($page) => $page
+                fn ($page) => $page
                     ->component('Admin/Devices/Edit', false)
                     ->has('device')
                     ->where('device.uuid', $this->device->uuid)

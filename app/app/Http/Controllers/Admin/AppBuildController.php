@@ -19,12 +19,13 @@ class AppBuildController extends Controller
             $query->where(function ($q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
                     ->orWhere('package_name', 'like', "%{$search}%")
-                    ->orWhereHas('user', fn($q) => $q->where('email', 'like', "%{$search}%"));
+                    ->orWhereHas('user', fn ($q) => $q->where('email', 'like', "%{$search}%"));
             });
         }
 
         $builds = $query->orderByDesc('created_at')->paginate(20)->through(function (AppBuild $build) {
             $build->append(['download_url', 'icon_url', 'share_url']);
+
             return [
                 'id' => $build->id,
                 'name' => $build->name,

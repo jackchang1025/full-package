@@ -83,7 +83,7 @@ class AppBuild extends Model
 
     public function getBuildDurationAttribute(): ?int
     {
-        if (!$this->started_at) {
+        if (! $this->started_at) {
             return null;
         }
 

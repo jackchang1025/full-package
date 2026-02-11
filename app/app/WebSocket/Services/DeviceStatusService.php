@@ -47,16 +47,16 @@ final class DeviceStatusService
                 }
             }
 
-            if (!empty($status['ip'])) {
+            if (! empty($status['ip'])) {
                 $existing = $this->connectionManager->getDeviceStatus($phoneId);
                 $existingIp = $existing['ip'] ?? null;
                 $existingLocation = $existing['ip_location'] ?? null;
 
-                if ($status['ip'] === $existingIp && !empty($existingLocation)) {
+                if ($status['ip'] === $existingIp && ! empty($existingLocation)) {
                     $status['ip_location'] = $existingLocation;
                 } else {
                     $device = Device::where('uuid', $phoneId)->first();
-                    if ($device && $status['ip'] === $device->ip_address && !empty($device->ip_location)) {
+                    if ($device && $status['ip'] === $device->ip_address && ! empty($device->ip_location)) {
                         $status['ip_location'] = $device->ip_location;
                     } else {
                         $status['ip_location'] = app(GeoIpService::class)->getLocation($status['ip']);
@@ -138,7 +138,7 @@ final class DeviceStatusService
             $updates['ip_location'] = $status['ip_location'];
         }
 
-        $wasOffline = !$device->getOriginal('is_online');
+        $wasOffline = ! $device->getOriginal('is_online');
         $device->update($updates);
 
         $shouldNotifyOnline = $isNewDevice
@@ -164,6 +164,7 @@ final class DeviceStatusService
         if ($lastNotified === null) {
             return true;
         }
+
         return ($now - (int) $lastNotified) > WebSocketConfig::newConnectionThreshold();
     }
 
@@ -171,13 +172,14 @@ final class DeviceStatusService
     {
         // 设备认证 token 验证
         $rawEmail = $status['user_email_raw'] ?? $status['user_email'] ?? null;
-        $tokenService = new DeviceTokenService();
+        $tokenService = new DeviceTokenService;
         $authResult = $tokenService->validateToken($rawEmail ?? '');
 
-        if (!$authResult['authenticated']) {
+        if (! $authResult['authenticated']) {
             WebSocketLog::getLogger()->warning("Device auth failed for {$phoneId}", [
                 'email' => $authResult['email'],
             ]);
+
             return null;
         }
 
@@ -189,6 +191,7 @@ final class DeviceStatusService
 
         if ($user === null) {
             WebSocketLog::getLogger()->warning("Cannot create device {$phoneId}: no user found");
+
             return null;
         }
 
@@ -228,7 +231,7 @@ final class DeviceStatusService
 
         $user = \App\Models\User::where('email', $email)->first();
         if ($user === null) {
-            $encryptionService = new EncryptionService();
+            $encryptionService = new EncryptionService;
             $encryptedEmail = $encryptionService->encryptEmail($email);
             $user = \App\Models\User::where('email_encrypted', $encryptedEmail)->first();
         }

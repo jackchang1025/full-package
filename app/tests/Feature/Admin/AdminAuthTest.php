@@ -18,7 +18,7 @@ describe('GET /admin/login (login page)', function () {
         $response = $this->get(route('admin.login'));
 
         $response->assertStatus(200)
-            ->assertInertia(fn($page) => $page->component('Admin/Login', false));
+            ->assertInertia(fn ($page) => $page->component('Admin/Login', false));
     });
 
     it('login page has shared Inertia props (appName, auth)', function () {
@@ -26,7 +26,7 @@ describe('GET /admin/login (login page)', function () {
 
         $response->assertStatus(200)
             ->assertInertia(
-                fn($page) => $page
+                fn ($page) => $page
                     ->component('Admin/Login', false)
                     ->has('appName')
                     ->has('auth')
@@ -156,7 +156,7 @@ describe('Admin middleware', function () {
 
         $response->assertStatus(200)
             ->assertInertia(
-                fn($page) => $page
+                fn ($page) => $page
                     ->component('Admin/Dashboard', false)
                     ->has('stats')
             );

@@ -20,7 +20,7 @@ class ApkBuildException extends Exception
     public static function configValidationFailed(array $errors): self
     {
         return new self(
-            'APK build configuration validation failed: ' . implode(', ', $errors),
+            'APK build configuration validation failed: '.implode(', ', $errors),
             ['errors' => $errors]
         );
     }

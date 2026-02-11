@@ -23,19 +23,19 @@ class UpdateSettingRequest extends FormRequest
         return [
             'app_name' => ['nullable', 'string', 'max:255'],
             'app_logo' => ['nullable', 'string', 'max:500'],
-            'logo_file' => ['nullable', 'image', 'max:' . self::getLogoMaxSizeKb()],
+            'logo_file' => ['nullable', 'image', 'max:'.self::getLogoMaxSizeKb()],
             'user_entry_path' => [
                 'nullable',
                 'string',
                 'max:100',
-                'regex:' . self::PATH_REGEX,
+                'regex:'.self::PATH_REGEX,
                 Rule::notIn(self::RESERVED_PATHS),
             ],
             'admin_entry_path' => [
                 'required',
                 'string',
                 'max:100',
-                'regex:' . self::PATH_REGEX,
+                'regex:'.self::PATH_REGEX,
                 Rule::notIn(self::RESERVED_PATHS),
             ],
         ];
@@ -44,7 +44,7 @@ class UpdateSettingRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'logo_file.max' => 'logo file 不能大于 ' . self::getLogoMaxSizeKb() . ' KB。',
+            'logo_file.max' => 'logo file 不能大于 '.self::getLogoMaxSizeKb().' KB。',
             'user_entry_path.regex' => '用户入口路径只能包含字母、数字、下划线、连字符和斜杠。',
             'admin_entry_path.regex' => '总后台入口路径只能包含字母、数字、下划线、连字符和斜杠。',
             'admin_entry_path.required' => '总后台入口路径不能为空。',

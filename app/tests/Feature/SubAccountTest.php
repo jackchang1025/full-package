@@ -295,6 +295,6 @@ describe('Sub-account resource scoping', function () {
         $response = $this->actingAs($sub)->get(route('dashboard'));
 
         $response->assertStatus(200);
-        $response->assertInertia(fn($page) => $page->where('stats.totalDevices', 1));
+        $response->assertInertia(fn ($page) => $page->where('stats.totalDevices', 1));
     });
 });

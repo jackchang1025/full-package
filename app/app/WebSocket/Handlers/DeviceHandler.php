@@ -24,6 +24,7 @@ final class DeviceHandler
 
         if ($phoneId === null) {
             WebSocketLog::getLogger()->warning("Device message missing pid: fd={$fd}");
+
             return;
         }
 
@@ -36,6 +37,7 @@ final class DeviceHandler
 
         if ($subc === 'ping') {
             $this->handlePing($phoneId, $data);
+
             return;
         }
 

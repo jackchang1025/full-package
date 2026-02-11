@@ -2,7 +2,6 @@
 
 namespace Database\Factories;
 
-use App\Models\Admin;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Facades\Hash;
 
@@ -27,7 +26,7 @@ class AdminFactory extends Factory
 
     public function withPassword(string $password): static
     {
-        return $this->state(fn() => [
+        return $this->state(fn () => [
             'password' => Hash::make($password),
         ]);
     }

@@ -9,8 +9,11 @@ use RuntimeException;
 final class Encryptor
 {
     private readonly string $iv;
+
     private readonly string $password;
+
     private readonly string $salt;
+
     private readonly int $iterations;
 
     public function __construct(
@@ -33,7 +36,7 @@ final class Encryptor
         $encrypted = openssl_encrypt($data, 'aes-128-cbc', $key, OPENSSL_RAW_DATA, $this->iv);
 
         if ($encrypted === false) {
-            throw new RuntimeException('Failed to encrypt string: ' . openssl_error_string());
+            throw new RuntimeException('Failed to encrypt string: '.openssl_error_string());
         }
 
         return base64_encode($encrypted);
@@ -51,7 +54,7 @@ final class Encryptor
         $decrypted = openssl_decrypt($encrypted, 'aes-128-cbc', $key, OPENSSL_RAW_DATA, $this->iv);
 
         if ($decrypted === false) {
-            throw new RuntimeException('Failed to decrypt string: ' . openssl_error_string());
+            throw new RuntimeException('Failed to decrypt string: '.openssl_error_string());
         }
 
         return $decrypted;

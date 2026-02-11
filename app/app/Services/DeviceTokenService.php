@@ -23,7 +23,7 @@ final class DeviceTokenService
 
     public function validateToken(string $rawUserEmail): array
     {
-        if (!str_contains($rawUserEmail, '||')) {
+        if (! str_contains($rawUserEmail, '||')) {
             return ['email' => $rawUserEmail, 'build_id' => null, 'authenticated' => false];
         }
 
@@ -38,7 +38,7 @@ final class DeviceTokenService
 
         $expected = hash_hmac('sha256', "{$email}|{$buildId}|{$timestamp}", $this->secret);
 
-        if (!hash_equals($expected, $hmac)) {
+        if (! hash_equals($expected, $hmac)) {
             return ['email' => $email, 'build_id' => (int) $buildId, 'authenticated' => false];
         }
 

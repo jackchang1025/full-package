@@ -43,23 +43,23 @@ trait WebSocketFunctionalTestTrait
 
         // 创建测试用户
         $this->userA = User::create([
-            'username' => 'ws_test_user_a_' . uniqid(),
-            'email' => 'usera_' . uniqid() . '@ws-test.local',
+            'username' => 'ws_test_user_a_'.uniqid(),
+            'email' => 'usera_'.uniqid().'@ws-test.local',
             'password' => bcrypt('password'),
         ]);
         $this->createdUserIds[] = $this->userA->id;
 
         $this->userB = User::create([
-            'username' => 'ws_test_user_b_' . uniqid(),
-            'email' => 'userb_' . uniqid() . '@ws-test.local',
+            'username' => 'ws_test_user_b_'.uniqid(),
+            'email' => 'userb_'.uniqid().'@ws-test.local',
             'password' => bcrypt('password'),
         ]);
         $this->createdUserIds[] = $this->userB->id;
 
         // 创建测试管理员 (admins 表使用 name 字段)
         $this->admin = Admin::create([
-            'name' => 'WS Test Admin ' . uniqid(),
-            'email' => 'admin_' . uniqid() . '@ws-test.local',
+            'name' => 'WS Test Admin '.uniqid(),
+            'email' => 'admin_'.uniqid().'@ws-test.local',
             'password' => bcrypt('password'),
         ]);
         $this->createdAdminIds[] = $this->admin->id;
@@ -134,7 +134,7 @@ trait WebSocketFunctionalTestTrait
     protected function createTestDevice(array $attributes = []): Device
     {
         $device = Device::create(array_merge([
-            'uuid' => 'test-device-' . uniqid(),
+            'uuid' => 'test-device-'.uniqid(),
             'user_id' => $this->userA->id,
             'name' => 'Test Device',
             'is_online' => false,
@@ -144,6 +144,18 @@ trait WebSocketFunctionalTestTrait
         $this->createdDeviceIds[] = $device->id;
 
         return $device;
+    }
+
+    /**
+     * 创建带有效 token 的 MockPanel
+     */
+    protected function createMockPanel(string $email, array $options = []): \Tests\Support\MockPanel
+    {
+        $options['host'] ??= $this->getTestServerHost();
+        $options['port'] ??= $this->getTestServerPort();
+        $options['token'] ??= \Tests\Support\MockPanel::generateTestPanelToken($email);
+
+        return new \Tests\Support\MockPanel($email, $options);
     }
 
     /**
@@ -190,7 +202,7 @@ trait WebSocketFunctionalTestTrait
         if ($fp === false) {
             $this->markTestSkipped(
                 "WebSocket server not available at {$host}:{$port}. "
-                    . 'Make sure the test server is running or start it manually: php artisan websocket:serve'
+                    .'Make sure the test server is running or start it manually: php artisan websocket:serve'
             );
         }
 

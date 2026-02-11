@@ -13,7 +13,9 @@ class Setting extends Model
     protected $fillable = ['key', 'value'];
 
     private const CACHE_PREFIX = 'setting.';
+
     private const CACHE_TTL_MINUTES = 10;
+
     private const TABLE_EXISTS_CACHE_KEY = 'setting.table_exists';
 
     /**
@@ -28,7 +30,7 @@ class Setting extends Model
         $value = Cache::remember(
             self::cacheKey($key),
             now()->addMinutes(self::CACHE_TTL_MINUTES),
-            fn() => self::query()->where('key', $key)->value('value')
+            fn () => self::query()->where('key', $key)->value('value')
         );
 
         return $value !== null ? (string) $value : null;
@@ -99,7 +101,7 @@ class Setting extends Model
         return Cache::remember(
             self::TABLE_EXISTS_CACHE_KEY,
             now()->addMinutes(60),
-            fn() => Schema::hasTable('settings')
+            fn () => Schema::hasTable('settings')
         );
     }
 
@@ -108,7 +110,7 @@ class Setting extends Model
      */
     protected static function cacheKey(string $key): string
     {
-        return self::CACHE_PREFIX . $key;
+        return self::CACHE_PREFIX.$key;
     }
 
     /**

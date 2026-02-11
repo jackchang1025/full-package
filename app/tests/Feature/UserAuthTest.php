@@ -25,7 +25,7 @@ describe('GET /login (user login page)', function () {
 
         $response->assertStatus(200)
             ->assertInertia(
-                fn($page) => $page
+                fn ($page) => $page
                     ->component('Auth/Login', false)
                     ->has('appName')
             );
@@ -119,7 +119,7 @@ describe('User auth middleware', function () {
         $response = $this->actingAs($this->user)->get(route('dashboard'));
 
         $response->assertStatus(200)
-            ->assertInertia(fn($page) => $page->component('Dashboard/Index', false));
+            ->assertInertia(fn ($page) => $page->component('Dashboard/Index', false));
     });
 
     it('redirects guest to login for protected user routes', function (string $routeName) {

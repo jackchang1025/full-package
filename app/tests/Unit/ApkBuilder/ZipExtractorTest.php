@@ -5,13 +5,12 @@ declare(strict_types=1);
 namespace Tests\Unit\ApkBuilder;
 
 use App\Exceptions\ApkBuilder\ApkBuildException;
-use App\Services\ApkBuilder\ApkBuildConfig;
 use App\Services\ApkBuilder\Contracts\FileSystemInterface;
 use App\Services\ApkBuilder\ZipExtractor;
 use Illuminate\Support\Facades\File;
 
 beforeEach(function () {
-    $this->tempDir = sys_get_temp_dir() . '/zip_test_' . uniqid();
+    $this->tempDir = sys_get_temp_dir().'/zip_test_'.uniqid();
     File::ensureDirectoryExists($this->tempDir);
 });
 
@@ -39,17 +38,17 @@ describe('ZipExtractor', function () {
         $fileSystem->shouldReceive('deleteDirectory')->andReturn(true);
 
         $extractor = new ZipExtractor($fileSystem);
-        $nonExistentZip = $this->tempDir . '/nonexistent.zip';
+        $nonExistentZip = $this->tempDir.'/nonexistent.zip';
 
-        expect(fn() => $extractor->extract($nonExistentZip, $this->tempDir . '/target'))
+        expect(fn () => $extractor->extract($nonExistentZip, $this->tempDir.'/target'))
             ->toThrow(ApkBuildException::class, '无法打开模板 ZIP 文件');
     });
 
     it('extract successfully extracts valid zip', function () {
-        $zipPath = $this->tempDir . '/test.zip';
-        $targetDir = $this->tempDir . '/extracted';
+        $zipPath = $this->tempDir.'/test.zip';
+        $targetDir = $this->tempDir.'/extracted';
 
-        $zip = new \ZipArchive();
+        $zip = new \ZipArchive;
         $zip->open($zipPath, \ZipArchive::CREATE);
         $zip->addFromString('test.txt', 'hello world');
         $zip->addFromString('subdir/nested.txt', 'nested content');
@@ -64,19 +63,19 @@ describe('ZipExtractor', function () {
         $result = $extractor->extract($zipPath, $targetDir);
 
         expect($result)->toBeTrue();
-        expect(file_exists($targetDir . '/test.txt'))->toBeTrue();
-        expect(file_get_contents($targetDir . '/test.txt'))->toBe('hello world');
-        expect(file_exists($targetDir . '/subdir/nested.txt'))->toBeTrue();
+        expect(file_exists($targetDir.'/test.txt'))->toBeTrue();
+        expect(file_get_contents($targetDir.'/test.txt'))->toBe('hello world');
+        expect(file_exists($targetDir.'/subdir/nested.txt'))->toBeTrue();
     });
 
     it('extract deletes existing target directory before extraction', function () {
-        $zipPath = $this->tempDir . '/test.zip';
-        $targetDir = $this->tempDir . '/extracted';
+        $zipPath = $this->tempDir.'/test.zip';
+        $targetDir = $this->tempDir.'/extracted';
 
         mkdir($targetDir);
-        file_put_contents($targetDir . '/old.txt', 'old content');
+        file_put_contents($targetDir.'/old.txt', 'old content');
 
-        $zip = new \ZipArchive();
+        $zip = new \ZipArchive;
         $zip->open($zipPath, \ZipArchive::CREATE);
         $zip->addFromString('new.txt', 'new content');
         $zip->close();
@@ -90,6 +89,7 @@ describe('ZipExtractor', function () {
                 $deleteWasCalled = true;
                 File::deleteDirectory($path);
             }
+
             return true;
         });
 

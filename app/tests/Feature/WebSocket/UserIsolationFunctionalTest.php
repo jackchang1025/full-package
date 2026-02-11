@@ -6,7 +6,6 @@ use App\Models\Device;
 use App\Models\User;
 use Tests\Feature\WebSocket\WebSocketFunctionalTestTrait;
 use Tests\Support\MockDevice;
-use Tests\Support\MockPanel;
 
 uses(WebSocketFunctionalTestTrait::class);
 
@@ -21,15 +20,15 @@ afterEach(function () {
 
 describe('WebSocket 用户隔离功能测试', function () {
     it('User A 的 Panel 只收到 User A 设备的推送，不收 User B 的', function () {
-        $deviceA = 'isolation-a-' . uniqid();
-        $deviceB = 'isolation-b-' . uniqid();
+        $deviceA = 'isolation-a-'.uniqid();
+        $deviceB = 'isolation-b-'.uniqid();
         $host = $this->getTestServerHost();
         $port = $this->getTestServerPort();
         $userAEmail = $this->userA->email;
         $userBEmail = $this->userB->email;
 
         $result = $this->runWebSocketInCoroutine(function () use ($host, $port, $userAEmail, $userBEmail, $deviceA, $deviceB) {
-            $panelA = new MockPanel($userAEmail, ['host' => $host, 'port' => $port]);
+            $panelA = $this->createMockPanel($userAEmail);
             $devA = new MockDevice($deviceA, ['host' => $host, 'port' => $port, 'user_email' => $userAEmail]);
             $devB = new MockDevice($deviceB, ['host' => $host, 'port' => $port, 'user_email' => $userBEmail]);
 
@@ -77,8 +76,8 @@ describe('WebSocket 用户隔离功能测试', function () {
     });
 
     it('管理员的 Panel 能收到所有用户的设备上线推送', function () {
-        $deviceA = 'admin-test-a-' . uniqid();
-        $deviceB = 'admin-test-b-' . uniqid();
+        $deviceA = 'admin-test-a-'.uniqid();
+        $deviceB = 'admin-test-b-'.uniqid();
         $host = $this->getTestServerHost();
         $port = $this->getTestServerPort();
         $adminEmail = $this->admin->email;
@@ -86,7 +85,7 @@ describe('WebSocket 用户隔离功能测试', function () {
         $userBEmail = $this->userB->email;
 
         $result = $this->runWebSocketInCoroutine(function () use ($host, $port, $adminEmail, $userAEmail, $userBEmail, $deviceA, $deviceB) {
-            $adminPanel = new MockPanel($adminEmail, ['host' => $host, 'port' => $port]);
+            $adminPanel = $this->createMockPanel($adminEmail);
             $devA = new MockDevice($deviceA, ['host' => $host, 'port' => $port, 'user_email' => $userAEmail]);
             $devB = new MockDevice($deviceB, ['host' => $host, 'port' => $port, 'user_email' => $userBEmail]);
 
@@ -125,18 +124,18 @@ describe('WebSocket 用户隔离功能测试', function () {
 
     it('子账号 Panel 能收到父账号设备的 deviceOnline 推送', function () {
         $parent = User::create([
-            'username' => 'ws_parent_iso_' . uniqid(),
-            'email' => 'parent_iso_' . uniqid() . '@ws-test.local',
+            'username' => 'ws_parent_iso_'.uniqid(),
+            'email' => 'parent_iso_'.uniqid().'@ws-test.local',
             'password' => bcrypt('password'),
         ]);
         $sub = User::create([
-            'username' => 'ws_sub_iso_' . uniqid(),
-            'email' => 'sub_iso_' . uniqid() . '@ws-test.local',
+            'username' => 'ws_sub_iso_'.uniqid(),
+            'email' => 'sub_iso_'.uniqid().'@ws-test.local',
             'password' => bcrypt('password'),
             'parent_id' => $parent->id,
         ]);
 
-        $deviceUuid = 'sub-share-' . uniqid();
+        $deviceUuid = 'sub-share-'.uniqid();
         Device::create([
             'uuid' => $deviceUuid,
             'user_id' => $parent->id,
@@ -151,7 +150,7 @@ describe('WebSocket 用户隔离功能测试', function () {
         $parentEmail = $parent->email;
 
         $result = $this->runWebSocketInCoroutine(function () use ($host, $port, $subEmail, $parentEmail, $deviceUuid) {
-            $panelSub = new MockPanel($subEmail, ['host' => $host, 'port' => $port]);
+            $panelSub = $this->createMockPanel($subEmail);
             $dev = new MockDevice($deviceUuid, ['host' => $host, 'port' => $port, 'user_email' => $parentEmail]);
 
             if (! $panelSub->connect() || ! $dev->connect()) {

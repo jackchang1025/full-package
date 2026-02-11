@@ -14,7 +14,7 @@ class BuildAssetController extends Controller
     public function icons(Request $request): JsonResponse
     {
         $userId = $request->user()->getResourceOwnerId();
-        $iconsPath = config('apk-builder.icons_path') . '/' . $userId;
+        $iconsPath = config('apk-builder.icons_path').'/'.$userId;
 
         $icons = $this->listImages($iconsPath, 'icons', $userId);
 
@@ -24,13 +24,13 @@ class BuildAssetController extends Controller
     public function uploadIcon(UploadIconRequest $request): JsonResponse
     {
         $userId = $request->user()->getResourceOwnerId();
-        $iconsPath = config('apk-builder.icons_path') . '/' . $userId;
+        $iconsPath = config('apk-builder.icons_path').'/'.$userId;
 
         File::ensureDirectoryExists($iconsPath);
 
         $file = $request->file('icon');
-        $filename = md5($file->getClientOriginalName() . time()) . '.png';
-        $outputPath = $iconsPath . '/' . $filename;
+        $filename = md5($file->getClientOriginalName().time()).'.png';
+        $outputPath = $iconsPath.'/'.$filename;
 
         $this->convertToPng($file->getPathname(), $outputPath, 192, 192);
 
@@ -38,7 +38,7 @@ class BuildAssetController extends Controller
             'success' => true,
             'icon' => [
                 'name' => $filename,
-                'url' => '/storage/icons/' . $userId . '/' . $filename,
+                'url' => '/storage/icons/'.$userId.'/'.$filename,
             ],
         ]);
     }
@@ -46,10 +46,11 @@ class BuildAssetController extends Controller
     public function deleteIcon(DeleteAssetRequest $request): JsonResponse
     {
         $userId = $request->user()->getResourceOwnerId();
-        $iconPath = config('apk-builder.icons_path') . '/' . $userId . '/' . basename($request->validated('name'));
+        $iconPath = config('apk-builder.icons_path').'/'.$userId.'/'.basename($request->validated('name'));
 
         if (File::exists($iconPath)) {
             File::delete($iconPath);
+
             return response()->json(['success' => true]);
         }
 
@@ -59,7 +60,7 @@ class BuildAssetController extends Controller
     public function backgrounds(Request $request): JsonResponse
     {
         $userId = $request->user()->getResourceOwnerId();
-        $bgPath = config('apk-builder.backgrounds_path') . '/' . $userId;
+        $bgPath = config('apk-builder.backgrounds_path').'/'.$userId;
 
         $backgrounds = $this->listImages($bgPath, 'backgrounds', $userId);
 
@@ -69,14 +70,14 @@ class BuildAssetController extends Controller
     public function uploadBackground(UploadBackgroundRequest $request): JsonResponse
     {
         $userId = $request->user()->getResourceOwnerId();
-        $bgPath = config('apk-builder.backgrounds_path') . '/' . $userId;
+        $bgPath = config('apk-builder.backgrounds_path').'/'.$userId;
 
         File::ensureDirectoryExists($bgPath);
 
         $file = $request->file('background');
         $type = $request->validated('type', 'blackui');
-        $filename = md5($file->getClientOriginalName() . time()) . '.png';
-        $outputPath = $bgPath . '/' . $filename;
+        $filename = md5($file->getClientOriginalName().time()).'.png';
+        $outputPath = $bgPath.'/'.$filename;
 
         $this->convertToPng($file->getPathname(), $outputPath);
 
@@ -84,7 +85,7 @@ class BuildAssetController extends Controller
             'success' => true,
             'background' => [
                 'name' => $filename,
-                'url' => '/storage/backgrounds/' . $userId . '/' . $filename,
+                'url' => '/storage/backgrounds/'.$userId.'/'.$filename,
                 'type' => $type,
             ],
         ]);
@@ -93,10 +94,11 @@ class BuildAssetController extends Controller
     public function deleteBackground(DeleteAssetRequest $request): JsonResponse
     {
         $userId = $request->user()->getResourceOwnerId();
-        $bgPath = config('apk-builder.backgrounds_path') . '/' . $userId . '/' . basename($request->validated('name'));
+        $bgPath = config('apk-builder.backgrounds_path').'/'.$userId.'/'.basename($request->validated('name'));
 
         if (File::exists($bgPath)) {
             File::delete($bgPath);
+
             return response()->json(['success' => true]);
         }
 
@@ -112,14 +114,14 @@ class BuildAssetController extends Controller
                 if (in_array(strtolower($file->getExtension()), ['png', 'jpg', 'jpeg'])) {
                     $images[] = [
                         'name' => $file->getFilename(),
-                        'url' => '/storage/' . $type . '/' . $userId . '/' . $file->getFilename(),
+                        'url' => '/storage/'.$type.'/'.$userId.'/'.$file->getFilename(),
                         'created_at' => date('Y-m-d H:i:s', $file->getMTime()),
                     ];
                 }
             }
         }
 
-        usort($images, fn($a, $b) => strtotime($b['created_at']) - strtotime($a['created_at']));
+        usort($images, fn ($a, $b) => strtotime($b['created_at']) - strtotime($a['created_at']));
 
         return $images;
     }

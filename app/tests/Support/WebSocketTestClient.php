@@ -9,10 +9,15 @@ use Swoole\Coroutine\Http\Client;
 class WebSocketTestClient
 {
     private ?Client $client = null;
+
     private string $host;
+
     private int $port;
+
     private bool $connected = false;
+
     private array $receivedMessages = [];
+
     private array $messageHandlers = [];
 
     public function __construct(string $host = 'localhost', int $port = 8081)
@@ -146,6 +151,7 @@ class WebSocketTestClient
         }
 
         $response = $this->waitForMessage('test_reset', 3.0);
+
         return $response !== null && ($response['success'] ?? false);
     }
 }

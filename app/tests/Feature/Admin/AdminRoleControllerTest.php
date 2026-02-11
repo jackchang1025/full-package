@@ -18,7 +18,7 @@ describe('GET /admin/roles', function () {
 
         $response->assertStatus(200)
             ->assertInertia(
-                fn($page) => $page
+                fn ($page) => $page
                     ->component('Admin/Roles/Index', false)
                     ->has('roles')
                     ->has('roles.data')
@@ -38,7 +38,7 @@ describe('GET /admin/roles/create', function () {
 
         $response->assertStatus(200)
             ->assertInertia(
-                fn($page) => $page
+                fn ($page) => $page
                     ->component('Admin/Roles/Create', false)
                     ->has('permissions')
             );
@@ -84,7 +84,7 @@ describe('GET /admin/roles/{role}/edit', function () {
 
         $response->assertStatus(200)
             ->assertInertia(
-                fn($page) => $page
+                fn ($page) => $page
                     ->component('Admin/Roles/Edit', false)
                     ->has('role')
                     ->has('permissions')

@@ -3,8 +3,6 @@
 use App\Models\User;
 use Database\Seeders\RolePermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\File;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Http\UploadedFile;
 
 uses(RefreshDatabase::class);
@@ -140,7 +138,7 @@ describe('Icon Upload API', function () {
     });
 
     it('uploads icon successfully', function () {
-        $tempDir = sys_get_temp_dir() . '/test-icons-' . uniqid();
+        $tempDir = sys_get_temp_dir().'/test-icons-'.uniqid();
         mkdir($tempDir, 0777, true);
         config(['apk-builder.icons_path' => $tempDir]);
 
@@ -157,7 +155,7 @@ describe('Icon Upload API', function () {
             ->assertJson(['success' => true]);
 
         // Cleanup
-        $files = glob($tempDir . '/*');
+        $files = glob($tempDir.'/*');
         if ($files) {
             foreach ($files as $file) {
                 if (is_file($file)) {
@@ -169,7 +167,7 @@ describe('Icon Upload API', function () {
     });
 
     it('accepts jpg format for icon upload', function () {
-        $tempDir = sys_get_temp_dir() . '/test-icons-' . uniqid();
+        $tempDir = sys_get_temp_dir().'/test-icons-'.uniqid();
         mkdir($tempDir, 0777, true);
         config(['apk-builder.icons_path' => $tempDir]);
 
@@ -182,7 +180,7 @@ describe('Icon Upload API', function () {
             ->assertJson(['success' => true]);
 
         // Cleanup
-        $files = glob($tempDir . '/*');
+        $files = glob($tempDir.'/*');
         if ($files) {
             foreach ($files as $file) {
                 if (is_file($file)) {
@@ -204,7 +202,7 @@ describe('Icon Delete API', function () {
     });
 
     it('deletes existing icon', function () {
-        $tempDir = sys_get_temp_dir() . '/test-icons-' . uniqid();
+        $tempDir = sys_get_temp_dir().'/test-icons-'.uniqid();
         mkdir($tempDir, 0777, true);
         config(['apk-builder.icons_path' => $tempDir]);
 
@@ -222,7 +220,7 @@ describe('Icon Delete API', function () {
             ->assertJson(['success' => true]);
 
         // Cleanup
-        $files = glob($tempDir . '/*');
+        $files = glob($tempDir.'/*');
         if ($files) {
             foreach ($files as $file) {
                 if (is_file($file)) {
@@ -234,7 +232,7 @@ describe('Icon Delete API', function () {
     });
 
     it('returns 404 for non-existent icon', function () {
-        $tempDir = sys_get_temp_dir() . '/test-icons-' . uniqid();
+        $tempDir = sys_get_temp_dir().'/test-icons-'.uniqid();
         mkdir($tempDir, 0777, true);
         config(['apk-builder.icons_path' => $tempDir]);
 
@@ -279,7 +277,7 @@ describe('Background Upload API', function () {
     });
 
     it('uploads background successfully', function () {
-        $tempDir = sys_get_temp_dir() . '/test-backgrounds-' . uniqid();
+        $tempDir = sys_get_temp_dir().'/test-backgrounds-'.uniqid();
         mkdir($tempDir, 0777, true);
         config(['apk-builder.backgrounds_path' => $tempDir]);
 
@@ -296,7 +294,7 @@ describe('Background Upload API', function () {
             ->assertJson(['success' => true]);
 
         // Cleanup
-        $files = glob($tempDir . '/*');
+        $files = glob($tempDir.'/*');
         if ($files) {
             foreach ($files as $file) {
                 if (is_file($file)) {
@@ -308,7 +306,7 @@ describe('Background Upload API', function () {
     });
 
     it('accepts type parameter for background', function () {
-        $tempDir = sys_get_temp_dir() . '/test-backgrounds-' . uniqid();
+        $tempDir = sys_get_temp_dir().'/test-backgrounds-'.uniqid();
         mkdir($tempDir, 0777, true);
         config(['apk-builder.backgrounds_path' => $tempDir]);
 
@@ -327,7 +325,7 @@ describe('Background Upload API', function () {
             ]);
 
         // Cleanup
-        $files = glob($tempDir . '/*');
+        $files = glob($tempDir.'/*');
         if ($files) {
             foreach ($files as $file) {
                 if (is_file($file)) {
@@ -352,7 +350,7 @@ describe('Background Upload API', function () {
     });
 
     it('accepts jpg format for background upload', function () {
-        $tempDir = sys_get_temp_dir() . '/test-backgrounds-' . uniqid();
+        $tempDir = sys_get_temp_dir().'/test-backgrounds-'.uniqid();
         mkdir($tempDir, 0777, true);
         config(['apk-builder.backgrounds_path' => $tempDir]);
 
@@ -365,7 +363,7 @@ describe('Background Upload API', function () {
             ->assertJson(['success' => true]);
 
         // Cleanup
-        $files = glob($tempDir . '/*');
+        $files = glob($tempDir.'/*');
         if ($files) {
             foreach ($files as $file) {
                 if (is_file($file)) {
@@ -387,7 +385,7 @@ describe('Background Delete API', function () {
     });
 
     it('deletes existing background', function () {
-        $tempDir = sys_get_temp_dir() . '/test-backgrounds-' . uniqid();
+        $tempDir = sys_get_temp_dir().'/test-backgrounds-'.uniqid();
         mkdir($tempDir, 0777, true);
         config(['apk-builder.backgrounds_path' => $tempDir]);
 
@@ -405,7 +403,7 @@ describe('Background Delete API', function () {
             ->assertJson(['success' => true]);
 
         // Cleanup
-        $files = glob($tempDir . '/*');
+        $files = glob($tempDir.'/*');
         if ($files) {
             foreach ($files as $file) {
                 if (is_file($file)) {
@@ -417,7 +415,7 @@ describe('Background Delete API', function () {
     });
 
     it('returns 404 for non-existent background', function () {
-        $tempDir = sys_get_temp_dir() . '/test-backgrounds-' . uniqid();
+        $tempDir = sys_get_temp_dir().'/test-backgrounds-'.uniqid();
         mkdir($tempDir, 0777, true);
         config(['apk-builder.backgrounds_path' => $tempDir]);
 
@@ -439,7 +437,7 @@ describe('APK Build CRUD API', function () {
 
         $response->assertStatus(200)
             ->assertInertia(
-                fn($page) => $page
+                fn ($page) => $page
                     ->component('Builds/Index', false)
                     ->has('builds')
             );
@@ -451,7 +449,7 @@ describe('APK Build CRUD API', function () {
 
         $response->assertStatus(200)
             ->assertInertia(
-                fn($page) => $page
+                fn ($page) => $page
                     ->component('Builds/Create', false)
                     ->has('templates')
                     ->has('icons')

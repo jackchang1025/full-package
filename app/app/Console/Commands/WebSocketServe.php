@@ -26,7 +26,7 @@ final class WebSocketServe extends Command
         $this->info("Starting WebSocket server on {$host}:{$port}");
         $this->info('Press Ctrl+C to stop the server');
 
-        $server = new Server();
+        $server = new Server;
         $server->start();
 
         return self::SUCCESS;

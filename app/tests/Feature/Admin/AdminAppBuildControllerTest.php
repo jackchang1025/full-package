@@ -16,7 +16,7 @@ beforeEach(function () {
     $this->build = AppBuild::create([
         'user_id' => $this->user->id,
         'name' => 'Test Build',
-        'package_name' => 'com.test.build.' . uniqid(),
+        'package_name' => 'com.test.build.'.uniqid(),
         'version' => '1.0',
     ]);
 });
@@ -28,7 +28,7 @@ describe('GET /admin/builds', function () {
 
         $response->assertStatus(200)
             ->assertInertia(
-                fn($page) => $page
+                fn ($page) => $page
                     ->component('Admin/Builds/Index', false)
                     ->has('builds')
                     ->has('filters')
@@ -48,7 +48,7 @@ describe('GET /admin/builds/{build}', function () {
 
         $response->assertStatus(200)
             ->assertInertia(
-                fn($page) => $page
+                fn ($page) => $page
                     ->component('Admin/Builds/Show', false)
                     ->has('build')
                     ->where('build.id', $this->build->id)

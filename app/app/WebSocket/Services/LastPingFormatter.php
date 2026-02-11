@@ -11,6 +11,7 @@ final class LastPingFormatter
         if ($lastPingMs === null || $lastPingMs <= 0) {
             return null;
         }
+
         return date('Y-m-d H:i:s', (int) ($lastPingMs / 1000));
     }
 }

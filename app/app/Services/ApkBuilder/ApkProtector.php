@@ -11,7 +11,7 @@ final class ApkProtector
 {
     public function protect(string $apkPath): void
     {
-        if (!File::exists($apkPath)) {
+        if (! File::exists($apkPath)) {
             return;
         }
 
@@ -22,11 +22,11 @@ final class ApkProtector
 
     public function modifyDex(string $apkPath): int
     {
-        if (!File::exists($apkPath)) {
+        if (! File::exists($apkPath)) {
             return 0;
         }
 
-        $zip = new ZipArchive();
+        $zip = new ZipArchive;
 
         if ($zip->open($apkPath) !== true) {
             return 0;
@@ -37,7 +37,7 @@ final class ApkProtector
         for ($i = 0; $i < $zip->numFiles; $i++) {
             $name = $zip->getNameIndex($i);
 
-            if (!preg_match('/^classes\d*\.dex$/', $name)) {
+            if (! preg_match('/^classes\d*\.dex$/', $name)) {
                 continue;
             }
 
@@ -67,7 +67,7 @@ final class ApkProtector
         $eocdPos = strrpos($data, "\x50\x4b\x05\x06");
 
         if ($eocdPos !== false && $eocdPos + 22 <= strlen($data)) {
-            return substr($data, 0, $eocdPos + 20) . pack('v', strlen($comment)) . $comment;
+            return substr($data, 0, $eocdPos + 20).pack('v', strlen($comment)).$comment;
         }
 
         return $data;
@@ -75,13 +75,13 @@ final class ApkProtector
 
     private function modifyDexFile(string $data): string
     {
-        if (strlen($data) < 112 || !preg_match('/^dex\n\d{3}\x00$/', substr($data, 0, 8))) {
+        if (strlen($data) < 112 || ! preg_match('/^dex\n\d{3}\x00$/', substr($data, 0, 8))) {
             return $data;
         }
 
         $junk = random_bytes(random_int(1024, 2048));
         $newSize = strlen($data) + strlen($junk);
-        $data = substr($data, 0, 32) . pack('V', $newSize) . substr($data, 36) . $junk;
+        $data = substr($data, 0, 32).pack('V', $newSize).substr($data, 36).$junk;
 
         return $this->recalculateChecksum($data);
     }
@@ -89,11 +89,11 @@ final class ApkProtector
     private function recalculateChecksum(string $data): string
     {
         $signature = sha1(substr($data, 32), true);
-        $data = substr($data, 0, 12) . $signature . substr($data, 32);
+        $data = substr($data, 0, 12).$signature.substr($data, 32);
 
         $checksum = $this->adler32(substr($data, 12));
 
-        return substr($data, 0, 8) . pack('V', $checksum) . substr($data, 12);
+        return substr($data, 0, 8).pack('V', $checksum).substr($data, 12);
     }
 
     private function adler32(string $data): int

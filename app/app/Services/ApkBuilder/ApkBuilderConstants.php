@@ -50,7 +50,9 @@ final class ApkBuilderConstants
 
     /** 工作目录内 APK 文件名 */
     public const APK_UNSIGNED = 'app-unsigned.apk';
+
     public const APK_ALIGNED = 'app-aligned.apk';
+
     public const APK_SIGNED = 'app-signed.apk';
 
     /** 进程轮询间隔（微秒），100ms */
@@ -88,8 +90,8 @@ final class ApkBuilderConstants
     // ========== 默认 XML 内容 ==========
 
     /** 默认无障碍服务 XML */
-    public const DEFAULT_ACCESSIBILITY_XML = '<?xml version="1.0" encoding="utf-8"?>' .
-        '<accessibility-service xmlns:android="http://schemas.android.com/apk/res/android" ' .
+    public const DEFAULT_ACCESSIBILITY_XML = '<?xml version="1.0" encoding="utf-8"?>'.
+        '<accessibility-service xmlns:android="http://schemas.android.com/apk/res/android" '.
         'android:accessibilityEventTypes="typeAllMask" android:canRetrieveWindowContent="true"/>';
 
     // ========== ZipArchive 错误消息 ==========

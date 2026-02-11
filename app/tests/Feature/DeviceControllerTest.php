@@ -46,7 +46,7 @@ describe('DeviceController - only own devices', function () {
 
         $response->assertStatus(200)
             ->assertInertia(
-                fn($page) => $page
+                fn ($page) => $page
                     ->component('Devices/Show', false)
                     ->has('device')
                     ->where('device.uuid', $this->deviceOfA->uuid)
@@ -70,7 +70,7 @@ describe('DeviceController - only own devices', function () {
 
         $response->assertStatus(200)
             ->assertInertia(
-                fn($page) => $page
+                fn ($page) => $page
                     ->component('Devices/Index', false)
                     ->has('devices')
                     ->has('devices.data')

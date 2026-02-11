@@ -5,7 +5,6 @@ declare(strict_types=1);
 use App\Models\Device;
 use App\Models\User;
 use Tests\Feature\WebSocket\WebSocketFunctionalTestTrait;
-use Tests\Support\MockPanel;
 use Tests\Support\WebSocketTestClient;
 
 uses(WebSocketFunctionalTestTrait::class);
@@ -25,8 +24,8 @@ describe('WebSocket Subscribe 功能测试', function () {
         $port = $this->getTestServerPort();
         $userEmail = $this->userA->email;
 
-        $result = $this->runWebSocketInCoroutine(function () use ($host, $port, $userEmail) {
-            $panel = new MockPanel($userEmail, ['host' => $host, 'port' => $port]);
+        $result = $this->runWebSocketInCoroutine(function () use ($userEmail) {
+            $panel = $this->createMockPanel($userEmail);
             if (! $panel->connect()) {
                 return false;
             }
@@ -45,8 +44,8 @@ describe('WebSocket Subscribe 功能测试', function () {
         $port = $this->getTestServerPort();
         $userEmail = $this->userA->email;
 
-        $result = $this->runWebSocketInCoroutine(function () use ($host, $port, $userEmail) {
-            $panel = new MockPanel($userEmail, ['host' => $host, 'port' => $port]);
+        $result = $this->runWebSocketInCoroutine(function () use ($userEmail) {
+            $panel = $this->createMockPanel($userEmail);
             if (! $panel->connect()) {
                 return null;
             }
@@ -66,7 +65,7 @@ describe('WebSocket Subscribe 功能测试', function () {
     it('有设备时 subscribe 返回该用户的设备列表', function () {
         // 使用 trait 提供的方法创建设备
         $device = $this->createTestDevice([
-            'uuid' => 'test-device-subscribe-' . uniqid(),
+            'uuid' => 'test-device-subscribe-'.uniqid(),
             'user_id' => $this->userA->id,
             'name' => 'Subscribe Test Device',
         ]);
@@ -76,8 +75,8 @@ describe('WebSocket Subscribe 功能测试', function () {
         $userEmail = $this->userA->email;
         $deviceUuid = $device->uuid;
 
-        $result = $this->runWebSocketInCoroutine(function () use ($host, $port, $userEmail) {
-            $panel = new MockPanel($userEmail, ['host' => $host, 'port' => $port]);
+        $result = $this->runWebSocketInCoroutine(function () use ($userEmail) {
+            $panel = $this->createMockPanel($userEmail);
             if (! $panel->connect()) {
                 return null;
             }
@@ -96,18 +95,18 @@ describe('WebSocket Subscribe 功能测试', function () {
 
     it('子账号 subscribe 返回父账号的设备列表', function () {
         $parent = User::create([
-            'username' => 'ws_parent_' . uniqid(),
-            'email' => 'parent_' . uniqid() . '@ws-test.local',
+            'username' => 'ws_parent_'.uniqid(),
+            'email' => 'parent_'.uniqid().'@ws-test.local',
             'password' => bcrypt('password'),
         ]);
         $sub = User::create([
-            'username' => 'ws_sub_' . uniqid(),
-            'email' => 'sub_' . uniqid() . '@ws-test.local',
+            'username' => 'ws_sub_'.uniqid(),
+            'email' => 'sub_'.uniqid().'@ws-test.local',
             'password' => bcrypt('password'),
             'parent_id' => $parent->id,
         ]);
 
-        $deviceUuid = 'sub-share-' . uniqid();
+        $deviceUuid = 'sub-share-'.uniqid();
         $device = Device::create([
             'uuid' => $deviceUuid,
             'user_id' => $parent->id,
@@ -120,8 +119,8 @@ describe('WebSocket Subscribe 功能测试', function () {
         $port = $this->getTestServerPort();
         $subEmail = $sub->email;
 
-        $result = $this->runWebSocketInCoroutine(function () use ($host, $port, $subEmail, $deviceUuid) {
-            $panel = new MockPanel($subEmail, ['host' => $host, 'port' => $port]);
+        $result = $this->runWebSocketInCoroutine(function () use ($subEmail) {
+            $panel = $this->createMockPanel($subEmail);
             if (! $panel->connect()) {
                 return null;
             }

@@ -1,6 +1,6 @@
 <?php
 
-$langBase = dirname(__DIR__) . '/lang/' . config('app.locale');
+$langBase = dirname(__DIR__).'/lang/'.config('app.locale');
 
 return [
     /*
@@ -12,8 +12,8 @@ return [
     | 无需在本文件中编写配置；新增权限/角色时在对应 lang 文件中补充即可。
     | 注：config 加载早于 Facade 就绪，故使用 require 直接加载语言文件，不使用 Lang::get()。
     */
-    'permissions' => file_exists($langBase . '/permissions.php') ? require $langBase . '/permissions.php' : [],
-    'roles' => file_exists($langBase . '/roles.php') ? require $langBase . '/roles.php' : [],
+    'permissions' => file_exists($langBase.'/permissions.php') ? require $langBase.'/permissions.php' : [],
+    'roles' => file_exists($langBase.'/roles.php') ? require $langBase.'/roles.php' : [],
 
     /*
     |--------------------------------------------------------------------------

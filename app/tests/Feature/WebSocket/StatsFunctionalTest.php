@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 use Tests\Feature\WebSocket\WebSocketFunctionalTestTrait;
 use Tests\Support\MockDevice;
-use Tests\Support\MockPanel;
 
 uses(WebSocketFunctionalTestTrait::class);
 
@@ -23,8 +22,8 @@ describe('WebSocket stats 统计功能测试', function () {
         $port = $this->getTestServerPort();
         $userEmail = $this->userA->email;
 
-        $msg = $this->runWebSocketInCoroutine(function () use ($host, $port, $userEmail) {
-            $panel = new MockPanel($userEmail, ['host' => $host, 'port' => $port]);
+        $msg = $this->runWebSocketInCoroutine(function () use ($userEmail) {
+            $panel = $this->createMockPanel($userEmail);
             if (! $panel->connect()) {
                 return null;
             }
@@ -46,13 +45,13 @@ describe('WebSocket stats 统计功能测试', function () {
 
     it('Subscribe 有若干离线设备时 stats 正确且 total=online+offline', function () {
         $this->createTestDevice([
-            'uuid' => 'stats-offline-1-' . uniqid(),
+            'uuid' => 'stats-offline-1-'.uniqid(),
             'user_id' => $this->userA->id,
             'name' => 'Stats Offline 1',
             'is_online' => false,
         ]);
         $this->createTestDevice([
-            'uuid' => 'stats-offline-2-' . uniqid(),
+            'uuid' => 'stats-offline-2-'.uniqid(),
             'user_id' => $this->userA->id,
             'name' => 'Stats Offline 2',
             'is_online' => false,
@@ -62,8 +61,8 @@ describe('WebSocket stats 统计功能测试', function () {
         $port = $this->getTestServerPort();
         $userEmail = $this->userA->email;
 
-        $msg = $this->runWebSocketInCoroutine(function () use ($host, $port, $userEmail) {
-            $panel = new MockPanel($userEmail, ['host' => $host, 'port' => $port]);
+        $msg = $this->runWebSocketInCoroutine(function () use ($userEmail) {
+            $panel = $this->createMockPanel($userEmail);
             if (! $panel->connect()) {
                 return null;
             }
@@ -82,13 +81,13 @@ describe('WebSocket stats 统计功能测试', function () {
     });
 
     it('设备上线推送 deviceOnline 包含 stats 且 online 增加', function () {
-        $deviceId = 'stats-online-' . uniqid();
+        $deviceId = 'stats-online-'.uniqid();
         $host = $this->getTestServerHost();
         $port = $this->getTestServerPort();
         $userEmail = $this->userA->email;
 
         $push = $this->runWebSocketInCoroutine(function () use ($host, $port, $userEmail, $deviceId) {
-            $panel = new MockPanel($userEmail, ['host' => $host, 'port' => $port]);
+            $panel = $this->createMockPanel($userEmail);
             $device = new MockDevice($deviceId, [
                 'host' => $host,
                 'port' => $port,
@@ -122,13 +121,13 @@ describe('WebSocket stats 统计功能测试', function () {
     });
 
     it('设备 ping 后 deviceUpdate 推送包含 stats 且 total=online+offline', function () {
-        $deviceId = 'stats-update-' . uniqid();
+        $deviceId = 'stats-update-'.uniqid();
         $host = $this->getTestServerHost();
         $port = $this->getTestServerPort();
         $userEmail = $this->userA->email;
 
         $push = $this->runWebSocketInCoroutine(function () use ($host, $port, $userEmail, $deviceId) {
-            $panel = new MockPanel($userEmail, ['host' => $host, 'port' => $port]);
+            $panel = $this->createMockPanel($userEmail);
             $device = new MockDevice($deviceId, [
                 'host' => $host,
                 'port' => $port,
@@ -160,13 +159,13 @@ describe('WebSocket stats 统计功能测试', function () {
     });
 
     it('设备离线推送 deviceOffline 包含 stats 且 offline 增加', function () {
-        $deviceId = 'stats-offline-push-' . uniqid();
+        $deviceId = 'stats-offline-push-'.uniqid();
         $host = $this->getTestServerHost();
         $port = $this->getTestServerPort();
         $userEmail = $this->userA->email;
 
         $push = $this->runWebSocketInCoroutine(function () use ($host, $port, $userEmail, $deviceId) {
-            $panel = new MockPanel($userEmail, ['host' => $host, 'port' => $port]);
+            $panel = $this->createMockPanel($userEmail);
             $device = new MockDevice($deviceId, [
                 'host' => $host,
                 'port' => $port,
@@ -201,13 +200,13 @@ describe('WebSocket stats 统计功能测试', function () {
     });
 
     it('全流程：设备上线后推送 stats 正确，设备离线后推送 stats 正确', function () {
-        $deviceId = 'stats-flow-' . uniqid();
+        $deviceId = 'stats-flow-'.uniqid();
         $host = $this->getTestServerHost();
         $port = $this->getTestServerPort();
         $userEmail = $this->userA->email;
 
         $results = $this->runWebSocketInCoroutine(function () use ($host, $port, $userEmail, $deviceId) {
-            $panel = new MockPanel($userEmail, ['host' => $host, 'port' => $port]);
+            $panel = $this->createMockPanel($userEmail);
             $device = new MockDevice($deviceId, [
                 'host' => $host,
                 'port' => $port,
@@ -255,13 +254,13 @@ describe('WebSocket stats 统计功能测试', function () {
 
     it('普通用户 subscribe 的 stats 只统计该用户设备', function () {
         $this->createTestDevice([
-            'uuid' => 'stats-user-a-' . uniqid(),
+            'uuid' => 'stats-user-a-'.uniqid(),
             'user_id' => $this->userA->id,
             'name' => 'User A Device',
             'is_online' => false,
         ]);
         $this->createTestDevice([
-            'uuid' => 'stats-user-b-' . uniqid(),
+            'uuid' => 'stats-user-b-'.uniqid(),
             'user_id' => $this->userB->id,
             'name' => 'User B Device',
             'is_online' => false,
@@ -271,8 +270,8 @@ describe('WebSocket stats 统计功能测试', function () {
         $port = $this->getTestServerPort();
         $userAEmail = $this->userA->email;
 
-        $msgA = $this->runWebSocketInCoroutine(function () use ($host, $port, $userAEmail) {
-            $panel = new MockPanel($userAEmail, ['host' => $host, 'port' => $port]);
+        $msgA = $this->runWebSocketInCoroutine(function () use ($userAEmail) {
+            $panel = $this->createMockPanel($userAEmail);
             if (! $panel->connect()) {
                 return null;
             }
@@ -291,13 +290,13 @@ describe('WebSocket stats 统计功能测试', function () {
 
     it('管理员 subscribe 的 stats 统计全部设备', function () {
         $this->createTestDevice([
-            'uuid' => 'stats-admin-a-' . uniqid(),
+            'uuid' => 'stats-admin-a-'.uniqid(),
             'user_id' => $this->userA->id,
             'name' => 'User A For Admin',
             'is_online' => false,
         ]);
         $this->createTestDevice([
-            'uuid' => 'stats-admin-b-' . uniqid(),
+            'uuid' => 'stats-admin-b-'.uniqid(),
             'user_id' => $this->userB->id,
             'name' => 'User B For Admin',
             'is_online' => false,
@@ -307,8 +306,8 @@ describe('WebSocket stats 统计功能测试', function () {
         $port = $this->getTestServerPort();
         $adminEmail = $this->admin->email;
 
-        $msg = $this->runWebSocketInCoroutine(function () use ($host, $port, $adminEmail) {
-            $panel = new MockPanel($adminEmail, ['host' => $host, 'port' => $port]);
+        $msg = $this->runWebSocketInCoroutine(function () use ($adminEmail) {
+            $panel = $this->createMockPanel($adminEmail);
             if (! $panel->connect()) {
                 return null;
             }
@@ -333,13 +332,13 @@ describe('WebSocket stats 统计功能测试', function () {
     // -------------------------------------------------------------------------
 
     it('同一 pid 两次连接时后连踢掉先连，stats.online 始终为 1', function () {
-        $deviceId = 'stats-same-pid-' . uniqid();
+        $deviceId = 'stats-same-pid-'.uniqid();
         $host = $this->getTestServerHost();
         $port = $this->getTestServerPort();
         $userEmail = $this->userA->email;
 
         $pushes = $this->runWebSocketInCoroutine(function () use ($host, $port, $userEmail, $deviceId) {
-            $panel = new MockPanel($userEmail, ['host' => $host, 'port' => $port]);
+            $panel = $this->createMockPanel($userEmail);
             $device1 = new MockDevice($deviceId, [
                 'host' => $host,
                 'port' => $port,
@@ -385,14 +384,14 @@ describe('WebSocket stats 统计功能测试', function () {
     });
 
     it('两个不同 pid 均在线时，第二次 deviceOnline 的 stats.online 为 2', function () {
-        $deviceIdA = 'stats-two-a-' . uniqid();
-        $deviceIdB = 'stats-two-b-' . uniqid();
+        $deviceIdA = 'stats-two-a-'.uniqid();
+        $deviceIdB = 'stats-two-b-'.uniqid();
         $host = $this->getTestServerHost();
         $port = $this->getTestServerPort();
         $userEmail = $this->userA->email;
 
         $secondPush = $this->runWebSocketInCoroutine(function () use ($host, $port, $userEmail, $deviceIdA, $deviceIdB) {
-            $panel = new MockPanel($userEmail, ['host' => $host, 'port' => $port]);
+            $panel = $this->createMockPanel($userEmail);
             $deviceA = new MockDevice($deviceIdA, [
                 'host' => $host,
                 'port' => $port,
@@ -433,14 +432,14 @@ describe('WebSocket stats 统计功能测试', function () {
     });
 
     it('两个 Panel 同一用户、一台设备在线时，两 Panel 收到的 stats.online 均为 1', function () {
-        $deviceId = 'stats-two-panels-' . uniqid();
+        $deviceId = 'stats-two-panels-'.uniqid();
         $host = $this->getTestServerHost();
         $port = $this->getTestServerPort();
         $userEmail = $this->userA->email;
 
         $statsFromBothPanels = $this->runWebSocketInCoroutine(function () use ($host, $port, $userEmail, $deviceId) {
-            $panel1 = new MockPanel($userEmail, ['host' => $host, 'port' => $port]);
-            $panel2 = new MockPanel($userEmail, ['host' => $host, 'port' => $port]);
+            $panel1 = $this->createMockPanel($userEmail);
+            $panel2 = $this->createMockPanel($userEmail);
             $device = new MockDevice($deviceId, [
                 'host' => $host,
                 'port' => $port,

@@ -66,8 +66,10 @@ function createMockProcessRunner(): ProcessRunnerInterface
  */
 function createFakeSmaliProcessor(?\Closure $onModifyConfig = null, ?\Closure $onRenamePackage = null): object
 {
-    return new class($onModifyConfig, $onRenamePackage) {
+    return new class($onModifyConfig, $onRenamePackage)
+    {
         private ?\Closure $onModifyConfig;
+
         private ?\Closure $onRenamePackage;
 
         public function __construct(?\Closure $onModifyConfig = null, ?\Closure $onRenamePackage = null)
@@ -98,8 +100,10 @@ function createFakeSmaliProcessor(?\Closure $onModifyConfig = null, ?\Closure $o
  */
 function createFakeObfuscator(?\Closure $onGenerateJunkClasses = null, ?\Closure $onShuffleClassNames = null): object
 {
-    return new class($onGenerateJunkClasses, $onShuffleClassNames) {
+    return new class($onGenerateJunkClasses, $onShuffleClassNames)
+    {
         private ?\Closure $onGenerateJunkClasses;
+
         private ?\Closure $onShuffleClassNames;
 
         public function __construct(?\Closure $onGenerateJunkClasses = null, ?\Closure $onShuffleClassNames = null)
@@ -113,6 +117,7 @@ function createFakeObfuscator(?\Closure $onGenerateJunkClasses = null, ?\Closure
             if ($this->onGenerateJunkClasses) {
                 return ($this->onGenerateJunkClasses)($classCount, $methodCount);
             }
+
             return $classCount;
         }
 
@@ -121,6 +126,7 @@ function createFakeObfuscator(?\Closure $onGenerateJunkClasses = null, ?\Closure
             if ($this->onShuffleClassNames) {
                 return ($this->onShuffleClassNames)();
             }
+
             return 5;
         }
     };
@@ -132,8 +138,10 @@ function createFakeObfuscator(?\Closure $onGenerateJunkClasses = null, ?\Closure
  */
 function createFakeApkProtector(?\Closure $onProtect = null, ?\Closure $onModifyDex = null): object
 {
-    return new class($onProtect, $onModifyDex) {
+    return new class($onProtect, $onModifyDex)
+    {
         private ?\Closure $onProtect;
+
         private ?\Closure $onModifyDex;
 
         public function __construct(?\Closure $onProtect = null, ?\Closure $onModifyDex = null)
@@ -154,6 +162,7 @@ function createFakeApkProtector(?\Closure $onProtect = null, ?\Closure $onModify
             if ($this->onModifyDex) {
                 return ($this->onModifyDex)($apkPath);
             }
+
             return 2;
         }
     };
@@ -181,7 +190,7 @@ describe('ApkBuilder build steps with mocks', function () {
             processRunner: createMockProcessRunner()
         );
 
-        expect(fn() => $builder->build(createValidConfig()))
+        expect(fn () => $builder->build(createValidConfig()))
             ->toThrow(ApkBuildException::class, 'template directory not found');
     });
 
@@ -189,7 +198,7 @@ describe('ApkBuilder build steps with mocks', function () {
         $fileSystem = createMockFileSystem();
         $fileSystem->shouldReceive('isDirectory')->with('/tmp/template')->andReturn(true);
         $fileSystem->shouldReceive('exists')
-            ->with('/tmp/template/' . ApkBuilderConstants::CONFIGS_SMALI_RELATIVE)
+            ->with('/tmp/template/'.ApkBuilderConstants::CONFIGS_SMALI_RELATIVE)
             ->andReturn(true);
         $fileSystem->shouldReceive('exists')->with('/tmp/tools/apktool.jar')->andReturn(false);
 
@@ -198,7 +207,7 @@ describe('ApkBuilder build steps with mocks', function () {
             processRunner: createMockProcessRunner()
         );
 
-        expect(fn() => $builder->build(createValidConfig()))
+        expect(fn () => $builder->build(createValidConfig()))
             ->toThrow(ApkBuildException::class, 'apktool.jar');
     });
 
@@ -218,7 +227,7 @@ describe('ApkBuilder build steps with mocks', function () {
             processRunner: $processRunner
         );
 
-        expect(fn() => $builder->build(createValidConfig()))
+        expect(fn () => $builder->build(createValidConfig()))
             ->toThrow(ApkBuildException::class, 'Java is not installed');
     });
 
@@ -239,14 +248,14 @@ describe('ApkBuilder build steps with mocks', function () {
         $processRunner->shouldReceive('start')->andReturn($invokedProcess);
 
         $builder = new ApkBuilder(
-            smaliProcessorFactory: fn($dir) => createFakeSmaliProcessor(),
-            obfuscatorFactory: fn($dir) => createFakeObfuscator(),
-            apkProtectorFactory: fn() => createFakeApkProtector(),
+            smaliProcessorFactory: fn ($dir) => createFakeSmaliProcessor(),
+            obfuscatorFactory: fn ($dir) => createFakeObfuscator(),
+            apkProtectorFactory: fn () => createFakeApkProtector(),
             fileSystem: $fileSystem,
             processRunner: $processRunner
         );
 
-        expect(fn() => $builder->build(createValidConfig()))->not->toThrow(\Exception::class);
+        expect(fn () => $builder->build(createValidConfig()))->not->toThrow(\Exception::class);
     });
 
     it('modifyManifest replaces package name when different from default', function () {
@@ -262,6 +271,7 @@ describe('ApkBuilder build steps with mocks', function () {
                 if (str_contains($path, 'AndroidManifest.xml')) {
                     return $manifestContent;
                 }
+
                 return '';
             });
 
@@ -271,6 +281,7 @@ describe('ApkBuilder build steps with mocks', function () {
                 if (str_contains($path, 'AndroidManifest.xml')) {
                     $manifestWasModified = str_contains($content, 'com.test.app');
                 }
+
                 return true;
             });
 
@@ -293,9 +304,9 @@ describe('ApkBuilder build steps with mocks', function () {
         $processRunner->shouldReceive('start')->andReturn($invokedProcess);
 
         $builder = new ApkBuilder(
-            smaliProcessorFactory: fn($dir) => $smaliProcessor,
-            obfuscatorFactory: fn($dir) => createFakeObfuscator(),
-            apkProtectorFactory: fn() => createFakeApkProtector(),
+            smaliProcessorFactory: fn ($dir) => $smaliProcessor,
+            obfuscatorFactory: fn ($dir) => createFakeObfuscator(),
+            apkProtectorFactory: fn () => createFakeApkProtector(),
             fileSystem: $fileSystem,
             processRunner: $processRunner
         );
@@ -320,6 +331,7 @@ describe('ApkBuilder build steps with mocks', function () {
                 if (str_contains($path, 'apktool.jar')) {
                     return true;
                 }
+
                 return false;
             });
         $fileSystem->shouldReceive('size')->andReturn(0);
@@ -337,14 +349,14 @@ describe('ApkBuilder build steps with mocks', function () {
         $processRunner->shouldReceive('start')->andReturn($invokedProcess);
 
         $builder = new ApkBuilder(
-            smaliProcessorFactory: fn($dir) => createFakeSmaliProcessor(),
-            obfuscatorFactory: fn($dir) => createFakeObfuscator(),
-            apkProtectorFactory: fn() => createFakeApkProtector(),
+            smaliProcessorFactory: fn ($dir) => createFakeSmaliProcessor(),
+            obfuscatorFactory: fn ($dir) => createFakeObfuscator(),
+            apkProtectorFactory: fn () => createFakeApkProtector(),
             fileSystem: $fileSystem,
             processRunner: $processRunner
         );
 
-        expect(fn() => $builder->build(createValidConfig()))
+        expect(fn () => $builder->build(createValidConfig()))
             ->toThrow(ApkBuildException::class, 'Icon file not found');
     });
 
@@ -356,6 +368,7 @@ describe('ApkBuilder build steps with mocks', function () {
                 if (str_contains($path, 'app-unsigned.apk')) {
                     return false;
                 }
+
                 return true;
             });
         $fileSystem->shouldReceive('size')->andReturn(1000);
@@ -383,18 +396,19 @@ describe('ApkBuilder build steps with mocks', function () {
                 $successInvoked = mock(InvokedProcess::class);
                 $successInvoked->shouldReceive('running')->andReturn(false);
                 $successInvoked->shouldReceive('wait')->andReturn($successResult);
+
                 return $successInvoked;
             });
 
         $builder = new ApkBuilder(
-            smaliProcessorFactory: fn($dir) => createFakeSmaliProcessor(),
-            obfuscatorFactory: fn($dir) => createFakeObfuscator(),
-            apkProtectorFactory: fn() => createFakeApkProtector(),
+            smaliProcessorFactory: fn ($dir) => createFakeSmaliProcessor(),
+            obfuscatorFactory: fn ($dir) => createFakeObfuscator(),
+            apkProtectorFactory: fn () => createFakeApkProtector(),
             fileSystem: $fileSystem,
             processRunner: $processRunner
         );
 
-        expect(fn() => $builder->build(createValidConfig()))
+        expect(fn () => $builder->build(createValidConfig()))
             ->toThrow(ApkBuildException::class, 'apktool');
     });
 
@@ -406,6 +420,7 @@ describe('ApkBuilder build steps with mocks', function () {
                 if (str_contains($path, 'app-signed.apk')) {
                     return false;
                 }
+
                 return true;
             });
         $fileSystem->shouldReceive('size')->andReturn(1000);
@@ -425,14 +440,14 @@ describe('ApkBuilder build steps with mocks', function () {
         $processRunner->shouldReceive('start')->andReturn($invokedProcess);
 
         $builder = new ApkBuilder(
-            smaliProcessorFactory: fn($dir) => createFakeSmaliProcessor(),
-            obfuscatorFactory: fn($dir) => createFakeObfuscator(),
-            apkProtectorFactory: fn() => createFakeApkProtector(),
+            smaliProcessorFactory: fn ($dir) => createFakeSmaliProcessor(),
+            obfuscatorFactory: fn ($dir) => createFakeObfuscator(),
+            apkProtectorFactory: fn () => createFakeApkProtector(),
             fileSystem: $fileSystem,
             processRunner: $processRunner
         );
 
-        expect(fn() => $builder->build(createValidConfig()))
+        expect(fn () => $builder->build(createValidConfig()))
             ->toThrow(ApkBuildException::class, 'signing');
     });
 });
@@ -443,6 +458,7 @@ describe('ApkBuilder optional steps', function () {
         $obfuscator = createFakeObfuscator(
             onGenerateJunkClasses: function ($classCount, $methodCount) use (&$obfuscatorCalled) {
                 $obfuscatorCalled = true;
+
                 return 10;
             }
         );
@@ -467,9 +483,9 @@ describe('ApkBuilder optional steps', function () {
         $processRunner->shouldReceive('start')->andReturn($invokedProcess);
 
         $builder = new ApkBuilder(
-            smaliProcessorFactory: fn($dir) => createFakeSmaliProcessor(),
-            obfuscatorFactory: fn($dir) => $obfuscator,
-            apkProtectorFactory: fn() => createFakeApkProtector(),
+            smaliProcessorFactory: fn ($dir) => createFakeSmaliProcessor(),
+            obfuscatorFactory: fn ($dir) => $obfuscator,
+            apkProtectorFactory: fn () => createFakeApkProtector(),
             fileSystem: $fileSystem,
             processRunner: $processRunner
         );
@@ -493,6 +509,7 @@ describe('ApkBuilder optional steps', function () {
         $obfuscator = createFakeObfuscator(
             onShuffleClassNames: function () use (&$shuffleCalled) {
                 $shuffleCalled = true;
+
                 return 5;
             }
         );
@@ -517,9 +534,9 @@ describe('ApkBuilder optional steps', function () {
         $processRunner->shouldReceive('start')->andReturn($invokedProcess);
 
         $builder = new ApkBuilder(
-            smaliProcessorFactory: fn($dir) => createFakeSmaliProcessor(),
-            obfuscatorFactory: fn($dir) => $obfuscator,
-            apkProtectorFactory: fn() => createFakeApkProtector(),
+            smaliProcessorFactory: fn ($dir) => createFakeSmaliProcessor(),
+            obfuscatorFactory: fn ($dir) => $obfuscator,
+            apkProtectorFactory: fn () => createFakeApkProtector(),
             fileSystem: $fileSystem,
             processRunner: $processRunner
         );
@@ -566,9 +583,9 @@ describe('ApkBuilder optional steps', function () {
         $processRunner->shouldReceive('start')->andReturn($invokedProcess);
 
         $builder = new ApkBuilder(
-            smaliProcessorFactory: fn($dir) => createFakeSmaliProcessor(),
-            obfuscatorFactory: fn($dir) => createFakeObfuscator(),
-            apkProtectorFactory: fn() => $protector,
+            smaliProcessorFactory: fn ($dir) => createFakeSmaliProcessor(),
+            obfuscatorFactory: fn ($dir) => createFakeObfuscator(),
+            apkProtectorFactory: fn () => $protector,
             fileSystem: $fileSystem,
             processRunner: $processRunner
         );
@@ -592,6 +609,7 @@ describe('ApkBuilder optional steps', function () {
         $protector = createFakeApkProtector(
             onModifyDex: function ($apkPath) use (&$dexModified) {
                 $dexModified = true;
+
                 return 2;
             }
         );
@@ -616,9 +634,9 @@ describe('ApkBuilder optional steps', function () {
         $processRunner->shouldReceive('start')->andReturn($invokedProcess);
 
         $builder = new ApkBuilder(
-            smaliProcessorFactory: fn($dir) => createFakeSmaliProcessor(),
-            obfuscatorFactory: fn($dir) => createFakeObfuscator(),
-            apkProtectorFactory: fn() => $protector,
+            smaliProcessorFactory: fn ($dir) => createFakeSmaliProcessor(),
+            obfuscatorFactory: fn ($dir) => createFakeObfuscator(),
+            apkProtectorFactory: fn () => $protector,
             fileSystem: $fileSystem,
             processRunner: $processRunner
         );
@@ -662,9 +680,9 @@ describe('ApkBuilder progress callback', function () {
         $processRunner->shouldReceive('start')->andReturn($invokedProcess);
 
         $builder = new ApkBuilder(
-            smaliProcessorFactory: fn($dir) => createFakeSmaliProcessor(),
-            obfuscatorFactory: fn($dir) => createFakeObfuscator(),
-            apkProtectorFactory: fn() => createFakeApkProtector(),
+            smaliProcessorFactory: fn ($dir) => createFakeSmaliProcessor(),
+            obfuscatorFactory: fn ($dir) => createFakeObfuscator(),
+            apkProtectorFactory: fn () => createFakeApkProtector(),
             fileSystem: $fileSystem,
             processRunner: $processRunner
         );
@@ -673,11 +691,11 @@ describe('ApkBuilder progress callback', function () {
             $progressEvents[] = $event;
         });
 
-        $stepEvents = array_filter($progressEvents, fn($e) => ($e['type'] ?? '') === 'step');
+        $stepEvents = array_filter($progressEvents, fn ($e) => ($e['type'] ?? '') === 'step');
         expect(count($stepEvents))->toBeGreaterThan(0);
 
-        $runningEvents = array_filter($stepEvents, fn($e) => ($e['status'] ?? '') === 'running');
-        $doneEvents = array_filter($stepEvents, fn($e) => ($e['status'] ?? '') === 'done');
+        $runningEvents = array_filter($stepEvents, fn ($e) => ($e['status'] ?? '') === 'running');
+        $doneEvents = array_filter($stepEvents, fn ($e) => ($e['status'] ?? '') === 'done');
 
         expect(count($runningEvents))->toBe(count($doneEvents));
     });
@@ -701,7 +719,7 @@ describe('ApkBuilder progress callback', function () {
         } catch (ApkBuildException $e) {
         }
 
-        $errorEvents = array_filter($progressEvents, fn($e) => ($e['type'] ?? '') === 'error');
+        $errorEvents = array_filter($progressEvents, fn ($e) => ($e['type'] ?? '') === 'error');
         expect(count($errorEvents))->toBe(1);
     });
 });
@@ -728,9 +746,9 @@ describe('ApkBuilder result', function () {
         $processRunner->shouldReceive('start')->andReturn($invokedProcess);
 
         $builder = new ApkBuilder(
-            smaliProcessorFactory: fn($dir) => createFakeSmaliProcessor(),
-            obfuscatorFactory: fn($dir) => createFakeObfuscator(),
-            apkProtectorFactory: fn() => createFakeApkProtector(),
+            smaliProcessorFactory: fn ($dir) => createFakeSmaliProcessor(),
+            obfuscatorFactory: fn ($dir) => createFakeObfuscator(),
+            apkProtectorFactory: fn () => createFakeApkProtector(),
             fileSystem: $fileSystem,
             processRunner: $processRunner
         );

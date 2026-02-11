@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 use Tests\Feature\WebSocket\WebSocketFunctionalTestTrait;
 use Tests\Support\MockDevice;
-use Tests\Support\MockPanel;
 
 uses(WebSocketFunctionalTestTrait::class);
 
@@ -19,13 +18,13 @@ afterEach(function () {
 
 describe('WebSocket 设备推送功能测试', function () {
     it('设备上线时已订阅的 Panel 收到 deviceOnline 推送', function () {
-        $deviceId = 'push-online-' . uniqid();
+        $deviceId = 'push-online-'.uniqid();
         $host = $this->getTestServerHost();
         $port = $this->getTestServerPort();
         $userEmail = $this->userA->email;
 
         $pushReceived = $this->runWebSocketInCoroutine(function () use ($host, $port, $userEmail, $deviceId) {
-            $panel = new MockPanel($userEmail, ['host' => $host, 'port' => $port]);
+            $panel = $this->createMockPanel($userEmail);
             $device = new MockDevice($deviceId, [
                 'host' => $host,
                 'port' => $port,
@@ -69,13 +68,13 @@ describe('WebSocket 设备推送功能测试', function () {
     });
 
     it('设备离线时 Panel 收到 deviceOffline 推送', function () {
-        $deviceId = 'push-offline-' . uniqid();
+        $deviceId = 'push-offline-'.uniqid();
         $host = $this->getTestServerHost();
         $port = $this->getTestServerPort();
         $userEmail = $this->userA->email;
 
         $pushReceived = $this->runWebSocketInCoroutine(function () use ($host, $port, $userEmail, $deviceId) {
-            $panel = new MockPanel($userEmail, ['host' => $host, 'port' => $port]);
+            $panel = $this->createMockPanel($userEmail);
             $device = new MockDevice($deviceId, [
                 'host' => $host,
                 'port' => $port,
@@ -109,13 +108,13 @@ describe('WebSocket 设备推送功能测试', function () {
     });
 
     it('deviceOnline 的 phoneInfo 包含设备 ping 上报的字段', function () {
-        $deviceId = 'push-phoneinfo-' . uniqid();
+        $deviceId = 'push-phoneinfo-'.uniqid();
         $host = $this->getTestServerHost();
         $port = $this->getTestServerPort();
         $userEmail = $this->userA->email;
 
         $pushReceived = $this->runWebSocketInCoroutine(function () use ($host, $port, $userEmail, $deviceId) {
-            $panel = new MockPanel($userEmail, ['host' => $host, 'port' => $port]);
+            $panel = $this->createMockPanel($userEmail);
             $device = new MockDevice($deviceId, [
                 'host' => $host,
                 'port' => $port,

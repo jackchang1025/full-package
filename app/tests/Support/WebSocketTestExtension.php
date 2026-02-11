@@ -28,8 +28,8 @@ final class WebSocketTestExtension implements Extension
         ParameterCollection $parameters
     ): void {
         $facade->registerSubscribers(
-            new WebSocketTestStartedSubscriber(),
-            new WebSocketTestFinishedSubscriber()
+            new WebSocketTestStartedSubscriber,
+            new WebSocketTestFinishedSubscriber
         );
     }
 }

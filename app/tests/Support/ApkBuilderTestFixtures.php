@@ -15,8 +15,8 @@ final class ApkBuilderTestFixtures
      */
     public static function createMockBuildDir(?string $smaliContent = null): string
     {
-        $baseDir = sys_get_temp_dir() . '/apk_builder_test_' . uniqid();
-        $smaliPath = $baseDir . '/' . ApkBuilderConstants::CONFIGS_SMALI_RELATIVE;
+        $baseDir = sys_get_temp_dir().'/apk_builder_test_'.uniqid();
+        $smaliPath = $baseDir.'/'.ApkBuilderConstants::CONFIGS_SMALI_RELATIVE;
 
         File::ensureDirectoryExists(dirname($smaliPath));
 
@@ -59,10 +59,10 @@ SMALI;
     {
         $baseDir = self::createMockBuildDir();
         $packagePath = str_replace('.', '/', $packageName);
-        $smaliDir = $baseDir . '/smali/' . $packagePath;
+        $smaliDir = $baseDir.'/smali/'.$packagePath;
 
         File::ensureDirectoryExists($smaliDir);
-        $smaliFile = $smaliDir . '/SomeClass.smali';
+        $smaliFile = $smaliDir.'/SomeClass.smali';
         File::put($smaliFile, ".class public L{$packagePath}/SomeClass;\n.super Ljava/lang/Object;\n");
 
         return $baseDir;

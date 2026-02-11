@@ -16,6 +16,7 @@ final class BatteryParser
         $parts = explode('~', $batteryCharge);
         $raw = count($parts) >= 2 ? $parts[1] : $batteryCharge;
         $level = (int) $raw;
+
         return $level > 0 || $raw === '0' ? $level : null;
     }
 
@@ -25,6 +26,7 @@ final class BatteryParser
             return false;
         }
         $parts = explode('~', $batteryCharge);
+
         return count($parts) >= 1 && $parts[0] === self::CHARGING_PREFIX;
     }
 }

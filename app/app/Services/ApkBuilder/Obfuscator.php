@@ -21,16 +21,16 @@ final class Obfuscator
 
     public function generateJunkClasses(int $classCount, int $methodCount): int
     {
-        $smaliDir = $this->buildDir . '/smali';
+        $smaliDir = $this->buildDir.'/smali';
         $junkPackage = $this->generateName(8);
-        $junkPath = $smaliDir . '/' . $junkPackage;
+        $junkPath = $smaliDir.'/'.$junkPackage;
 
         File::ensureDirectoryExists($junkPath);
 
         for ($i = 0; $i < $classCount; $i++) {
             $className = $this->generateName(6);
             $content = $this->createJunkClass($junkPackage, $className, $methodCount);
-            File::put($junkPath . '/' . $className . '.smali', $content);
+            File::put($junkPath.'/'.$className.'.smali', $content);
         }
 
         return $classCount;
@@ -42,9 +42,9 @@ final class Obfuscator
         $smaliDirs = array_slice(ApkBuilderConstants::SMALI_DIRS, 0, 4);
 
         foreach ($smaliDirs as $smaliDir) {
-            $basePath = $this->buildDir . '/' . $smaliDir;
+            $basePath = $this->buildDir.'/'.$smaliDir;
 
-            if (!File::isDirectory($basePath)) {
+            if (! File::isDirectory($basePath)) {
                 continue;
             }
 
@@ -53,7 +53,7 @@ final class Obfuscator
             );
 
             foreach ($iterator as $file) {
-                if (!$file->isFile() || $file->getExtension() !== 'smali') {
+                if (! $file->isFile() || $file->getExtension() !== 'smali') {
                     continue;
                 }
 
@@ -69,7 +69,7 @@ final class Obfuscator
             }
         }
 
-        if (!empty($classMap)) {
+        if (! empty($classMap)) {
             $this->applyMapping($classMap, $smaliDirs);
         }
 
@@ -124,7 +124,7 @@ final class Obfuscator
             $method .= "    {$op} v0, v0, v1\n";
         }
 
-        return $method . "    return-void\n.end method\n\n";
+        return $method."    return-void\n.end method\n\n";
     }
 
     private function canObfuscate(string $className): bool
@@ -161,9 +161,9 @@ final class Obfuscator
     private function applyMapping(array $map, array $smaliDirs): void
     {
         foreach ($smaliDirs as $smaliDir) {
-            $basePath = $this->buildDir . '/' . $smaliDir;
+            $basePath = $this->buildDir.'/'.$smaliDir;
 
-            if (!File::isDirectory($basePath)) {
+            if (! File::isDirectory($basePath)) {
                 continue;
             }
 
@@ -172,7 +172,7 @@ final class Obfuscator
             );
 
             foreach ($iterator as $file) {
-                if (!$file->isFile() || $file->getExtension() !== 'smali') {
+                if (! $file->isFile() || $file->getExtension() !== 'smali') {
                     continue;
                 }
 
@@ -186,8 +186,8 @@ final class Obfuscator
             }
 
             foreach ($map as $old => $new) {
-                $oldFile = $basePath . '/' . $old . '.smali';
-                $newFile = $basePath . '/' . $new . '.smali';
+                $oldFile = $basePath.'/'.$old.'.smali';
+                $newFile = $basePath.'/'.$new.'.smali';
 
                 if (File::exists($oldFile)) {
                     File::ensureDirectoryExists(dirname($newFile));

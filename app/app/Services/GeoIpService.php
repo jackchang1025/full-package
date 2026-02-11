@@ -96,7 +96,7 @@ class GeoIpService
         try {
             $record = $this->reader->get($ip);
 
-            if ($record === null || !isset($record['country']['names']['en'])) {
+            if ($record === null || ! isset($record['country']['names']['en'])) {
                 return null;
             }
 

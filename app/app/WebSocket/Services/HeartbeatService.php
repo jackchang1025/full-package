@@ -12,8 +12,7 @@ final class HeartbeatService
 {
     public function __construct(
         private readonly ConnectionManager $connectionManager
-    ) {
-    }
+    ) {}
 
     private function timeout(): int
     {
@@ -53,8 +52,9 @@ final class HeartbeatService
 
         $server = $this->connectionManager->getServer();
 
-        if (!$server->isEstablished($fd)) {
+        if (! $server->isEstablished($fd)) {
             $this->connectionManager->handleDisconnect($fd);
+
             return;
         }
 

@@ -9,13 +9,13 @@ use App\Services\ApkBuilder\LaravelProcessRunner;
 
 describe('LaravelProcessRunner', function () {
     it('implements ProcessRunnerInterface', function () {
-        $runner = new LaravelProcessRunner();
+        $runner = new LaravelProcessRunner;
 
         expect($runner)->toBeInstanceOf(ProcessRunnerInterface::class);
     });
 
     it('run executes command and returns result', function () {
-        $runner = new LaravelProcessRunner();
+        $runner = new LaravelProcessRunner;
 
         $result = $runner->run('echo "hello"');
 
@@ -24,7 +24,7 @@ describe('LaravelProcessRunner', function () {
     });
 
     it('run returns failed result for invalid command', function () {
-        $runner = new LaravelProcessRunner();
+        $runner = new LaravelProcessRunner;
 
         $result = $runner->run('nonexistent_command_xyz_123');
 
@@ -32,7 +32,7 @@ describe('LaravelProcessRunner', function () {
     });
 
     it('timeout returns PendingProcess', function () {
-        $runner = new LaravelProcessRunner();
+        $runner = new LaravelProcessRunner;
 
         $pending = $runner->timeout(30);
 
@@ -40,7 +40,7 @@ describe('LaravelProcessRunner', function () {
     });
 
     it('start returns InvokedProcess', function () {
-        $runner = new LaravelProcessRunner();
+        $runner = new LaravelProcessRunner;
 
         $process = $runner->start('echo "test"', 30);
 

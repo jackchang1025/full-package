@@ -21,7 +21,7 @@ class DeviceStatusUpdated implements ShouldBroadcast
     public function broadcastOn(): array
     {
         return [
-            new PrivateChannel('user.' . $this->device->user_id),
+            new PrivateChannel('user.'.$this->device->user_id),
         ];
     }
 

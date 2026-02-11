@@ -29,13 +29,13 @@ final readonly class ApkBuildResult
         $ms ??= $this->totalTimeMs;
 
         if ($ms < 1000) {
-            return round($ms) . 'ms';
+            return round($ms).'ms';
         }
 
         if ($ms < 60000) {
-            return round($ms / 1000, 1) . 's';
+            return round($ms / 1000, 1).'s';
         }
 
-        return round($ms / 60000, 1) . 'min';
+        return round($ms / 60000, 1).'min';
     }
 }

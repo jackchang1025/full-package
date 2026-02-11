@@ -30,6 +30,7 @@ final class WebSocketLog
         }
 
         self::$logger = self::createFallbackLogger();
+
         return self::$logger;
     }
 
@@ -53,7 +54,7 @@ final class WebSocketLog
     {
         $path = storage_path('logs/websocket/websocket.log');
         $dir = dirname($path);
-        if (!is_dir($dir)) {
+        if (! is_dir($dir)) {
             @mkdir($dir, 0755, true);
         }
 
@@ -66,6 +67,7 @@ final class WebSocketLog
             null,
             false
         ));
+
         return $logger;
     }
 }

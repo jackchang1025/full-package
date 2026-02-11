@@ -17,12 +17,12 @@ final class ZipExtractor implements ZipExtractorInterface
 
     public function extract(string $zipPath, string $targetDir): bool
     {
-        $zip = new ZipArchive();
+        $zip = new ZipArchive;
         $result = $zip->open($zipPath);
 
         if ($result !== true) {
             throw new ApkBuildException(
-                "无法打开模板 ZIP 文件: " . self::getErrorMessage($result),
+                '无法打开模板 ZIP 文件: '.self::getErrorMessage($result),
                 ['zip' => $zipPath, 'error_code' => $result]
             );
         }
@@ -30,9 +30,9 @@ final class ZipExtractor implements ZipExtractorInterface
         $parentDir = dirname($targetDir);
         $this->fileSystem->ensureDirectoryExists($parentDir);
 
-        if (!is_writable($parentDir)) {
+        if (! is_writable($parentDir)) {
             $zip->close();
-            throw new ApkBuildException("目标目录不可写", [
+            throw new ApkBuildException('目标目录不可写', [
                 'parent_dir' => $parentDir,
                 'permissions' => substr(sprintf('%o', fileperms($parentDir)), -4),
             ]);
@@ -42,7 +42,7 @@ final class ZipExtractor implements ZipExtractorInterface
             $this->fileSystem->deleteDirectory($targetDir);
         }
 
-        if (!$zip->extractTo($targetDir)) {
+        if (! $zip->extractTo($targetDir)) {
             $statusMessage = $zip->getStatusString();
             $zip->close();
             throw new ApkBuildException("解压模板 ZIP 文件失败: {$statusMessage}", [

@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class Device extends Model
 {
     use HasFactory;
+
     protected $fillable = [
         'uuid',
         'user_id',

@@ -7,6 +7,7 @@ namespace Tests\Support;
 class MockDevice extends WebSocketTestClient
 {
     private string $deviceId;
+
     private array $deviceInfo;
 
     public function __construct(string $deviceId, array $options = [])
@@ -22,7 +23,7 @@ class MockDevice extends WebSocketTestClient
 
         // 如果 user_email 已经包含 ||（调用方自行构造的 token），直接使用
         // 否则自动生成有效的测试 token
-        if (!str_contains($userEmail, '||')) {
+        if (! str_contains($userEmail, '||')) {
             $userEmail = self::generateTestToken($userEmail);
         }
 

@@ -15,7 +15,7 @@ class DeviceTokenServiceTest extends TestCase
     {
         parent::setUp();
         config(['websocket.device_auth.secret' => 'test-secret-key-for-unit-tests']);
-        $this->service = new DeviceTokenService();
+        $this->service = new DeviceTokenService;
     }
 
     public function test_generate_token_format(): void
@@ -64,7 +64,7 @@ class DeviceTokenServiceTest extends TestCase
         // 篡改 HMAC 的第一个字符
         $segments = explode('.', $parts[1], 3);
         $segments[0] = str_repeat('a', 64);
-        $tampered = $parts[0] . '||' . implode('.', $segments);
+        $tampered = $parts[0].'||'.implode('.', $segments);
 
         $result = $this->service->validateToken($tampered);
 
@@ -104,7 +104,7 @@ class DeviceTokenServiceTest extends TestCase
         $token1 = $this->service->generateToken('user@example.com', 1);
 
         config(['websocket.device_auth.secret' => 'different-secret']);
-        $service2 = new DeviceTokenService();
+        $service2 = new DeviceTokenService;
         $result = $service2->validateToken($token1);
 
         $this->assertFalse($result['authenticated']);

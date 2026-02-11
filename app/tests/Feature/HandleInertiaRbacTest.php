@@ -20,7 +20,7 @@ describe('Inertia shared auth data', function () {
 
         $response->assertStatus(200)
             ->assertInertia(
-                fn($page) => $page
+                fn ($page) => $page
                     ->has('auth')
                     ->where('auth.user.id', $user->id)
                     ->where('auth.user.username', $user->username)
@@ -28,6 +28,7 @@ describe('Inertia shared auth data', function () {
                     ->has('auth.user.permissions')
                     ->where('auth.user.roles', function ($v) {
                         $arr = $v instanceof Collection ? $v->all() : (array) $v;
+
                         return is_array($arr) && in_array('client', $arr, true);
                     })
                     ->where('auth.user.permissions', function ($v) {
@@ -36,6 +37,7 @@ describe('Inertia shared auth data', function () {
                     ->where('auth.user', function ($authUser) {
                         $arr = $authUser instanceof Collection ? $authUser->toArray() : (array) $authUser;
                         expect($arr)->not->toHaveKey('role');
+
                         return true;
                     })
             );

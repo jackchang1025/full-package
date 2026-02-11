@@ -17,7 +17,9 @@ class SettingController extends Controller
 {
     /** Storage disk and directory for site assets. */
     private const STORAGE_DISK = 'public';
+
     private const LOGO_DIRECTORY = 'site';
+
     private const STORAGE_URL_PREFIX = '/storage/';
 
     public function index(): Response
@@ -131,7 +133,7 @@ class SettingController extends Controller
             $file = $request->file('logo_file');
             $path = $file->store(self::LOGO_DIRECTORY, self::STORAGE_DISK);
 
-            Setting::set('app_logo', self::STORAGE_URL_PREFIX . $path);
+            Setting::set('app_logo', self::STORAGE_URL_PREFIX.$path);
 
             return;
         }

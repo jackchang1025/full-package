@@ -10,21 +10,19 @@ use App\Services\ApkBuilder\ApkBuilder;
 use App\Services\ApkBuilder\ApkBuilderConstants;
 use App\Services\ApkBuilder\Contracts\FileSystemInterface;
 use App\Services\ApkBuilder\Contracts\ProcessRunnerInterface;
-use App\Services\ApkBuilder\Encryptor;
 use Illuminate\Contracts\Process\ProcessResult;
-use Illuminate\Process\InvokedProcess;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\File;
 use Tests\Support\ApkBuilderTestFixtures;
 
 beforeEach(function () {
-    $this->tempBase = sys_get_temp_dir() . '/apk_builder_di_test_' . uniqid();
+    $this->tempBase = sys_get_temp_dir().'/apk_builder_di_test_'.uniqid();
     File::ensureDirectoryExists($this->tempBase);
 
-    Config::set('apk-builder.template_path', $this->tempBase . '/template');
-    Config::set('apk-builder.stub_zip_path', $this->tempBase . '/apkstub.zip');
-    Config::set('apk-builder.tools_path', $this->tempBase . '/tools');
-    Config::set('apk-builder.output_path', $this->tempBase . '/output');
+    Config::set('apk-builder.template_path', $this->tempBase.'/template');
+    Config::set('apk-builder.stub_zip_path', $this->tempBase.'/apkstub.zip');
+    Config::set('apk-builder.tools_path', $this->tempBase.'/tools');
+    Config::set('apk-builder.output_path', $this->tempBase.'/output');
     Config::set('apk-builder.temp_path', $this->tempBase);
 });
 
@@ -75,19 +73,19 @@ describe('ApkBuilder with mocked dependencies', function () {
             websocketUrl: 'ws://localhost:8081'
         );
 
-        expect(fn() => $builder->build($config))
+        expect(fn () => $builder->build($config))
             ->toThrow(ApkBuildException::class);
     });
 
     it('uses injected ProcessRunner for java check', function () {
-        $templateDir = $this->tempBase . '/template';
-        $smaliPath = $templateDir . '/' . ApkBuilderConstants::CONFIGS_SMALI_RELATIVE;
+        $templateDir = $this->tempBase.'/template';
+        $smaliPath = $templateDir.'/'.ApkBuilderConstants::CONFIGS_SMALI_RELATIVE;
         File::ensureDirectoryExists(dirname($smaliPath));
         File::put($smaliPath, ApkBuilderTestFixtures::getDefaultMyConfigsContent());
 
-        $toolsDir = $this->tempBase . '/tools';
+        $toolsDir = $this->tempBase.'/tools';
         File::ensureDirectoryExists($toolsDir);
-        File::put($toolsDir . '/apktool.jar', 'dummy');
+        File::put($toolsDir.'/apktool.jar', 'dummy');
 
         $processResult = mock(ProcessResult::class);
         $processResult->shouldReceive('successful')->andReturn(false);
@@ -109,7 +107,7 @@ describe('ApkBuilder with mocked dependencies', function () {
             websocketUrl: 'ws://localhost:8081'
         );
 
-        expect(fn() => $builder->build($config))
+        expect(fn () => $builder->build($config))
             ->toThrow(ApkBuildException::class, 'Java is not installed');
     });
 });
@@ -119,6 +117,7 @@ describe('ApkBuilder factory injection', function () {
         $factoryCalled = false;
         $customFactory = function (string $buildDir) use (&$factoryCalled) {
             $factoryCalled = true;
+
             return new \App\Services\ApkBuilder\SmaliProcessor($buildDir);
         };
 
@@ -133,6 +132,7 @@ describe('ApkBuilder factory injection', function () {
         $factoryCalled = false;
         $customFactory = function (string $buildDir) use (&$factoryCalled) {
             $factoryCalled = true;
+
             return new \App\Services\ApkBuilder\Obfuscator($buildDir);
         };
 
@@ -147,7 +147,8 @@ describe('ApkBuilder factory injection', function () {
         $factoryCalled = false;
         $customFactory = function () use (&$factoryCalled) {
             $factoryCalled = true;
-            return new \App\Services\ApkBuilder\ApkProtector();
+
+            return new \App\Services\ApkBuilder\ApkProtector;
         };
 
         $builder = new ApkBuilder(

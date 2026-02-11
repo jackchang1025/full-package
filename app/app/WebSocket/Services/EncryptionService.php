@@ -7,7 +7,9 @@ namespace App\WebSocket\Services;
 final class EncryptionService
 {
     private string $key;
+
     private string $iv;
+
     private string $method;
 
     public function __construct()

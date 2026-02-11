@@ -109,7 +109,7 @@ class RoleController extends Controller
     {
         $usersCount = $role->users()->count();
         if ($usersCount > 0) {
-            return back()->withErrors(['role' => '该角色下仍有 ' . $usersCount . ' 名用户，无法删除。']);
+            return back()->withErrors(['role' => '该角色下仍有 '.$usersCount.' 名用户，无法删除。']);
         }
 
         $role->delete();

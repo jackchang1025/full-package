@@ -40,29 +40,31 @@ class BuildApkCommand extends Command
     {
         $this->info('');
         $this->info('╔════════════════════════════════════════╗');
-        $this->info('║       ' . config('app.name') . ' - APK 构建工具       ║');
+        $this->info('║       '.config('app.name').' - APK 构建工具       ║');
         $this->info('╚════════════════════════════════════════╝');
         $this->info('');
 
         $config = $this->buildConfig();
 
-        if (!$config) {
+        if (! $config) {
             return self::FAILURE;
         }
 
         $errors = $config->validate();
-        if (!empty($errors)) {
+        if (! empty($errors)) {
             $this->error('配置验证失败:');
             foreach ($errors as $error) {
                 $this->line("  • {$error}");
             }
+
             return self::FAILURE;
         }
 
         $this->displayConfig($config);
 
-        if (!$this->confirm('确认开始构建?', true)) {
+        if (! $this->confirm('确认开始构建?', true)) {
             $this->warn('构建已取消');
+
             return self::SUCCESS;
         }
 
@@ -166,7 +168,7 @@ class BuildApkCommand extends Command
             ]
         );
 
-        if (!empty($result->stats)) {
+        if (! empty($result->stats)) {
             $this->newLine();
             $this->info('构建步骤耗时:');
             $rows = [];
@@ -185,11 +187,11 @@ class BuildApkCommand extends Command
         $this->newLine();
         $this->error("错误: {$e->getMessage()}");
 
-        if (!empty($e->context)) {
+        if (! empty($e->context)) {
             $this->newLine();
             $this->warn('详细信息:');
             foreach ($e->context as $key => $value) {
-                $this->line("  {$key}: " . (is_array($value) ? json_encode($value) : $value));
+                $this->line("  {$key}: ".(is_array($value) ? json_encode($value) : $value));
             }
         }
     }
@@ -207,8 +209,9 @@ class BuildApkCommand extends Command
 
     private function loadConfigFromFile(string $path): ?ApkBuildConfig
     {
-        if (!file_exists($path)) {
+        if (! file_exists($path)) {
             $this->error("配置文件不存在: {$path}");
+
             return null;
         }
 
@@ -216,7 +219,8 @@ class BuildApkCommand extends Command
         $data = json_decode($json, true);
 
         if (json_last_error() !== JSON_ERROR_NONE) {
-            $this->error('配置文件 JSON 格式错误: ' . json_last_error_msg());
+            $this->error('配置文件 JSON 格式错误: '.json_last_error_msg());
+
             return null;
         }
 
