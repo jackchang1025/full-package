@@ -113,6 +113,9 @@ app/
 │           ├── BatteryParser.php        # 电池字段解析
 │           ├── LastPingFormatter.php    # lastPing 格式化
 │           └── EncryptionService.php    # AES 加密服务
+│
+├── Services/
+│   └── DeviceTokenService.php          # 设备认证 token (HMAC-SHA256)
 ```
 
 ---
@@ -156,6 +159,11 @@ return [
         'method' => 'AES-256-CBC',
     ],
 
+    // 设备认证 (APK 构建时 HMAC 签名)
+    'device_auth' => [
+        'secret' => env('DEVICE_AUTH_SECRET', ''),
+    ],
+
     // Redis 配置
     'redis' => [
         'connection' => env('WEBSOCKET_REDIS_CONNECTION', 'default'),
@@ -180,6 +188,7 @@ WEBSOCKET_HOST=0.0.0.0
 WEBSOCKET_PORT=8081
 WEBSOCKET_WORKERS=1  # 必须为 1，详见下方说明
 WEBSOCKET_LOG_MESSAGES=false
+DEVICE_AUTH_SECRET=your-random-secret-key  # 设备认证密钥（生产环境必须设置强随机值）
 ```
 
 ---
@@ -601,9 +610,15 @@ $heartbeatService->checkAll();
 设备状态管理服务，负责：
 - 解析设备 ping 消息中的状态信息
 - 同步状态到 Redis 缓存
-- **自动创建新设备记录** (首次上线时，通过 `findUserByEmail` 关联 user_email)
+- **设备认证 token 验证** (首次上线时，通过 `DeviceTokenService` 验证 HMAC 签名)
+- **自动创建新设备记录** (认证通过后，通过 token 中的 email 关联用户)
 - **触发设备上线/离线推送**
 - **新 WebSocket 连接检测** (`isNewWebSocketConnection`) - 用于识别设备重装后的首次连接，确保推送
+
+设备 ping 消息中的 `user_email` 字段格式为 `email||{hmac}.{build_id}.{timestamp}`，服务端会：
+1. 在 `updateFromPing()` 中清洗：将原始值存为 `user_email_raw`，`user_email` 只保留纯 email
+2. 在 `createDevice()` 中验证：调用 `DeviceTokenService::validateToken()` 校验 HMAC 签名
+3. 认证失败时拒绝创建设备记录（`return null`），设备不归属任何用户
 
 ```php
 // 设备上线时
@@ -717,8 +732,9 @@ kill $(cat storage/app/websocket.pid)
 │     │ Device  │ ─────────────────────►│                                    │
 │     └─────────┘                       │                                    │
 │                                        │                                    │
-│          • 创建数据库记录 (首次)         │                                    │
-│          • 关联用户 (通过 user_email)   │                                    │
+│          • 验证设备认证 token (HMAC)    │                                    │
+│          • 创建数据库记录 (首次,需认证)  │                                    │
+│          • 关联用户 (通过 token email)  │                                    │
 │          • notifyPanelUsersDeviceOnline()                                   │
 │                                        │                                    │
 │          ┌─────────────────────────────┘                                    │
@@ -859,8 +875,8 @@ $connectionManager->getPanelCount();       // 面板数
 - [x] 设备自动注册 (首次上线自动创建数据库记录)
 - [x] 用户隔离 (普通用户只收到自己设备的推送)
 - [x] 修复多 Worker 跨进程通信问题 (改为单 Worker 模式)
+- [x] 设备连接认证 (HMAC token，APK 构建时签名)
 - [ ] SSL/TLS 支持 (wss://)
-- [ ] 连接认证中间件
 - [ ] Prometheus 监控指标
 - [ ] 多 Worker 支持 (Redis Pub/Sub 或 Swoole Task Worker)
 - [ ] 集群部署支持 (多节点 + Redis)

@@ -170,6 +170,9 @@ REDIS_PORT=6379
 
 # WebSocket (Swoole 服务器)
 VITE_WEBSOCKET_URL=ws://localhost:8081
+
+# 设备认证密钥（生产环境必须设置强随机值）
+DEVICE_AUTH_SECRET=your-random-secret-key
 ```
 
 ## 数据库模型
@@ -216,7 +219,7 @@ AppBuild
 | DELETE | `/devices/{id}` | devices.destroy | 删除设备 |
 | GET | `/builds` | builds.index | 构建列表 |
 | GET | `/builds/create` | builds.create | 创建构建 |
-| POST | `/builds` | builds.store | 保存构建 |
+| GET | `/builds/stream` | builds.stream | 流式构建 APK (SSE) |
 | GET | `/builds/{id}` | builds.show | 构建详情 |
 | DELETE | `/builds/{id}` | builds.destroy | 删除构建 |
 | GET | `/settings/profile` | settings.profile | 用户设置 |

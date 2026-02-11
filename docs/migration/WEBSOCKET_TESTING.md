@@ -55,7 +55,11 @@ tests/Feature/WebSocket/
 ├── CheckPhoneHandlerTest.php   # 设备列表查询 (14 tests)
 ├── DeviceHandlerTest.php       # 设备消息处理 (12 tests)
 ├── PanelHandlerTest.php        # 面板控制命令 (24 tests)
-└── PanelSendHandlerTest.php    # 面板数据请求 (34 tests)
+├── PanelSendHandlerTest.php    # 面板数据请求 (34 tests)
+├── SubscribeFunctionalTest.php # 订阅功能测试
+├── UserIsolationFunctionalTest.php # 用户隔离测试
+├── SubAccountTest.php          # 子账号测试
+└── DeviceAuthFunctionalTest.php # 设备认证功能测试 (6 tests)
 ```
 
 ### CheckPhoneHandlerTest
@@ -118,6 +122,19 @@ tests/Feature/WebSocket/
 | inject commands | 注入开/关 |
 | display commands | 显示 |
 
+### DeviceAuthFunctionalTest
+
+测试设备连接认证（HMAC-SHA256 token 验证），使用真实 WebSocket 服务器。
+
+| 测试项 | 描述 |
+|--------|------|
+| 有效 token 设备正常上线 | 使用 `MockDevice::generateTestToken()` 生成有效 token，Panel 收到 `deviceOnline` |
+| 无效 HMAC 拒绝 | 伪造 HMAC 签名，不创建设备记录，Panel 无推送 |
+| 无 token 纯 email 拒绝 | 格式错误的 `user_email`，不创建设备记录 |
+| 篡改 email 拒绝 | 用 userA 的 email 生成 token 后替换为 userB，验证失败 |
+| 已存在设备不受认证影响 | 数据库已有记录的设备，即使 token 无效也能正常 ping |
+| 空 email 拒绝 | `user_email` 为空，不创建设备记录 |
+
 ---
 
 ## E2E Tests 详解
@@ -173,6 +190,34 @@ await device.connect();
 device.sendPing();
 device.disconnect();
 ```
+
+### PHP MockDevice (Pest 功能测试)
+
+PHP 版 `MockDevice` 自动生成有效的设备认证 token：
+
+```php
+use Tests\Support\MockDevice;
+
+// 自动生成有效 token（user_email 不含 || 时自动调用 generateTestToken）
+$device = new MockDevice($deviceId, [
+    'host' => $host,
+    'port' => $port,
+    'user_email' => 'user@example.com',  // 自动变为 email||hmac.buildId.timestamp
+]);
+
+// 手动生成有效 token
+$token = MockDevice::generateTestToken('user@example.com', $buildId);
+
+// 生成无效 token（用于测试认证拒绝）
+$invalidToken = MockDevice::generateInvalidToken('user@example.com');
+
+// 绕过自动 token 生成：传入包含 || 的值
+$device = new MockDevice($deviceId, [
+    'user_email' => 'user@example.com||fake.1.0',  // 直接使用，不自动生成
+]);
+```
+
+测试服务器通过 `WebSocketTestServer::getTestSecret()` 提供固定密钥，与 `MockDevice::generateTestToken()` 共享。
 
 #### MockPanel
 

@@ -146,21 +146,16 @@ GET /builds
 }
 ```
 
-### 创建构建
+### 流式构建 APK
 
 ```
-POST /builds
-Content-Type: application/json
-
-{
-    "name": "My App",
-    "package_name": "com.example.myapp",
-    "template_id": 1,
-    "is_custom": false
-}
+GET /builds/stream?app_name=...&package_name=...&...
+Accept: text/event-stream
 ```
 
-**响应:** 重定向到构建详情
+通过 SSE (Server-Sent Events) 实时返回构建进度。构建时自动生成设备认证 token（HMAC-SHA256 签名），写入 APK。
+
+> 注意：`POST /builds` 已移除，所有 APK 构建统一使用 `stream` 方式。
 
 ### 获取构建详情
 
@@ -343,3 +338,4 @@ window.Echo.private(`user.${userId}`)
 | package_name | string | 包名 |
 | status | enum | pending/building/completed/failed |
 | is_custom | boolean | 是否自定义构建 |
+| device_token | text | 设备认证 token（HMAC-SHA256 签名） |

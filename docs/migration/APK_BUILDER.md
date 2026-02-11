@@ -394,12 +394,52 @@ try {
 | `Config validation failed` | 配置参数无效 | 检查必填字段和格式 |
 | `Signing failed` | 签名失败 | 检查 keystore 和签名工具 |
 
+## 设备认证 Token
+
+APK 构建时会自动生成 HMAC-SHA256 签名的设备认证 token，写入 APK 的 `[USER_MAIL]` 字段。设备上线时服务端验证此 token，防止伪造设备连接。
+
+### Token 格式
+
+```
+email||{hmac_hex}.{build_id}.{timestamp}
+```
+
+- `hmac_hex` = `HMAC-SHA256(DEVICE_AUTH_SECRET, email|build_id|timestamp)`
+- `||` 作为分隔符（email 中不会出现）
+- 不设过期时间（APK 生命周期 = token 生命周期）
+
+### 构建流程中的 Token 生成
+
+`AppBuildController::stream()` 方法采用"先建记录再构建"模式：
+
+1. `AppBuild::create()` 获取 `build->id`
+2. `DeviceTokenService::generateToken($email, $build->id)` 生成 token
+3. 将 `email||token` 作为 `email` 传入 `ApkBuildConfig`，写入 APK
+4. `build_config` 中存储纯 email（不含 token），避免泄露签名
+5. 构建成功后更新 `file_path`、`device_token` 等字段；失败则删除记录
+
+### ApkBuildConfig 兼容
+
+`email` 字段支持 `email||token` 格式，验证时只校验 `||` 前的 email 部分。长度限制为 512 字符（HMAC token 约 100+ 字符）。
+
+### 环境变量
+
+```bash
+# .env — 生产环境必须设置强随机值
+DEVICE_AUTH_SECRET=your-random-secret-key
+```
+
+详见 [WEBSOCKET_SERVER_PHP.md](./WEBSOCKET_SERVER_PHP.md) 中的设备认证章节。
+
+---
+
 ## 安全注意事项
 
 1. **命令注入防护**：所有外部命令参数都使用 `escapeshellarg()` 转义
 2. **配置验证**：`ApkBuildConfig::validate()` 验证所有输入
 3. **加密密钥**：生产环境必须修改默认加密配置
 4. **临时文件清理**：构建完成后自动清理临时目录
+5. **设备认证**：APK 构建时注入 HMAC token，服务端验证防止伪造设备
 
 ## 迁移自旧系统
 
