@@ -127,6 +127,9 @@ class UserController extends Controller
 
     public function destroy(Request $request, User $user): RedirectResponse
     {
+        // 级联删除子账号（触发应用层清理：权限、软删除等）
+        $user->subAccounts()->each(fn (User $sub) => $sub->forceDelete());
+
         $user->forceDelete();
 
         return $this->redirectToIndex(expanded: $request->input('expanded'))

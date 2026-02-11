@@ -24,6 +24,7 @@
 | 说明 | 位置 |
 |------|------|
 | 用户表子账号字段 | `database/migrations/..._add_sub_account_fields_to_users_table.php`：`parent_id`、`max_sub_accounts` |
+| 外键级联策略 | `database/migrations/..._change_parent_id_cascade_on_delete.php`：`parent_id` 外键由 `nullOnDelete` 改为 `cascadeOnDelete`，父账号物理删除时数据库层自动级联删除子账号 |
 | User 模型 | `app/Models/User.php`：`parent()`、`subAccounts()`、`isSubAccount()`、`getResourceOwnerId()`、`canCreateSubAccount()`、`hasActiveSubscription()` 重写、`scopeParentOnly`、`scopeSearch` |
 
 资源归属统一使用 `User::getResourceOwnerId()`（子账号返回主账号 id），设备、APK 构建等均按此查询。
@@ -54,7 +55,8 @@
 
 ### 2.4 编辑、创建、删除与重定向
 
-- **更新/创建/删除**：使用 Form Request 校验（`UpdateUserRequest`、`StoreUserRequest`）；更新时子账号的 `subscription_expires_at` 与主账号同步。
+- **更新/创建**：使用 Form Request 校验（`UpdateUserRequest`、`StoreUserRequest`）；更新时子账号的 `subscription_expires_at` 与主账号同步。
+- **删除（级联）**：`UserController::destroy()` 先在应用层遍历 `forceDelete()` 所有子账号（触发 Eloquent 事件与 Spatie 权限清理），再 `forceDelete()` 父账号。数据库层 `parent_id` 外键同样配置了 `cascadeOnDelete` 作为兜底，确保子账号记录不会成为孤儿。子账号关联的 `devices`、`app_builds` 等资源通过各自表的 `CASCADE` 外键自动清理。
 - **重定向**：编辑/创建成功后重定向回 `admin.users.index`，并带上 `selected`（当前用户 id）和请求中的 `expanded`，以保持树展开状态；删除后仅带 `expanded`。
 
 ---
@@ -179,7 +181,7 @@
 
 | 类型 | 路径 |
 |------|------|
-| 迁移 | `app/database/migrations/..._add_sub_account_fields_to_users_table.php` |
+| 迁移 | `app/database/migrations/..._add_sub_account_fields_to_users_table.php`，`app/database/migrations/..._change_parent_id_cascade_on_delete.php` |
 | 模型 | `app/Models/User.php` |
 | 种子 | `app/database/seeders/RolePermissionSeeder.php` |
 | 权限配置/文案 | `app/config/permission_labels.php`，`app/lang/zh_CN/permissions.php`，`app/lang/en/permissions.php` |
@@ -188,6 +190,7 @@
 | 用户管理页 | `app/resources/ts/Pages/Admin/Users/Index.vue` |
 | 通用状态弹框 | `app/resources/ts/Components/StatusModal.vue` |
 | 子账号（用户端） | `app/Http/Controllers/SubAccountController.php`，`app/resources/ts/Pages/SubAccounts/*.vue` |
+| 测试 | `app/tests/Feature/SubAccountTest.php`（含级联删除测试） |
 
 ---
 
