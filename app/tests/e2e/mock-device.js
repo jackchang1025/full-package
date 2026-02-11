@@ -363,7 +363,6 @@ class MockPanel {
         this.isConnected = false;
         this.subscribedDevice = null;
         this.userEmail = options.userEmail || 'GCt/Suj1maxHZ3aCykJufw==';
-        this.usercheck = options.usercheck || 'test-hash-123';
         this.messageHandlers = [];
     }
 
@@ -427,7 +426,6 @@ class MockPanel {
             itype: 'slr_panel',
             subc: 'join',
             pid: deviceId,
-            usercheck: this.usercheck,
         });
     }
 
@@ -480,7 +478,6 @@ class MockPanel {
             itype: 'slr_panelsend',
             subc: 'SMS',
             pid: this.subscribedDevice,
-            usercheck: this.usercheck,
         });
     }
 
@@ -490,7 +487,6 @@ class MockPanel {
             itype: 'slr_panelsend',
             subc: 'Contacts',
             pid: this.subscribedDevice,
-            usercheck: this.usercheck,
         });
     }
 
@@ -501,7 +497,6 @@ class MockPanel {
             subc: 'files',
             pid: this.subscribedDevice,
             filepath,
-            usercheck: this.usercheck,
         });
     }
 
@@ -511,7 +506,6 @@ class MockPanel {
             itype: 'slr_panelsend',
             subc: 'LOADAPPS',
             pid: this.subscribedDevice,
-            usercheck: this.usercheck,
         });
     }
 
@@ -521,7 +515,6 @@ class MockPanel {
             itype: 'slr_panelsend',
             subc: 'loc',
             pid: this.subscribedDevice,
-            usercheck: this.usercheck,
         });
     }
 
@@ -532,7 +525,6 @@ class MockPanel {
             subc: 'screen',
             pid: this.subscribedDevice,
             screentype: 'SK',
-            usercheck: this.usercheck,
         });
     }
 
@@ -543,7 +535,6 @@ class MockPanel {
             subc: 'screen',
             pid: this.subscribedDevice,
             screentype: 'SKOFF',
-            usercheck: this.usercheck,
         });
     }
 

@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Device\UpdateDeviceRequest;
 use App\Models\Device;
+use App\Services\PanelTokenService;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -21,11 +22,11 @@ class DeviceController extends Controller
                 $q->where('uuid', 'like', "%{$search}%")
                     ->orWhere('name', 'like', "%{$search}%")
                     ->orWhere('remark', 'like', "%{$search}%")
-                    ->orWhereHas('user', fn($q) => $q->where('email', 'like', "%{$search}%")->orWhere('username', 'like', "%{$search}%"));
+                    ->orWhereHas('user', fn ($q) => $q->where('email', 'like', "%{$search}%")->orWhere('username', 'like', "%{$search}%"));
             });
         }
 
-        $devices = $query->orderByDesc('last_seen_at')->paginate(50)->through(fn(Device $device) => [
+        $devices = $query->orderByDesc('last_seen_at')->paginate(50)->through(fn (Device $device) => [
             'id' => $device->id,
             'uuid' => $device->uuid,
             'name' => $device->name ?? '',
@@ -92,7 +93,7 @@ class DeviceController extends Controller
 
         return Inertia::render('Devices/Control', [
             'device' => $device,
-            'usercheck' => md5($admin->email . config('app.key')),
+            'wsToken' => (new PanelTokenService)->generateToken($admin->id, 'admin'),
             'backUrl' => route('admin.devices.index'),
         ]);
     }

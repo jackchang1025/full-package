@@ -59,7 +59,9 @@ tests/Feature/WebSocket/
 ├── SubscribeFunctionalTest.php # 订阅功能测试
 ├── UserIsolationFunctionalTest.php # 用户隔离测试
 ├── SubAccountTest.php          # 子账号测试
-└── DeviceAuthFunctionalTest.php # 设备认证功能测试 (6 tests)
+├── DeviceAuthFunctionalTest.php # 设备认证功能测试 (6 tests)
+├── PanelAuthFunctionalTest.php  # Panel 认证功能测试 (9 tests)
+└── PanelDeviceControlFunctionalTest.php # Panel 设备权限测试
 ```
 
 ### CheckPhoneHandlerTest
@@ -134,6 +136,22 @@ tests/Feature/WebSocket/
 | 篡改 email 拒绝 | 用 userA 的 email 生成 token 后替换为 userB，验证失败 |
 | 已存在设备不受认证影响 | 数据库已有记录的设备，即使 token 无效也能正常 ping |
 | 空 email 拒绝 | `user_email` 为空，不创建设备记录 |
+
+### PanelAuthFunctionalTest
+
+测试 Panel WebSocket 连接认证（HMAC token 验证），使用真实 WebSocket 服务器。
+
+| 测试项 | 描述 |
+|--------|------|
+| 有效 token subscribe 成功 | 使用 `MockPanel::generateTestPanelToken()` 生成有效 token，收到设备列表 |
+| 无 token subscribe 被拒绝 | 不携带 token 的 subscribe 消息返回 `success: false` |
+| 无效 HMAC subscribe 被拒绝 | 伪造 HMAC 签名的 token 返回认证失败 |
+| 过期 token subscribe 被拒绝 | 超过 TTL 的 token 返回认证失败 |
+| 有效 token join 成功 | Panel 携带 token join 设备，收到 `joinResponse` |
+| 无效 token join 被拒绝 | 伪造 token 的 join 消息返回错误 |
+| 过期 token join 被拒绝 | 超过 TTL 的 token join 消息返回错误 |
+| 无 token join 被拒绝 | 未认证连接发送 panel 消息被拒绝 |
+| 子账号可控制父账号设备 | 子账号 token 认证后可 join 父账号的设备 |
 
 ---
 
@@ -253,6 +271,31 @@ panel.sendNavigation('ho');  // ho=Home, bak=Back, rec=Recent
 panel.onMessage((msg) => console.log(msg));
 
 panel.disconnect();
+```
+
+### PHP MockPanel (Pest 功能测试)
+
+PHP 版 `MockPanel` 支持 HMAC token 认证：
+
+```php
+use Tests\Support\MockPanel;
+
+// 创建 Panel 并自动生成 token
+$panel = new MockPanel($encryptedEmail, [
+    'host' => $host,
+    'port' => $port,
+    'token' => MockPanel::generateTestPanelToken('user@example.com'),
+]);
+
+// subscribe 和 join 消息自动携带 token
+$panel->subscribe();
+$panel->joinDevice($deviceId);
+
+// 生成无效 token (用于测试认证拒绝)
+$invalidToken = MockPanel::generateInvalidPanelToken();
+
+// 生成过期 token (用于测试 TTL 校验)
+$expiredToken = MockPanel::generateExpiredPanelToken('user@example.com');
 ```
 
 ---

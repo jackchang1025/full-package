@@ -54,6 +54,12 @@ return [
         'secret' => env('DEVICE_AUTH_SECRET', ''),
     ],
 
+    // Panel authentication (HMAC token for WebSocket subscribe)
+    'panel_auth' => [
+        'secret' => env('PANEL_AUTH_SECRET', env('DEVICE_AUTH_SECRET', '')),
+        'ttl' => (int) env('PANEL_AUTH_TTL', 300),
+    ],
+
     // Admin email (encrypted) - can view all devices
     'admin_email_encrypted' => 'GCt/Suj1maxHZ3aCykJufw==',
 

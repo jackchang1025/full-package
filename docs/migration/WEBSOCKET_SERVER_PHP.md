@@ -94,6 +94,11 @@ app/
 ├── app/
 │   ├── Console/Commands/
 │   │   └── WebSocketServe.php           # Artisan 启动命令
+│   ├── Http/Controllers/
+│   │   └── WebSocketTokenController.php # Panel WebSocket token 接口
+│   ├── Services/
+│   │   ├── DeviceTokenService.php       # 设备认证 token (HMAC-SHA256)
+│   │   └── PanelTokenService.php        # Panel 认证 token (HMAC-SHA256)
 │   └── WebSocket/
 │       ├── Server.php                   # Swoole 服务器主类
 │       ├── ConnectionManager.php        # 连接管理器
@@ -113,9 +118,6 @@ app/
 │           ├── BatteryParser.php        # 电池字段解析
 │           ├── LastPingFormatter.php    # lastPing 格式化
 │           └── EncryptionService.php    # AES 加密服务
-│
-├── Services/
-│   └── DeviceTokenService.php          # 设备认证 token (HMAC-SHA256)
 ```
 
 ---
@@ -164,6 +166,12 @@ return [
         'secret' => env('DEVICE_AUTH_SECRET', ''),
     ],
 
+    // Panel 认证 (WebSocket 连接 HMAC 签名)
+    'panel_auth' => [
+        'secret' => env('PANEL_AUTH_SECRET', env('DEVICE_AUTH_SECRET', '')),
+        'ttl' => (int) env('PANEL_AUTH_TTL', 300),  // Token 有效期 (秒)
+    ],
+
     // Redis 配置
     'redis' => [
         'connection' => env('WEBSOCKET_REDIS_CONNECTION', 'default'),
@@ -189,6 +197,8 @@ WEBSOCKET_PORT=8081
 WEBSOCKET_WORKERS=1  # 必须为 1，详见下方说明
 WEBSOCKET_LOG_MESSAGES=false
 DEVICE_AUTH_SECRET=your-random-secret-key  # 设备认证密钥（生产环境必须设置强随机值）
+PANEL_AUTH_SECRET=your-panel-secret-key   # Panel 认证密钥（默认回退到 DEVICE_AUTH_SECRET）
+PANEL_AUTH_TTL=300                        # Panel token 有效期（秒，默认 5 分钟）
 ```
 
 ---
@@ -334,7 +344,7 @@ $server->start();
 | fdToPhoneId | fd (string) | phone_id, client_type | fd → 设备ID 映射 |
 | phoneIdToFd | phone_id | fd (int) | 设备ID → fd 映射 |
 | panelSubscriptions | fd (string) | phone_id | 面板订阅关系 (单设备控制) |
-| panelUserSubscriptions | fd (string) | email_encrypted, is_admin | Panel 用户订阅 (推送模式) |
+| panelUserSubscriptions | fd (string) | email_encrypted, is_admin, user_id | Panel 用户订阅 (推送模式) |
 
 **主要方法：**
 
@@ -346,7 +356,13 @@ $connectionManager->registerDevice($fd, $phoneId);
 $connectionManager->registerPanel($fd, $phoneId);
 
 // 注册 Panel 用户订阅 (推送模式)
-$connectionManager->registerPanelUser($fd, $emailEncrypted, $isAdmin);
+$connectionManager->registerPanelUser($fd, $emailEncrypted, $isAdmin, $userId);
+
+// 获取已认证的面板用户信息
+$connectionManager->getPanelUser($fd);  // 返回 ['email_encrypted', 'is_admin', 'user_id'] 或 false
+
+// 设备权限校验 (admin 放行，普通用户校验 device.user_id)
+$connectionManager->isPanelAuthorizedForDevice($fd, $phoneId);
 
 // 发送消息到设备
 $connectionManager->sendToDevice($phoneId, ['type' => 'xxx', ...]);
@@ -402,8 +418,16 @@ if ($subc === 'ping' && $itype === null) {
     $this->connectionManager->send($fd, ['type' => 'pong', 'timestamp' => time()]);
     return;
 }
-// 测试环境专用：重置服务器状态
-if ($subc === '__test_reset' && app()->environment('local', 'testing')) { ... }
+
+// Panel 认证拦截：slr_panel / slr_panelsend 消息需要已认证的连接
+// 未认证的 fd 尝试从消息中提取 token 进行内联认证
+// 认证失败则拒绝消息
+if ($itype === 'slr_panel' || $itype === 'slr_panelsend') {
+    if (!$this->connectionManager->getPanelUser($fd)) {
+        // 尝试内联 token 认证 (join 消息携带 token)
+        // 认证失败 → 返回错误，拒绝处理
+    }
+}
 
 // 根据 itype 分发到 DeviceHandler / PanelHandler / PanelSendHandler
 match ($itype) {
@@ -566,16 +590,17 @@ $heartbeatService->checkAll();
 
 ### SubscribeHandler
 
-处理面板订阅请求，**subscribe 和 checkphone 统一由此 Handler 处理**。注册 Panel 用户订阅，并立即返回完整设备列表和统计数据：
+处理面板订阅请求，**subscribe 和 checkphone 统一由此 Handler 处理**。验证 HMAC token 后注册 Panel 用户订阅，并立即返回完整设备列表和统计数据：
 
 ```php
-// 请求 (subscribe 或 checkphone)
+// 请求 (subscribe 或 checkphone，必须携带 token)
 {
     "subc": "subscribe",  // 或 "checkphone"
-    "email": "user@example.com"
+    "email": "user@example.com",
+    "token": "{hmac}.{user_id}.{guard}.{timestamp}"
 }
 
-// 响应
+// 响应 (成功)
 {
     "type": "subscribe",
     "success": true,
@@ -597,9 +622,16 @@ $heartbeatService->checkAll();
         "offline": 7
     }
 }
+
+// 响应 (认证失败)
+{
+    "type": "subscribe",
+    "success": false,
+    "error": "Authentication failed"
+}
 ```
 
-**流程**：根据 email 判断 isAdmin → 注册 `registerPanelUser` → 调用 `getDeviceListForUser` / `getDeviceStats` → 返回 devices + stats。
+**流程**：验证 token (HMAC + TTL) → 查库确认用户存在 → 判断 isAdmin → 注册 `registerPanelUser($fd, $ownerEmail, $isAdmin, $ownerId)` → 调用 `getDeviceListForUser` / `getDeviceStats` → 返回 devices + stats。
 
 ### CheckPhoneHandler (保留)
 
@@ -825,7 +857,7 @@ kill $(cat storage/app/websocket.pid)
 ### 面板控制流程
 
 ```
-1. Panel → Server: {"itype":"slr_panel","pid":"xxx","subc":"join","usercheck":"..."}
+1. Panel → Server: {"itype":"slr_panel","pid":"xxx","subc":"join","token":"..."}
 2. Server: 注册面板订阅
 3. Server → Panel: {"type":"joinResponse","pid":"xxx","is_online":true,"phoneInfo":{...}}
 4. Panel → Server: {"itype":"slr_panel","pid":"xxx","subc":"screen","comand":"snap"}
@@ -833,6 +865,77 @@ kill $(cat storage/app/websocket.pid)
 6. Device → Server: {"itype":"Slr_client","pid":"xxx","subc":"screenshot","img":"..."}
 7. Server → Panel: {"type":"screenshot","data":"...","pid":"xxx","wmob":"...","hmob":"..."}
 ```
+
+---
+
+## Panel 连接认证
+
+### 认证架构
+
+Panel（管理面板）WebSocket 连接使用 HMAC-SHA256 token 认证，防止未授权访问：
+
+```
+浏览器                    Laravel HTTP                 Swoole WebSocket
+  │                          │                              │
+  │── GET /ws-token ────────►│                              │
+  │   (携带 session cookie)  │                              │
+  │◄── { token: "hmac..." } ─│                              │
+  │                          │                              │
+  │── ws://host:8081 ───────────────────────────────────────►│
+  │── subscribe { token } ──────────────────────────────────►│
+  │                          │              验证 HMAC + TTL  │
+  │                          │              查库确认用户存在  │
+  │◄── subscribe response ──────────────────────────────────│
+```
+
+### Token 格式
+
+```
+{hmac_hex}.{user_id}.{guard}.{timestamp}
+```
+
+- `hmac_hex` = `HMAC-SHA256(secret, "user_id|guard|timestamp")`
+- `guard` = `web`（普通用户）或 `admin`（管理员）
+- TTL 默认 300 秒（5 分钟），可通过 `PANEL_AUTH_TTL` 配置
+- 使用 `hash_equals()` 防时序攻击
+
+### PanelTokenService
+
+```php
+use App\Services\PanelTokenService;
+
+$service = new PanelTokenService();
+
+// 生成 token
+$token = $service->generateToken($userId, 'web');  // 普通用户
+$token = $service->generateToken($adminId, 'admin');  // 管理员
+
+// 验证 token
+$result = $service->validateToken($token);
+// ['authenticated' => true, 'user_id' => 1, 'guard' => 'web']
+// ['authenticated' => false, 'error' => 'Token expired']
+```
+
+### WebSocketTokenController
+
+HTTP 端点，为已认证用户生成 WebSocket token：
+
+```
+GET /ws-token          → 普通用户 (auth:web)
+GET /admin/ws-token    → 管理员 (auth:admin)
+```
+
+返回：`{ "token": "{hmac}.{user_id}.{guard}.{timestamp}" }`
+
+### 认证流程
+
+1. **subscribe/checkphone**：消息必须携带 `token` 字段，SubscribeHandler 验证后注册 `panelUserSubscriptions`
+2. **join**：首条 `slr_panel` 消息携带 `token`，MessageRouter 内联认证后注册 fd
+3. **后续消息**：fd 已注册，无需再携带 token
+4. **设备权限**：PanelHandler / PanelSendHandler 入口校验 `isPanelAuthorizedForDevice()`
+   - 管理员 → 放行所有设备
+   - 普通用户 → 仅允许控制自己的设备 (`device.user_id === panel.user_id`)
+   - 子账号 → 可控制父账号的设备
 
 ---
 
@@ -876,6 +979,9 @@ $connectionManager->getPanelCount();       // 面板数
 - [x] 用户隔离 (普通用户只收到自己设备的推送)
 - [x] 修复多 Worker 跨进程通信问题 (改为单 Worker 模式)
 - [x] 设备连接认证 (HMAC token，APK 构建时签名)
+- [x] Panel 连接认证 (HMAC token，HTTP 端生成，subscribe/join 时验证)
+- [x] 设备权限校验 (普通用户只能控制自己的设备，管理员可控制所有设备)
+- [x] 移除旧 usercheck 字段 (md5(email+app_key) 已废弃)
 - [ ] SSL/TLS 支持 (wss://)
 - [ ] Prometheus 监控指标
 - [ ] 多 Worker 支持 (Redis Pub/Sub 或 Swoole Task Worker)

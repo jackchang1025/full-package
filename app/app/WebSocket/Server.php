@@ -20,16 +20,22 @@ use Swoole\WebSocket\Server as SwooleServer;
 final class Server
 {
     private SwooleServer $server;
+
     private ConnectionManager $connectionManager;
+
     private MessageRouter $messageRouter;
+
     private HeartbeatService $heartbeatService;
 
     /**
      * 共享内存表 - 必须在 server->start() 之前创建，才能在所有 Worker 间共享
      */
     private Table $fdToPhoneId;
+
     private Table $phoneIdToFd;
+
     private Table $panelSubscriptions;
+
     private Table $panelUserSubscriptions;
 
     private const TABLE_SIZE = 65536;
@@ -88,6 +94,7 @@ final class Server
         $this->panelUserSubscriptions = new Table(self::TABLE_SIZE);
         $this->panelUserSubscriptions->column('email_encrypted', Table::TYPE_STRING, 128);
         $this->panelUserSubscriptions->column('is_admin', Table::TYPE_INT, 1);
+        $this->panelUserSubscriptions->column('user_id', Table::TYPE_INT);
         $this->panelUserSubscriptions->create();
 
         WebSocketLog::getLogger()->info('Shared tables initialized before server start');
@@ -147,7 +154,7 @@ final class Server
      * 重置所有数据库连接
      * 在 Swoole Worker 进程启动时调用，确保每个 Worker 有独立的连接
      *
-     * @param bool $lazy 是否懒加载（不立即建立连接）
+     * @param  bool  $lazy  是否懒加载（不立即建立连接）
      */
     private function resetDatabaseConnections(bool $lazy = false): void
     {
@@ -156,7 +163,7 @@ final class Server
             DB::purge();
 
             // 如果不是懒加载模式，立即重新建立连接
-            if (!$lazy) {
+            if (! $lazy) {
                 DB::reconnect();
             }
         } catch (\Throwable $e) {
@@ -219,6 +226,7 @@ final class Server
             try {
                 $this->messageRouter->route($fd, $data);
                 WebSocketLog::getLogger()->info("Database connection recovered after retry {$attempt}: fd={$fd}");
+
                 return; // 成功，退出
             } catch (\Throwable $retryException) {
                 if ($attempt === $maxRetries) {

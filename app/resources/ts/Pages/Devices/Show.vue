@@ -60,7 +60,7 @@ interface Device {
 
 interface Props {
     device: Device;
-    usercheck: string;
+    wsToken?: string;
 }
 
 const props = defineProps<Props>();
@@ -160,7 +160,7 @@ const handleMessage = (msg: WebSocketInboundMessage) => {
 
 // 连接 WebSocket
 const handleConnect = () => {
-    connect(props.device.uuid, props.usercheck);
+    connect(props.device.uuid, props.wsToken ?? '');
 };
 
 // 断开 WebSocket

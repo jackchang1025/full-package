@@ -13,18 +13,21 @@ use Swoole\WebSocket\Server as SwooleServer;
 class ConnectionManager
 {
     private SwooleServer $server;
+
     private Table $fdToPhoneId;
+
     private Table $phoneIdToFd;
+
     private Table $panelSubscriptions;
+
     private Table $panelUserSubscriptions;
 
     /**
-     * @param SwooleServer $server
-     * @param array<string, Table> $tables 预先创建的共享内存表，必须包含:
-     *   - fdToPhoneId: fd -> phoneId/clientType 映射
-     *   - phoneIdToFd: phoneId -> fd 映射
-     *   - panelSubscriptions: panel fd -> phoneId 订阅
-     *   - panelUserSubscriptions: panel fd -> email/isAdmin
+     * @param  array<string, Table>  $tables  预先创建的共享内存表，必须包含:
+     *                                        - fdToPhoneId: fd -> phoneId/clientType 映射
+     *                                        - phoneIdToFd: phoneId -> fd 映射
+     *                                        - panelSubscriptions: panel fd -> phoneId 订阅
+     *                                        - panelUserSubscriptions: panel fd -> email/isAdmin
      */
     public function __construct(SwooleServer $server, array $tables)
     {
@@ -98,18 +101,21 @@ class ConnectionManager
     public function getDeviceFd(string $phoneId): ?int
     {
         $data = $this->phoneIdToFd->get($phoneId);
+
         return $data !== false ? $data['fd'] : null;
     }
 
     public function getPhoneId(int $fd): ?string
     {
         $data = $this->fdToPhoneId->get((string) $fd);
+
         return $data !== false ? $data['phone_id'] : null;
     }
 
     public function getClientType(int $fd): ?string
     {
         $data = $this->fdToPhoneId->get((string) $fd);
+
         return $data !== false ? $data['client_type'] : null;
     }
 
@@ -149,15 +155,16 @@ class ConnectionManager
         $fd = $this->getDeviceFd($phoneId);
 
         if ($fd === null) {
-            WebSocketLog::getLogger()->warning("sendToDevice failed: device not found", [
+            WebSocketLog::getLogger()->warning('sendToDevice failed: device not found', [
                 'phone_id' => $phoneId,
                 'data_type' => $data['type'] ?? 'unknown',
                 'subc' => $data['subc'] ?? 'unknown',
             ]);
+
             return false;
         }
 
-        WebSocketLog::getLogger()->debug("sendToDevice", [
+        WebSocketLog::getLogger()->debug('sendToDevice', [
             'phone_id' => $phoneId,
             'fd' => $fd,
             'data' => $data,
@@ -179,15 +186,17 @@ class ConnectionManager
     {
         // 单 Worker 模式下 isEstablished() 可以正常工作
         // 如果需要多 Worker 支持，需要改用 Redis Pub/Sub 或 Swoole Task Worker
-        if (!$this->server->isEstablished($fd)) {
+        if (! $this->server->isEstablished($fd)) {
             return false;
         }
 
         try {
             $json = json_encode($data, JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR);
+
             return $this->server->push($fd, $json);
         } catch (\JsonException $e) {
             WebSocketLog::getLogger()->error("JSON encode error: fd={$fd}", ['error' => $e->getMessage()]);
+
             return false;
         }
     }
@@ -197,7 +206,7 @@ class ConnectionManager
         $json = json_encode($data, JSON_UNESCAPED_UNICODE);
 
         foreach ($this->server->connections as $fd) {
-            if (!$this->server->isEstablished($fd)) {
+            if (! $this->server->isEstablished($fd)) {
                 continue;
             }
 
@@ -225,6 +234,7 @@ class ConnectionManager
     public function getDeviceStatus(string $phoneId): array
     {
         $key = WebSocketConfig::deviceStatusKey($phoneId);
+
         return Redis::hgetall($key) ?: [];
     }
 
@@ -312,17 +322,55 @@ class ConnectionManager
         WebSocketLog::getLogger()->info('All connection tables reset (test mode)');
     }
 
-    public function registerPanelUser(int $fd, string $emailEncrypted, bool $isAdmin = false): void
+    public function registerPanelUser(int $fd, string $emailEncrypted, bool $isAdmin = false, ?int $userId = null): void
     {
         $this->panelUserSubscriptions->set((string) $fd, [
             'email_encrypted' => $emailEncrypted,
             'is_admin' => $isAdmin ? 1 : 0,
+            'user_id' => $userId ?? 0,
         ]);
     }
 
     public function unregisterPanelUser(int $fd): void
     {
         $this->panelUserSubscriptions->del((string) $fd);
+    }
+
+    public function getPanelUser(int $fd): array|false
+    {
+        $data = $this->panelUserSubscriptions->get((string) $fd);
+
+        return $data !== false ? $data : false;
+    }
+
+    public function isPanelAuthorizedForDevice(int $fd, string $phoneId): bool
+    {
+        $panelUser = $this->getPanelUser($fd);
+
+        if ($panelUser === false) {
+            return false;
+        }
+
+        // Admin can access all devices
+        if ($panelUser['is_admin'] === 1) {
+            return true;
+        }
+
+        $userId = $panelUser['user_id'];
+        if ($userId === 0) {
+            return false;
+        }
+
+        // Check device ownership
+        \Illuminate\Support\Facades\DB::reconnect();
+        $device = \App\Models\Device::where('uuid', $phoneId)->first();
+
+        // Device not yet in DB (may not be registered yet) — allow
+        if ($device === null) {
+            return true;
+        }
+
+        return $device->user_id === $userId;
     }
 
     public function notifyPanelUsersDeviceOnline(string $phoneId, int $userId, array $phoneInfo): void
@@ -342,7 +390,7 @@ class ConnectionManager
             return;
         }
 
-        $payload = fn(?int $uid) => [
+        $payload = fn (?int $uid) => [
             'type' => 'deviceUpdate',
             'pid' => $phoneId,
             'phoneInfo' => $phoneInfo,
@@ -360,7 +408,7 @@ class ConnectionManager
         $statusType = $isOnline ? 'online' : 'offline';
         WebSocketLog::getLogger()->debug("Notifying panels: device={$phoneId}, status={$statusType}");
 
-        $payload = fn(?int $uid) => [
+        $payload = fn (?int $uid) => [
             'type' => $isOnline ? 'deviceOnline' : 'deviceOffline',
             'pid' => $phoneId,
             'phoneInfo' => $isOnline ? $phoneInfo : null,
@@ -466,7 +514,7 @@ class ConnectionManager
         return $query->orderByDesc('is_online')
             ->orderByDesc('last_seen_at')
             ->get()
-            ->map(fn($device) => $this->formatDeviceForList($device))
+            ->map(fn ($device) => $this->formatDeviceForList($device))
             ->toArray();
     }
 

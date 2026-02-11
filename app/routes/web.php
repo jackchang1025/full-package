@@ -12,6 +12,7 @@ use App\Http\Controllers\BuildAssetController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DeviceController;
 use App\Http\Controllers\SubAccountController;
+use App\Http\Controllers\WebSocketTokenController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -27,6 +28,7 @@ Route::get('/download/{build}', [AppBuildController::class, 'download'])->name('
 
 $userEntryPath = trim((string) config('site.user_entry_path', ''), '/');
 Route::prefix($userEntryPath)->middleware(['auth', 'subscription'])->group(function () {
+    Route::get('/ws-token', WebSocketTokenController::class)->name('ws.token');
     Route::get('/home', [DashboardController::class, 'index'])->name('dashboard');
     Route::get('/dashboard', [DashboardController::class, 'index']);
 
@@ -74,7 +76,7 @@ Route::prefix($userEntryPath)->middleware(['auth', 'subscription'])->group(funct
         Route::resource('sub-accounts', SubAccountController::class)->except(['show']);
     });
 
-    Route::get('/settings/profile', fn() => Inertia::render('Settings/Profile'))->name('settings.profile');
+    Route::get('/settings/profile', fn () => Inertia::render('Settings/Profile'))->name('settings.profile');
 });
 
 // 总管理员后台（独立 guard，独立路由）
@@ -84,7 +86,8 @@ Route::prefix($adminEntryPath)->name('admin.')->group(function () {
     Route::post('login', [AdminAuthController::class, 'login']);
 
     Route::middleware(['web', 'admin'])->group(function () {
-        Route::get('/', fn() => redirect()->route('admin.dashboard'))->name('index');
+        Route::get('ws-token', WebSocketTokenController::class)->name('ws.token');
+        Route::get('/', fn () => redirect()->route('admin.dashboard'))->name('index');
         Route::get('dashboard', [AdminDashboardController::class, 'index'])->name('dashboard');
         Route::post('logout', [AdminAuthController::class, 'logout'])->name('logout');
 

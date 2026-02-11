@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\WebSocket\Handlers;
 
+use App\Services\PanelTokenService;
 use App\WebSocket\ConnectionManager;
 use App\WebSocket\WebSocketLog;
 
@@ -18,44 +19,87 @@ final class SubscribeHandler
 
     public function handle(int $fd, array $data): void
     {
-        $email = $data['email'] ?? '';
+        $subc = $data['subc'] ?? 'subscribe';
 
-        if (empty($email)) {
-            WebSocketLog::getLogger()->warning("Subscribe: missing email, fd={$fd}");
-            $this->connectionManager->send($fd, [
-                'type' => 'subscribe',
-                'success' => false,
-                'error' => 'Email is required',
-            ]);
+        if ($subc === 'checkphone') {
+            (new CheckPhoneHandler($this->connectionManager))->handle($fd, $data);
+
             return;
         }
 
+        $token = $data['token'] ?? '';
+
+        if (empty($token)) {
+            WebSocketLog::getLogger()->warning("Subscribe: missing token, fd={$fd}");
+            $this->connectionManager->send($fd, [
+                'type' => 'subscribe',
+                'success' => false,
+                'error' => 'Token is required',
+            ]);
+
+            return;
+        }
+
+        $tokenService = new PanelTokenService;
+        $result = $tokenService->validateToken($token);
+
+        if (! $result['authenticated']) {
+            WebSocketLog::getLogger()->warning("Subscribe: invalid token, fd={$fd}");
+            $this->connectionManager->send($fd, [
+                'type' => 'subscribe',
+                'success' => false,
+                'error' => 'Invalid or expired token',
+            ]);
+
+            return;
+        }
+
+        $userId = $result['user_id'];
+        $guard = $result['guard'];
+
         \Illuminate\Support\Facades\DB::reconnect();
 
-        // 根据 admins 表判断是否为总管理员
-        $isAdmin = \App\Models\Admin::where('email', $email)->exists();
+        $isAdmin = $guard === 'admin';
 
-        WebSocketLog::getLogger()->info("Subscribe: fd={$fd}, email={$email}, isAdmin=" . ($isAdmin ? 'true' : 'false'));
+        if ($isAdmin) {
+            $user = \App\Models\Admin::find($userId);
+        } else {
+            $user = \App\Models\User::find($userId);
+        }
 
-        // 解析资源归属用户（子账号 → 父账号，主账号 → 自身）
-        $owner = $isAdmin ? null : $this->connectionManager->resolveResourceOwnerByEmail($email);
-        $ownerEmail = $owner['email'] ?? $email;
-        $ownerId = $owner['id'] ?? null;
+        if ($user === null) {
+            WebSocketLog::getLogger()->warning("Subscribe: user not found, fd={$fd}, userId={$userId}, guard={$guard}");
+            $this->connectionManager->send($fd, [
+                'type' => 'subscribe',
+                'success' => false,
+                'error' => 'User not found',
+            ]);
 
-        // 注册面板用户时使用归属用户的 email，确保与设备侧 email 一致
-        $this->connectionManager->registerPanelUser($fd, $ownerEmail, $isAdmin);
+            return;
+        }
 
-        // 获取用户 ID（管理员看全部，普通用户看归属用户的设备）
-        $userId = $isAdmin ? null : $ownerId;
+        // Resolve resource owner for sub-accounts
+        $ownerEmail = $user->email;
+        $ownerId = $isAdmin ? null : $userId;
 
-        // 获取设备列表和统计数据
-        // [core-dry] 复用 ConnectionManager 中的查询逻辑
-        $devices = $this->connectionManager->getDeviceListForUser($userId);
-        $stats = $this->connectionManager->getDeviceStats($userId);
+        if (! $isAdmin) {
+            $owner = $user->getResourceOwner();
+            $ownerEmail = $owner->email;
+            $ownerId = $owner->id;
+        }
+
+        WebSocketLog::getLogger()->info("Subscribe: fd={$fd}, userId={$userId}, guard={$guard}, isAdmin=".($isAdmin ? 'true' : 'false'));
+
+        // Register panel user with userId for device authorization
+        $this->connectionManager->registerPanelUser($fd, $ownerEmail, $isAdmin, $ownerId);
+
+        // Get device list and stats
+        $queryUserId = $isAdmin ? null : $ownerId;
+        $devices = $this->connectionManager->getDeviceListForUser($queryUserId);
+        $stats = $this->connectionManager->getDeviceStats($queryUserId);
 
         WebSocketLog::getLogger()->info("Subscribe: returning {$stats['total']} devices for fd={$fd}");
 
-        // 返回订阅成功响应（包含完整设备列表和统计数据）
         $this->connectionManager->send($fd, [
             'type' => 'subscribe',
             'success' => true,

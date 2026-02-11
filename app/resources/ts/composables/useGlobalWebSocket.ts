@@ -64,6 +64,7 @@ const hasReceivedWsData: Ref<boolean> = ref(false);
 const messageHandlers: Array<(msg: WebSocketInboundMessage) => void> = [];
 
 let userEmail: string = '';
+let wsTokenUrl: string = '';
 
 const clearReconnectTimer = () => {
     if (reconnectTimeout) {
@@ -88,12 +89,32 @@ const stopHeartbeat = () => {
     }
 };
 
+// 当前 token（由 fetchToken 获取）
+let currentToken: string = '';
+
+// 从 HTTP 端获取 WebSocket 认证 token
+const fetchToken = async (): Promise<string> => {
+    if (!wsTokenUrl) return '';
+    try {
+        const resp = await fetch(wsTokenUrl, {
+            credentials: 'same-origin',
+            headers: { 'Accept': 'application/json' },
+        });
+        if (!resp.ok) return '';
+        const data = await resp.json();
+        return data.token ?? '';
+    } catch {
+        return '';
+    }
+};
+
 // 发送订阅请求
 const sendSubscribe = () => {
-    if (socket?.readyState === WebSocket.OPEN && userEmail) {
+    if (socket?.readyState === WebSocket.OPEN && userEmail && currentToken) {
         socket.send(JSON.stringify({
             subc: 'subscribe',
             email: userEmail,
+            token: currentToken,
         }));
     }
 };
@@ -108,9 +129,9 @@ const scheduleReconnect = () => {
     reconnectAttempts++;
     connectionState.value = 'reconnecting';
 
-    reconnectTimeout = setTimeout(() => {
+    reconnectTimeout = setTimeout(async () => {
         if (userEmail) {
-            connectGlobal(userEmail);
+            await connectGlobal(userEmail, wsTokenUrl);
         }
     }, delay);
 };
@@ -293,14 +314,26 @@ const parseBatteryCharging = (batteryCharge: string | undefined): boolean => {
     return parts.length >= 1 && parts[0] === 't';
 };
 
-const connectGlobal = (email: string) => {
+const connectGlobal = async (email: string, tokenUrl: string = '') => {
     if (socket?.readyState === WebSocket.OPEN) {
         return;
     }
 
     userEmail = email;
+    if (tokenUrl) {
+        wsTokenUrl = tokenUrl;
+    }
     connectionState.value = 'connecting';
     lastError.value = null;
+
+    // Fetch token before connecting
+    currentToken = await fetchToken();
+    if (!currentToken) {
+        lastError.value = 'Token 获取失败';
+        connectionState.value = 'disconnected';
+        scheduleReconnect();
+        return;
+    }
 
     try {
         socket = new WebSocket(WEBSOCKET_URL);
@@ -339,6 +372,8 @@ const disconnectGlobal = () => {
     clearReconnectTimer();
     reconnectAttempts = 0;
     userEmail = '';
+    wsTokenUrl = '';
+    currentToken = '';
 
     if (socket) {
         socket.close();

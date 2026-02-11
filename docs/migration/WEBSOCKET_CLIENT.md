@@ -226,6 +226,7 @@
 {
   "subc": "checkphone",
   "email": "user@example.com",
+  "token": "{hmac}.{user_id}.{guard}.{timestamp}",
   "page": 1,
   "pageSize": 100,
   "filters": {}
@@ -239,7 +240,7 @@
   "itype": "slr_panel",
   "subc": "join",
   "pid": "device-uuid",
-  "usercheck": "md5-hash"
+  "token": "{hmac}.{user_id}.{guard}.{timestamp}"
 }
 ```
 
@@ -459,9 +460,13 @@ const {
     devices,          // 设备列表 (实时更新)
     totalDevices,     // 设备总数
     refreshDevices,   // 手动刷新
-    connect,          // 建立连接
+    connect,          // 建立连接 async (email, tokenUrl)
     disconnect,       // 断开连接
 } = useGlobalWebSocket();
+
+// 连接时自动 fetch token 并发送 subscribe
+// tokenUrl: '/ws-token' (用户) 或 '/admin/ws-token' (管理员)
+await connect(user.email, '/ws-token');
 
 // 消息处理示例
 ws.onmessage = (event) => {
@@ -502,7 +507,7 @@ import { useDeviceWebSocket } from '@/composables/useDeviceWebSocket';
 const {
     connectionState,
     deviceStatus,
-    connect,          // connect(deviceId, usercheck)
+    connect,          // connect(deviceId, token)
     disconnect,
     send,             // 发送消息
     onMessage,        // 监听消息

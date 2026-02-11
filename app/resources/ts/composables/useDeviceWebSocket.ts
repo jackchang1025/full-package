@@ -40,7 +40,7 @@ export function useDeviceWebSocket() {
     let reconnectTimeout: ReturnType<typeof setTimeout> | null = null;
     let reconnectAttempts = 0;
     let currentDeviceId: string | null = null;
-    let currentUsercheck: string | null = null;
+    let currentToken: string | null = null;
     let messageHandlers: Array<(msg: WebSocketInboundMessage) => void> = [];
 
     const clearTimers = () => {
@@ -69,7 +69,7 @@ export function useDeviceWebSocket() {
     };
 
     const scheduleReconnect = () => {
-        if (!currentDeviceId || !currentUsercheck) return;
+        if (!currentDeviceId) return;
 
         const delay = Math.min(
             RECONNECT_BASE_DELAY * Math.pow(2, reconnectAttempts),
@@ -79,8 +79,8 @@ export function useDeviceWebSocket() {
         connectionState.value = 'reconnecting';
 
         reconnectTimeout = setTimeout(() => {
-            if (currentDeviceId && currentUsercheck) {
-                connect(currentDeviceId, currentUsercheck);
+            if (currentDeviceId) {
+                connect(currentDeviceId);
             }
         }, delay);
     };
@@ -167,13 +167,13 @@ export function useDeviceWebSocket() {
         }
     };
 
-    const connect = (deviceId: string, usercheck: string) => {
+    const connect = (deviceId: string, token: string = '') => {
         if (socket?.readyState === WebSocket.OPEN) {
             disconnect();
         }
 
         currentDeviceId = deviceId;
-        currentUsercheck = usercheck;
+        currentToken = token || null;
         connectionState.value = 'connecting';
         lastError.value = null;
 
@@ -184,12 +184,12 @@ export function useDeviceWebSocket() {
                 connectionState.value = 'connected';
                 reconnectAttempts = 0;
 
-                const joinMsg: JoinMessage = {
+                const joinMsg: Record<string, unknown> = {
                     itype: 'slr_panel',
                     subc: 'join',
                     pid: deviceId,
-                    usercheck: usercheck,
                 };
+                if (currentToken) joinMsg.token = currentToken;
                 socket!.send(JSON.stringify(joinMsg));
                 startPing();
             };
@@ -230,7 +230,7 @@ export function useDeviceWebSocket() {
 
         socket = null;
         currentDeviceId = null;
-        currentUsercheck = null;
+        currentToken = null;
         connectionState.value = 'disconnected';
         deviceStatus.value = null;
     };

@@ -36,7 +36,7 @@ const { adminBaseUrl, adminRoute } = useAdminBasePath();
 
 onMounted(() => {
     if (admin.value?.email) {
-        connect(admin.value.email);
+        connect(admin.value.email, `${adminBaseUrl.value}/ws-token`);
     }
 });
 

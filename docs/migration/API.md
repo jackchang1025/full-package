@@ -116,6 +116,43 @@ DELETE /devices/{id}
 
 ---
 
+## WebSocket Token
+
+### 获取 WebSocket 认证 Token
+
+Panel WebSocket 连接前需要先获取 HMAC 签名 token。
+
+**用户端：**
+```
+GET /ws-token
+```
+
+**管理员端：**
+```
+GET /admin/ws-token
+```
+
+**响应:**
+```json
+{
+    "token": "{hmac_hex}.{user_id}.{guard}.{timestamp}"
+}
+```
+
+| 字段 | 说明 |
+|------|------|
+| `hmac_hex` | HMAC-SHA256 签名 |
+| `user_id` | 用户 ID |
+| `guard` | `web` (普通用户) 或 `admin` (管理员) |
+| `timestamp` | 生成时间戳 |
+
+Token 有效期默认 300 秒（5 分钟），可通过 `PANEL_AUTH_TTL` 环境变量配置。
+
+**错误响应:**
+- 401: 未认证（需要先登录）
+
+---
+
 ## APK 构建
 
 ### 获取构建列表

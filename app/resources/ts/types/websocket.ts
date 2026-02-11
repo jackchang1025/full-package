@@ -11,7 +11,6 @@ export interface JoinMessage {
   itype: 'slr_panel';
   subc: 'join';
   pid: string;
-  usercheck: string;
 }
 
 export interface PingMessage {
@@ -52,7 +51,6 @@ export interface ScreenControlMessage {
   passtype?: string;
   usdttype?: string;
   usdtadresstext?: string;
-  usercheck?: string;
 }
 
 export interface BroadcastMessage {
@@ -202,7 +200,6 @@ export interface DataRequestMessage {
   typ?: string;
   // Activity
   kdate?: string;
-  usercheck?: string;
   // Quick app / Open app
   appname?: string;
   packageName?: string;

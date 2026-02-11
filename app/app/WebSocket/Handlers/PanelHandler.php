@@ -23,6 +23,18 @@ final class PanelHandler
 
         if ($phoneId === null) {
             WebSocketLog::getLogger()->warning("Panel message missing pid: fd={$fd}");
+
+            return;
+        }
+
+        if (! $this->connectionManager->isPanelAuthorizedForDevice($fd, $phoneId)) {
+            WebSocketLog::getLogger()->warning("Panel unauthorized for device: fd={$fd}, pid={$phoneId}");
+            $this->connectionManager->send($fd, [
+                'type' => 'error',
+                'error' => 'Not authorized for this device',
+                'pid' => $phoneId,
+            ]);
+
             return;
         }
 
@@ -47,8 +59,7 @@ final class PanelHandler
     {
         $this->connectionManager->registerPanel($fd, $phoneId);
 
-        $userCheck = $data['usercheck'] ?? '';
-        $this->logOperation('mov_connect', $phoneId, $userCheck);
+        $this->logOperation('mov_connect', $phoneId);
 
         $isOnline = $this->connectionManager->isDeviceOnline($phoneId);
         $phoneInfo = $this->deviceStatusService->formatForPanel($phoneId);
@@ -316,15 +327,14 @@ final class PanelHandler
         $this->connectionManager->sendToDevice($phoneId, $deviceData);
     }
 
-    private function logOperation(string $logType, string $phoneId, string $userCheck): void
+    private function logOperation(string $logType, string $phoneId): void
     {
-        if (!config('websocket.logging.enabled', true)) {
+        if (! config('websocket.logging.enabled', true)) {
             return;
         }
 
         WebSocketLog::getLogger()->info("Operation: {$logType}", [
             'phone_id' => $phoneId,
-            'user_check' => $userCheck,
         ]);
     }
 }

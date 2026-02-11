@@ -23,11 +23,22 @@ final class PanelSendHandler
 
         if ($phoneId === null) {
             WebSocketLog::getLogger()->warning("PanelSend message missing pid: fd={$fd}");
+
             return;
         }
 
-        $userCheck = $data['usercheck'] ?? '';
-        $this->logOperation('mov_check', $phoneId, $userCheck);
+        if (! $this->connectionManager->isPanelAuthorizedForDevice($fd, $phoneId)) {
+            WebSocketLog::getLogger()->warning("PanelSend unauthorized for device: fd={$fd}, pid={$phoneId}");
+            $this->connectionManager->send($fd, [
+                'type' => 'error',
+                'error' => 'Not authorized for this device',
+                'pid' => $phoneId,
+            ]);
+
+            return;
+        }
+
+        $this->logOperation('mov_check', $phoneId);
 
         match ($subc) {
             'screen' => $this->handleScreen($phoneId, $data),
@@ -185,6 +196,7 @@ final class PanelSendHandler
                     'content' => $chunk,
                 ]);
             }
+
             return;
         }
 
@@ -410,16 +422,15 @@ final class PanelSendHandler
     private function forwardToDevice(string $phoneId, array $data): void
     {
         $deviceData = array_merge($data, ['type' => 'screencomd']);
-        unset($deviceData['itype'], $deviceData['pid'], $deviceData['usercheck']);
+        unset($deviceData['itype'], $deviceData['pid']);
 
         $this->connectionManager->sendToDevice($phoneId, $deviceData);
     }
 
-    private function logOperation(string $logType, string $phoneId, string $userCheck): void
+    private function logOperation(string $logType, string $phoneId): void
     {
         WebSocketLog::getLogger()->info("Operation: {$logType}", [
             'phone_id' => $phoneId,
-            'user_check' => $userCheck,
         ]);
     }
 }

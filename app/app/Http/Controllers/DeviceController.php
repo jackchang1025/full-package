@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Exceptions\ResourceAccessDeniedException;
 use App\Http\Requests\Device\UpdateDeviceRequest;
 use App\Models\Device;
+use App\Services\PanelTokenService;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -26,7 +27,7 @@ class DeviceController extends Controller
             ->where('user_id', $ownerId)
             ->orderByDesc('last_seen_at')
             ->paginate(50)
-            ->through(fn(Device $device) => [
+            ->through(fn (Device $device) => [
                 'id' => $device->id,
                 'uuid' => $device->uuid,
                 'name' => $device->name ?? '',
@@ -68,7 +69,7 @@ class DeviceController extends Controller
 
         return Inertia::render('Devices/Show', [
             'device' => $device,
-            'usercheck' => md5($user->email . config('app.key')),
+            'wsToken' => (new PanelTokenService)->generateToken($user->id, 'web'),
         ]);
     }
 
@@ -79,7 +80,7 @@ class DeviceController extends Controller
 
         return Inertia::render('Devices/Control', [
             'device' => $device,
-            'usercheck' => md5($user->email . config('app.key')),
+            'wsToken' => (new PanelTokenService)->generateToken($user->id, 'web'),
             'backUrl' => route('devices.index'),
         ]);
     }
@@ -116,7 +117,7 @@ class DeviceController extends Controller
     private function ensureDeviceOwnership(Device $device, mixed $user): void
     {
         if ($device->user_id !== $user->getResourceOwnerId()) {
-            throw new ResourceAccessDeniedException();
+            throw new ResourceAccessDeniedException;
         }
     }
 }

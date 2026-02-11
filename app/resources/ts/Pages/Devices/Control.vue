@@ -82,7 +82,7 @@ import type {
 
 interface Props {
     device: Device;
-    usercheck: string;
+    wsToken?: string;
     backUrl?: string;
 }
 
@@ -256,7 +256,7 @@ const handleMessage = (msg: WebSocketInboundMessage) => {
 };
 
 const handleConnect = () => {
-    connect(props.device.uuid, props.usercheck);
+    connect(props.device.uuid, props.wsToken ?? '');
 };
 
 const handleDisconnect = () => {

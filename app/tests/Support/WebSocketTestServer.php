@@ -35,7 +35,7 @@ final class WebSocketTestServer
 
         $artisanPath = self::getArtisanPath();
         $basePath = self::getBasePath();
-        $logFile = $basePath . '/storage/logs/websocket-test.log';
+        $logFile = $basePath.'/storage/logs/websocket-test.log';
 
         // 确保日志目录存在
         $logDir = dirname($logFile);
@@ -61,6 +61,7 @@ final class WebSocketTestServer
             'WEBSOCKET_HOST' => '127.0.0.1',
             'WEBSOCKET_PORT' => (string) self::$port,
             'DEVICE_AUTH_SECRET' => self::getTestSecret(),
+            'PANEL_AUTH_SECRET' => self::getTestSecret(),
         ]);
 
         self::$process = proc_open($command, $descriptors, self::$pipes, $basePath, $env);
@@ -248,7 +249,7 @@ final class WebSocketTestServer
 
         // 向上查找包含 artisan 文件的目录
         for ($i = 0; $i < 5; $i++) {
-            $artisanPath = $dir . '/artisan';
+            $artisanPath = $dir.'/artisan';
             if (file_exists($artisanPath)) {
                 return $artisanPath;
             }
@@ -271,7 +272,7 @@ final class WebSocketTestServer
         $dir = __DIR__;
 
         for ($i = 0; $i < 5; $i++) {
-            if (file_exists($dir . '/artisan')) {
+            if (file_exists($dir.'/artisan')) {
                 return $dir;
             }
             $dir = dirname($dir);

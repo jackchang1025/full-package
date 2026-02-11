@@ -49,7 +49,7 @@ const { connect, disconnect, connectionState } = useGlobalWebSocket();
 
 onMounted(() => {
     if (user.value?.email) {
-        connect(user.value.email);
+        connect(user.value.email, `${userBaseUrl.value}/ws-token`);
     }
 });
 

