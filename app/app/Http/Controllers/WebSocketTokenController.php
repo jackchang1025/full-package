@@ -11,18 +11,20 @@ class WebSocketTokenController extends Controller
 {
     public function __invoke(PanelTokenService $tokenService): JsonResponse
     {
-        if ($admin = auth('admin')->user()) {
-            return response()->json([
-                'token' => $tokenService->generateToken($admin->id, 'admin'),
-            ]);
+        $isAdminRoute = str_starts_with(request()->route()?->getName() ?? '', 'admin.');
+
+        if ($isAdminRoute) {
+            $admin = auth('admin')->user();
+
+            return $admin
+                ? response()->json(['token' => $tokenService->generateToken($admin->id, 'admin')])
+                : response()->json(['error' => 'Unauthenticated'], 401);
         }
 
-        if ($user = auth('web')->user()) {
-            return response()->json([
-                'token' => $tokenService->generateToken($user->id, 'web'),
-            ]);
-        }
+        $user = auth('web')->user();
 
-        return response()->json(['error' => 'Unauthenticated'], 401);
+        return $user
+            ? response()->json(['token' => $tokenService->generateToken($user->id, 'web')])
+            : response()->json(['error' => 'Unauthenticated'], 401);
     }
 }
