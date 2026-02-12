@@ -309,7 +309,7 @@ class AppBuildController extends Controller
         $words = ['app', 'tool', 'util', 'helper', 'service', 'system', 'manager', 'client'];
         $prefix = ['com', 'org', 'net'][array_rand(['com', 'org', 'net'])];
         $middle = $words[array_rand($words)];
-        $suffix = Str::lower(Str::random(6));
+        $suffix = strtolower(chr(rand(97, 122))).Str::lower(Str::random(5));
 
         return "{$prefix}.{$middle}.{$suffix}";
     }
