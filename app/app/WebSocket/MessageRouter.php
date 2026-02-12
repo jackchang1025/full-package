@@ -4,13 +4,14 @@ declare(strict_types=1);
 
 namespace App\WebSocket;
 
-use App\Services\PanelTokenService;
 use App\WebSocket\Config\WebSocketConfig;
 use App\WebSocket\Handlers\DeviceHandler;
 use App\WebSocket\Handlers\PanelHandler;
 use App\WebSocket\Handlers\PanelSendHandler;
 use App\WebSocket\Handlers\SubscribeHandler;
+use App\WebSocket\Messages\WebSocketMessage;
 use App\WebSocket\Services\HeartbeatService;
+use App\WebSocket\Services\PanelAuthService;
 
 final class MessageRouter
 {
@@ -20,7 +21,8 @@ final class MessageRouter
         private readonly DeviceHandler $deviceHandler,
         private readonly PanelHandler $panelHandler,
         private readonly PanelSendHandler $panelSendHandler,
-        private readonly SubscribeHandler $subscribeHandler
+        private readonly SubscribeHandler $subscribeHandler,
+        private readonly PanelAuthService $panelAuthService,
     ) {}
 
     public function route(int $fd, string $rawData): void
@@ -33,12 +35,13 @@ final class MessageRouter
             return;
         }
 
-        $itype = $data['itype'] ?? null;
-        $subc = $data['subc'] ?? null;
+        $message = WebSocketMessage::fromArray($data);
+        $itype = $message->itype();
+        $subc = $message->subc();
 
         // 处理面板订阅请求（subscribe 和 checkphone 都指向订阅处理器，保持兼容）
         if ($subc === 'subscribe' || $subc === 'checkphone') {
-            $this->subscribeHandler->handle($fd, $data);
+            $this->subscribeHandler->handle($fd, $message);
 
             return;
         }
@@ -63,7 +66,7 @@ final class MessageRouter
         // Authenticate panel/panelsend messages: check existing session or inline token
         if ($itype === $clientTypes['panel'] || $itype === $clientTypes['panel_send']) {
             if ($this->connectionManager->getPanelUser($fd) === false) {
-                if (! $this->authenticateFromToken($fd, $data)) {
+                if (! $this->authenticateFromToken($fd, $message)) {
                     WebSocketLog::getLogger()->warning("Unauthenticated panel message rejected: fd={$fd}, itype={$itype}");
                     $this->connectionManager->send($fd, [
                         'type' => 'error',
@@ -76,9 +79,9 @@ final class MessageRouter
         }
 
         match ($itype) {
-            $clientTypes['device'] => $this->deviceHandler->handle($fd, $data),
-            $clientTypes['panel'] => $this->panelHandler->handle($fd, $data),
-            $clientTypes['panel_send'] => $this->panelSendHandler->handle($fd, $data),
+            $clientTypes['device'] => $this->deviceHandler->handle($fd, $message),
+            $clientTypes['panel'] => $this->panelHandler->handle($fd, $message),
+            $clientTypes['panel_send'] => $this->panelSendHandler->handle($fd, $message),
             default => $this->handleUnknownType($fd, $itype),
         };
     }
@@ -87,49 +90,14 @@ final class MessageRouter
      * Attempt inline token authentication for panel/panelsend messages.
      * Registers the panel user if the token is valid, so subsequent messages on this fd are authenticated.
      */
-    private function authenticateFromToken(int $fd, array $data): bool
+    private function authenticateFromToken(int $fd, WebSocketMessage $message): bool
     {
-        $token = $data['token'] ?? '';
-
-        if (empty($token)) {
+        $result = $this->panelAuthService->authenticate($message->token());
+        if ($result === null) {
             return false;
         }
-
-        $tokenService = new PanelTokenService;
-        $result = $tokenService->validateToken($token);
-
-        if (! $result['authenticated']) {
-            return false;
-        }
-
-        $userId = $result['user_id'];
-        $guard = $result['guard'];
-        $isAdmin = $guard === 'admin';
-
-        \Illuminate\Support\Facades\DB::reconnect();
-
-        if ($isAdmin) {
-            $user = \App\Models\Admin::find($userId);
-        } else {
-            $user = \App\Models\User::find($userId);
-        }
-
-        if ($user === null) {
-            return false;
-        }
-
-        $ownerEmail = $user->email;
-        $ownerId = $isAdmin ? null : $userId;
-
-        if (! $isAdmin) {
-            $owner = $user->getResourceOwner();
-            $ownerEmail = $owner->email;
-            $ownerId = $owner->id;
-        }
-
-        $this->connectionManager->registerPanelUser($fd, $ownerEmail, $isAdmin, $ownerId);
-
-        WebSocketLog::getLogger()->info("Inline token auth: fd={$fd}, userId={$userId}, guard={$guard}");
+        $this->connectionManager->registerPanelUser($fd, $result->ownerEmail, $result->isAdmin, $result->ownerId);
+        WebSocketLog::getLogger()->info("Inline token auth: fd={$fd}, userId={$result->userId}, guard={$result->guard}");
 
         return true;
     }

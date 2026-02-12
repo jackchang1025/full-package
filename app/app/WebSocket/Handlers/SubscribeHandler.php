@@ -4,30 +4,34 @@ declare(strict_types=1);
 
 namespace App\WebSocket\Handlers;
 
-use App\Services\PanelTokenService;
 use App\WebSocket\ConnectionManager;
+use App\WebSocket\Messages\WebSocketMessage;
+use App\WebSocket\Services\DeviceListService;
+use App\WebSocket\Services\PanelAuthService;
+use App\WebSocket\Services\PanelNotificationService;
 use App\WebSocket\WebSocketLog;
 
 final class SubscribeHandler
 {
-    private ConnectionManager $connectionManager;
+    public function __construct(
+        private readonly ConnectionManager $connectionManager,
+        private readonly PanelAuthService $panelAuthService,
+        private readonly DeviceListService $deviceListService,
+        private readonly PanelNotificationService $panelNotificationService,
+        private readonly CheckPhoneHandler $checkPhoneHandler,
+    ) {}
 
-    public function __construct(ConnectionManager $connectionManager)
+    public function handle(int $fd, WebSocketMessage $message): void
     {
-        $this->connectionManager = $connectionManager;
-    }
-
-    public function handle(int $fd, array $data): void
-    {
-        $subc = $data['subc'] ?? 'subscribe';
+        $subc = $message->subc() ?? 'subscribe';
 
         if ($subc === 'checkphone') {
-            (new CheckPhoneHandler($this->connectionManager))->handle($fd, $data);
+            $this->checkPhoneHandler->handle($fd, $message);
 
             return;
         }
 
-        $token = $data['token'] ?? '';
+        $token = $message->token();
 
         if (empty($token)) {
             WebSocketLog::getLogger()->warning("Subscribe: missing token, fd={$fd}");
@@ -40,10 +44,9 @@ final class SubscribeHandler
             return;
         }
 
-        $tokenService = new PanelTokenService;
-        $result = $tokenService->validateToken($token);
+        $authResult = $this->panelAuthService->authenticate($token);
 
-        if (! $result['authenticated']) {
+        if ($authResult === null) {
             WebSocketLog::getLogger()->warning("Subscribe: invalid token, fd={$fd}");
             $this->connectionManager->send($fd, [
                 'type' => 'subscribe',
@@ -54,56 +57,21 @@ final class SubscribeHandler
             return;
         }
 
-        $userId = $result['user_id'];
-        $guard = $result['guard'];
+        WebSocketLog::getLogger()->info("Subscribe: fd={$fd}, userId={$authResult->userId}, guard={$authResult->guard}, isAdmin=".($authResult->isAdmin ? 'true' : 'false'));
 
-        \Illuminate\Support\Facades\DB::reconnect();
-
-        $isAdmin = $guard === 'admin';
-
-        if ($isAdmin) {
-            $user = \App\Models\Admin::find($userId);
-        } else {
-            $user = \App\Models\User::find($userId);
-        }
-
-        if ($user === null) {
-            WebSocketLog::getLogger()->warning("Subscribe: user not found, fd={$fd}, userId={$userId}, guard={$guard}");
-            $this->connectionManager->send($fd, [
-                'type' => 'subscribe',
-                'success' => false,
-                'error' => 'User not found',
-            ]);
-
-            return;
-        }
-
-        // Resolve resource owner for sub-accounts
-        $ownerEmail = $user->email;
-        $ownerId = $isAdmin ? null : $userId;
-
-        if (! $isAdmin) {
-            $owner = $user->getResourceOwner();
-            $ownerEmail = $owner->email;
-            $ownerId = $owner->id;
-        }
-
-        WebSocketLog::getLogger()->info("Subscribe: fd={$fd}, userId={$userId}, guard={$guard}, isAdmin=".($isAdmin ? 'true' : 'false'));
-
-        // Register panel user with userId for device authorization
-        $this->connectionManager->registerPanelUser($fd, $ownerEmail, $isAdmin, $ownerId);
+        $this->connectionManager->registerPanelUser($fd, $authResult->ownerEmail, $authResult->isAdmin, $authResult->ownerId);
 
         // Get device list and stats
-        $queryUserId = $isAdmin ? null : $ownerId;
-        $devices = $this->connectionManager->getDeviceListForUser($queryUserId);
-        $stats = $this->connectionManager->getDeviceStats($queryUserId);
+        $queryUserId = $authResult->isAdmin ? null : $authResult->ownerId;
+        $devices = $this->deviceListService->getDeviceListForUser($queryUserId);
+        $stats = $this->panelNotificationService->getDeviceStats($queryUserId);
 
         WebSocketLog::getLogger()->info("Subscribe: returning {$stats['total']} devices for fd={$fd}");
 
         $this->connectionManager->send($fd, [
             'type' => 'subscribe',
             'success' => true,
-            'isAdmin' => $isAdmin,
+            'isAdmin' => $authResult->isAdmin,
             'devices' => $devices,
             'stats' => $stats,
         ]);

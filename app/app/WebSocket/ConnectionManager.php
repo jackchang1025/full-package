@@ -5,7 +5,8 @@ declare(strict_types=1);
 namespace App\WebSocket;
 
 use App\WebSocket\Config\WebSocketConfig;
-use App\WebSocket\Services\BatteryParser;
+use App\WebSocket\Services\DatabaseReconnector;
+use App\WebSocket\Services\PanelNotificationService;
 use Illuminate\Support\Facades\Redis;
 use Swoole\Table;
 use Swoole\WebSocket\Server as SwooleServer;
@@ -22,6 +23,10 @@ class ConnectionManager
 
     private Table $panelUserSubscriptions;
 
+    private DatabaseReconnector $databaseReconnector;
+
+    private ?PanelNotificationService $panelNotificationService = null;
+
     /**
      * @param  array<string, Table>  $tables  预先创建的共享内存表，必须包含:
      *                                        - fdToPhoneId: fd -> phoneId/clientType 映射
@@ -29,15 +34,21 @@ class ConnectionManager
      *                                        - panelSubscriptions: panel fd -> phoneId 订阅
      *                                        - panelUserSubscriptions: panel fd -> email/isAdmin
      */
-    public function __construct(SwooleServer $server, array $tables)
+    public function __construct(SwooleServer $server, array $tables, DatabaseReconnector $databaseReconnector)
     {
         $this->server = $server;
+        $this->databaseReconnector = $databaseReconnector;
 
         // 使用外部传入的共享表（在 server->start() 之前创建，所有 Worker 共享）
         $this->fdToPhoneId = $tables['fdToPhoneId'];
         $this->phoneIdToFd = $tables['phoneIdToFd'];
         $this->panelSubscriptions = $tables['panelSubscriptions'];
         $this->panelUserSubscriptions = $tables['panelUserSubscriptions'];
+    }
+
+    public function setPanelNotificationService(PanelNotificationService $service): void
+    {
+        $this->panelNotificationService = $service;
     }
 
     public function registerDevice(int $fd, string $phoneId): void
@@ -83,19 +94,29 @@ class ConnectionManager
         $this->fdToPhoneId->del((string) $fd);
 
         if ($clientType === 'device') {
-            $currentFd = $this->phoneIdToFd->get($phoneId);
-            if ($currentFd !== false && $currentFd['fd'] === $fd) {
-                $this->phoneIdToFd->del($phoneId);
-                $this->updateDeviceStatus($phoneId, ['is_online' => false]);
-                $this->syncOfflineToDatabaseAndNotify($phoneId);
-                $this->notifyPanelsDeviceOffline($phoneId);
-            }
+            $this->handleDeviceDisconnect($fd, $phoneId);
         } else {
-            $this->panelSubscriptions->del((string) $fd);
-            $this->unregisterPanelUser($fd);
+            $this->handlePanelDisconnect($fd);
         }
 
         WebSocketLog::getLogger()->info("Disconnected: fd={$fd}, type={$clientType}, phoneId={$phoneId}");
+    }
+
+    private function handleDeviceDisconnect(int $fd, string $phoneId): void
+    {
+        $currentFd = $this->phoneIdToFd->get($phoneId);
+        if ($currentFd !== false && $currentFd['fd'] === $fd) {
+            $this->phoneIdToFd->del($phoneId);
+            $this->updateDeviceStatus($phoneId, ['is_online' => false]);
+            $this->syncOfflineToDatabaseAndNotify($phoneId);
+            $this->notifyPanelsDeviceOffline($phoneId);
+        }
+    }
+
+    private function handlePanelDisconnect(int $fd): void
+    {
+        $this->panelSubscriptions->del((string) $fd);
+        $this->unregisterPanelUser($fd);
     }
 
     public function getDeviceFd(string $phoneId): ?int
@@ -277,7 +298,7 @@ class ConnectionManager
             'last_seen_at' => now(),
         ]);
 
-        $this->notifyPanelUsersDeviceOffline($phoneId, $device->user_id);
+        $this->panelNotificationService?->notifyDeviceOffline($phoneId, $device->user_id);
     }
 
     public function getServer(): SwooleServer
@@ -343,6 +364,11 @@ class ConnectionManager
         return $data !== false ? $data : false;
     }
 
+    public function getPanelUserSubscriptions(): Table
+    {
+        return $this->panelUserSubscriptions;
+    }
+
     public function isPanelAuthorizedForDevice(int $fd, string $phoneId): bool
     {
         $panelUser = $this->getPanelUser($fd);
@@ -362,7 +388,7 @@ class ConnectionManager
         }
 
         // Check device ownership
-        \Illuminate\Support\Facades\DB::reconnect();
+        $this->databaseReconnector->reconnect();
         $device = \App\Models\Device::where('uuid', $phoneId)->first();
 
         // Device not yet in DB (may not be registered yet) — allow
@@ -371,182 +397,5 @@ class ConnectionManager
         }
 
         return $device->user_id === $userId;
-    }
-
-    public function notifyPanelUsersDeviceOnline(string $phoneId, int $userId, array $phoneInfo): void
-    {
-        $this->notifyPanelUsersDeviceStatus($phoneId, $userId, $phoneInfo, true);
-    }
-
-    public function notifyPanelUsersDeviceOffline(string $phoneId, int $userId): void
-    {
-        $this->notifyPanelUsersDeviceStatus($phoneId, $userId, [], false);
-    }
-
-    public function notifyPanelUsersDeviceStatusUpdate(string $phoneId, array $phoneInfo): void
-    {
-        $device = \App\Models\Device::where('uuid', $phoneId)->first();
-        if ($device === null) {
-            return;
-        }
-
-        $payload = fn (?int $uid) => [
-            'type' => 'deviceUpdate',
-            'pid' => $phoneId,
-            'phoneInfo' => $phoneInfo,
-            'stats' => $this->getDeviceStats($uid),
-        ];
-
-        $count = $this->forEachAuthorizedPanelUser($device->user_id, $payload);
-        if ($count > 0) {
-            WebSocketLog::getLogger()->debug("Notified {$count} panels for device status update {$phoneId}");
-        }
-    }
-
-    private function notifyPanelUsersDeviceStatus(string $phoneId, int $userId, array $phoneInfo, bool $isOnline): void
-    {
-        $statusType = $isOnline ? 'online' : 'offline';
-        WebSocketLog::getLogger()->debug("Notifying panels: device={$phoneId}, status={$statusType}");
-
-        $payload = fn (?int $uid) => [
-            'type' => $isOnline ? 'deviceOnline' : 'deviceOffline',
-            'pid' => $phoneId,
-            'phoneInfo' => $isOnline ? $phoneInfo : null,
-            'stats' => $this->getDeviceStats($uid),
-        ];
-
-        $count = $this->forEachAuthorizedPanelUser($userId, $payload);
-        WebSocketLog::getLogger()->debug("Notified {$count} panels for device {$phoneId} {$statusType}");
-    }
-
-    private function forEachAuthorizedPanelUser(int $deviceUserId, callable $buildPayload): int
-    {
-        $userEmail = $this->getUserEmail($deviceUserId);
-        $count = 0;
-
-        foreach ($this->panelUserSubscriptions as $fd => $subscription) {
-            $isAdmin = $subscription['is_admin'] === 1;
-            $emailMatches = $subscription['email_encrypted'] === $userEmail;
-
-            if ($isAdmin || $emailMatches) {
-                $this->send((int) $fd, $buildPayload($isAdmin ? null : $deviceUserId));
-                $count++;
-            }
-        }
-
-        return $count;
-    }
-
-    /**
-     * 获取设备统计数据
-     */
-    public function getDeviceStats(?int $userId): array
-    {
-        $query = \App\Models\Device::where('is_removed', false);
-
-        if ($userId !== null) {
-            $query->where('user_id', $userId);
-        }
-
-        $total = (clone $query)->count();
-        $online = (clone $query)->where('is_online', true)->count();
-
-        return [
-            'total' => $total,
-            'online' => $online,
-            'offline' => $total - $online,
-        ];
-    }
-
-    /**
-     * 获取用户的明文 email（返回资源归属用户的 email）
-     */
-    private function getUserEmail(int $userId): ?string
-    {
-        \Illuminate\Support\Facades\DB::reconnect();
-        $user = \App\Models\User::find($userId);
-
-        if ($user === null) {
-            return null;
-        }
-
-        // 始终返回资源归属用户（父账号）的 email，确保与面板注册的 email 一致
-        $owner = $user->getResourceOwner();
-
-        return $owner->email;
-    }
-
-    /**
-     * 根据面板传入的 email 解析资源归属用户。
-     *
-     * 子账号 → 返回父账号的 id/email；主账号 → 返回自身的 id/email。
-     * Admin 或未找到用户 → 返回 null（表示管理员，查看全部设备）。
-     */
-    public function resolveResourceOwnerByEmail(string $email): ?array
-    {
-        // Admin 判断已在调用方完成，此处仅处理普通用户
-        \Illuminate\Support\Facades\DB::reconnect();
-
-        $user = \App\Models\User::where('email', $email)->first();
-        if ($user === null) {
-            return null;
-        }
-
-        $owner = $user->getResourceOwner();
-
-        return [
-            'id' => $owner->id,
-            'email' => $owner->email,
-        ];
-    }
-
-    public function getDeviceListForUser(?int $userId): array
-    {
-        \Illuminate\Support\Facades\DB::reconnect();
-
-        $query = \App\Models\Device::where('is_removed', false)
-            ->with('user:id,username,email');
-
-        if ($userId !== null) {
-            $query->where('user_id', $userId);
-        }
-
-        return $query->orderByDesc('is_online')
-            ->orderByDesc('last_seen_at')
-            ->get()
-            ->map(fn ($device) => $this->formatDeviceForList($device))
-            ->toArray();
-    }
-
-    private function formatDeviceForList(\App\Models\Device $device): array
-    {
-        // 获取 Redis 中的实时状态（如果有）
-        $realtimeStatus = $this->getDeviceStatus($device->uuid);
-
-        return [
-            'id' => $device->id,
-            'uuid' => $device->uuid,
-            'name' => $device->name,
-            'remark' => $device->remark,
-            'model' => $device->model,
-            'android_version' => $device->android_version,
-            'country' => $device->country,
-            'ip_address' => $device->ip_address,
-            'ip_location' => $device->ip_location,
-            'network_type' => $realtimeStatus['network'] ?? null,
-            'battery_level' => $device->battery_level,
-            'battery_is_charging' => BatteryParser::parseCharging($realtimeStatus['battery_charge'] ?? ''),
-            'is_online' => $device->is_online,
-            'has_accessibility' => $device->has_accessibility,
-            'last_seen_at' => $device->last_seen_at?->toIso8601String(),
-            'installed_at' => $device->installed_at?->toIso8601String(),
-            'user' => $device->user ? [
-                'id' => $device->user->id,
-                'username' => $device->user->username,
-                'email' => $device->user->email,
-            ] : null,
-            'wallpap' => $realtimeStatus['wallpap'] ?? null,
-            'screen_status' => $realtimeStatus['activz'] ?? null,
-        ];
     }
 }

@@ -5,13 +5,18 @@ declare(strict_types=1);
 namespace App\WebSocket;
 
 use App\WebSocket\Config\WebSocketConfig;
+use App\WebSocket\Handlers\CheckPhoneHandler;
 use App\WebSocket\Handlers\DeviceHandler;
 use App\WebSocket\Handlers\PanelHandler;
 use App\WebSocket\Handlers\PanelSendHandler;
 use App\WebSocket\Handlers\SubscribeHandler;
+use App\WebSocket\Services\DatabaseReconnector;
+use App\WebSocket\Services\DeviceListService;
 use App\WebSocket\Services\DeviceStatusService;
+use App\WebSocket\Services\EncryptionService;
 use App\WebSocket\Services\HeartbeatService;
-use Illuminate\Support\Facades\DB;
+use App\WebSocket\Services\PanelAuthService;
+use App\WebSocket\Services\PanelNotificationService;
 use Swoole\Http\Request;
 use Swoole\Table;
 use Swoole\WebSocket\Frame;
@@ -27,6 +32,8 @@ final class Server
 
     private HeartbeatService $heartbeatService;
 
+    private DatabaseReconnector $databaseReconnector;
+
     /**
      * 共享内存表 - 必须在 server->start() 之前创建，才能在所有 Worker 间共享
      */
@@ -40,6 +47,18 @@ final class Server
 
     private const TABLE_SIZE = 65536;
 
+    private const DATABASE_CONNECTION_ERRORS = [
+        'Connection refused',
+        'server has gone away',
+        'Lost connection',
+        'is not a valid',
+        'No connection could be made',
+        'Connection timed out',
+        'SQLSTATE[HY000] [2002]',
+        'SQLSTATE[HY000] [2006]',
+        'SQLSTATE[08S01]',
+    ];
+
     public function __construct()
     {
         $host = config('websocket.host', '0.0.0.0');
@@ -51,22 +70,42 @@ final class Server
         // 关键：在 server->start() 之前创建 Swoole Table，这样所有 Worker 共享同一份数据
         $this->initializeSharedTables();
 
+        $this->databaseReconnector = new DatabaseReconnector;
+
         $this->connectionManager = new ConnectionManager($this->server, [
             'fdToPhoneId' => $this->fdToPhoneId,
             'phoneIdToFd' => $this->phoneIdToFd,
             'panelSubscriptions' => $this->panelSubscriptions,
             'panelUserSubscriptions' => $this->panelUserSubscriptions,
-        ]);
+        ], $this->databaseReconnector);
         $this->heartbeatService = new HeartbeatService($this->connectionManager);
-        $deviceStatusService = new DeviceStatusService($this->connectionManager);
+
+        $panelNotificationService = new PanelNotificationService($this->connectionManager, $this->databaseReconnector);
+        $this->connectionManager->setPanelNotificationService($panelNotificationService);
+
+        $deviceListService = new DeviceListService($this->connectionManager, $this->databaseReconnector);
+        $deviceTokenService = new \App\Services\DeviceTokenService;
+        $encryptionService = new EncryptionService;
+        $deviceStatusService = new DeviceStatusService(
+            $this->connectionManager,
+            $this->databaseReconnector,
+            $panelNotificationService,
+            $deviceTokenService,
+            $encryptionService,
+        );
+
+        $panelTokenService = new \App\Services\PanelTokenService;
+        $panelAuthService = new PanelAuthService($panelTokenService, $this->databaseReconnector);
+        $checkPhoneHandler = new CheckPhoneHandler($this->connectionManager, $panelAuthService);
 
         $this->messageRouter = new MessageRouter(
             $this->connectionManager,
             $this->heartbeatService,
-            new DeviceHandler($this->connectionManager, $this->heartbeatService, $deviceStatusService),
+            new DeviceHandler($this->connectionManager, $this->heartbeatService, $deviceStatusService, $panelNotificationService),
             new PanelHandler($this->connectionManager, $deviceStatusService),
             new PanelSendHandler($this->connectionManager),
-            new SubscribeHandler($this->connectionManager)
+            new SubscribeHandler($this->connectionManager, $panelAuthService, $deviceListService, $panelNotificationService, $checkPhoneHandler),
+            $panelAuthService,
         );
 
         $this->registerEventHandlers();
@@ -141,35 +180,12 @@ final class Server
         // 重置数据库连接 - Swoole 每个 Worker 需要独立的连接
         // 使用懒加载模式：只清除旧连接，不立即建立新连接
         // 新连接会在首次数据库查询时自动建立
-        $this->resetDatabaseConnections(lazy: true);
+        $this->databaseReconnector->reset(lazy: true);
 
         WebSocketLog::getLogger()->info("Worker {$workerId} started");
 
         if ($workerId === 0) {
             $this->startHeartbeatTimer($server);
-        }
-    }
-
-    /**
-     * 重置所有数据库连接
-     * 在 Swoole Worker 进程启动时调用，确保每个 Worker 有独立的连接
-     *
-     * @param  bool  $lazy  是否懒加载（不立即建立连接）
-     */
-    private function resetDatabaseConnections(bool $lazy = false): void
-    {
-        try {
-            // 断开所有现有连接
-            DB::purge();
-
-            // 如果不是懒加载模式，立即重新建立连接
-            if (! $lazy) {
-                DB::reconnect();
-            }
-        } catch (\Throwable $e) {
-            WebSocketLog::getLogger()->warning('Failed to reset database connections', [
-                'error' => $e->getMessage(),
-            ]);
         }
     }
 
@@ -221,7 +237,7 @@ final class Server
             usleep($delay * 1000);
 
             // 重置数据库连接
-            $this->resetDatabaseConnections();
+            $this->databaseReconnector->reset();
 
             try {
                 $this->messageRouter->route($fd, $data);
@@ -262,17 +278,7 @@ final class Server
     {
         $message = $e->getMessage();
 
-        $connectionErrors = [
-            'Connection refused',
-            'server has gone away',
-            'Lost connection',
-            'is not a valid',
-            'No connection could be made',
-            'Connection timed out',
-            'SQLSTATE[HY000] [2002]',
-            'SQLSTATE[HY000] [2006]',
-            'SQLSTATE[08S01]',
-        ];
+        $connectionErrors = self::DATABASE_CONNECTION_ERRORS;
 
         foreach ($connectionErrors as $error) {
             if (stripos($message, $error) !== false) {
