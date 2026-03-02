@@ -654,18 +654,14 @@ final class ApkBuilder
 
     private function buildApk(): void
     {
-        $this->sanitizeResourceNamesForAapt2();
-
         $apktoolJar = $this->toolsDir.'/apktool.jar';
         $unsignedApk = $this->getUnsignedApkPath();
-        $systemAapt2 = ApkBuilderConstants::DEFAULT_ANDROID_SDK_TOOLS.'/aapt2';
 
         $command = sprintf(
-            'java -jar %s b %s -o %s -a %s',
+            'java -jar %s b %s -o %s',
             escapeshellarg($apktoolJar),
             escapeshellarg($this->buildDir),
-            escapeshellarg($unsignedApk),
-            escapeshellarg($systemAapt2)
+            escapeshellarg($unsignedApk)
         );
 
         $timeout = config('apk-builder.timeout', 300);
@@ -675,53 +671,6 @@ final class ApkBuilder
             $errorOutput = $result ? ($result->errorOutput() ?: $result->output()) : 'Command failed to execute';
             throw ApkBuildException::buildFailed('apktool', $errorOutput);
         }
-    }
-
-    /**
-     * Rename $-prefixed resource files and update all references for system aapt2 compatibility.
-     *
-     * apktool's bundled aapt2 (statically linked) crashes with SIGSEGV inside Docker due to
-     * memory mapping conflicts with the JVM. The system aapt2 works but rejects resource names
-     * containing '$' (used by Material Design animated vector drawables). This method renames
-     * those resources from '$name' to 'res_name' and updates public.xml + XML references.
-     */
-    private function sanitizeResourceNamesForAapt2(): void
-    {
-        $resDir = $this->buildDir.'/res';
-        $publicXmlPath = $this->buildDir.ApkBuilderConstants::PUBLIC_XML_PATH;
-
-        $dollarFiles = glob($resDir.'/{drawable,drawable-*}/\$*', GLOB_BRACE);
-        if (empty($dollarFiles)) {
-            return;
-        }
-
-        foreach ($dollarFiles as $file) {
-            $dir = dirname($file);
-            $oldName = basename($file);
-            $newName = 'res_'.substr($oldName, 1);
-            rename($file, $dir.'/'.$newName);
-        }
-
-        if ($this->fileSystem->exists($publicXmlPath)) {
-            $content = $this->fileSystem->get($publicXmlPath);
-            $updated = str_replace('name="$', 'name="res_', $content);
-            if ($updated !== $content) {
-                $this->fileSystem->put($publicXmlPath, $updated);
-            }
-        }
-
-        $xmlFiles = glob($resDir.'/{drawable,drawable-*}/*.xml', GLOB_BRACE);
-        foreach ($xmlFiles as $xmlFile) {
-            $content = file_get_contents($xmlFile);
-            if ($content !== false && str_contains($content, '@drawable/$')) {
-                $updated = str_replace('@drawable/$', '@drawable/res_', $content);
-                file_put_contents($xmlFile, $updated);
-            }
-        }
-
-        Log::channel('apk')->debug('Sanitized $-prefixed resource names for system aapt2', [
-            'files_renamed' => count($dollarFiles),
-        ]);
     }
 
     private function protectApk(): void
@@ -825,8 +774,6 @@ final class ApkBuilder
 
     private function cleanup(): void
     {
-        $this->cleanApktoolTempFiles();
-
         if (empty($this->workDir) || ! $this->fileSystem->isDirectory($this->workDir)) {
             return;
         }
@@ -836,37 +783,6 @@ final class ApkBuilder
 
         if ($shouldCleanup) {
             $this->fileSystem->deleteDirectory($this->workDir);
-        }
-    }
-
-    /**
-     * Clean temp files left by apktool in /tmp to prevent disk/memory exhaustion.
-     *
-     * Each apktool invocation extracts aapt2/aapt binaries (~6.4MB each) to /tmp
-     * as brut_util_Jar_*.tmp and creates APKTOOL*.tmp files. These are never
-     * cleaned by apktool itself and accumulate across builds, eventually causing
-     * the aapt2 subprocess to be killed by the OOM killer due to memory pressure.
-     */
-    private function cleanApktoolTempFiles(): void
-    {
-        $tmpDir = sys_get_temp_dir();
-        $patterns = [
-            $tmpDir.'/brut_util_Jar_*.tmp',
-            $tmpDir.'/APKTOOL*.tmp',
-        ];
-
-        $cleaned = 0;
-        foreach ($patterns as $pattern) {
-            foreach (glob($pattern) as $file) {
-                if (is_file($file)) {
-                    @unlink($file);
-                    $cleaned++;
-                }
-            }
-        }
-
-        if ($cleaned > 0) {
-            Log::channel('apk')->debug('Cleaned apktool temp files', ['count' => $cleaned]);
         }
     }
 
