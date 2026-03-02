@@ -66,7 +66,7 @@ final class SmaliProcessor
         $host = $parsedUrl['host'] ?? 'localhost';
         $path = $parsedUrl['path'] ?? '';
         $useWss = str_starts_with($config->websocketUrl, 'wss://');
-        
+
         // 如果 URL 中明确指定了端口，则使用指定的端口；否则使用协议默认端口
         if (isset($parsedUrl['port'])) {
             $port = $parsedUrl['port'];
@@ -74,17 +74,16 @@ final class SmaliProcessor
             // wss 默认使用 443，ws 默认使用 80
             $port = $useWss ? 443 : 80;
         }
-        
+
         // 构建完整的域名:端口/路径格式
         // 对于标准端口（wss:443, ws:80），不添加端口号
-        $isStandardPort = ($useWss && $port === 443) || (!$useWss && $port === 80);
+        $isStandardPort = ($useWss && $port === 443) || (! $useWss && $port === 80);
         $userDom = $isStandardPort ? $host : $host.':'.$port;
-        
+
         // 添加路径（如果有）
-        if (!empty($path)) {
+        if (! empty($path)) {
             $userDom .= $path;
         }
-
 
         // 生成追踪数据字符串，格式: clientName>linkId>appId
         // linkId 使用 userId 作为唯一标识
