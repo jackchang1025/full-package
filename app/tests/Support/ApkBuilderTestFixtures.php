@@ -77,4 +77,42 @@ SMALI;
             File::deleteDirectory($path);
         }
     }
+
+    /**
+     * 创建包含 aapt2 的假 apktool.jar（用于单元测试 ensureAapt2Extracted）
+     * apktool 实际将 aapt2 放在 prebuilt/linux/aapt2_64（64 位）或 prebuilt/linux/aapt2（32 位）
+     *
+     * @param  string  $toolsDir 工具目录路径，将创建 toolsDir/apktool.jar
+     * @return string apktool.jar 的完整路径
+     */
+    public static function createFakeApktoolJar(string $toolsDir): string
+    {
+        File::ensureDirectoryExists($toolsDir);
+        $jarPath = $toolsDir.'/apktool.jar';
+
+        $entryName = PHP_INT_SIZE === 8 ? 'prebuilt/linux/aapt2_64' : 'prebuilt/linux/aapt2';
+        $aapt2Content = "#!/bin/sh\necho aapt2-mock\n";
+
+        $zip = new \ZipArchive;
+        if ($zip->open($jarPath, \ZipArchive::CREATE | \ZipArchive::OVERWRITE) !== true) {
+            throw new \RuntimeException("Cannot create fake apktool.jar at {$jarPath}");
+        }
+        $zip->addFromString($entryName, $aapt2Content);
+        $zip->close();
+
+        return $jarPath;
+    }
+
+    /**
+     * 创建可执行的 aapt2 占位文件（用于测试「已存在则直接返回」路径）
+     */
+    public static function createFakeAapt2(string $toolsDir): string
+    {
+        File::ensureDirectoryExists($toolsDir);
+        $aapt2Path = $toolsDir.'/aapt2';
+        File::put($aapt2Path, "#!/bin/sh\necho aapt2\n");
+        chmod($aapt2Path, 0755);
+
+        return $aapt2Path;
+    }
 }

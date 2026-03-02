@@ -6,4 +6,6 @@
 !apk/apkstub/*.zip
 !apk/tools/
 !apk/tools/**
+apk/tools/aapt2
+apk/tools/aapt
 !.gitignore

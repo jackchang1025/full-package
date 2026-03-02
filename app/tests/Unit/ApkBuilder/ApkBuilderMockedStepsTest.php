@@ -13,177 +13,45 @@ use App\Services\ApkBuilder\Contracts\ProcessRunnerInterface;
 use Illuminate\Contracts\Process\ProcessResult;
 use Illuminate\Process\InvokedProcess;
 use Illuminate\Support\Facades\Config;
+use Illuminate\Support\Facades\File;
+use Tests\Support\ApkBuilderTestFixtures;
 
-function createValidConfig(): ApkBuildConfig
-{
-    return new ApkBuildConfig(
-        appId: 'com.test.app',
-        userId: '1',
-        appName: 'Test App',
-        appVersion: '1.0',
-        websocketUrl: 'ws://localhost:8081'
-    );
-}
+require_once __DIR__.'/ApkBuilderTestHelpers.php';
 
-function createMockFileSystem(): FileSystemInterface
-{
-    $mock = mock(FileSystemInterface::class);
-    $mock->shouldReceive('isDirectory')->andReturn(true)->byDefault();
-    $mock->shouldReceive('exists')->andReturn(true)->byDefault();
-    $mock->shouldReceive('ensureDirectoryExists')->andReturn(null)->byDefault();
-    $mock->shouldReceive('get')->andReturn('')->byDefault();
-    $mock->shouldReceive('put')->andReturn(true)->byDefault();
-    $mock->shouldReceive('copy')->andReturn(true)->byDefault();
-    $mock->shouldReceive('delete')->andReturn(true)->byDefault();
-    $mock->shouldReceive('deleteDirectory')->andReturn(true)->byDefault();
-    $mock->shouldReceive('size')->andReturn(1000)->byDefault();
-    $mock->shouldReceive('glob')->andReturn([])->byDefault();
-
-    return $mock;
-}
-
-function createMockProcessRunner(): ProcessRunnerInterface
-{
-    $successResult = mock(ProcessResult::class);
-    $successResult->shouldReceive('successful')->andReturn(true)->byDefault();
-    $successResult->shouldReceive('output')->andReturn('')->byDefault();
-    $successResult->shouldReceive('errorOutput')->andReturn('')->byDefault();
-
-    $invokedProcess = mock(InvokedProcess::class);
-    $invokedProcess->shouldReceive('running')->andReturn(false)->byDefault();
-    $invokedProcess->shouldReceive('wait')->andReturn($successResult)->byDefault();
-
-    $mock = mock(ProcessRunnerInterface::class);
-    $mock->shouldReceive('run')->andReturn($successResult)->byDefault();
-    $mock->shouldReceive('start')->andReturn($invokedProcess)->byDefault();
-
-    return $mock;
-}
-
-/**
- * Create a test double for SmaliProcessor (final class, cannot be mocked).
- * Returns an anonymous class with the same public interface.
- */
-function createFakeSmaliProcessor(?\Closure $onModifyConfig = null, ?\Closure $onRenamePackage = null): object
-{
-    return new class($onModifyConfig, $onRenamePackage)
-    {
-        private ?\Closure $onModifyConfig;
-
-        private ?\Closure $onRenamePackage;
-
-        public function __construct(?\Closure $onModifyConfig = null, ?\Closure $onRenamePackage = null)
-        {
-            $this->onModifyConfig = $onModifyConfig;
-            $this->onRenamePackage = $onRenamePackage;
-        }
-
-        public function modifyConfig(ApkBuildConfig $config): void
-        {
-            if ($this->onModifyConfig) {
-                ($this->onModifyConfig)($config);
-            }
-        }
-
-        public function renamePackage(string $oldPackage, string $newPackage): void
-        {
-            if ($this->onRenamePackage) {
-                ($this->onRenamePackage)($oldPackage, $newPackage);
-            }
-        }
-    };
-}
-
-/**
- * Create a test double for Obfuscator (final class, cannot be mocked).
- * Returns an anonymous class with the same public interface.
- */
-function createFakeObfuscator(?\Closure $onGenerateJunkClasses = null, ?\Closure $onShuffleClassNames = null): object
-{
-    return new class($onGenerateJunkClasses, $onShuffleClassNames)
-    {
-        private ?\Closure $onGenerateJunkClasses;
-
-        private ?\Closure $onShuffleClassNames;
-
-        public function __construct(?\Closure $onGenerateJunkClasses = null, ?\Closure $onShuffleClassNames = null)
-        {
-            $this->onGenerateJunkClasses = $onGenerateJunkClasses;
-            $this->onShuffleClassNames = $onShuffleClassNames;
-        }
-
-        public function generateJunkClasses(int $classCount, int $methodCount): int
-        {
-            if ($this->onGenerateJunkClasses) {
-                return ($this->onGenerateJunkClasses)($classCount, $methodCount);
-            }
-
-            return $classCount;
-        }
-
-        public function shuffleClassNames(): int
-        {
-            if ($this->onShuffleClassNames) {
-                return ($this->onShuffleClassNames)();
-            }
-
-            return 5;
-        }
-    };
-}
-
-/**
- * Create a test double for ApkProtector (final class, cannot be mocked).
- * Returns an anonymous class with the same public interface.
- */
-function createFakeApkProtector(?\Closure $onProtect = null, ?\Closure $onModifyDex = null): object
-{
-    return new class($onProtect, $onModifyDex)
-    {
-        private ?\Closure $onProtect;
-
-        private ?\Closure $onModifyDex;
-
-        public function __construct(?\Closure $onProtect = null, ?\Closure $onModifyDex = null)
-        {
-            $this->onProtect = $onProtect;
-            $this->onModifyDex = $onModifyDex;
-        }
-
-        public function protect(string $apkPath): void
-        {
-            if ($this->onProtect) {
-                ($this->onProtect)($apkPath);
-            }
-        }
-
-        public function modifyDex(string $apkPath): int
-        {
-            if ($this->onModifyDex) {
-                return ($this->onModifyDex)($apkPath);
-            }
-
-            return 2;
-        }
-    };
-}
+$mockStepsTempBase = null;
 
 beforeEach(function () {
-    Config::set('apk-builder.template_path', '/tmp/template');
-    Config::set('apk-builder.stub_zip_path', '/tmp/stub.zip');
-    Config::set('apk-builder.tools_path', '/tmp/tools');
-    Config::set('apk-builder.output_path', '/tmp/output');
-    Config::set('apk-builder.temp_path', '/tmp');
+    global $mockStepsTempBase;
+    $mockStepsTempBase = sys_get_temp_dir().'/apk_builder_mocked_'.uniqid();
+    File::ensureDirectoryExists($mockStepsTempBase);
+
+    $toolsPath = $mockStepsTempBase.'/tools';
+    ApkBuilderTestFixtures::createFakeApktoolJar($toolsPath);
+
+    Config::set('apk-builder.template_path', $mockStepsTempBase.'/template');
+    Config::set('apk-builder.stub_zip_path', $mockStepsTempBase.'/stub.zip');
+    Config::set('apk-builder.tools_path', $toolsPath);
+    Config::set('apk-builder.output_path', $mockStepsTempBase.'/output');
+    Config::set('apk-builder.temp_path', $mockStepsTempBase);
     Config::set('apk-builder.timeout', 300);
     Config::set('apk-builder.cleanup_on_success', false);
     Config::set('apk-builder.cleanup_on_failure', false);
 });
 
+afterEach(function () {
+    global $mockStepsTempBase;
+    if ($mockStepsTempBase !== null && File::isDirectory($mockStepsTempBase)) {
+        File::deleteDirectory($mockStepsTempBase);
+    }
+});
+
 describe('ApkBuilder build steps with mocks', function () {
     it('checkDependencies throws when template directory missing', function () {
         $fileSystem = createMockFileSystem();
-        $fileSystem->shouldReceive('isDirectory')->with('/tmp/template')->andReturn(false);
-        $fileSystem->shouldReceive('exists')->with('/tmp/stub.zip')->andReturn(false);
+        $templatePath = config('apk-builder.template_path');
+        $stubZipPath = config('apk-builder.stub_zip_path');
+        $fileSystem->shouldReceive('isDirectory')->with($templatePath)->andReturn(false);
+        $fileSystem->shouldReceive('exists')->with($stubZipPath)->andReturn(false);
 
         $builder = new ApkBuilder(
             fileSystem: $fileSystem,
@@ -196,11 +64,13 @@ describe('ApkBuilder build steps with mocks', function () {
 
     it('checkDependencies throws when apktool.jar missing', function () {
         $fileSystem = createMockFileSystem();
-        $fileSystem->shouldReceive('isDirectory')->with('/tmp/template')->andReturn(true);
+        $templatePath = config('apk-builder.template_path');
+        $toolsPath = config('apk-builder.tools_path');
+        $fileSystem->shouldReceive('isDirectory')->with($templatePath)->andReturn(true);
         $fileSystem->shouldReceive('exists')
-            ->with('/tmp/template/'.ApkBuilderConstants::CONFIGS_SMALI_RELATIVE)
+            ->with($templatePath.'/'.ApkBuilderConstants::CONFIGS_SMALI_RELATIVE)
             ->andReturn(true);
-        $fileSystem->shouldReceive('exists')->with('/tmp/tools/apktool.jar')->andReturn(false);
+        $fileSystem->shouldReceive('exists')->with($toolsPath.'/apktool.jar')->andReturn(false);
 
         $builder = new ApkBuilder(
             fileSystem: $fileSystem,
@@ -410,6 +280,142 @@ describe('ApkBuilder build steps with mocks', function () {
 
         expect(fn () => $builder->build(createValidConfig()))
             ->toThrow(ApkBuildException::class, 'apktool');
+    });
+
+    it('buildApk runs framework cache cleanup before build', function () {
+        $runCalls = [];
+        $successResult = mock(ProcessResult::class);
+        $successResult->shouldReceive('successful')->andReturn(true);
+        $successResult->shouldReceive('output')->andReturn('');
+        $successResult->shouldReceive('errorOutput')->andReturn('');
+
+        $invokedProcess = mock(InvokedProcess::class);
+        $invokedProcess->shouldReceive('running')->andReturn(false);
+        $invokedProcess->shouldReceive('wait')->andReturn($successResult);
+
+        $processRunner = mock(ProcessRunnerInterface::class);
+        $processRunner->shouldReceive('run')
+            ->andReturnUsing(function ($cmd) use (&$runCalls, $successResult) {
+                $runCalls[] = $cmd;
+
+                return $successResult;
+            });
+        $processRunner->shouldReceive('start')->andReturn($invokedProcess);
+
+        $fileSystem = createMockFileSystem();
+        $fileSystem->shouldReceive('isDirectory')->andReturn(true);
+        $fileSystem->shouldReceive('exists')->andReturn(true);
+        $fileSystem->shouldReceive('size')->andReturn(1000);
+        $fileSystem->shouldReceive('glob')->andReturn([]);
+
+        $builder = new ApkBuilder(
+            smaliProcessorFactory: fn ($dir) => createFakeSmaliProcessor(),
+            obfuscatorFactory: fn ($dir) => createFakeObfuscator(),
+            apkProtectorFactory: fn () => createFakeApkProtector(),
+            fileSystem: $fileSystem,
+            processRunner: $processRunner
+        );
+
+        $builder->build(createValidConfig());
+
+        $frameworkCleanupCalls = array_values(array_filter($runCalls, fn ($c) => str_contains($c, 'apktool/framework')));
+        expect($frameworkCleanupCalls)->not->toBeEmpty();
+        expect($frameworkCleanupCalls[0])->toContain('rm -rf');
+    });
+
+    it('buildApk command includes --aapt with tools dir aapt2 path', function () {
+        $startCommand = null;
+        $successResult = mock(ProcessResult::class);
+        $successResult->shouldReceive('successful')->andReturn(true);
+        $successResult->shouldReceive('output')->andReturn('');
+        $successResult->shouldReceive('errorOutput')->andReturn('');
+
+        $invokedProcess = mock(InvokedProcess::class);
+        $invokedProcess->shouldReceive('running')->andReturn(false);
+        $invokedProcess->shouldReceive('wait')->andReturn($successResult);
+
+        $processRunner = createMockProcessRunner();
+        $processRunner->shouldReceive('run')->andReturn($successResult);
+        $processRunner->shouldReceive('start')
+            ->andReturnUsing(function ($cmd) use (&$startCommand, $invokedProcess) {
+                $startCommand = $cmd;
+
+                return $invokedProcess;
+            });
+
+        $fileSystem = createMockFileSystem();
+        $fileSystem->shouldReceive('isDirectory')->andReturn(true);
+        $fileSystem->shouldReceive('exists')->andReturn(true);
+        $fileSystem->shouldReceive('size')->andReturn(1000);
+        $fileSystem->shouldReceive('glob')->andReturn([]);
+
+        $builder = new ApkBuilder(
+            smaliProcessorFactory: fn ($dir) => createFakeSmaliProcessor(),
+            obfuscatorFactory: fn ($dir) => createFakeObfuscator(),
+            apkProtectorFactory: fn () => createFakeApkProtector(),
+            fileSystem: $fileSystem,
+            processRunner: $processRunner
+        );
+
+        $builder->build(createValidConfig());
+
+        expect($startCommand)->toContain('--aapt');
+        $toolsPath = config('apk-builder.tools_path');
+        expect($startCommand)->toContain($toolsPath.'/aapt2');
+    });
+
+    it('buildApk runs framework cache cleanup on build failure', function () {
+        $runCalls = [];
+        $successResult = mock(ProcessResult::class);
+        $successResult->shouldReceive('successful')->andReturn(true);
+
+        $failedResult = mock(ProcessResult::class);
+        $failedResult->shouldReceive('successful')->andReturn(false);
+        $failedResult->shouldReceive('output')->andReturn('Build error');
+        $failedResult->shouldReceive('errorOutput')->andReturn('apktool failed');
+
+        $invokedProcess = mock(InvokedProcess::class);
+        $invokedProcess->shouldReceive('running')->andReturn(false);
+        $invokedProcess->shouldReceive('wait')->andReturn($failedResult);
+
+        $processRunner = mock(ProcessRunnerInterface::class);
+        $processRunner->shouldReceive('run')
+            ->andReturnUsing(function ($cmd) use (&$runCalls, $successResult) {
+                $runCalls[] = $cmd;
+
+                return $successResult;
+            });
+        $processRunner->shouldReceive('start')
+            ->andReturnUsing(function ($cmd) use ($invokedProcess, $successResult) {
+                if (str_contains($cmd, 'java -jar')) {
+                    return $invokedProcess;
+                }
+                $p = mock(InvokedProcess::class);
+                $p->shouldReceive('running')->andReturn(false);
+                $p->shouldReceive('wait')->andReturn($successResult);
+
+                return $p;
+            });
+
+        $fileSystem = createMockFileSystem();
+        $fileSystem->shouldReceive('isDirectory')->andReturn(true);
+        $fileSystem->shouldReceive('exists')
+            ->andReturnUsing(fn ($path) => ! str_contains($path, 'app-unsigned.apk'));
+        $fileSystem->shouldReceive('size')->andReturn(1000);
+        $fileSystem->shouldReceive('glob')->andReturn([]);
+
+        $builder = new ApkBuilder(
+            smaliProcessorFactory: fn ($dir) => createFakeSmaliProcessor(),
+            obfuscatorFactory: fn ($dir) => createFakeObfuscator(),
+            apkProtectorFactory: fn () => createFakeApkProtector(),
+            fileSystem: $fileSystem,
+            processRunner: $processRunner
+        );
+
+        expect(fn () => $builder->build(createValidConfig()))->toThrow(ApkBuildException::class);
+
+        $frameworkCleanupCalls = array_values(array_filter($runCalls, fn ($c) => str_contains($c, 'apktool/framework')));
+        expect(count($frameworkCleanupCalls))->toBe(2); // 构建前一次，失败后一次
     });
 
     it('signApk throws when all signing methods fail', function () {

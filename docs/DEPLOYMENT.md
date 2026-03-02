@@ -308,6 +308,53 @@ WebSocket 若走 Nginx 代理，同一 server 的 `location /ws` 在 443 下即�
 - 直连：检查防火墙/安全组是否放行 `WEBSOCKET_PORT`（如 8081）；前端与 `.env` 中 `WEBSOCKET_URL` 一致（协议、域名、端口）。
 - Nginx 代理：确认 location 已加 `Upgrade`、`Connection` 与 `proxy_read_timeout`；HTTPS 站用 `wss://`。
 
+### APK 构建失败（Killed / 137 错误）
+
+现象：构建 APK 时在 `build_apk` (apktool) 阶段失败，日志中显示 `Killed`（退出码 137 = SIGKILL）。
+
+**根本原因：宝塔面板 syssafe 插件的异常进程监控。**
+
+`apktool` 在构建资源时，会将内置的 `aapt2` 二进制文件解压到 `/tmp/brut_util_Jar_xxxxx.tmp` 并执行。宝塔面板的 **系统加固 (syssafe)** 插件会持续扫描所有进程，对 exe 路径在 `/tmp/` 下的进程进行安全检查——如果 CPU > 30% 或虚拟内存 > 100MB，会立即 SIGKILL 该进程**及其父进程**。`aapt2` 编译资源时 CPU 占用远超 30%，因此被 syssafe 秒杀，连带 Java (apktool) 父进程一起被杀。
+
+> **注意**：这不是 OOM (内存不足) 问题。通过内存监控可以观察到进程被杀时仅使用了约 192MB 内存，而系统有 13GB 可用。dmesg 中也没有 OOM 相关日志。
+
+**已实现的修复（代码层面）**：
+
+`ApkBuilder.php` 已实现以下自动化处理，正常情况下无需手动干预：
+
+1. **预提取 aapt2 到永久路径**：首次构建时自动从 `apktool.jar` 中提取 `aapt2` 二进制文件到工具目录 (`storage/app/apk/tools/aapt2`)，后续构建直接复用。通过 `--aapt` 参数让 apktool 使用该路径的 aapt2，避免解压到 `/tmp/`。
+2. **自动清理 apktool 框架缓存**：每次构建前执行 `rm -rf ~/.local/share/apktool/framework/*`，防止之前的崩溃遗留损坏缓存。
+
+**手动排查步骤**（如果仍然失败）：
+
+1. **确认 syssafe 插件状态**：
+   ```bash
+   # 查看 syssafe 是否正在杀进程
+   cat /www/server/panel/plugin/syssafe/service.log | tail -10
+   
+   # 查看 syssafe 进程监控配置
+   python3 -c "import json; c=json.load(open('/www/server/panel/plugin/syssafe/config.json')); print('进程监控:', '开启' if c['process']['open'] else '关闭')"
+   ```
+
+2. **验证 aapt2 是否在工具目录中**：
+   ```bash
+   docker exec feiying-app ls -la /var/www/html/storage/app/apk/tools/aapt2
+   # 如果不存在，下次构建时会自动从 apktool.jar 提取
+   # 也可手动触发提取：
+   docker exec feiying-app php artisan apk:build --app-id="com.test.verify" --user-id="1" --app-name="Test" --no-interaction
+   ```
+
+3. **手动清理 apktool 框架缓存**：
+   ```bash
+   docker exec feiying-app rm -rf ~/.local/share/apktool/framework/*
+   ```
+
+4. **（可选）在 syssafe 白名单中添加 aapt2**：如果未来 apktool 更新导致新的临时文件问题，可在宝塔面板 → 系统加固 → 异常进程白名单中添加 `aapt2`。或编辑配置：
+   ```bash
+   # 在 process_white 列表中添加 "aapt2"
+   vi /www/server/panel/plugin/syssafe/config.json
+   ```
+
 ### 查看容器与日志
 
 ```bash

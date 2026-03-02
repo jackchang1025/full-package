@@ -657,20 +657,73 @@ final class ApkBuilder
         $apktoolJar = $this->toolsDir.'/apktool.jar';
         $unsignedApk = $this->getUnsignedApkPath();
 
+        // 每次构建前清理 apktool 框架缓存，防止之前崩溃留下的损坏文件导致后续构建必定失败
+        $this->processRunner->run('rm -rf ~/.local/share/apktool/framework/*');
+
+        // 使用工具目录中预提取的 aapt2 二进制文件，而非让 apktool 解压到 /tmp/
+        // 这是因为宝塔面板 syssafe 插件会杀死从 /tmp/ 运行的高 CPU 进程
+        $aapt2Path = $this->ensureAapt2Extracted($apktoolJar);
+
         $command = sprintf(
-            'java -jar %s b %s -o %s',
+            'java -jar %s b %s -o %s --aapt %s',
             escapeshellarg($apktoolJar),
             escapeshellarg($this->buildDir),
-            escapeshellarg($unsignedApk)
+            escapeshellarg($unsignedApk),
+            escapeshellarg($aapt2Path)
         );
 
         $timeout = config('apk-builder.timeout', 300);
         $result = $this->runCommandWithHeartbeat($command, $timeout);
 
         if ($result === null || ! $result->successful() || ! $this->fileSystem->exists($unsignedApk)) {
+            // 构建失败后再清理一次框架缓存，防止本次失败污染下次构建
+            $this->processRunner->run('rm -rf ~/.local/share/apktool/framework/*');
+
             $errorOutput = $result ? ($result->errorOutput() ?: $result->output()) : 'Command failed to execute';
             throw ApkBuildException::buildFailed('apktool', $errorOutput);
         }
+    }
+
+    /**
+     * 确保 aapt2 二进制文件已从 apktool.jar 中提取到工具目录。
+     *
+     * 宝塔面板 syssafe 插件会杀死从 /tmp/ 运行且 CPU>30% 的进程。
+     * apktool 默认将 aapt2 解压到 /tmp/ 执行，因此需要预提取到永久路径。
+     */
+    private function ensureAapt2Extracted(string $apktoolJar): string
+    {
+        $aapt2Path = $this->toolsDir.'/aapt2';
+
+        if (is_file($aapt2Path) && is_executable($aapt2Path)) {
+            return $aapt2Path;
+        }
+
+        Log::channel('apk')->info('Extracting aapt2 from apktool.jar', ['target' => $aapt2Path]);
+
+        $entryName = PHP_INT_SIZE === 8 ? 'prebuilt/linux/aapt2_64' : 'prebuilt/linux/aapt2';
+
+        $zip = new \ZipArchive;
+        if ($zip->open($apktoolJar) !== true) {
+            throw new ApkBuildException('无法打开 apktool.jar 来提取 aapt2', ['jar' => $apktoolJar]);
+        }
+
+        $content = $zip->getFromName($entryName);
+        $zip->close();
+
+        if ($content === false) {
+            throw new ApkBuildException("apktool.jar 中未找到 {$entryName}", ['jar' => $apktoolJar]);
+        }
+
+        $this->fileSystem->ensureDirectoryExists(dirname($aapt2Path));
+        file_put_contents($aapt2Path, $content);
+        chmod($aapt2Path, 0755);
+
+        Log::channel('apk')->info('aapt2 extracted successfully', [
+            'path' => $aapt2Path,
+            'size' => strlen($content),
+        ]);
+
+        return $aapt2Path;
     }
 
     private function protectApk(): void
