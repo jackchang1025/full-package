@@ -90,7 +90,7 @@ const submit = () => {
                 </div>
 
                 <p class="auth-footer">
-                    © 2024 {{ shared.appName }} · 安全可靠的设备管理平台
+                    © 2026 {{ shared.appName }} · 安全可靠的设备管理平台
                 </p>
             </div>
         </div>

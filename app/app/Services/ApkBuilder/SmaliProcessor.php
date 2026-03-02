@@ -6,7 +6,6 @@ namespace App\Services\ApkBuilder;
 
 use App\Exceptions\ApkBuilder\ApkBuildException;
 use Illuminate\Support\Facades\File;
-use Illuminate\Support\Facades\Log;
 use RecursiveDirectoryIterator;
 use RecursiveIteratorIterator;
 
@@ -86,7 +85,6 @@ final class SmaliProcessor
             $userDom .= $path;
         }
 
-        Log::info($userDom);
 
         // 生成追踪数据字符串，格式: clientName>linkId>appId
         // linkId 使用 userId 作为唯一标识

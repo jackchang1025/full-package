@@ -217,7 +217,7 @@ const goToRegister = () => router.visit(userRoute('/register'));
 
             <!-- 页脚 -->
             <footer class="welcome-footer">
-                <p>© 2024 {{ page.props.appName }} · 专业的 Android 设备管理平台</p>
+                <p>© 2026 {{ page.props.appName }} · 专业的 Android 设备管理平台</p>
             </footer>
         </div>
     </DefaultLayout>
