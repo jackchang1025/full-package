@@ -322,7 +322,8 @@ WebSocket 若走 Nginx 代理，同一 server 的 `location /ws` 在 443 下即�
 
 `ApkBuilder.php` 已实现以下自动化处理，正常情况下无需手动干预：
 
-1. **预提取 aapt2 到永久路径**：首次构建时自动从 `apktool.jar` 中提取 `aapt2` 二进制文件到工具目录 (`storage/app/apk/tools/aapt2`)，后续构建直接复用。通过 `--aapt` 参数让 apktool 使用该路径的 aapt2，避免解压到 `/tmp/`。
+1. **预提取 aapt2 到容器本地路径**：首次构建时自动从 `apktool.jar` 中提取 `aapt2` 二进制文件。优先写入 `/opt/apk-tools/aapt2`（容器本地文件系统），回退到 `storage/app/apk/tools/aapt2`。通过 `--aapt` 参数让 apktool 使用该路径的 aapt2，避免解压到 `/tmp/`。
+   - **为什么用 `/opt/apk-tools/`？** Docker bind mount 卷上 Java 的 `File.setExecutable()` 会返回 false，导致 apktool 内部 `AaptManager.setAaptBinaryExecutable()` 抛出 "Could not set aapt binary as executable" 错误。容器本地文件系统无此限制。
 2. **自动清理 apktool 框架缓存**：每次构建前执行 `rm -rf ~/.local/share/apktool/framework/*`，防止之前的崩溃遗留损坏缓存。
 
 **手动排查步骤**（如果仍然失败）：
@@ -336,12 +337,13 @@ WebSocket 若走 Nginx 代理，同一 server 的 `location /ws` 在 443 下即�
    python3 -c "import json; c=json.load(open('/www/server/panel/plugin/syssafe/config.json')); print('进程监控:', '开启' if c['process']['open'] else '关闭')"
    ```
 
-2. **验证 aapt2 是否在工具目录中**：
+2. **验证 aapt2 是否已提取**：
    ```bash
+   # 优先检查容器本地路径
+   docker exec feiying-app ls -la /opt/apk-tools/aapt2
+   # 回退路径
    docker exec feiying-app ls -la /var/www/html/storage/app/apk/tools/aapt2
-   # 如果不存在，下次构建时会自动从 apktool.jar 提取
-   # 也可手动触发提取：
-   docker exec feiying-app php artisan apk:build --app-id="com.test.verify" --user-id="1" --app-name="Test" --no-interaction
+   # 如果都不存在，下次构建时会自动从 apktool.jar 提取
    ```
 
 3. **手动清理 apktool 框架缓存**：

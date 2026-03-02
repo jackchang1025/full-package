@@ -81,9 +81,9 @@ final class ApkBuilder
         $this->toolsDir = config('apk-builder.tools_path');
         $this->outputDir = config('apk-builder.output_path');
         $this->encryptor = $encryptor ?? new Encryptor;
-        $this->smaliProcessorFactory = $smaliProcessorFactory ?? fn (string $buildDir): SmaliProcessor => new SmaliProcessor($buildDir);
-        $this->obfuscatorFactory = $obfuscatorFactory ?? fn (string $buildDir): Obfuscator => new Obfuscator($buildDir);
-        $this->apkProtectorFactory = $apkProtectorFactory ?? fn (): ApkProtector => new ApkProtector;
+        $this->smaliProcessorFactory = $smaliProcessorFactory ?? fn(string $buildDir): SmaliProcessor => new SmaliProcessor($buildDir);
+        $this->obfuscatorFactory = $obfuscatorFactory ?? fn(string $buildDir): Obfuscator => new Obfuscator($buildDir);
+        $this->apkProtectorFactory = $apkProtectorFactory ?? fn(): ApkProtector => new ApkProtector;
         $this->fileSystem = $fileSystem ?? new LaravelFileSystem;
         $this->processRunner = $processRunner ?? new LaravelProcessRunner;
     }
@@ -116,35 +116,35 @@ final class ApkBuilder
                 throw ApkBuildException::configValidationFailed($errors);
             }
 
-            $this->runStep('check_dependencies', fn () => $this->checkDependencies());
-            $this->runStep('prepare_work_dir', fn () => $this->prepareWorkDir());
-            $this->runStep('modify_smali', fn () => $this->modifySmali($config));
-            $this->runStep('modify_manifest', fn () => $this->modifyManifest($config));
-            $this->runStep('modify_resources', fn () => $this->modifyResources($config));
-            $this->runStep('replace_icon', fn () => $this->replaceIcon($config));
-            $this->runStep('replace_background', fn () => $this->replaceBackground($config));
+            $this->runStep('check_dependencies', fn() => $this->checkDependencies());
+            $this->runStep('prepare_work_dir', fn() => $this->prepareWorkDir());
+            $this->runStep('modify_smali', fn() => $this->modifySmali($config));
+            $this->runStep('modify_manifest', fn() => $this->modifyManifest($config));
+            $this->runStep('modify_resources', fn() => $this->modifyResources($config));
+            $this->runStep('replace_icon', fn() => $this->replaceIcon($config));
+            $this->runStep('replace_background', fn() => $this->replaceBackground($config));
 
             if ($config->enableJunkClasses) {
-                $this->runStep('generate_junk_classes', fn () => $this->generateJunkClasses($config));
+                $this->runStep('generate_junk_classes', fn() => $this->generateJunkClasses($config));
             }
 
             if ($config->enableClassShuffle) {
-                $this->runStep('shuffle_classes', fn () => $this->shuffleClasses());
+                $this->runStep('shuffle_classes', fn() => $this->shuffleClasses());
             }
 
-            $this->runStep('encrypt_resources', fn () => $this->encryptResources());
-            $this->runStep('build_apk', fn () => $this->buildApk());
+            $this->runStep('encrypt_resources', fn() => $this->encryptResources());
+            $this->runStep('build_apk', fn() => $this->buildApk());
 
             if ($config->enableApkProtection) {
-                $this->runStep('protect_apk', fn () => $this->protectApk());
+                $this->runStep('protect_apk', fn() => $this->protectApk());
             }
 
             if ($config->enableDexModification) {
-                $this->runStep('modify_dex', fn () => $this->modifyDex());
+                $this->runStep('modify_dex', fn() => $this->modifyDex());
             }
 
-            $this->runStep('sign_apk', fn () => $this->signApk());
-            $outputPath = $this->runStep('move_output', fn () => $this->moveToOutput($config));
+            $this->runStep('sign_apk', fn() => $this->signApk());
+            $outputPath = $this->runStep('move_output', fn() => $this->moveToOutput($config));
 
             $this->buildSucceeded = true;
             $this->cleanup();
@@ -259,7 +259,7 @@ final class ApkBuilder
             $zipPath = $this->stubZipPath ?? 'storage/app/apk/apkstub/apkstub.zip';
             $zipExists = ! empty($this->stubZipPath) && $this->fileSystem->exists($this->stubZipPath);
             throw new ApkBuildException(
-                'APK 模板不完整：缺少 My_Configs.smali 等必要文件。'.
+                'APK 模板不完整：缺少 My_Configs.smali 等必要文件。' .
                     ($zipExists
                         ? ' 解压 apkstub.zip 失败，请检查 ZIP 文件完整性。'
                         : " 请将 apkstub.zip 部署到 {$zipPath} 后重试。"),
@@ -271,7 +271,7 @@ final class ApkBuilder
             );
         }
 
-        $apktoolPath = $this->toolsDir.'/apktool.jar';
+        $apktoolPath = $this->toolsDir . '/apktool.jar';
         if (! $this->fileSystem->exists($apktoolPath)) {
             throw ApkBuildException::toolNotFound('apktool.jar', $apktoolPath);
         }
@@ -305,7 +305,7 @@ final class ApkBuilder
 
         if ($result !== true) {
             throw new ApkBuildException(
-                '无法打开模板 ZIP 文件: '.self::getZipArchiveErrorMessage($result),
+                '无法打开模板 ZIP 文件: ' . self::getZipArchiveErrorMessage($result),
                 ['zip' => $this->stubZipPath, 'error_code' => $result]
             );
         }
@@ -338,7 +338,7 @@ final class ApkBuilder
 
         $zip->close();
 
-        $this->processRunner->run('chmod -R 755 '.escapeshellarg($this->templateDir));
+        $this->processRunner->run('chmod -R 755 ' . escapeshellarg($this->templateDir));
 
         Log::channel('apk')->info('Template extracted successfully', ['target' => $this->templateDir]);
     }
@@ -349,7 +349,7 @@ final class ApkBuilder
      */
     private function templateIsValid(): bool
     {
-        return $this->fileSystem->exists($this->templateDir.'/'.ApkBuilderConstants::CONFIGS_SMALI_RELATIVE);
+        return $this->fileSystem->exists($this->templateDir . '/' . ApkBuilderConstants::CONFIGS_SMALI_RELATIVE);
     }
 
     private function getBaseTempDir(): string
@@ -369,13 +369,13 @@ final class ApkBuilder
         $this->cleanOldBuildCache();
 
         $baseDir = $this->getBaseTempDir();
-        $this->workDir = $baseDir.'/apk_build_'.uniqid();
-        $this->buildDir = $this->workDir.'/apk_source';
+        $this->workDir = $baseDir . '/apk_build_' . uniqid();
+        $this->buildDir = $this->workDir . '/apk_source';
 
         $this->fileSystem->ensureDirectoryExists($this->workDir);
         $this->copyDirectory($this->templateDir, $this->buildDir);
 
-        $requiredSmali = $this->buildDir.'/'.ApkBuilderConstants::CONFIGS_SMALI_RELATIVE;
+        $requiredSmali = $this->buildDir . '/' . ApkBuilderConstants::CONFIGS_SMALI_RELATIVE;
         if (! $this->fileSystem->exists($requiredSmali)) {
             throw new ApkBuildException(
                 'APK 工作目录缺少必要文件，请确保模板已正确解压。',
@@ -392,7 +392,7 @@ final class ApkBuilder
     private function cleanOldBuildCache(): void
     {
         $baseDir = $this->getBaseTempDir();
-        $pattern = $baseDir.'/apk_build_*';
+        $pattern = $baseDir . '/apk_build_*';
         $oldDirs = $this->fileSystem->glob($pattern, GLOB_ONLYDIR);
 
         foreach ($oldDirs as $dir) {
@@ -407,7 +407,7 @@ final class ApkBuilder
 
     private function modifyManifest(ApkBuildConfig $config): void
     {
-        $manifestPath = $this->buildDir.ApkBuilderConstants::MANIFEST_PATH;
+        $manifestPath = $this->buildDir . ApkBuilderConstants::MANIFEST_PATH;
         $content = $this->fileSystem->get($manifestPath);
 
         $oldPackage = ApkBuilderConstants::DEFAULT_PACKAGE;
@@ -429,7 +429,7 @@ final class ApkBuilder
 
     private function fixResourceReferences(string &$content): void
     {
-        $xmlDir = $this->buildDir.ApkBuilderConstants::XML_DIR_PATH;
+        $xmlDir = $this->buildDir . ApkBuilderConstants::XML_DIR_PATH;
         $this->fileSystem->ensureDirectoryExists($xmlDir);
 
         preg_match_all('/@xml\/([a-zA-Z0-9_]+)/', $content, $matches);
@@ -453,33 +453,33 @@ final class ApkBuilder
 
     private function modifyResources(ApkBuildConfig $config): void
     {
-        $stringsPath = $this->buildDir.ApkBuilderConstants::STRINGS_XML_PATH;
+        $stringsPath = $this->buildDir . ApkBuilderConstants::STRINGS_XML_PATH;
 
         if ($this->fileSystem->exists($stringsPath)) {
             $content = $this->fileSystem->get($stringsPath);
 
             $content = preg_replace(
                 '/<string name="BaseName">[^<]*<\/string>/',
-                '<string name="BaseName">'.htmlspecialchars($config->appName).'</string>',
+                '<string name="BaseName">' . htmlspecialchars($config->appName) . '</string>',
                 $content
             );
 
             $content = preg_replace(
                 '/<string name="accessibility_service_description">[^<]*<\/string>/',
-                '<string name="accessibility_service_description">'.htmlspecialchars($config->loginDis).'</string>',
+                '<string name="accessibility_service_description">' . htmlspecialchars($config->loginDis) . '</string>',
                 $content
             );
 
             $this->fileSystem->put($stringsPath, $content);
         }
 
-        $ymlPath = $this->buildDir.ApkBuilderConstants::APKTOOL_YML_PATH;
+        $ymlPath = $this->buildDir . ApkBuilderConstants::APKTOOL_YML_PATH;
 
         if ($this->fileSystem->exists($ymlPath)) {
             $content = $this->fileSystem->get($ymlPath);
             $versionCode = (int) str_replace('.', '', $config->appVersion) * 100;
-            $content = preg_replace('/versionCode: \d+/', 'versionCode: '.$versionCode, $content);
-            $content = preg_replace('/versionName: [^\n]+/', 'versionName: '.$config->appVersion, $content);
+            $content = preg_replace('/versionCode: \d+/', 'versionCode: ' . $versionCode, $content);
+            $content = preg_replace('/versionName: [^\n]+/', 'versionName: ' . $config->appVersion, $content);
             $this->fileSystem->put($ymlPath, $content);
         }
     }
@@ -493,18 +493,18 @@ final class ApkBuilder
         }
 
         foreach (ApkBuilderConstants::DRAWABLE_DIRS as $dir) {
-            $target = $this->buildDir.'/res/'.$dir;
+            $target = $this->buildDir . '/res/' . $dir;
 
             if (! $this->fileSystem->isDirectory($target)) {
                 continue;
             }
 
-            $mylogoPath = $target.'/'.ApkBuilderConstants::ICON_FILENAME;
+            $mylogoPath = $target . '/' . ApkBuilderConstants::ICON_FILENAME;
             if ($this->fileSystem->exists($mylogoPath)) {
                 $this->fileSystem->delete($mylogoPath);
             }
             $this->fileSystem->copy($iconPath, $mylogoPath);
-            $this->fileSystem->copy($iconPath, $target.'/'.ApkBuilderConstants::APP_ICON_FILENAME);
+            $this->fileSystem->copy($iconPath, $target . '/' . ApkBuilderConstants::APP_ICON_FILENAME);
         }
 
         Log::channel('apk')->debug('Icon replaced', ['icon' => $iconPath]);
@@ -522,7 +522,7 @@ final class ApkBuilder
             return $defaultIcon;
         }
 
-        $templateIcon = $this->templateDir.'/res/drawable/'.ApkBuilderConstants::ICON_FILENAME;
+        $templateIcon = $this->templateDir . '/res/drawable/' . ApkBuilderConstants::ICON_FILENAME;
 
         return $this->fileSystem->exists($templateIcon) ? $templateIcon : null;
     }
@@ -538,7 +538,7 @@ final class ApkBuilder
             return;
         }
 
-        $target = $this->buildDir.ApkBuilderConstants::BLACKUI_PATH;
+        $target = $this->buildDir . ApkBuilderConstants::BLACKUI_PATH;
 
         if ($this->fileSystem->exists($target)) {
             $this->fileSystem->delete($target);
@@ -579,7 +579,7 @@ final class ApkBuilder
             // /storage/icons/1/xxx.png -> storage/app/public/icons/1/xxx.png
             $relativePath = substr($path, 9); // 移除 '/storage/'
 
-            return storage_path('app/public/'.$relativePath);
+            return storage_path('app/public/' . $relativePath);
         }
 
         // 如果已经是绝对路径，直接返回
@@ -588,18 +588,18 @@ final class ApkBuilder
         }
 
         // 其他情况，假设是相对于 storage/app/public 的路径
-        return storage_path('app/public/'.$path);
+        return storage_path('app/public/' . $path);
     }
 
     private function removeBlackuiResource(): void
     {
-        $blackuiPath = $this->buildDir.ApkBuilderConstants::BLACKUI_PATH;
+        $blackuiPath = $this->buildDir . ApkBuilderConstants::BLACKUI_PATH;
 
         if ($this->fileSystem->exists($blackuiPath)) {
             $this->fileSystem->delete($blackuiPath);
         }
 
-        $publicXmlPath = $this->buildDir.ApkBuilderConstants::PUBLIC_XML_PATH;
+        $publicXmlPath = $this->buildDir . ApkBuilderConstants::PUBLIC_XML_PATH;
 
         if ($this->fileSystem->exists($publicXmlPath)) {
             $content = $this->fileSystem->get($publicXmlPath);
@@ -628,7 +628,7 @@ final class ApkBuilder
 
     private function encryptResources(): void
     {
-        $assetsPath = $this->buildDir.ApkBuilderConstants::ASSETS_PATH;
+        $assetsPath = $this->buildDir . ApkBuilderConstants::ASSETS_PATH;
 
         if (! $this->fileSystem->isDirectory($assetsPath)) {
             return;
@@ -636,7 +636,7 @@ final class ApkBuilder
 
         // 只加密 assets 根目录下的文件（与 VB.NET EncryptFolder 行为一致）
         // PHP glob() 不支持 ** 递归语法，使用 /* 只匹配根目录文件
-        $files = $this->fileSystem->glob($assetsPath.'/*');
+        $files = $this->fileSystem->glob($assetsPath . '/*');
 
         foreach ($files as $file) {
             if (is_file($file)) {
@@ -649,12 +649,12 @@ final class ApkBuilder
 
     private function getUnsignedApkPath(): string
     {
-        return $this->workDir.'/'.ApkBuilderConstants::APK_UNSIGNED;
+        return $this->workDir . '/' . ApkBuilderConstants::APK_UNSIGNED;
     }
 
     private function buildApk(): void
     {
-        $apktoolJar = $this->toolsDir.'/apktool.jar';
+        $apktoolJar = $this->toolsDir . '/apktool.jar';
         $unsignedApk = $this->getUnsignedApkPath();
 
         // 每次构建前清理 apktool 框架缓存，防止之前崩溃留下的损坏文件导致后续构建必定失败
@@ -685,20 +685,45 @@ final class ApkBuilder
     }
 
     /**
-     * 确保 aapt2 二进制文件已从 apktool.jar 中提取到工具目录。
+     * 确保 aapt2 二进制文件已提取并可执行。
      *
-     * 宝塔面板 syssafe 插件会杀死从 /tmp/ 运行且 CPU>30% 的进程。
-     * apktool 默认将 aapt2 解压到 /tmp/ 执行，因此需要预提取到永久路径。
+     * 需要解决两个部署环境的问题：
+     * 1. 宝塔面板 syssafe 插件：杀死从 /tmp/ 运行且 CPU>30% 的进程
+     * 2. Docker bind mount 卷：Java File.setExecutable() 返回 false，
+     *    导致 apktool AaptManager.setAaptBinaryExecutable() 抛出异常
+     *
+     * 策略：优先用容器本地路径（/opt/apk-tools/），在那里 Java chmod 可正常工作；
+     * 如果无法写入该路径，回退到工具目录。
      */
     private function ensureAapt2Extracted(string $apktoolJar): string
     {
-        $aapt2Path = $this->toolsDir.'/aapt2';
+        $containerLocalPath = '/opt/apk-tools/aapt2';
+        $toolsDirPath = $this->toolsDir.'/aapt2';
 
-        if (is_file($aapt2Path) && is_executable($aapt2Path)) {
-            return $aapt2Path;
+        if (is_file($containerLocalPath) && is_executable($containerLocalPath)) {
+            return $containerLocalPath;
+        }
+        if (is_file($toolsDirPath) && is_executable($toolsDirPath)) {
+            return $toolsDirPath;
         }
 
-        Log::channel('apk')->info('Extracting aapt2 from apktool.jar', ['target' => $aapt2Path]);
+        $content = $this->extractAapt2Content($apktoolJar);
+
+        $aapt2Path = $this->writeAapt2Binary($content, $containerLocalPath)
+            ?? $this->writeAapt2Binary($content, $toolsDirPath);
+
+        if ($aapt2Path === null) {
+            throw new ApkBuildException('无法将 aapt2 写入可执行路径', [
+                'tried' => [$containerLocalPath, $toolsDirPath],
+            ]);
+        }
+
+        return $aapt2Path;
+    }
+
+    private function extractAapt2Content(string $apktoolJar): string
+    {
+        Log::channel('apk')->info('Extracting aapt2 from apktool.jar');
 
         $entryName = PHP_INT_SIZE === 8 ? 'prebuilt/linux/aapt2_64' : 'prebuilt/linux/aapt2';
 
@@ -714,16 +739,45 @@ final class ApkBuilder
             throw new ApkBuildException("apktool.jar 中未找到 {$entryName}", ['jar' => $apktoolJar]);
         }
 
-        $this->fileSystem->ensureDirectoryExists(dirname($aapt2Path));
-        file_put_contents($aapt2Path, $content);
-        chmod($aapt2Path, 0755);
+        return $content;
+    }
 
-        Log::channel('apk')->info('aapt2 extracted successfully', [
-            'path' => $aapt2Path,
-            'size' => strlen($content),
-        ]);
+    /**
+     * 将 aapt2 内容写入指定路径并设为可执行，成功返回路径，失败返回 null。
+     */
+    private function writeAapt2Binary(string $content, string $targetPath): ?string
+    {
+        try {
+            $this->fileSystem->ensureDirectoryExists(dirname($targetPath));
+            file_put_contents($targetPath, $content);
 
-        return $aapt2Path;
+            @chmod($targetPath, 0755);
+            if (! is_executable($targetPath)) {
+                $this->processRunner->run('chmod +x '.escapeshellarg($targetPath));
+            }
+
+            if (! is_executable($targetPath)) {
+                Log::channel('apk')->warning('aapt2 chmod failed at path, trying next', [
+                    'path' => $targetPath,
+                ]);
+
+                return null;
+            }
+
+            Log::channel('apk')->info('aapt2 ready', [
+                'path' => $targetPath,
+                'size' => strlen($content),
+            ]);
+
+            return $targetPath;
+        } catch (\Throwable $e) {
+            Log::channel('apk')->warning('Failed to write aapt2 binary', [
+                'path' => $targetPath,
+                'error' => $e->getMessage(),
+            ]);
+
+            return null;
+        }
     }
 
     private function protectApk(): void
@@ -743,11 +797,11 @@ final class ApkBuilder
     private function signApk(): void
     {
         $unsignedApk = $this->getUnsignedApkPath();
-        $alignedApk = $this->workDir.'/'.ApkBuilderConstants::APK_ALIGNED;
-        $signedApk = $this->workDir.'/'.ApkBuilderConstants::APK_SIGNED;
+        $alignedApk = $this->workDir . '/' . ApkBuilderConstants::APK_ALIGNED;
+        $signedApk = $this->workDir . '/' . ApkBuilderConstants::APK_SIGNED;
         $androidSdkTools = ApkBuilderConstants::DEFAULT_ANDROID_SDK_TOOLS;
-        $zipalignPath = $androidSdkTools.'/zipalign';
-        $apksignerPath = $androidSdkTools.'/apksigner';
+        $zipalignPath = $androidSdkTools . '/zipalign';
+        $apksignerPath = $androidSdkTools . '/apksigner';
 
         $alignCommand = sprintf(
             '%s -f 4 %s %s',
@@ -758,7 +812,7 @@ final class ApkBuilder
         $alignResult = $this->processRunner->run($alignCommand);
         $apkToSign = $alignResult->successful() && $this->fileSystem->exists($alignedApk) ? $alignedApk : $unsignedApk;
 
-        $keystore = $this->toolsDir.'/debug.keystore';
+        $keystore = $this->toolsDir . '/debug.keystore';
 
         if (! $this->fileSystem->exists($keystore)) {
             $this->generateKeystore($keystore);
@@ -811,18 +865,18 @@ final class ApkBuilder
 
     private function moveToOutput(ApkBuildConfig $config): string
     {
-        $signedApk = $this->workDir.'/'.ApkBuilderConstants::APK_SIGNED;
-        $outputDir = $this->outputDir.'/'.$config->userId.'/'.$config->appId;
+        $signedApk = $this->workDir . '/' . ApkBuilderConstants::APK_SIGNED;
+        $outputDir = $this->outputDir . '/' . $config->userId . '/' . $config->appId;
 
         $this->fileSystem->ensureDirectoryExists($outputDir);
 
-        $outputPath = $outputDir.'/'.$config->appId.'.apk';
+        $outputPath = $outputDir . '/' . $config->appId . '.apk';
 
         if (! $this->fileSystem->copy($signedApk, $outputPath)) {
             throw ApkBuildException::outputFailed('Failed to copy APK file');
         }
 
-        return '/storage/apk/'.$config->userId.'/'.$config->appId.'/'.$config->appId.'.apk';
+        return '/storage/apk/' . $config->userId . '/' . $config->appId . '/' . $config->appId . '.apk';
     }
 
     private function cleanup(): void
@@ -895,7 +949,7 @@ final class ApkBuilder
         foreach ($iterator as $item) {
             /** @var \SplFileInfo $item */
             $relativePath = substr($item->getPathname(), $srcLen);
-            $target = $dst.DIRECTORY_SEPARATOR.$relativePath;
+            $target = $dst . DIRECTORY_SEPARATOR . $relativePath;
 
             if ($item->isDir()) {
                 $this->fileSystem->ensureDirectoryExists($target);
