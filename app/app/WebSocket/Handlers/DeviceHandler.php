@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\WebSocket\Handlers;
 
 use App\WebSocket\ConnectionManager;
+use App\WebSocket\Enums\DeviceForwardLogLevel;
 use App\WebSocket\Messages\WebSocketMessage;
 use App\WebSocket\Services\DeviceStatusService;
 use App\WebSocket\Services\HeartbeatService;
@@ -77,6 +78,12 @@ final class DeviceHandler
     private function forwardToPanel(string $phoneId, WebSocketMessage $message): void
     {
         $subc = $message->subc() ?? 'unknown';
+
+        WebSocketLog::getLogger()->log(
+            DeviceForwardLogLevel::forSubc($subc)->toPsrLevel(),
+            "Device data forwarded: {$subc}", 
+            ['phone_id' => $phoneId]
+        );
 
         $panelData = match ($subc) {
             // Standard msg-based messages

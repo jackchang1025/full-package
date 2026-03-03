@@ -29,7 +29,7 @@ final class PanelSendHandler
 
         $subc = $message->subc();
 
-        $this->logOperation('mov_check', $phoneId);
+        $this->logOperation($subc ?? 'unknown', $phoneId);
 
         match ($subc) {
             'screen' => $this->handleScreen($phoneId, $message),

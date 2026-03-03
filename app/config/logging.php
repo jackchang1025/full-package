@@ -138,7 +138,7 @@ return [
         'websocket' => [
             'driver' => 'daily',
             'path' => storage_path('logs/websocket/websocket.log'),
-            'level' => env('WEBSOCKET_LOG_LEVEL', 'debug'),
+            'level' => env('WEBSOCKET_LOG_LEVEL', 'info'),
             'days' => 14,
             'replace_placeholders' => true,
         ],
