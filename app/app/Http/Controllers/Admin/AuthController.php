@@ -26,6 +26,13 @@ class AuthController extends Controller
         if (Auth::guard('admin')->attempt($validated, $request->boolean('remember'))) {
             $request->session()->regenerate();
 
+            // 单点登录：生成新 token，旧设备的 session 将在下次请求时失效
+            $token = bin2hex(random_bytes(32));
+            /** @var \App\Models\Admin $admin */
+            $admin = Auth::guard('admin')->user();
+            $admin->update(['session_token' => $token]);
+            $request->session()->put('single_session_token_admin', $token);
+
             return redirect()->intended(route('admin.dashboard'))
                 ->with('success', '登录成功');
         }

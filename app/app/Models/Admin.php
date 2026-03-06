@@ -14,11 +14,13 @@ class Admin extends Authenticatable
         'email',
         'email_encrypted',
         'password',
+        'session_token',
     ];
 
     protected $hidden = [
         'password',
         'remember_token',
+        'session_token',
     ];
 
     protected function casts(): array

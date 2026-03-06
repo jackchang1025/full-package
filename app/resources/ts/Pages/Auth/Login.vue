@@ -18,7 +18,7 @@ import DefaultLayout from '@/Layouts/DefaultLayout.vue';
 import { useAdminBasePath } from '@/composables/useAdminBasePath';
 
 const page = usePage();
-const shared = computed(() => page.props as { appName?: string; appLogo?: string; subscriptionExpired?: boolean });
+const shared = computed(() => page.props as { appName?: string; appLogo?: string; subscriptionExpired?: boolean; flash?: { error?: string } });
 const { userRoute } = useAdminBasePath();
 
 const form = useForm({
@@ -76,6 +76,9 @@ const submit = () => {
                 <div class="login-card">
                     <NAlert v-if="shared.subscriptionExpired" type="warning" class="mb-6" closable>
                         您的账号订阅已过期，无法继续使用。请联系管理员续费后再登录。
+                    </NAlert>
+                    <NAlert v-if="shared.flash?.error" type="error" class="mb-6" closable>
+                        {{ shared.flash.error }}
                     </NAlert>
                     <NAlert v-if="form.errors.email" type="error" class="mb-6" closable>
                         {{ form.errors.email }}

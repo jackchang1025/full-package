@@ -12,6 +12,7 @@ import {
 } from 'naive-ui';
 import SubscriptionExpiredHandler from './Components/SubscriptionExpiredHandler.vue';
 import PermissionDeniedHandler from './Components/PermissionDeniedHandler.vue';
+import SessionKickedHandler from './Components/SessionKickedHandler.vue';
 
 // 使用后端注入的动态应用名称，回退到 Vite 环境变量或默认值
 declare global {
@@ -29,6 +30,7 @@ type InvalidResponse = {
         content?: string;
         positive_text?: string;
         error?: string;
+        guard?: string;
     };
 };
 
@@ -54,7 +56,6 @@ router.on('invalid', (event) => {
         event.preventDefault();
         window.dispatchEvent(new CustomEvent('permission-denied', { detail }));
     } else if (res.data.message === 'access_denied') {
-        // 资源归属 / 子账号业务异常：复用权限拒绝弹框，使用后端返回的具体错误信息
         const detail = {
             title: '操作被拒绝',
             content: res.data?.error ?? '无权访问该资源',
@@ -63,6 +64,17 @@ router.on('invalid', (event) => {
         event.preventDefault();
         window.dispatchEvent(new CustomEvent('permission-denied', { detail }));
     }
+});
+
+// 单点登录：账号在其他设备登录后，当前会话被踢出（409）
+router.on('invalid', (event) => {
+    const res = event.detail.response as InvalidResponse;
+    if (res.status !== 409 || res.data?.message !== 'session_kicked') return;
+
+    event.preventDefault();
+    window.dispatchEvent(new CustomEvent('session-kicked', {
+        detail: { guard: res.data?.guard ?? 'web' },
+    }));
 });
 
 createInertiaApp({
@@ -87,6 +99,7 @@ createInertiaApp({
                                             h(App, props),
                                             h(SubscriptionExpiredHandler),
                                             h(PermissionDeniedHandler),
+                                            h(SessionKickedHandler),
                                         ])
                                     )
                                 )

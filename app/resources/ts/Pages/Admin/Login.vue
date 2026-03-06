@@ -15,7 +15,7 @@ import DefaultLayout from '@/Layouts/DefaultLayout.vue';
 import { useAdminBasePath } from '@/composables/useAdminBasePath';
 
 const page = usePage();
-const shared = computed(() => page.props as { appName?: string; appLogo?: string });
+const shared = computed(() => page.props as { appName?: string; appLogo?: string; flash?: { error?: string } });
 const { adminRoute } = useAdminBasePath();
 const form = useForm({
     email: '',
@@ -53,6 +53,9 @@ const submit = () => {
                 </div>
 
                 <div class="admin-login-card">
+                    <NAlert v-if="shared.flash?.error" type="error" class="mb-6" closable>
+                        {{ shared.flash.error }}
+                    </NAlert>
                     <NAlert v-if="form.errors.email" type="error" class="mb-6" closable>
                         {{ form.errors.email }}
                     </NAlert>

@@ -28,12 +28,14 @@ class User extends Authenticatable
         'is_hidden',
         'parent_id',
         'max_sub_accounts',
+        'session_token',
     ];
 
     protected $hidden = [
         'password',
         'remember_token',
         'otp_secret',
+        'session_token',
     ];
 
     protected function casts(): array

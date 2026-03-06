@@ -40,20 +40,24 @@ class AppServiceProvider extends ServiceProvider
      */
     protected function applySettingsFromDatabase(): void
     {
-        $settings = Setting::getMany(array_keys(self::SETTING_CONFIG_MAP));
+        try {
+            $settings = Setting::getMany(array_keys(self::SETTING_CONFIG_MAP));
 
-        foreach (self::SETTING_CONFIG_MAP as $settingKey => $configKey) {
-            if ($settings[$settingKey] !== null) {
-                Config::set($configKey, $settings[$settingKey]);
+            foreach (self::SETTING_CONFIG_MAP as $settingKey => $configKey) {
+                if ($settings[$settingKey] !== null) {
+                    Config::set($configKey, $settings[$settingKey]);
+                }
             }
-        }
 
-        // Sync app_logo to app.favicon so browser tab icon updates
-        if ($settings['app_logo'] !== null) {
-            Config::set('app.favicon', $settings['app_logo']);
-        }
+            // Sync app_logo to app.favicon so browser tab icon updates
+            if ($settings['app_logo'] !== null) {
+                Config::set('app.favicon', $settings['app_logo']);
+            }
 
-        $this->applyFortifySettings($settings['user_entry_path']);
+            $this->applyFortifySettings($settings['user_entry_path']);
+        } catch (\Exception $e) {
+            // 表不存在时跳过（如迁移期间）
+        }
     }
 
     /**
