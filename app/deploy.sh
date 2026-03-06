@@ -80,9 +80,13 @@ init() {
     print_msg "安装 Composer 依赖..."
     docker run --rm \
         -v "${PROJECT_DIR}:/var/www/html" \
-        -u "$(id -u):$(id -g)" \
+        -e WWWUSER="$(id -u)" \
+        -e WWWGROUP="$(id -g)" \
         ${APP_IMAGE:-feiying-app:latest} \
         composer install --optimize-autoloader --no-dev --no-scripts
+    
+    # 修复 vendor 目录权限
+    sudo chown -R "$(id -u):$(id -g)" vendor 2>/dev/null || chown -R "$(id -u):$(id -g)" vendor
     
     # 启动服务
     print_msg "启动服务..."
