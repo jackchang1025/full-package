@@ -95,6 +95,7 @@ cd app
 | [DOCKER_SUPERVISOR.md](./docs/migration/DOCKER_SUPERVISOR.md) | **Docker Supervisor 配置** - 容器内服务管理、WebSocket 自动启动、添加新服务 | 配置容器后台服务 |
 | [CONTROL_PANEL_SCREEN_OPERATIONS.md](./docs/migration/CONTROL_PANEL_SCREEN_OPERATIONS.md) | **控制面板屏幕操作** - 投屏点击/滑动/长按实现、坐标换算、PanelHandler 与 PanelSendHandler 分工 | 开发设备控制页、触摸转发、WebSocket 消息流 |
 | [ADMIN_USER_MANAGEMENT.md](./docs/migration/ADMIN_USER_MANAGEMENT.md) | **总后台用户管理与子账号** - 子账号模型、用户管理两栏布局、URL 状态、StatusModal、树节点删除 | 总后台用户/子账号功能、Admin Users 页面维护 |
+| [SINGLE_SIGN_ON.md](./docs/migration/SINGLE_SIGN_ON.md) | **单点登录功能** - 多设备登出、session_token 机制、EnsureSingleSession 中间件、前端处理 | ⭐ 开发/维护单点登录功能、理解会话管理 |
 | [DEPLOYMENT.md](./docs/DEPLOYMENT.md) | **V2 部署文档** - Docker/Compose 部署、宝塔面板 Docker 部署、Nginx 反向代理、SSL、故障排查 | 生产部署、宝塔环境部署 |
 
 ### 核心系统文档 (位于 `docs/legacy/`)
