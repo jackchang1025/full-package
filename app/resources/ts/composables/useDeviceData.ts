@@ -286,14 +286,26 @@ export function parseKeylogData(data: string): KeylogEntry[] {
                     status: parsed.status || '',
                 });
             } catch {
-                const parts = line.split('[>A<]');
-                if (parts.length >= 3) {
+                // 设备端实际数据格式: "状态|事件类型|内容|时间" (pipe 分隔)
+                const pipeParts = line.split('|');
+                if (pipeParts.length >= 3) {
                     entries.push({
-                        time: parts[0] || '',
-                        app: parts[1] || '',
-                        action: parts[2] || '',
-                        status: parts[3] || '',
+                        status: pipeParts[0] || '',
+                        app: pipeParts[1] || '',
+                        action: pipeParts[2] || '',
+                        time: pipeParts[3] || '',
                     });
+                } else {
+                    // 旧格式兼容: [>A<] 分隔
+                    const parts = line.split('[>A<]');
+                    if (parts.length >= 3) {
+                        entries.push({
+                            time: parts[0] || '',
+                            app: parts[1] || '',
+                            action: parts[2] || '',
+                            status: parts[3] || '',
+                        });
+                    }
                 }
             }
         }
