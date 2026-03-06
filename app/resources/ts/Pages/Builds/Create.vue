@@ -1118,9 +1118,14 @@ const validateForm = (): boolean => {
 }
 
 .field-desc {
-    font-size: 12px;
-    color: #94a3b8;
-    margin-top: 4px;
-    line-height: 1.4;
+    font-size: 11.5px;
+    color: #64748b;
+    margin-top: 6px;
+    padding: 6px 10px;
+    line-height: 1.5;
+    background: linear-gradient(135deg, #f8fafc, #f1f5f9);
+    border-left: 2px solid #667eea;
+    border-radius: 0 4px 4px 0;
+    letter-spacing: 0.01em;
 }
 </style>
