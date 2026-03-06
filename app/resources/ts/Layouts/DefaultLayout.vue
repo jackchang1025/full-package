@@ -10,6 +10,7 @@ import {
     darkTheme,
 } from 'naive-ui';
 import { ref, computed } from 'vue';
+import FlashMessageHandler from '@/Components/FlashMessageHandler.vue';
 
 const isDark = ref(false);
 const theme = computed(() => (isDark.value ? darkTheme : null));
@@ -21,7 +22,9 @@ const theme = computed(() => (isDark.value ? darkTheme : null));
             <NDialogProvider>
                 <NNotificationProvider>
                     <NMessageProvider>
-                        <slot />
+                        <FlashMessageHandler>
+                            <slot />
+                        </FlashMessageHandler>
                     </NMessageProvider>
                 </NNotificationProvider>
             </NDialogProvider>

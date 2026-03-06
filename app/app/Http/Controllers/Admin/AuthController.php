@@ -26,7 +26,8 @@ class AuthController extends Controller
         if (Auth::guard('admin')->attempt($validated, $request->boolean('remember'))) {
             $request->session()->regenerate();
 
-            return redirect()->intended(route('admin.dashboard'));
+            return redirect()->intended(route('admin.dashboard'))
+                ->with('success', '登录成功');
         }
 
         return back()->withErrors([
