@@ -19,8 +19,6 @@ services:
         environment:
             WWWUSER: '1000'
             LARAVEL_SAIL: 1
-            APP_ENV: production
-            APP_DEBUG: 'false'
         volumes:
             - '.:/var/www/html'
             - './docker/supervisord.prod.conf:/etc/supervisor/conf.d/supervisord.conf'
