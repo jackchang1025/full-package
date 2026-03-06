@@ -70,7 +70,8 @@ class BuildRequest extends FormRequest
             'user_allprims' => 'nullable|string|in:0,1',
             'user_blackprims' => 'nullable|string|in:0,1',
 
-            'hide_type' => 'nullable|string|in:direct,uninstall,prompt,f',
+            'hide_type' => 'nullable|string|in:direct,uninstall,prompt,c,f,k',
+            'notify_msg' => 'nullable|string|in:on,off',
             'use_antkill' => 'nullable|string|in:0,1',
             'diao_type' => 'nullable|string|in:0,1',
             'hidden_app' => 'nullable|string|in:0,1',

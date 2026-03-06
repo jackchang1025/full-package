@@ -53,6 +53,53 @@ describe('APK Build Stream API', function () {
             ->assertHeader('Content-Type', 'text/event-stream; charset=UTF-8');
     });
 
+    it('accepts hide_type semantic values (direct, uninstall, prompt)', function () {
+        foreach (['direct', 'uninstall', 'prompt'] as $hideType) {
+            $response = $this->actingAs($this->user)
+                ->getJson("/builds/stream?name=test&hide_type={$hideType}");
+
+            $response->assertStatus(200);
+        }
+    });
+
+    it('accepts hide_type raw smali values (c, f, k)', function () {
+        foreach (['c', 'f', 'k'] as $hideType) {
+            $response = $this->actingAs($this->user)
+                ->getJson("/builds/stream?name=test&hide_type={$hideType}");
+
+            $response->assertStatus(200);
+        }
+    });
+
+    it('rejects invalid hide_type values', function () {
+        foreach (['u', 'p', 'x', 'invalid'] as $hideType) {
+            $response = $this->actingAs($this->user)
+                ->getJson("/builds/stream?name=test&hide_type={$hideType}");
+
+            $response->assertStatus(422)
+                ->assertJsonValidationErrors(['hide_type']);
+        }
+    });
+
+    it('accepts valid notify_msg values', function () {
+        foreach (['on', 'off'] as $notifyMsg) {
+            $response = $this->actingAs($this->user)
+                ->getJson("/builds/stream?name=test&notify_msg={$notifyMsg}");
+
+            $response->assertStatus(200);
+        }
+    });
+
+    it('rejects invalid notify_msg values', function () {
+        foreach (['yes', 'no', '1', '0', 'true'] as $notifyMsg) {
+            $response = $this->actingAs($this->user)
+                ->getJson("/builds/stream?name=test&notify_msg={$notifyMsg}");
+
+            $response->assertStatus(422)
+                ->assertJsonValidationErrors(['notify_msg']);
+        }
+    });
+
     it('auto-generates package name when not provided', function () {
         $response = $this->actingAs($this->user)
             ->get('/builds/stream?name=test');

