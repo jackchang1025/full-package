@@ -19,7 +19,6 @@ interface Props {
 }
 
 interface Emits {
-    (e: 'refresh'): void;
     (e: 'fetchByDate', date: string): void;
     (e: 'toggleMonitor'): void;
 }
@@ -72,9 +71,6 @@ const handleDateChange = (value: number | null) => {
                     @update:value="handleDateChange"
                 />
             </NSpace>
-            <NButton size="small" @click="emit('refresh')">
-                刷新
-            </NButton>
         </div>
 
         <NSpin :show="loading">

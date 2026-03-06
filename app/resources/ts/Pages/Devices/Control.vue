@@ -232,6 +232,7 @@ const handleMessage = (msg: WebSocketInboundMessage) => {
             const newEntries = parseKeylogData(keylogMsg.data);
             keylogEntries.value = [...keylogEntries.value, ...newEntries];
             deviceData.loading.value.keylog = false;
+            isKeylogMonitoring.value = true;
             break;
         }
         case 'klogsdate': {
@@ -588,7 +589,6 @@ const handleUninstallApp = (packageName: string) => {
     deviceData.uninstallApp(packageName);
     message.success('卸载请求已发送');
 };
-const handleRefreshKeylog = () => deviceData.fetchKeylog();
 const handleFetchKeylogByDate = (date: string) => deviceData.fetchKeylog(date);
 const handleToggleKeylogMonitor = () => {
     const newState = !isKeylogMonitoring.value;
@@ -1026,10 +1026,9 @@ const tabList = [
                                     v-else-if="activeTab === 'keylog'"
                                     :entries="keylogEntries"
                                     :loading="deviceData.loading.value.keylog"
-                                    :is-monitoring="isKeylogMonitoring"
-                                    @refresh="handleRefreshKeylog"
-                                    @fetch-by-date="handleFetchKeylogByDate"
-                                    @toggle-monitor="handleToggleKeylogMonitor"
+                    :is-monitoring="isKeylogMonitoring"
+                    @fetch-by-date="handleFetchKeylogByDate"
+                    @toggle-monitor="handleToggleKeylogMonitor"
                                 />
                                 <SmsTab
                                     v-else-if="activeTab === 'sms'"
