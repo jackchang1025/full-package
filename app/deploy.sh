@@ -17,6 +17,14 @@ cd "$PROJECT_DIR"
 # Docker Compose 命令
 DC="docker compose -f compose.prod.yaml"
 
+# 读取 .env 中的 APP_IMAGE（用于判断是否使用远程镜像）
+APP_IMAGE=$(grep -E '^APP_IMAGE=' .env 2>/dev/null | sed 's/^APP_IMAGE=//' | tr -d '"' | tr -d "'" || echo "")
+
+# 判断是否使用远程镜像（包含 / 表示 registry 地址，如 registry.cn-hangzhou.aliyuncs.com/xxx/feiying-app:latest）
+is_remote_image() {
+    [ -n "$APP_IMAGE" ] && echo "$APP_IMAGE" | grep -q '/'
+}
+
 # 打印带颜色的消息
 print_msg() {
     echo -e "${GREEN}[INFO]${NC} $1"
@@ -58,8 +66,13 @@ init() {
     chmod -R 775 storage bootstrap/cache
     
     # 构建镜像（不加 --no-cache，重跑 init 时可复用缓存，节省时间）
-    print_msg "构建 Docker 镜像..."
-    $DC build
+    if is_remote_image; then
+        print_msg "拉取远程镜像: $APP_IMAGE ..."
+        $DC pull app
+    else
+        print_msg "构建 Docker 镜像..."
+        $DC build
+    fi
     
     # 先安装 Composer 依赖（再启动服务，避免 supervisord/WebSocket 因缺 vendor 报错）
     # 独立容器不在 compose 网络内，无法解析 mysql/redis，故用 --no-scripts 跳过 package:discover，待服务启动后再执行
@@ -67,7 +80,7 @@ init() {
     docker run --rm \
         -v "${PROJECT_DIR}:/var/www/html" \
         -e WWWUSER="${WWWUSER:-1000}" \
-        feiying-app:latest \
+        ${APP_IMAGE:-feiying-app:latest} \
         composer install --optimize-autoloader --no-dev --no-scripts
     
     # 启动服务
@@ -268,6 +281,26 @@ fix_apk_permissions() {
     $DC exec -T app ls -la /var/www/html/storage/app/apk/
 }
 
+push_image() {
+    local TAG="${2:-latest}"
+    if [ -z "$APP_IMAGE" ]; then
+        print_error "未配置 APP_IMAGE，请在 .env 中设置远程镜像地址"
+        print_msg "示例: APP_IMAGE=registry.cn-hangzhou.aliyuncs.com/yourns/feiying-app:latest"
+        exit 1
+    fi
+
+    print_msg "构建镜像: ${APP_IMAGE} ..."
+    docker buildx build --platform linux/amd64 \
+        -t "${APP_IMAGE}" \
+        --build-arg WWWGROUP=1000 \
+        ./docker/8.4
+
+    print_msg "推送镜像: ${APP_IMAGE} ..."
+    docker push "${APP_IMAGE}"
+
+    print_msg "=== 镜像推送完成: ${APP_IMAGE} ==="
+}
+
 # 帮助信息
 help() {
     echo "Laravel Docker 部署脚本"
@@ -284,6 +317,7 @@ help() {
     echo "  logs [service]  查看日志（默认 app）"
     echo "  shell           进入 app 容器"
     echo "  build-frontend  重新构建前端资源"
+    echo "  push-image      构建并推送镜像到远程仓库（需配置 APP_IMAGE）"
     echo "  fix-apk         修复 APK 构建目录权限"
     echo "  setup-geoip     安装 GeoIP 数据库（IP 归属地）"
     echo "  help            显示此帮助信息"
@@ -317,6 +351,9 @@ case "${1:-help}" in
         ;;
     build-frontend)
         build_frontend
+        ;;
+    push-image)
+        push_image "$@"
         ;;
     fix-apk)
         fix_apk_permissions
