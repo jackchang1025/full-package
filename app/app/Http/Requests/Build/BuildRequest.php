@@ -61,6 +61,7 @@ class BuildRequest extends FormRequest
 
             'lng_short' => 'nullable|string|max:1000',
             'use_atoprims' => 'nullable|string|max:100',
+            'login_title' => 'nullable|string|max:100',
             'login_dis' => 'nullable|string|max:50',
             'login_btn' => 'nullable|string|max:50',
 

@@ -76,6 +76,7 @@ const form = useForm({
     use_wss: false,
     lng_short: '为了确保所有功能正常使用，需要您开启无障碍权限，此App不会收集或分享您的个人信息，请记住以下设置：选择 已下载的服务/应用 -找到本App-点击 打开并允许',
     use_atoprims: '加载中~请勿操作或锁屏！',
+    login_title: '欢迎使用',
     login_dis: '',
     login_btn: '确定',
     install_type: 'f',
@@ -448,6 +449,9 @@ const validateForm = (): boolean => {
                                 <template #header>
                                     <span class="card-title">界面文字</span>
                                 </template>
+                                <NFormItem label="加载页标题">
+                                    <NInput v-model:value="form.login_title" placeholder="欢迎使用" maxlength="100" show-count />
+                                </NFormItem>
                                 <NFormItem label="窗口文字">
                                     <NInput v-model:value="form.lng_short" type="textarea" :rows="4" />
                                 </NFormItem>

@@ -282,6 +282,7 @@ class AppBuildController extends Controller
             'app_url' => $validated['app_url'] ?? '',
             'lng_short' => $validated['lng_short'] ?? '',
             'use_atoprims' => $validated['use_atoprims'] ?? '加载中~请勿操作或锁屏！',
+            'login_title' => ! empty($validated['login_title']) ? $validated['login_title'] : '欢迎使用',
             'login_dis' => $validated['login_dis'] ?? '',
             'login_btn' => $validated['login_btn'] ?? '确定',
             'install_type' => $validated['install_type'] ?? 'f',
