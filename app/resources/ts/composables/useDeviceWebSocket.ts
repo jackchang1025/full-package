@@ -80,7 +80,7 @@ export function useDeviceWebSocket() {
 
         reconnectTimeout = setTimeout(() => {
             if (currentDeviceId) {
-                connect(currentDeviceId);
+                connect(currentDeviceId, currentToken ?? '');
             }
         }, delay);
     };
