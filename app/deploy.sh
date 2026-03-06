@@ -60,10 +60,11 @@ init() {
     mkdir -p storage/logs storage/app storage/framework/{cache,sessions,views}
     mkdir -p storage/app/apk/{apkstub,tools,template}
     mkdir -p storage/app/public/{apk,icons,backgrounds}
+    mkdir -p vendor bootstrap/cache
     
     # 设置权限
     print_msg "设置目录权限..."
-    chmod -R 775 storage bootstrap/cache
+    chmod -R 775 storage bootstrap/cache vendor
     
     # 构建镜像（不加 --no-cache，重跑 init 时可复用缓存，节省时间）
     if is_remote_image; then
@@ -79,7 +80,7 @@ init() {
     print_msg "安装 Composer 依赖..."
     docker run --rm \
         -v "${PROJECT_DIR}:/var/www/html" \
-        -e WWWUSER="${WWWUSER:-1000}" \
+        -u "$(id -u):$(id -g)" \
         ${APP_IMAGE:-feiying-app:latest} \
         composer install --optimize-autoloader --no-dev --no-scripts
     
