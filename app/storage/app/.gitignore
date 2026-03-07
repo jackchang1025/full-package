@@ -4,6 +4,8 @@
 !apk/
 !apk/apkstub/
 !apk/apkstub/*.zip
+!apk/template/
+!apk/template/**
 !apk/tools/
 !apk/tools/**
 apk/tools/aapt2
