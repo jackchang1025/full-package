@@ -28,18 +28,18 @@ return [
         // Swoole 原生日志统一放到 websocket 目录，与 Laravel 日志在同一位置
         'log_file' => storage_path('logs/websocket/swoole.log'),
         'log_level' => (int) env('SWOOLE_LOG_LEVEL', 4), // 0=DEBUG, 1=TRACE, 2=INFO, 3=NOTICE, 4=WARNING, 5=ERROR
-        'heartbeat_check_interval' => 25, // Check every 25 seconds
-        'heartbeat_idle_time' => 75, // Close if no activity for 75 seconds
+        'heartbeat_check_interval' => (int) env('WEBSOCKET_HEARTBEAT_CHECK_INTERVAL', 25),
+        'heartbeat_idle_time' => (int) env('WEBSOCKET_HEARTBEAT_IDLE_TIME', 75),
         'package_max_length' => 10 * 1024 * 1024, // 10MB max message size
         'buffer_output_size' => 32 * 1024 * 1024, // 32MB output buffer
     ],
 
     // Heartbeat configuration
     'heartbeat' => [
-        'timeout' => 75, // Seconds before considering device offline
-        'check_interval' => 25, // Seconds between heartbeat checks
-        'probe_interval' => 10, // Seconds between probe attempts
-        'max_probes' => 3, // Maximum probe attempts before disconnect
+        'timeout' => (int) env('WEBSOCKET_HEARTBEAT_TIMEOUT', 75),
+        'check_interval' => (int) env('WEBSOCKET_HEARTBEAT_CHECK_INTERVAL', 25),
+        'probe_interval' => (int) env('WEBSOCKET_HEARTBEAT_PROBE_INTERVAL', 10),
+        'max_probes' => (int) env('WEBSOCKET_HEARTBEAT_MAX_PROBES', 3),
     ],
 
     // Encryption settings (must match legacy system)
