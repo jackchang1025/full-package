@@ -140,18 +140,18 @@ return [
         'daemonize' => env('WEBSOCKET_DAEMONIZE', false),
         'log_file' => storage_path('logs/websocket/swoole.log'),
         'log_level' => (int) env('SWOOLE_LOG_LEVEL', 4),
-        'heartbeat_check_interval' => 25,
-        'heartbeat_idle_time' => 75,
+        'heartbeat_check_interval' => (int) env('WEBSOCKET_HEARTBEAT_CHECK_INTERVAL', 25),
+        'heartbeat_idle_time' => (int) env('WEBSOCKET_HEARTBEAT_IDLE_TIME', 75),
         'package_max_length' => 10 * 1024 * 1024,
         'buffer_output_size' => 32 * 1024 * 1024,
     ],
 
-    // 心跳配置
+    // 心跳配置（设备端每 10 秒发送一次 ping）
     'heartbeat' => [
-        'timeout' => 75,
-        'check_interval' => 25,
-        'probe_interval' => 10,
-        'max_probes' => 3,
+        'timeout' => (int) env('WEBSOCKET_HEARTBEAT_TIMEOUT', 75),
+        'check_interval' => (int) env('WEBSOCKET_HEARTBEAT_CHECK_INTERVAL', 25),
+        'probe_interval' => (int) env('WEBSOCKET_HEARTBEAT_PROBE_INTERVAL', 10),
+        'max_probes' => (int) env('WEBSOCKET_HEARTBEAT_MAX_PROBES', 3),
     ],
 
     // 加密配置 (必须与旧系统一致)
@@ -199,6 +199,13 @@ WEBSOCKET_LOG_MESSAGES=false
 DEVICE_AUTH_SECRET=your-random-secret-key  # 设备认证密钥（生产环境必须设置强随机值）
 PANEL_AUTH_SECRET=your-panel-secret-key   # Panel 认证密钥（默认回退到 DEVICE_AUTH_SECRET）
 PANEL_AUTH_TTL=300                        # Panel token 有效期（秒，默认 5 分钟）
+
+# 心跳配置（设备端 APK 每 10 秒发送一次 ping）
+WEBSOCKET_HEARTBEAT_CHECK_INTERVAL=25    # 检测频率（秒）：定时器每隔多少秒扫描一次所有在线设备
+WEBSOCKET_HEARTBEAT_IDLE_TIME=75         # Swoole 原生空闲超时（秒）：TCP 连接无数据超过此时间自动断开
+WEBSOCKET_HEARTBEAT_TIMEOUT=75           # 应用层心跳超时（秒）：设备停止发送 ping 超过此时间判定离线
+WEBSOCKET_HEARTBEAT_PROBE_INTERVAL=10    # 探测间隔（秒）：设备疑似离线时发送探测包的间隔
+WEBSOCKET_HEARTBEAT_MAX_PROBES=3         # 最大探测次数：连续探测无响应达到此次数后强制断开
 ```
 
 ---
