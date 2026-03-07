@@ -153,8 +153,8 @@ const blackprimsOptions = [
 
 const hideTypeOptions = [
     { label: '直接隐藏（推荐）', value: 'c' },
-    { label: '卸载隐藏', value: 'f' },
-    { label: '提示卸载', value: 'k' },
+    { label: '模拟卸载', value: 'k' },
+    { label: '无隐藏保护', value: 'f' },
 ];
 
 const antkillOptions = [
@@ -541,9 +541,9 @@ const validateForm = (): boolean => {
                                                             <NIcon :component="InformationCircleOutline" class="tip-icon" />
                                                         </template>
                                                         <div class="tip-content">
-                                                            <p><b>直接隐藏</b>：检测到卸载时按HOME键跳走</p>
-                                                            <p><b>卸载隐藏</b>：不拦截卸载流程，需配合防止卸载使用</p>
-                                                            <p><b>提示卸载</b>：弹出假卸载对话框</p>
+                                                            <p><b>直接隐藏</b>：检测到卸载时按HOME键跳走，阻止卸载操作</p>
+                                                            <p><b>模拟卸载</b>：提示系统不兼容，用户点击卸载后隐藏图标（图标变透明），软件继续后台运行</p>
+                                                            <p><b>无隐藏保护</b>：不触发任何隐藏行为，需配合防止卸载使用</p>
                                                         </div>
                                                     </NTooltip>
                                                 </span>
