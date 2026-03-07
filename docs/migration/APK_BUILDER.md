@@ -459,10 +459,10 @@ DEVICE_AUTH_SECRET=your-random-secret-key
 | 值 | 前端标签 | Smali 行为 | 说明 |
 |----|---------|-----------|------|
 | `c` | 直接隐藏（推荐） | 无障碍服务检测到卸载 UI → 按 HOME 键跳走 | r2.smali 中 6 处检查，MuteUninstall 中 2 处检查 |
-| `k` | 提示卸载 | 弹出 MuteUninstall 假对话框 → 截屏 + 按返回 | m.smali 中 2 处检查，MuteUninstall 中 2 处检查 |
-| `f` | 卸载隐藏 | 不匹配 `c` 也不匹配 `k`，无拦截行为 | Smali 中无直接比较，作为"透传"值使用 |
+| `k` | 模拟卸载 | 弹出 MuteUninstall 提示"系统不兼容"→ 用户点击卸载后图标变透明，软件继续后台运行 | m.smali 中 2 处检查，MuteUninstall 中 2 处检查 |
+| `f` | 无隐藏保护 | 不匹配 `c` 也不匹配 `k`，无拦截行为 | Smali 中无直接比较，作为"透传"值使用 |
 
-### "卸载隐藏"（hide_type=f）的实际工作原理
+### "无隐藏保护"（hide_type=f）的实际工作原理
 
 `hide_type=f` 本身不触发任何隐藏拦截行为。它需要与其他字段配合：
 
