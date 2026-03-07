@@ -200,10 +200,11 @@ DEVICE_AUTH_SECRET=your-random-secret-key  # 设备认证密钥（生产环境�
 PANEL_AUTH_SECRET=your-panel-secret-key   # Panel 认证密钥（默认回退到 DEVICE_AUTH_SECRET）
 PANEL_AUTH_TTL=300                        # Panel token 有效期（秒，默认 5 分钟）
 
-# 心跳配置（设备端 APK 每 10 秒发送一次 ping）
+# 心跳配置
+# 心跳源：设备端 APK 每 10 秒发一次 ping，Web 面板全局连接每 30 秒，设备控制面板每 5 秒
 WEBSOCKET_HEARTBEAT_CHECK_INTERVAL=25    # 检测频率（秒）：定时器每隔多少秒扫描一次所有在线设备
-WEBSOCKET_HEARTBEAT_IDLE_TIME=75         # Swoole 原生空闲超时（秒）：TCP 连接无数据超过此时间自动断开
-WEBSOCKET_HEARTBEAT_TIMEOUT=75           # 应用层心跳超时（秒）：设备停止发送 ping 超过此时间判定离线
+WEBSOCKET_HEARTBEAT_IDLE_TIME=75         # Swoole 原生空闲超时（秒）：TCP 连接无数据超过此时间自动断开（需大于面板 30 秒心跳间隔）
+WEBSOCKET_HEARTBEAT_TIMEOUT=75           # 应用层心跳超时（秒）：设备停止发送 ping 超过此时间判定离线（设备每 10 秒 ping，75 秒可容错 7 次丢包）
 WEBSOCKET_HEARTBEAT_PROBE_INTERVAL=10    # 探测间隔（秒）：设备疑似离线时发送探测包的间隔
 WEBSOCKET_HEARTBEAT_MAX_PROBES=3         # 最大探测次数：连续探测无响应达到此次数后强制断开
 ```

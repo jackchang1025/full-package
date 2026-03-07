@@ -202,7 +202,8 @@ final class Server
         $fd = $frame->fd;
         $data = $frame->data;
 
-        WebSocketLog::getLogger()->debug("Message received: fd={$fd}", ['data' => substr($data, 0, 500)]);
+        $clientType = $this->resolveClientType($fd, $data);
+        WebSocketLog::getLogger()->debug("Message received: fd={$fd} [{$clientType}]", ['data' => substr($data, 0, 500)]);
 
         try {
             $this->messageRouter->route($fd, $data);
@@ -313,5 +314,37 @@ final class Server
     public function getConnectionManager(): ConnectionManager
     {
         return $this->connectionManager;
+    }
+
+    /**
+     * 解析客户端类型，用于日志区分 device/panel/unknown。
+     * 优先从 ConnectionManager 已注册信息获取，未注册时从消息 itype 推断。
+     */
+    private function resolveClientType(int $fd, string $rawData): string
+    {
+        // 已注册的连接直接返回
+        $type = $this->connectionManager->getClientType($fd);
+        if ($type !== null) {
+            return $type;
+        }
+
+        // 未注册时从消息体推断
+        $data = json_decode($rawData, true);
+        if (! is_array($data)) {
+            return 'unknown';
+        }
+
+        $itype = $data['itype'] ?? null;
+        if ($itype === null) {
+            return 'panel'; // 无 itype 的消息来自前端面板
+        }
+
+        $clientTypes = WebSocketConfig::clientTypes();
+
+        return match ($itype) {
+            $clientTypes['device'] => 'device',
+            $clientTypes['panel'], $clientTypes['panel_send'] => 'panel',
+            default => 'unknown',
+        };
     }
 }
