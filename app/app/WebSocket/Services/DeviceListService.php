@@ -61,6 +61,8 @@ final class DeviceListService
     {
         // 获取 Redis 中的实时状态（如果有）
         $realtimeStatus = $this->connectionManager->getDeviceStatus($device->uuid);
+        // 与控制页一致：在线状态以当前 WebSocket 连接为准，避免列表显示在线但 join 返回 CLOSED
+        $isOnline = $this->connectionManager->isDeviceOnline($device->uuid);
 
         return [
             'id' => $device->id,
@@ -75,7 +77,7 @@ final class DeviceListService
             'network_type' => $realtimeStatus['network'] ?? null,
             'battery_level' => $device->battery_level,
             'battery_is_charging' => BatteryParser::parseCharging($realtimeStatus['battery_charge'] ?? ''),
-            'is_online' => $device->is_online,
+            'is_online' => $isOnline,
             'has_accessibility' => $device->has_accessibility,
             'last_seen_at' => $device->last_seen_at?->toIso8601String(),
             'installed_at' => $device->installed_at?->toIso8601String(),

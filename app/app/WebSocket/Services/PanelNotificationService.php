@@ -42,7 +42,7 @@ class PanelNotificationService
     }
 
     /**
-     * 获取设备统计数据
+     * 获取设备统计数据（与控制页一致：在线数以当前 WebSocket 连接为准）
      */
     public function getDeviceStats(?int $userId): array
     {
@@ -52,8 +52,9 @@ class PanelNotificationService
             $query->where('user_id', $userId);
         }
 
-        $total = (clone $query)->count();
-        $online = (clone $query)->where('is_online', true)->count();
+        $devices = (clone $query)->get();
+        $total = $devices->count();
+        $online = $devices->filter(fn ($d) => $this->connectionManager->isDeviceOnline($d->uuid))->count();
 
         return [
             'total' => $total,
