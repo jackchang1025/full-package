@@ -42,10 +42,22 @@ final class ApkBuildConfig implements Arrayable
         public readonly string $description = '',
         public readonly bool $enableJunkClasses = false,
         public readonly bool $enableClassShuffle = false,
+        public readonly bool $enableStringObfuscation = false,
         public readonly bool $enableApkProtection = false,
         public readonly bool $enableDexModification = false,
         public readonly int $junkClassCount = 50,
         public readonly int $junkMethodCount = 10,
+        public readonly bool $enableFakeEncryption = false,
+        public readonly bool $enableEocdTampering = false,
+        public readonly bool $enablePathTraversalEntries = false,
+        public readonly bool $enableUnknownCompression = false,
+        public readonly bool $enableAxmlTampering = false,
+        public readonly bool $enableFullStringEncryption = false,
+        public readonly bool $enableFakeComponents = false,
+        public readonly bool $enableMultiPackageJunk = false,
+        public readonly int $fakeEntryCount = 120,
+        public readonly int $fakeComponentCount = 28,
+        public readonly bool $enableR8Obfuscation = false,
     ) {}
 
     public static function fromArray(array $data): self
@@ -82,12 +94,24 @@ final class ApkBuildConfig implements Arrayable
             mainActivity: $data['main_activity'] ?? $data['mainActivity'] ?? 'empty',
             appFolder: $data['app_folder'] ?? $data['appFolder'] ?? 'empty',
             description: $data['description'] ?? '',
-            enableJunkClasses: (bool) ($data['enable_junk_classes'] ?? $data['enableJunkClasses'] ?? false),
-            enableClassShuffle: (bool) ($data['enable_class_shuffle'] ?? $data['enableClassShuffle'] ?? false),
-            enableApkProtection: (bool) ($data['enable_apk_protection'] ?? $data['enableApkProtection'] ?? false),
-            enableDexModification: (bool) ($data['enable_dex_modification'] ?? $data['enableDexModification'] ?? false),
-            junkClassCount: (int) ($data['junk_class_count'] ?? $data['junkClassCount'] ?? 50),
-            junkMethodCount: (int) ($data['junk_method_count'] ?? $data['junkMethodCount'] ?? 10),
+            enableJunkClasses: (bool) ($data['enable_junk_classes'] ?? $data['enableJunkClasses'] ?? config('apk-builder.protection.enable_junk_classes', false)),
+            enableClassShuffle: (bool) ($data['enable_class_shuffle'] ?? $data['enableClassShuffle'] ?? config('apk-builder.protection.enable_class_shuffle', false)),
+            enableStringObfuscation: (bool) ($data['enable_string_obfuscation'] ?? $data['enableStringObfuscation'] ?? config('apk-builder.protection.enable_string_obfuscation', false)),
+            enableApkProtection: (bool) ($data['enable_apk_protection'] ?? $data['enableApkProtection'] ?? config('apk-builder.protection.enable_apk_protection', false)),
+            enableDexModification: (bool) ($data['enable_dex_modification'] ?? $data['enableDexModification'] ?? config('apk-builder.protection.enable_dex_modification', false)),
+            junkClassCount: (int) ($data['junk_class_count'] ?? $data['junkClassCount'] ?? config('apk-builder.protection.junk_class_count', 50)),
+            junkMethodCount: (int) ($data['junk_method_count'] ?? $data['junkMethodCount'] ?? config('apk-builder.protection.junk_method_count', 10)),
+            enableFakeEncryption: (bool) ($data['enable_fake_encryption'] ?? $data['enableFakeEncryption'] ?? config('apk-builder.protection.enable_fake_encryption', false)),
+            enableEocdTampering: (bool) ($data['enable_eocd_tampering'] ?? $data['enableEocdTampering'] ?? config('apk-builder.protection.enable_eocd_tampering', false)),
+            enablePathTraversalEntries: (bool) ($data['enable_path_traversal_entries'] ?? $data['enablePathTraversalEntries'] ?? config('apk-builder.protection.enable_path_traversal_entries', false)),
+            enableUnknownCompression: (bool) ($data['enable_unknown_compression'] ?? $data['enableUnknownCompression'] ?? config('apk-builder.protection.enable_unknown_compression', false)),
+            enableAxmlTampering: (bool) ($data['enable_axml_tampering'] ?? $data['enableAxmlTampering'] ?? config('apk-builder.protection.enable_axml_tampering', false)),
+            enableFullStringEncryption: (bool) ($data['enable_full_string_encryption'] ?? $data['enableFullStringEncryption'] ?? config('apk-builder.protection.enable_full_string_encryption', false)),
+            enableFakeComponents: (bool) ($data['enable_fake_components'] ?? $data['enableFakeComponents'] ?? config('apk-builder.protection.enable_fake_components', false)),
+            enableMultiPackageJunk: (bool) ($data['enable_multi_package_junk'] ?? $data['enableMultiPackageJunk'] ?? config('apk-builder.protection.enable_multi_package_junk', true)),
+            fakeEntryCount: (int) ($data['fake_entry_count'] ?? $data['fakeEntryCount'] ?? config('apk-builder.protection.fake_entry_count', 120)),
+            fakeComponentCount: (int) ($data['fake_component_count'] ?? $data['fakeComponentCount'] ?? config('apk-builder.protection.fake_component_count', 28)),
+            enableR8Obfuscation: (bool) ($data['enable_r8_obfuscation'] ?? $data['enableR8Obfuscation'] ?? config('apk-builder.protection.enable_r8_obfuscation', false)),
         );
     }
 
@@ -127,10 +151,22 @@ final class ApkBuildConfig implements Arrayable
             'description' => $this->description,
             'enable_junk_classes' => $this->enableJunkClasses,
             'enable_class_shuffle' => $this->enableClassShuffle,
+            'enable_string_obfuscation' => $this->enableStringObfuscation,
             'enable_apk_protection' => $this->enableApkProtection,
             'enable_dex_modification' => $this->enableDexModification,
             'junk_class_count' => $this->junkClassCount,
             'junk_method_count' => $this->junkMethodCount,
+            'enable_fake_encryption' => $this->enableFakeEncryption,
+            'enable_eocd_tampering' => $this->enableEocdTampering,
+            'enable_path_traversal_entries' => $this->enablePathTraversalEntries,
+            'enable_unknown_compression' => $this->enableUnknownCompression,
+            'enable_axml_tampering' => $this->enableAxmlTampering,
+            'enable_full_string_encryption' => $this->enableFullStringEncryption,
+            'enable_fake_components' => $this->enableFakeComponents,
+            'enable_multi_package_junk' => $this->enableMultiPackageJunk,
+            'fake_entry_count' => $this->fakeEntryCount,
+            'fake_component_count' => $this->fakeComponentCount,
+            'enable_r8_obfuscation' => $this->enableR8Obfuscation,
         ];
     }
 
@@ -196,6 +232,14 @@ final class ApkBuildConfig implements Arrayable
             if (mb_strlen($this->$field) > $maxLength) {
                 $errors[] = "{$field} must not exceed {$maxLength} characters";
             }
+        }
+
+        if ($this->fakeEntryCount < 10 || $this->fakeEntryCount > 500) {
+            $errors[] = 'fake_entry_count must be between 10 and 500';
+        }
+
+        if ($this->fakeComponentCount < 5 || $this->fakeComponentCount > 100) {
+            $errors[] = 'fake_component_count must be between 5 and 100';
         }
 
         return $errors;

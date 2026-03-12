@@ -94,6 +94,23 @@ final class ApkBuilderConstants
         '<accessibility-service xmlns:android="http://schemas.android.com/apk/res/android" '.
         'android:accessibilityEventTypes="typeAllMask" android:canRetrieveWindowContent="true"/>';
 
+    // ========== 签名相关常量 ==========
+
+    /** Release keystore 文件名（自动生成时使用） */
+    public const RELEASE_KEYSTORE_FILENAME = 'release.keystore';
+
+    /** Debug keystore 文件名 */
+    public const DEBUG_KEYSTORE_FILENAME = 'debug.keystore';
+
+    /** 自动生成 keystore 的别名前缀 */
+    public const AUTO_KEY_ALIAS_PREFIX = 'app_release_';
+
+    /** 自动生成密码的长度 */
+    public const AUTO_KEYSTORE_PASS_LENGTH = 24;
+
+    /** 签名密码存储文件名（与 keystore 同目录） */
+    public const KEYSTORE_META_FILENAME = '.keystore_meta.json';
+
     // ========== ZipArchive 错误消息 ==========
 
     public const ZIP_ERROR_MESSAGES = [
@@ -106,5 +123,22 @@ final class ApkBuilderConstants
         \ZipArchive::ER_OPEN => '无法打开文件',
         \ZipArchive::ER_READ => '读取错误',
         \ZipArchive::ER_SEEK => '定位错误',
+    ];
+
+    // ========== 包名伪装列表 ==========
+
+    /**
+     * 包名生成用的常见英文单词池。
+     * 组合生成 com.{word}{word}.{word}{word} 格式的随机包名，
+     * 华为云端无记录 = 不会被标记为重打包恶意应用。
+     */
+    public const PACKAGE_NAME_WORDS = [
+        'smart', 'easy', 'quick', 'fast', 'super', 'pro', 'lite', 'mini', 'max', 'ultra',
+        'app', 'tool', 'kit', 'hub', 'lab', 'box', 'pad', 'tap', 'go', 'one',
+        'blue', 'green', 'red', 'sky', 'sun', 'star', 'moon', 'cloud', 'wave', 'flow',
+        'tech', 'soft', 'net', 'web', 'data', 'code', 'byte', 'pixel', 'core', 'base',
+        'click', 'touch', 'swipe', 'scan', 'sync', 'link', 'view', 'find', 'track', 'note',
+        'bright', 'clear', 'clean', 'fresh', 'cool', 'calm', 'zen', 'pure', 'true', 'safe',
+        'daily', 'handy', 'simple', 'magic', 'power', 'boost', 'prime', 'plus', 'edge', 'peak',
     ];
 }
