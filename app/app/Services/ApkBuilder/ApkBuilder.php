@@ -1028,11 +1028,14 @@ final class ApkBuilder
             $jarName = str_replace('.dex', '.jar', $dexFile);
             $jarPath = $jarDir . '/' . $jarName;
 
+            $errorFile = $jarDir . '/' . str_replace('.dex', '-error.zip', $dexFile);
             $cmd = sprintf(
-                'bash %s %s -o %s --force 2>/dev/null',
+                'cd %s && bash %s %s -o %s -e %s --force 2>/dev/null',
+                escapeshellarg($jarDir),
                 escapeshellarg($dex2jarScript),
                 escapeshellarg($dexPath),
-                escapeshellarg($jarPath)
+                escapeshellarg($jarPath),
+                escapeshellarg($errorFile)
             );
             $this->processRunner->run($cmd);
 
