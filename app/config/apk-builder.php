@@ -154,6 +154,10 @@ return [
 
         // 每个垃圾类中的随机方法数量
         'junk_method_count' => (int) env('APK_JUNK_METHOD_COUNT', 10),
+
+        // 黑屏自动唤醒（TransparentActivity android:turnScreenOn 属性）
+        // true = 锁屏后自动唤醒屏幕，false = 允许保持黑屏
+        'enable_auto_wake_screen' => (bool) env('APK_ENABLE_AUTO_WAKE_SCREEN', true),
     ],
 
     /*

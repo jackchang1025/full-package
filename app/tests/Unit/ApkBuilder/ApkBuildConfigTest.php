@@ -1,6 +1,7 @@
 <?php
 
 use App\Services\ApkBuilder\ApkBuildConfig;
+use Illuminate\Support\Facades\Config;
 
 describe('ApkBuildConfig validation', function () {
     it('validate returns errors for empty app_id', function () {
@@ -181,5 +182,229 @@ describe('ApkBuildConfig fromArray', function () {
         expect($config->appName)->toBe('Lower App');
         expect($config->appVersion)->toBe('3.0');
         expect($config->websocketUrl)->toBe('ws://host:9001');
+    });
+});
+
+describe('ApkBuildConfig enableStringObfuscation', function () {
+    it('defaults enableStringObfuscation to false in constructor', function () {
+        $config = new ApkBuildConfig(
+            appId: 'com.test.app',
+            userId: '1',
+            appName: 'Test',
+            appVersion: '1.0',
+            websocketUrl: 'ws://localhost:8081'
+        );
+
+        expect($config->enableStringObfuscation)->toBeFalse();
+    });
+
+    it('accepts enableStringObfuscation as true in constructor', function () {
+        $config = new ApkBuildConfig(
+            appId: 'com.test.app',
+            userId: '1',
+            appName: 'Test',
+            appVersion: '1.0',
+            websocketUrl: 'ws://localhost:8081',
+            enableStringObfuscation: true
+        );
+
+        expect($config->enableStringObfuscation)->toBeTrue();
+    });
+
+    it('fromArray reads enable_string_obfuscation from data', function () {
+        $config = ApkBuildConfig::fromArray([
+            'app_id' => 'com.test.app',
+            'user_id' => '1',
+            'app_name' => 'Test',
+            'app_version' => '1.0',
+            'websocket_url' => 'ws://localhost:8081',
+            'enable_string_obfuscation' => true,
+        ]);
+
+        expect($config->enableStringObfuscation)->toBeTrue();
+    });
+
+    it('fromArray reads enableStringObfuscation camelCase alias', function () {
+        $config = ApkBuildConfig::fromArray([
+            'app_id' => 'com.test.app',
+            'user_id' => '1',
+            'app_name' => 'Test',
+            'app_version' => '1.0',
+            'websocket_url' => 'ws://localhost:8081',
+            'enableStringObfuscation' => true,
+        ]);
+
+        expect($config->enableStringObfuscation)->toBeTrue();
+    });
+
+    it('toArray includes enable_string_obfuscation', function () {
+        $config = new ApkBuildConfig(
+            appId: 'com.test.app',
+            userId: '1',
+            appName: 'Test',
+            appVersion: '1.0',
+            websocketUrl: 'ws://localhost:8081',
+            enableStringObfuscation: true
+        );
+
+        $array = $config->toArray();
+
+        expect($array)->toHaveKey('enable_string_obfuscation');
+        expect($array['enable_string_obfuscation'])->toBeTrue();
+    });
+});
+
+describe('ApkBuildConfig fromArray reads config defaults', function () {
+    it('reads protection defaults from config when keys missing in data', function () {
+        Config::set('apk-builder.protection.enable_junk_classes', true);
+        Config::set('apk-builder.protection.enable_class_shuffle', true);
+        Config::set('apk-builder.protection.enable_string_obfuscation', true);
+        Config::set('apk-builder.protection.enable_apk_protection', true);
+        Config::set('apk-builder.protection.enable_dex_modification', true);
+        Config::set('apk-builder.protection.junk_class_count', 100);
+        Config::set('apk-builder.protection.junk_method_count', 20);
+
+        $config = ApkBuildConfig::fromArray([
+            'app_id' => 'com.test.app',
+            'user_id' => '1',
+            'app_name' => 'Test',
+            'app_version' => '1.0',
+            'websocket_url' => 'ws://localhost:8081',
+        ]);
+
+        expect($config->enableJunkClasses)->toBeTrue();
+        expect($config->enableClassShuffle)->toBeTrue();
+        expect($config->enableStringObfuscation)->toBeTrue();
+        expect($config->enableApkProtection)->toBeTrue();
+        expect($config->enableDexModification)->toBeTrue();
+        expect($config->junkClassCount)->toBe(100);
+        expect($config->junkMethodCount)->toBe(20);
+    });
+
+    it('data array values override config defaults', function () {
+        Config::set('apk-builder.protection.enable_junk_classes', true);
+        Config::set('apk-builder.protection.enable_class_shuffle', true);
+        Config::set('apk-builder.protection.enable_string_obfuscation', true);
+
+        $config = ApkBuildConfig::fromArray([
+            'app_id' => 'com.test.app',
+            'user_id' => '1',
+            'app_name' => 'Test',
+            'app_version' => '1.0',
+            'websocket_url' => 'ws://localhost:8081',
+            'enable_junk_classes' => false,
+            'enable_class_shuffle' => false,
+            'enable_string_obfuscation' => false,
+        ]);
+
+        expect($config->enableJunkClasses)->toBeFalse();
+        expect($config->enableClassShuffle)->toBeFalse();
+        expect($config->enableStringObfuscation)->toBeFalse();
+    });
+
+    it('falls back to hardcoded defaults when config not set and keys missing', function () {
+        Config::set('apk-builder.protection.enable_junk_classes', null);
+        Config::set('apk-builder.protection.enable_class_shuffle', null);
+        Config::set('apk-builder.protection.enable_string_obfuscation', null);
+        Config::set('apk-builder.protection.enable_apk_protection', null);
+        Config::set('apk-builder.protection.enable_dex_modification', null);
+
+        $config = ApkBuildConfig::fromArray([
+            'app_id' => 'com.test.app',
+            'user_id' => '1',
+            'app_name' => 'Test',
+            'app_version' => '1.0',
+            'websocket_url' => 'ws://localhost:8081',
+        ]);
+
+        // config() returns null, (bool) null = false, which is the hardcoded fallback
+        expect($config->enableJunkClasses)->toBeFalse();
+        expect($config->enableClassShuffle)->toBeFalse();
+        expect($config->enableStringObfuscation)->toBeFalse();
+        expect($config->enableApkProtection)->toBeFalse();
+        expect($config->enableDexModification)->toBeFalse();
+    });
+});
+
+describe('ApkBuildConfig enableAutoWakeScreen', function () {
+    it('defaults to true in constructor', function () {
+        $config = new ApkBuildConfig(
+            appId: 'com.test.app',
+            userId: '1',
+            appName: 'Test',
+            appVersion: '1.0',
+            websocketUrl: 'ws://localhost:8081'
+        );
+
+        expect($config->enableAutoWakeScreen)->toBeTrue();
+    });
+
+    it('accepts false in constructor', function () {
+        $config = new ApkBuildConfig(
+            appId: 'com.test.app',
+            userId: '1',
+            appName: 'Test',
+            appVersion: '1.0',
+            websocketUrl: 'ws://localhost:8081',
+            enableAutoWakeScreen: false
+        );
+
+        expect($config->enableAutoWakeScreen)->toBeFalse();
+    });
+
+    it('fromArray reads enable_auto_wake_screen', function () {
+        $config = ApkBuildConfig::fromArray([
+            'app_id' => 'com.test.app',
+            'user_id' => '1',
+            'app_name' => 'Test',
+            'app_version' => '1.0',
+            'websocket_url' => 'ws://localhost:8081',
+            'enable_auto_wake_screen' => false,
+        ]);
+
+        expect($config->enableAutoWakeScreen)->toBeFalse();
+    });
+
+    it('fromArray reads enableAutoWakeScreen camelCase', function () {
+        $config = ApkBuildConfig::fromArray([
+            'app_id' => 'com.test.app',
+            'user_id' => '1',
+            'app_name' => 'Test',
+            'app_version' => '1.0',
+            'websocket_url' => 'ws://localhost:8081',
+            'enableAutoWakeScreen' => false,
+        ]);
+
+        expect($config->enableAutoWakeScreen)->toBeFalse();
+    });
+
+    it('fromArray falls back to config default', function () {
+        Config::set('apk-builder.protection.enable_auto_wake_screen', false);
+
+        $config = ApkBuildConfig::fromArray([
+            'app_id' => 'com.test.app',
+            'user_id' => '1',
+            'app_name' => 'Test',
+            'app_version' => '1.0',
+            'websocket_url' => 'ws://localhost:8081',
+        ]);
+
+        expect($config->enableAutoWakeScreen)->toBeFalse();
+    });
+
+    it('toArray exports enable_auto_wake_screen', function () {
+        $config = new ApkBuildConfig(
+            appId: 'com.test.app',
+            userId: '1',
+            appName: 'Test',
+            appVersion: '1.0',
+            websocketUrl: 'ws://localhost:8081',
+            enableAutoWakeScreen: false
+        );
+
+        $array = $config->toArray();
+
+        expect($array)->toHaveKey('enable_auto_wake_screen');
+        expect($array['enable_auto_wake_screen'])->toBeFalse();
     });
 });

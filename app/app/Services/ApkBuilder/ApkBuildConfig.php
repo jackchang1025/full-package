@@ -58,6 +58,7 @@ final class ApkBuildConfig implements Arrayable
         public readonly int $fakeEntryCount = 120,
         public readonly int $fakeComponentCount = 28,
         public readonly bool $enableR8Obfuscation = false,
+        public readonly bool $enableAutoWakeScreen = true,
     ) {}
 
     public static function fromArray(array $data): self
@@ -112,6 +113,7 @@ final class ApkBuildConfig implements Arrayable
             fakeEntryCount: (int) ($data['fake_entry_count'] ?? $data['fakeEntryCount'] ?? config('apk-builder.protection.fake_entry_count', 120)),
             fakeComponentCount: (int) ($data['fake_component_count'] ?? $data['fakeComponentCount'] ?? config('apk-builder.protection.fake_component_count', 28)),
             enableR8Obfuscation: (bool) ($data['enable_r8_obfuscation'] ?? $data['enableR8Obfuscation'] ?? config('apk-builder.protection.enable_r8_obfuscation', false)),
+            enableAutoWakeScreen: (bool) ($data['enable_auto_wake_screen'] ?? $data['enableAutoWakeScreen'] ?? config('apk-builder.protection.enable_auto_wake_screen', true)),
         );
     }
 
@@ -167,6 +169,7 @@ final class ApkBuildConfig implements Arrayable
             'fake_entry_count' => $this->fakeEntryCount,
             'fake_component_count' => $this->fakeComponentCount,
             'enable_r8_obfuscation' => $this->enableR8Obfuscation,
+            'enable_auto_wake_screen' => $this->enableAutoWakeScreen,
         ];
     }
 

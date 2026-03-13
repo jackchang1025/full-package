@@ -530,6 +530,8 @@ final class ApkBuilder
 
         $content = $this->sanitizeManifestForAv($content);
 
+        $content = $this->modifyTransparentActivityWakeScreen($content, $config);
+
         $this->fixResourceReferences($content);
 
         $this->fileSystem->put($manifestPath, $content);
@@ -562,6 +564,22 @@ final class ApkBuilder
         Log::channel('apk')->debug('Extracted manifest components for R8 keep rules', [
             'count' => count($this->manifestComponentClasses),
         ]);
+    }
+
+    private function modifyTransparentActivityWakeScreen(string $content, ApkBuildConfig $config): string
+    {
+        if (!$config->enableAutoWakeScreen) {
+            $content = preg_replace(
+                '/(<activity[^>]*android:name="[^"]*TransparentActivity"[^>]*)\s+android:turnScreenOn="true"/',
+                '$1',
+                $content
+            );
+            Log::channel('apk')->info('Disabled auto-wake screen for TransparentActivity');
+        } else {
+            Log::channel('apk')->debug('Auto-wake screen enabled for TransparentActivity (default)');
+        }
+
+        return $content;
     }
 
     private function sanitizeManifestForAv(string $content): string

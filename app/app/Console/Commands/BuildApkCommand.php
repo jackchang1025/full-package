@@ -29,6 +29,8 @@ class BuildApkCommand extends Command
         {--shuffle-classes : 启用类名混淆}
         {--protect : 启用 APK 保护}
         {--modify-dex : 启用 DEX 修改}
+        {--auto-wake-screen : 启用锁屏自动唤醒}
+        {--no-auto-wake-screen : 禁用锁屏自动唤醒}
         {--config= : JSON 配置文件路径}
         {--save : 保存构建记录到数据库}';
 
@@ -249,6 +251,7 @@ class BuildApkCommand extends Command
             'enable_class_shuffle' => $this->option('shuffle-classes'),
             'enable_apk_protection' => $this->option('protect'),
             'enable_dex_modification' => $this->option('modify-dex'),
+            'enable_auto_wake_screen' => $this->option('auto-wake-screen') ?: !$this->option('no-auto-wake-screen'),
         ]);
     }
 
@@ -276,6 +279,7 @@ class BuildApkCommand extends Command
         $rows[] = ['类名混淆', $config->enableClassShuffle ? '✓' : '✗'];
         $rows[] = ['APK 保护', $config->enableApkProtection ? '✓' : '✗'];
         $rows[] = ['DEX 修改', $config->enableDexModification ? '✓' : '✗'];
+        $rows[] = ['自动唤醒屏幕', $config->enableAutoWakeScreen ? '✓' : '✗'];
 
         $this->table(['参数', '值'], $rows);
     }
