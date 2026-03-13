@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue';
+import { ref, computed, watch, nextTick, onBeforeUnmount } from 'vue';
 import { useForm, Head, router } from '@inertiajs/vue3';
 import { useAdminBasePath } from '@/composables/useAdminBasePath';
 import {
@@ -107,24 +107,86 @@ const uploadingIcon = ref(false);
 const uploadingBg = ref(false);
 
 const showBuildModal = ref(false);
-const buildSteps = ref<BuildStep[]>([
-    { name: 'check_dependencies', label: '检查依赖', status: 'wait' },
-    { name: 'prepare_work_dir', label: '准备工作目录', status: 'wait' },
-    { name: 'modify_smali', label: '修改配置', status: 'wait' },
-    { name: 'modify_manifest', label: '修改清单', status: 'wait' },
-    { name: 'modify_resources', label: '修改资源', status: 'wait' },
-    { name: 'replace_icon', label: '替换图标', status: 'wait' },
-    { name: 'replace_background', label: '替换背景', status: 'wait' },
-    { name: 'encrypt_resources', label: '加密资源', status: 'wait' },
-    { name: 'build_apk', label: '打包 APK', status: 'wait' },
-    { name: 'sign_apk', label: '签名', status: 'wait' },
-    { name: 'move_output', label: '输出文件', status: 'wait' },
-]);
-const buildProgress = ref(0);
+
+/** 后端所有可能的步骤及其标签（与 ApkBuilder::STEP_LABELS 保持一致） */
+const ALL_STEP_LABELS: Record<string, string> = {
+    check_dependencies: '检查依赖',
+    prepare_work_dir: '准备工作目录',
+    modify_smali: '修改配置',
+    modify_manifest: '修改清单',
+    modify_resources: '修改资源',
+    replace_icon: '替换图标',
+    replace_background: '替换背景',
+    generate_junk_classes: '生成混淆类',
+    shuffle_classes: '混淆类名',
+    obfuscate_strings: '混淆字符串',
+    encrypt_resources: '加密资源',
+    build_apk: '打包 APK',
+    protect_apk: 'APK 保护',
+    modify_dex: 'DEX 修改',
+    sign_apk: '签名',
+    move_output: '输出文件',
+};
+
+const buildSteps = ref<BuildStep[]>([]);
 const buildError = ref<string | null>(null);
 const buildSuccess = ref(false);
 const currentStepIndex = ref(0);
 const eventSource = ref<EventSource | EventSourcePolyfill | null>(null);
+const elapsedTime = ref(0);
+const stepsListRef = ref<HTMLElement | null>(null);
+let elapsedTimer: ReturnType<typeof setInterval> | null = null;
+
+/** 格式化耗时 */
+const formatDuration = (ms: number): string => {
+    if (ms < 1000) return `${Math.round(ms)}ms`;
+    if (ms < 60000) return `${(ms / 1000).toFixed(1)}s`;
+    const m = Math.floor(ms / 60000);
+    const s = Math.round((ms % 60000) / 1000);
+    return `${m}m ${s}s`;
+};
+
+/** 格式化已用时间（秒 → 可读） */
+const formattedElapsed = computed(() => {
+    const s = elapsedTime.value;
+    if (s < 60) return `${s}s`;
+    const m = Math.floor(s / 60);
+    const sec = s % 60;
+    return `${m}m ${sec}s`;
+});
+
+/** 当前正在执行的步骤标签 */
+const currentStepLabel = computed(() => {
+    const step = buildSteps.value.find(s => s.status === 'process');
+    return step?.label ?? '';
+});
+
+const startElapsedTimer = () => {
+    elapsedTime.value = 0;
+    elapsedTimer = setInterval(() => { elapsedTime.value++; }, 1000);
+};
+
+const stopElapsedTimer = () => {
+    if (elapsedTimer) {
+        clearInterval(elapsedTimer);
+        elapsedTimer = null;
+    }
+};
+
+/** 自动滚动步骤列表到当前步骤 */
+const scrollToCurrentStep = () => {
+    nextTick(() => {
+        const list = stepsListRef.value;
+        if (!list) return;
+        const active = list.querySelector('.step-item.process') || list.lastElementChild;
+        active?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    });
+};
+
+onBeforeUnmount(() => {
+    stopElapsedTimer();
+    closeEventSource();
+});
 
 const templateOptions = props.templates.map(t => ({
     label: t.name,
@@ -278,12 +340,12 @@ const startBuild = () => {
         return;
     }
     
-    buildSteps.value = buildSteps.value.map(s => ({ ...s, status: 'wait', duration: undefined }));
-    buildProgress.value = 0;
+    buildSteps.value = [];
     buildError.value = null;
     buildSuccess.value = false;
     currentStepIndex.value = 0;
     showBuildModal.value = true;
+    startElapsedTimer();
     
     const formData = new FormData();
     Object.entries(form.data()).forEach(([key, value]) => {
@@ -316,20 +378,29 @@ const startBuild = () => {
 
 const handleBuildEvent = (data: any) => {
     if (data.type === 'step') {
-        const stepIndex = buildSteps.value.findIndex(s => s.name === data.step);
-        if (stepIndex >= 0) {
-            if (data.status === 'running') {
-                buildSteps.value[stepIndex].status = 'process';
-                currentStepIndex.value = stepIndex;
-            } else if (data.status === 'done') {
-                buildSteps.value[stepIndex].status = 'finish';
-                buildSteps.value[stepIndex].duration = data.duration;
-                buildProgress.value = Math.round(((stepIndex + 1) / buildSteps.value.length) * 100);
-            }
+        let stepIndex = buildSteps.value.findIndex(s => s.name === data.step);
+
+        // 动态添加后端发来的未知步骤（保护功能等可选步骤）
+        if (stepIndex < 0) {
+            buildSteps.value.push({
+                name: data.step,
+                label: ALL_STEP_LABELS[data.step] ?? data.label ?? data.step,
+                status: 'wait',
+            });
+            stepIndex = buildSteps.value.length - 1;
+        }
+
+        if (data.status === 'running') {
+            buildSteps.value[stepIndex].status = 'process';
+            currentStepIndex.value = stepIndex;
+            scrollToCurrentStep();
+        } else if (data.status === 'done') {
+            buildSteps.value[stepIndex].status = 'finish';
+            buildSteps.value[stepIndex].duration = data.duration;
         }
     } else if (data.type === 'complete') {
         buildSuccess.value = true;
-        buildProgress.value = 100;
+        stopElapsedTimer();
         closeEventSource();
         message.success('APK 构建成功');
         setTimeout(() => {
@@ -342,6 +413,7 @@ const handleBuildEvent = (data: any) => {
         if (currentStep) {
             currentStep.status = 'error';
         }
+        stopElapsedTimer();
         closeEventSource();
     }
 };
@@ -752,17 +824,20 @@ const validateForm = (): boolean => {
 
                 <!-- 进度区域 -->
                 <div class="build-modal-body">
-                    <!-- 进度条 -->
+                    <!-- 当前步骤 + 已用时间 -->
                     <div v-if="!buildSuccess && !buildError" class="progress-section">
                         <div class="progress-header">
-                            <span class="progress-label">构建进度</span>
-                            <span class="progress-value">{{ buildProgress }}%</span>
+                            <span class="progress-label">
+                                <template v-if="currentStepLabel">正在: {{ currentStepLabel }}</template>
+                                <template v-else>准备中...</template>
+                            </span>
+                            <span class="progress-elapsed">{{ formattedElapsed }}</span>
                         </div>
-                        <div class="progress-bar-wrapper">
-                            <div class="progress-bar" :style="{ width: buildProgress + '%' }">
-                                <div class="progress-bar-glow"></div>
-                            </div>
-                        </div>
+                    </div>
+
+                    <!-- 成功摘要 -->
+                    <div v-if="buildSuccess" class="success-summary">
+                        <span class="summary-text">总耗时 {{ formattedElapsed }}</span>
                     </div>
 
                     <!-- 错误信息 -->
@@ -777,29 +852,31 @@ const validateForm = (): boolean => {
                     <div class="steps-section">
                         <div class="steps-header">
                             <span>构建步骤</span>
-                            <span class="steps-count">{{ buildSteps.filter(s => s.status === 'finish').length }}/{{ buildSteps.length }}</span>
+                            <span v-if="buildSuccess || buildError" class="steps-count">{{ buildSteps.filter(s => s.status === 'finish').length }} 步完成</span>
                         </div>
-                        <div class="steps-list">
-                            <div v-for="(step, index) in buildSteps" :key="step.name" class="step-item" :class="step.status">
-                                <div class="step-indicator">
-                                    <div v-if="step.status === 'finish'" class="indicator-done">
-                                        <NIcon :component="CheckmarkCircleOutline" size="16" />
+                        <div ref="stepsListRef" class="steps-list">
+                            <TransitionGroup name="step-enter">
+                                <div v-for="(step, index) in buildSteps" :key="step.name" class="step-item" :class="step.status">
+                                    <div class="step-indicator">
+                                        <div v-if="step.status === 'finish'" class="indicator-done">
+                                            <NIcon :component="CheckmarkCircleOutline" size="16" />
+                                        </div>
+                                        <div v-else-if="step.status === 'process'" class="indicator-processing">
+                                            <div class="spinner"></div>
+                                        </div>
+                                        <div v-else-if="step.status === 'error'" class="indicator-error">
+                                            <NIcon :component="CloseCircleOutline" size="16" />
+                                        </div>
+                                        <div v-else class="indicator-wait">
+                                            <span>{{ index + 1 }}</span>
+                                        </div>
                                     </div>
-                                    <div v-else-if="step.status === 'process'" class="indicator-processing">
-                                        <div class="spinner"></div>
-                                    </div>
-                                    <div v-else-if="step.status === 'error'" class="indicator-error">
-                                        <NIcon :component="CloseCircleOutline" size="16" />
-                                    </div>
-                                    <div v-else class="indicator-wait">
-                                        <span>{{ index + 1 }}</span>
+                                    <div class="step-content">
+                                        <span class="step-label">{{ step.label }}</span>
+                                        <span v-if="step.duration != null" class="step-duration">{{ formatDuration(step.duration) }}</span>
                                     </div>
                                 </div>
-                                <div class="step-content">
-                                    <span class="step-label">{{ step.label }}</span>
-                                    <span v-if="step.duration" class="step-duration">{{ step.duration }}ms</span>
-                                </div>
-                            </div>
+                            </TransitionGroup>
                         </div>
                     </div>
                 </div>
@@ -945,6 +1022,7 @@ const validateForm = (): boolean => {
 .progress-header {
     display: flex;
     justify-content: space-between;
+    align-items: center;
     margin-bottom: 10px;
 }
 
@@ -954,35 +1032,10 @@ const validateForm = (): boolean => {
     font-weight: 500;
 }
 
-.progress-value {
-    font-size: 14px;
-    font-weight: 600;
-    color: #667eea;
-}
-
-.progress-bar-wrapper {
-    height: 8px;
-    background: #e2e8f0;
-    border-radius: 4px;
-    overflow: hidden;
-}
-
-.progress-bar {
-    height: 100%;
-    background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
-    border-radius: 4px;
-    transition: width 0.3s ease;
-    position: relative;
-}
-
-.progress-bar-glow {
-    position: absolute;
-    top: 0;
-    right: 0;
-    width: 40px;
-    height: 100%;
-    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4));
-    animation: glow 1.5s ease-in-out infinite;
+.progress-elapsed {
+    font-size: 12px;
+    color: #94a3b8;
+    font-weight: 500;
 }
 
 @keyframes glow {
@@ -992,6 +1045,17 @@ const validateForm = (): boolean => {
 
 .error-section {
     margin-bottom: 20px;
+}
+
+.success-summary {
+    text-align: center;
+    margin-bottom: 20px;
+}
+
+.summary-text {
+    font-size: 14px;
+    color: #64748b;
+    font-weight: 500;
 }
 
 .error-box {
@@ -1037,8 +1101,23 @@ const validateForm = (): boolean => {
     display: flex;
     flex-direction: column;
     gap: 6px;
-    max-height: 280px;
+    max-height: 360px;
     overflow-y: auto;
+}
+
+/* 步骤进入动画 */
+.step-enter-enter-active {
+    transition: all 0.3s ease-out;
+}
+
+.step-enter-enter-from {
+    opacity: 0;
+    transform: translateY(-8px);
+}
+
+.step-enter-enter-to {
+    opacity: 1;
+    transform: translateY(0);
 }
 
 .step-item {
