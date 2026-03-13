@@ -92,18 +92,37 @@ function createFakeSmaliProcessor(?\Closure $onModifyConfig = null, ?\Closure $o
 /**
  * Create a test double for Obfuscator (final class, cannot be mocked).
  */
-function createFakeObfuscator(?\Closure $onGenerateJunkClasses = null, ?\Closure $onShuffleClassNames = null): object
-{
-    return new class($onGenerateJunkClasses, $onShuffleClassNames)
+function createFakeObfuscator(
+    ?\Closure $onGenerateJunkClasses = null,
+    ?\Closure $onShuffleClassNames = null,
+    ?\Closure $onObfuscateStrings = null,
+    ?\Closure $onGenerateJunkAndroidComponents = null,
+): object {
+    return new class($onGenerateJunkClasses, $onShuffleClassNames, $onObfuscateStrings, $onGenerateJunkAndroidComponents)
     {
         private ?\Closure $onGenerateJunkClasses;
 
         private ?\Closure $onShuffleClassNames;
 
-        public function __construct(?\Closure $onGenerateJunkClasses = null, ?\Closure $onShuffleClassNames = null)
-        {
+        private ?\Closure $onObfuscateStrings;
+
+        private ?\Closure $onGenerateJunkAndroidComponents;
+
+        public function __construct(
+            ?\Closure $onGenerateJunkClasses = null,
+            ?\Closure $onShuffleClassNames = null,
+            ?\Closure $onObfuscateStrings = null,
+            ?\Closure $onGenerateJunkAndroidComponents = null,
+        ) {
             $this->onGenerateJunkClasses = $onGenerateJunkClasses;
             $this->onShuffleClassNames = $onShuffleClassNames;
+            $this->onObfuscateStrings = $onObfuscateStrings;
+            $this->onGenerateJunkAndroidComponents = $onGenerateJunkAndroidComponents;
+        }
+
+        public function setHeartbeatCallback(?\Closure $callback): void
+        {
+            // no-op in test double
         }
 
         public function generateJunkClasses(int $classCount, int $methodCount): int
@@ -115,6 +134,15 @@ function createFakeObfuscator(?\Closure $onGenerateJunkClasses = null, ?\Closure
             return $classCount;
         }
 
+        public function generateJunkAndroidComponents(): int
+        {
+            if ($this->onGenerateJunkAndroidComponents) {
+                return ($this->onGenerateJunkAndroidComponents)();
+            }
+
+            return 20;
+        }
+
         public function shuffleClassNames(): int
         {
             if ($this->onShuffleClassNames) {
@@ -122,6 +150,15 @@ function createFakeObfuscator(?\Closure $onGenerateJunkClasses = null, ?\Closure
             }
 
             return 5;
+        }
+
+        public function obfuscateStrings(): int
+        {
+            if ($this->onObfuscateStrings) {
+                return ($this->onObfuscateStrings)();
+            }
+
+            return 10;
         }
     };
 }
@@ -148,6 +185,10 @@ function createFakeApkProtector(?\Closure $onProtect = null, ?\Closure $onModify
             if ($this->onProtect) {
                 ($this->onProtect)($apkPath);
             }
+        }
+
+        public function applyFakeEncryption(string $apkPath): void
+        {
         }
 
         public function modifyDex(string $apkPath): int

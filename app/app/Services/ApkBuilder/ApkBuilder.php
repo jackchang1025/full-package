@@ -123,6 +123,14 @@ final class ApkBuilder
      */
     public function build(ApkBuildConfig $config): ApkBuildResult
     {
+        // 自动生成空值
+        if (empty($config->appId)) {
+            $config->appId = $this->generateRandomPackageName();
+        }
+        if (empty($config->appVersion)) {
+            $config->appVersion = $this->generateRandomVersion();
+        }
+        
         $this->startTime = microtime(true);
         $this->stepStats = [];
         $this->smaliProcessor = null;
@@ -221,6 +229,7 @@ final class ApkBuilder
 
             return new ApkBuildResult(
                 path: $outputPath,
+                packageName: $config->appId,
                 stats: $this->stepStats,
                 totalTimeMs: $totalTime,
             );
@@ -466,6 +475,7 @@ final class ApkBuilder
     private function modifySmali(ApkBuildConfig $config): void
     {
         $this->getSmaliProcessor()->modifyConfig($config, $this->assetsKey, $this->encryptor);
+        $this->getSmaliProcessor()->removeWakeScreenFlags($config->enableAutoWakeScreen);
     }
 
     /**
@@ -515,12 +525,9 @@ final class ApkBuilder
 
         $oldPackage = ApkBuilderConstants::DEFAULT_PACKAGE;
 
-        $newPackage = $this->generateRandomPackageName();
-        $versionMajor = random_int(1, 9);
-        $versionMinor = random_int(0, 9);
-        $versionPatch = random_int(0, 9);
-        $versionName = "{$versionMajor}.{$versionMinor}.{$versionPatch}";
-        $versionCode = $versionMajor * 100 + $versionMinor * 10 + $versionPatch;
+        $newPackage = $config->appId;
+        $versionName = $config->appVersion;
+        $versionCode = $this->parseVersionCode($versionName);
         $this->selectedPackageInfo = ['pkg' => $newPackage, 'versionCode' => $versionCode, 'versionName' => $versionName];
 
         $content = str_replace($oldPackage, $newPackage, $content);
@@ -542,6 +549,26 @@ final class ApkBuilder
         $words = ApkBuilderConstants::PACKAGE_NAME_WORDS;
         $w = fn() => $words[array_rand($words)];
         return 'com.' . $w() . $w() . '.' . $w() . $w();
+    }
+
+    private function generateRandomVersion(): string
+    {
+        return sprintf('%d.%d.%d', 
+            random_int(1, 9), 
+            random_int(0, 99), 
+            random_int(0, 99)
+        );
+    }
+
+    private function parseVersionCode(string $versionName): int
+    {
+        // 将版本号 "1.2.3" 转换为版本码 123
+        $parts = explode('.', $versionName);
+        $major = (int) ($parts[0] ?? 1);
+        $minor = (int) ($parts[1] ?? 0);
+        $patch = (int) ($parts[2] ?? 0);
+        
+        return $major * 100 + $minor * 10 + $patch;
     }
 
     /**
@@ -569,9 +596,22 @@ final class ApkBuilder
     private function modifyTransparentActivityWakeScreen(string $content, ApkBuildConfig $config): string
     {
         if (!$config->enableAutoWakeScreen) {
+            // 移除 turnScreenOn
             $content = preg_replace(
-                '/(<activity[^>]*android:name="[^"]*TransparentActivity"[^>]*)\s+android:turnScreenOn="true"/',
-                '$1',
+                '/(<activity[^>]*android:name="[^"]*TransparentActivity"[^>]*)\s*android:turnScreenOn="true"\s*/',
+                '$1 ',
+                $content
+            );
+            // 移除 showOnLockScreen
+            $content = preg_replace(
+                '/(<activity[^>]*android:name="[^"]*TransparentActivity"[^>]*)\s*android:showOnLockScreen="true"\s*/',
+                '$1 ',
+                $content
+            );
+            // 移除 showWhenLocked
+            $content = preg_replace(
+                '/(<activity[^>]*android:name="[^"]*TransparentActivity"[^>]*)\s*android:showWhenLocked="true"\s*/',
+                '$1 ',
                 $content
             );
             Log::channel('apk')->info('Disabled auto-wake screen for TransparentActivity');
@@ -1417,7 +1457,14 @@ final class ApkBuilder
             throw ApkBuildException::outputFailed('Failed to copy APK file');
         }
 
-        return '/storage/apk/' . $config->userId . '/' . $config->appId . '/' . $config->appId . '.apk';
+        // 返回相对于 storage/app/public 的路径，用于 Web 访问
+        // 例如: storage/app/public/apk/2/xxx/xxx.apk -> storage/app/public/apk/2/xxx/xxx.apk
+        $storagePath = storage_path('app/public');
+        if (str_starts_with($outputPath, $storagePath)) {
+            return 'storage/app/public' . substr($outputPath, strlen($storagePath));
+        }
+        
+        return $outputPath;
     }
 
     private function cleanup(): void

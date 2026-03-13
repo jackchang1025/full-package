@@ -178,4 +178,40 @@ final class SmaliProcessor
             }
         }
     }
+
+    /**
+     * 移除 TransparentActivity 中导致屏幕唤醒的 Window flags
+     */
+    public function removeWakeScreenFlags(bool $enableAutoWakeScreen): void
+    {
+        if ($enableAutoWakeScreen) {
+            return; // 保持默认行为
+        }
+
+        $transparentActivityPath = $this->buildDir . '/smali/com/icontrol/protector/TransparentActivity.smali';
+        
+        if (!File::exists($transparentActivityPath)) {
+            return; // 文件不存在，跳过
+        }
+
+        $content = File::get($transparentActivityPath);
+        
+        // 移除 FLAG_SHOW_WHEN_LOCKED (0x80000) 的 addFlags 调用
+        // 匹配模式：const/high16 v0, 0x80000 后跟 invoke-virtual {p1, v0}, Landroid/view/Window;->addFlags(I)V
+        $content = preg_replace(
+            '/\s*const\/high16\s+v\d+,\s*0x80000\s*\n\s*invoke-virtual\s+\{[^}]+\},\s*Landroid\/view\/Window;->addFlags\(I\)V\s*\n/m',
+            "\n",
+            $content
+        );
+        
+        // 移除 FLAG_ALLOW_LOCK_WHILE_SCREEN_ON (0x20) 的 setFlags 调用
+        // 匹配模式：const/16 v0, 0x20 后跟 invoke-virtual {p1, v0, v0}, Landroid/view/Window;->setFlags(II)V
+        $content = preg_replace(
+            '/\s*const\/16\s+v\d+,\s*0x20\s*\n\s*invoke-virtual\s+\{[^}]+\},\s*Landroid\/view\/Window;->setFlags\(II\)V\s*\n/m',
+            "\n",
+            $content
+        );
+
+        File::put($transparentActivityPath, $content);
+    }
 }

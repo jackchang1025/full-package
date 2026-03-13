@@ -8,6 +8,7 @@ final readonly class ApkBuildResult
 {
     public function __construct(
         public string $path,
+        public string $packageName,
         public array $stats = [],
         public float $totalTimeMs = 0,
     ) {}

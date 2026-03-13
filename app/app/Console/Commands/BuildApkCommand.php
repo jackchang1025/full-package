@@ -52,6 +52,8 @@ class BuildApkCommand extends Command
             return self::FAILURE;
         }
 
+        // 注意：appId 和 appVersion 为空时，ApkBuilder::build() 会自动生成
+        // 这里不做验证，允许空值传递到 ApkBuilder
         $errors = $config->validate();
         if (! empty($errors)) {
             $this->error('配置验证失败:');
@@ -165,6 +167,7 @@ class BuildApkCommand extends Command
         $this->table(
             ['项目', '值'],
             [
+                ['包名', $result->packageName],
                 ['输出路径', $result->path],
                 ['总耗时', $result->formatTime()],
             ]
