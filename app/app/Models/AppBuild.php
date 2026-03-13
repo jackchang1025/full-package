@@ -70,6 +70,13 @@ class AppBuild extends Model
             return null;
         }
 
+        // file_path 格式: storage/app/public/apk/...
+        // Web 访问路径: /storage/apk/...
+        if (str_starts_with($this->file_path, 'storage/app/public/')) {
+            $webPath = '/storage/' . substr($this->file_path, 19);
+            return url($webPath);
+        }
+
         return url($this->file_path);
     }
 

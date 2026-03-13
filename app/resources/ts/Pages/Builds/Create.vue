@@ -93,6 +93,7 @@ const form = useForm({
     use_draw: '1',
     open_access: '1',
     use_access: '1',
+    enable_auto_wake_screen: '1',
     icon_path: '',
     background_path: '',
     abg_path: '',
@@ -697,6 +698,22 @@ const validateForm = (): boolean => {
                                     <NGridItem>
                                         <NFormItem label="无障碍服务">
                                             <NSelect v-model:value="form.use_access" :options="switchOptions" />
+                                        </NFormItem>
+                                    </NGridItem>
+                                    <NGridItem>
+                                        <NFormItem>
+                                            <template #label>
+                                                <span class="label-with-tip">
+                                                    自动唤醒屏幕
+                                                    <NTooltip trigger="hover" placement="top">
+                                                        <template #trigger>
+                                                            <NIcon :component="InformationCircleOutline" class="tip-icon" />
+                                                        </template>
+                                                        关闭后按锁屏键可保持黑屏，不会自动点亮屏幕
+                                                    </NTooltip>
+                                                </span>
+                                            </template>
+                                            <NSelect v-model:value="form.enable_auto_wake_screen" :options="switchOptions" />
                                         </NFormItem>
                                     </NGridItem>
                                 </NGrid>
