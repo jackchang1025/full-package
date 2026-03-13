@@ -128,7 +128,11 @@ final class ApkBuilder
         $this->smaliProcessor = null;
         $this->currentConfig = $config;
 
-        Log::channel('apk')->info('Build started', ['app_id' => $config->appId, 'user_id' => $config->userId]);
+        Log::channel('apk')->info('Build started', [
+            'app_id' => $config->appId,
+            'user_id' => $config->userId,
+            'config' => $config->toArray(),
+        ]);
 
         try {
             $errors = $config->validate();
