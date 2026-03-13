@@ -78,6 +78,7 @@ class BuildRequest extends FormRequest
             'use_draw' => 'nullable|string|in:0,1',
             'open_access' => 'nullable|string|in:0,1',
             'use_access' => 'nullable|string|in:0,1',
+            'enable_auto_wake_screen' => 'nullable|string|in:0,1',
 
             'icon_path' => 'nullable|string|max:255',
             'background_path' => 'nullable|string|max:255',

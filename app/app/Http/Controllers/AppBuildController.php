@@ -48,7 +48,11 @@ class AppBuildController extends Controller
         // 获取文件大小
         $fileSize = null;
         if ($build->file_path) {
-            $fullPath = public_path($build->file_path);
+            // file_path 格式: storage/app/public/apk/...
+            $fullPath = str_starts_with($build->file_path, 'storage/app/public/')
+                ? storage_path('app/public/' . substr($build->file_path, 19))
+                : storage_path($build->file_path);
+            
             if (file_exists($fullPath)) {
                 $bytes = filesize($fullPath);
                 $fileSize = $this->formatFileSize($bytes);
@@ -301,6 +305,7 @@ class AppBuildController extends Controller
             'use_draw' => $validated['use_draw'] ?? '1',
             'open_access' => $validated['open_access'] ?? '1',
             'use_access' => $validated['use_access'] ?? '1',
+            'enable_auto_wake_screen' => ($validated['enable_auto_wake_screen'] ?? '1') === '1',
             'abg_path' => $validated['abg_path'] ?? '',
         ];
 

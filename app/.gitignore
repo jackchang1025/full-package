@@ -20,6 +20,8 @@ CLAUDE.md
 /storage/pail
 # GeoIP 数据库 (~60MB)，部署时通过脚本下载
 /storage/app/geoip/*.mmdb
+# APK 模板目录
+/storage/app/apk/template/
 /vendor
 Homestead.json
 Homestead.yaml
