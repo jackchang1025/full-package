@@ -16,8 +16,9 @@ import {
     NForm,
     NFormItem,
     useMessage,
+    NCheckbox,
 } from 'naive-ui';
-import type { DataTableColumns } from 'naive-ui';
+import type { DataTableColumns, DataTableRowKey } from 'naive-ui';
 import {
     SearchOutline,
     RefreshOutline,
@@ -39,6 +40,7 @@ import {
     CalendarOutline,
 } from '@vicons/ionicons5';
 import { useGlobalWebSocket } from '@/composables/useGlobalWebSocket';
+import StatusModal from '@/Components/StatusModal.vue';
 
 export interface DeviceRow {
     id: number;
@@ -110,6 +112,11 @@ const {
     hasReceivedWsData,
 } = useGlobalWebSocket();
 
+// 批量删除状态
+const checkedRowKeys = ref<DataTableRowKey[]>([]);
+const batchDeleting = ref(false);
+const showBatchDeleteModal = ref(false);
+
 // [core-kiss] 简化数据源逻辑：优先使用 WebSocket 数据
 const localDevices = computed<DeviceRow[]>(() => {
     // WebSocket 已连接且收到过数据，使用 WebSocket 设备列表
@@ -118,16 +125,6 @@ const localDevices = computed<DeviceRow[]>(() => {
     }
     // 否则使用 HTTP props 数据作为 fallback
     return props.devices.data as DeviceRow[];
-});
-
-// [solid-ocp] 统计数据源：WebSocket 优先，HTTP fallback
-const displayStats = computed(() => {
-    // WebSocket 已收到数据，使用实时统计
-    if (hasReceivedWsData.value) {
-        return globalStats.value;
-    }
-    // 否则使用 HTTP 初始数据
-    return props.stats;
 });
 
 // 从 URL 恢复筛选状态，刷新后保持
@@ -296,6 +293,34 @@ function deleteDevice(uuid: string) {
     router.delete(`${props.basePath}/${uuid}`);
 }
 
+function openBatchDeleteModal() {
+    if (checkedRowKeys.value.length === 0) return;
+    showBatchDeleteModal.value = true;
+}
+
+function confirmBatchDelete() {
+    batchDeleting.value = true;
+    const deletedUuids = [...checkedRowKeys.value];
+    router.delete(`${props.basePath}/batch`, {
+        data: { uuids: deletedUuids },
+        preserveScroll: true,
+        onSuccess: () => {
+            message.success(`已删除 ${deletedUuids.length} 个设备`);
+            // 从 WebSocket 设备列表中移除已删除的设备
+            if (hasReceivedWsData.value && wsDevices.value.length > 0) {
+                wsDevices.value = wsDevices.value.filter(d => !deletedUuids.includes(d.uuid));
+            }
+            checkedRowKeys.value = [];
+            showBatchDeleteModal.value = false;
+            router.reload({ only: ['devices', 'stats'] });
+        },
+        onError: () => message.error('批量删除失败'),
+        onFinish: () => {
+            batchDeleting.value = false;
+        },
+    });
+}
+
 function goToEdit(uuid: string) {
     router.visit(`${props.basePath}/${uuid}/edit`);
 }
@@ -360,6 +385,10 @@ function handlePageChange(page: number) {
 
 const columns = computed<DataTableColumns<DeviceRow>>(() => {
     const cols: DataTableColumns<DeviceRow> = [
+        {
+            type: 'selection',
+            disabled: (row: DeviceRow) => !props.allowDelete,
+        },
         {
             title: '设备',
             key: 'device',
@@ -646,25 +675,6 @@ const columns = computed<DataTableColumns<DeviceRow>>(() => {
 
 <template>
     <div class="devices-container">
-        <div class="stats-bar">
-            <div class="stat-item">
-                <span class="stat-label">全部设备</span>
-                <span class="stat-value">{{ displayStats.total }}</span>
-            </div>
-            <div class="stat-divider"></div>
-            <div class="stat-item">
-                <div class="status-dot online"></div>
-                <span class="stat-label">在线</span>
-                <span class="stat-value text-emerald-600">{{ displayStats.online }}</span>
-            </div>
-            <div class="stat-divider"></div>
-            <div class="stat-item">
-                <div class="status-dot offline"></div>
-                <span class="stat-label">离线</span>
-                <span class="stat-value text-slate-400">{{ displayStats.offline }}</span>
-            </div>
-        </div>
-
         <div class="main-card">
             <div class="toolbar">
                 <div class="toolbar-left">
@@ -676,6 +686,16 @@ const columns = computed<DataTableColumns<DeviceRow>>(() => {
                     <NSelect v-model:value="statusFilter" :options="statusOptions" placeholder="状态筛选" class="status-select" clearable />
                 </div>
                 <div class="toolbar-right">
+                    <NButton 
+                        v-if="props.allowDelete && checkedRowKeys.length > 0"
+                        type="error" 
+                        @click="openBatchDeleteModal"
+                    >
+                        <template #icon>
+                            <NIcon :component="TrashOutline" />
+                        </template>
+                        删除 ({{ checkedRowKeys.length }})
+                    </NButton>
                     <NButton quaternary circle @click="refresh" :loading="isConnecting">
                         <template #icon>
                             <NIcon :component="RefreshOutline" />
@@ -694,6 +714,7 @@ const columns = computed<DataTableColumns<DeviceRow>>(() => {
                     :single-line="true"
                     :row-key="(row: DeviceRow) => row.uuid"
                     :row-class-name="(row: DeviceRow) => (row.is_online ? 'row-online' : 'row-offline')"
+                    v-model:checked-row-keys="checkedRowKeys"
                     class="devices-table"
                 />
                 <div v-else class="empty-state">
@@ -720,6 +741,18 @@ const columns = computed<DataTableColumns<DeviceRow>>(() => {
                     </NSpace>
                 </template>
             </NModal>
+
+            <StatusModal
+                v-model:show="showBatchDeleteModal"
+                variant="danger"
+                :icon="TrashOutline"
+                title="确认批量删除"
+                :content="`即将删除 ${checkedRowKeys.length} 个设备，此操作不可撤销`"
+                positive-text="确认删除"
+                negative-text="取消"
+                :mask-closable="false"
+                @confirm="confirmBatchDelete"
+            />
 
             <div v-if="totalCount > 0" class="pagination-wrapper">
                 <div class="pagination-info">
@@ -750,40 +783,6 @@ const columns = computed<DataTableColumns<DeviceRow>>(() => {
 .devices-container {
     max-width: 100%;
     width: 100%;
-}
-
-.stats-bar {
-    display: flex;
-    align-items: center;
-    gap: 24px;
-    background: white;
-    border-radius: 14px;
-    padding: 20px 28px;
-    margin-bottom: 20px;
-    border: 1px solid #e2e8f0;
-}
-
-.stat-item {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-}
-
-.stat-label {
-    font-size: 14px;
-    color: #64748b;
-}
-
-.stat-value {
-    font-size: 20px;
-    font-weight: 700;
-    color: #1e293b;
-}
-
-.stat-divider {
-    width: 1px;
-    height: 32px;
-    background: #e2e8f0;
 }
 
 .status-dot {
@@ -1114,13 +1113,6 @@ const columns = computed<DataTableColumns<DeviceRow>>(() => {
 }
 
 @media (max-width: 768px) {
-    .stats-bar {
-        flex-wrap: wrap;
-        gap: 16px;
-    }
-    .stat-divider {
-        display: none;
-    }
     .toolbar {
         flex-direction: column;
         gap: 12px;
@@ -1129,7 +1121,13 @@ const columns = computed<DataTableColumns<DeviceRow>>(() => {
     .toolbar-left {
         flex-direction: column;
     }
-    .search-input {
+.toolbar-right {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.search-input {
         width: 100%;
     }
     .status-select {

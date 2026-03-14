@@ -109,6 +109,18 @@ class DeviceController extends Controller
             ->with('success', '设备已移除');
     }
 
+    public function batchDestroy(Request $request)
+    {
+        $validated = $request->validate(['uuids' => 'required|array']);
+        $ownerId = $request->user()->getResourceOwnerId();
+
+        Device::whereIn('uuid', $validated['uuids'])
+            ->where('user_id', $ownerId)
+            ->update(['is_removed' => true]);
+
+        return back();
+    }
+
     /**
      * 确保设备归属于当前用户（含子账号共享资源逻辑）。
      *

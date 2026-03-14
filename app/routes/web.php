@@ -36,6 +36,9 @@ Route::prefix($userEntryPath)->middleware(['auth', 'subscription'])->group(funct
     Route::get('/devices/{device}/control', [DeviceController::class, 'control'])
         ->middleware('permission:devices.control')
         ->name('devices.control');
+    Route::delete('/devices/batch', [DeviceController::class, 'batchDestroy'])
+        ->middleware('permission:devices.delete')
+        ->name('devices.batch-destroy');
     Route::delete('/devices/{device}', [DeviceController::class, 'destroy'])
         ->middleware('permission:devices.delete')
         ->name('devices.destroy');
