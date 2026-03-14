@@ -19,6 +19,7 @@ import {
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import StatsGrid, { type StatCard } from '@/Components/Dashboard/StatsGrid.vue';
 import { useAdminBasePath } from '@/composables/useAdminBasePath';
+import { useGlobalWebSocket } from '@/composables/useGlobalWebSocket';
 
 interface Props {
     stats: {
@@ -41,9 +42,21 @@ const userPermissions = computed(() => user.value?.permissions ?? []);
 const hasPerm = (perm: string) => userPermissions.value.includes(perm);
 const hasNoCorePerm = computed(() => !hasPerm('devices.view') && !hasPerm('builds.view'));
 
+// 使用 WebSocket 实时统计数据
+const { stats: wsStats, hasReceivedWsData } = useGlobalWebSocket();
+
+// 优先使用 WebSocket 实时数据，否则使用 HTTP 初始数据
+const realtimeStats = computed(() => ({
+    totalDevices: hasReceivedWsData.value ? wsStats.value.total : props.stats.totalDevices,
+    onlineDevices: hasReceivedWsData.value ? wsStats.value.online : props.stats.onlineDevices,
+    totalBuilds: props.stats.totalBuilds,
+    todayInstalled: props.stats.todayInstalled,
+    monthInstalled: props.stats.monthInstalled,
+}));
+
 const onlinePercentage = computed(() => {
-    if (props.stats.totalDevices === 0) return 0;
-    return Math.round((props.stats.onlineDevices / props.stats.totalDevices) * 100);
+    if (realtimeStats.value.totalDevices === 0) return 0;
+    return Math.round((realtimeStats.value.onlineDevices / realtimeStats.value.totalDevices) * 100);
 });
 
 const statCards = computed<StatCard[]>(() => {
@@ -70,7 +83,7 @@ const statCards = computed<StatCard[]>(() => {
                 icon: PulseOutline,
                 color: '#3B82F6',
                 bgColor: 'rgba(59, 130, 246, 0.1)',
-                suffix: `/ ${props.stats.totalDevices}`,
+                suffix: `/ ${realtimeStats.value.totalDevices}`,
                 progress: onlinePercentage.value,
             },
             {
@@ -152,7 +165,7 @@ const goTo = (route: string) => router.visit(route);
             </NAlert>
 
             <!-- 统计卡片 -->
-            <StatsGrid v-if="statCards.length > 0" :stats="stats" :cards="statCards" class="stats-section" />
+            <StatsGrid v-if="statCards.length > 0" :stats="realtimeStats" :cards="statCards" class="stats-section" />
 
             <!-- 快捷操作 -->
             <div class="quick-section">
