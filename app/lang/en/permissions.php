@@ -10,4 +10,6 @@ return [
     'devices.control' => 'Control Devices',
     'devices.delete' => 'Delete Devices',
     'teams.manage' => 'Team Management (Sub-accounts)',
+    'dashboard.stats' => 'View Dashboard Statistics',
+    'dashboard.system_status' => 'View System Status',
 ];

@@ -27,6 +27,8 @@ class RolePermissionSeeder extends Seeder
             'devices.control',
             'devices.delete',
             'teams.manage',
+            'dashboard.stats',
+            'dashboard.system_status',
         ];
 
         foreach ($permissions as $name) {

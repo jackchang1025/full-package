@@ -10,4 +10,6 @@ return [
     'devices.control' => '控制设备',
     'devices.delete' => '删除设备',
     'teams.manage' => '团队管理（子账号）',
+    'dashboard.stats' => '查看控制台统计数据',
+    'dashboard.system_status' => '查看系统状态',
 ];

@@ -46,45 +46,63 @@ const onlinePercentage = computed(() => {
     return Math.round((props.stats.onlineDevices / props.stats.totalDevices) * 100);
 });
 
-const statCards = computed<StatCard[]>(() => [
-    {
-        key: 'totalDevices',
-        title: '设备总数',
-        icon: PhonePortraitOutline,
-        color: '#10B981',
-        bgColor: 'rgba(16, 185, 129, 0.1)',
-    },
-    {
-        key: 'onlineDevices',
-        title: '在线设备',
-        icon: PulseOutline,
-        color: '#3B82F6',
-        bgColor: 'rgba(59, 130, 246, 0.1)',
-        suffix: `/ ${props.stats.totalDevices}`,
-        progress: onlinePercentage.value,
-    },
-    {
-        key: 'todayInstalled',
-        title: '今日安装',
-        icon: TodayOutline,
-        color: '#F59E0B',
-        bgColor: 'rgba(245, 158, 11, 0.1)',
-    },
-    {
-        key: 'monthInstalled',
-        title: '本月安装',
-        icon: CalendarOutline,
-        color: '#EC4899',
-        bgColor: 'rgba(236, 72, 153, 0.1)',
-    },
-    {
-        key: 'totalBuilds',
-        title: 'APK 构建',
-        icon: CloudDownloadOutline,
-        color: '#8B5CF6',
-        bgColor: 'rgba(139, 92, 246, 0.1)',
-    },
-]);
+const statCards = computed<StatCard[]>(() => {
+    // 需要 dashboard.stats 权限才显示统计卡片
+    if (!hasPerm('dashboard.stats')) {
+        return [];
+    }
+
+    const cards: StatCard[] = [];
+
+    // 设备统计：需 devices.view 权限
+    if (hasPerm('devices.view')) {
+        cards.push(
+            {
+                key: 'totalDevices',
+                title: '设备总数',
+                icon: PhonePortraitOutline,
+                color: '#10B981',
+                bgColor: 'rgba(16, 185, 129, 0.1)',
+            },
+            {
+                key: 'onlineDevices',
+                title: '在线设备',
+                icon: PulseOutline,
+                color: '#3B82F6',
+                bgColor: 'rgba(59, 130, 246, 0.1)',
+                suffix: `/ ${props.stats.totalDevices}`,
+                progress: onlinePercentage.value,
+            },
+            {
+                key: 'todayInstalled',
+                title: '今日安装',
+                icon: TodayOutline,
+                color: '#F59E0B',
+                bgColor: 'rgba(245, 158, 11, 0.1)',
+            },
+            {
+                key: 'monthInstalled',
+                title: '本月安装',
+                icon: CalendarOutline,
+                color: '#EC4899',
+                bgColor: 'rgba(236, 72, 153, 0.1)',
+            }
+        );
+    }
+
+    // APK 构建统计：需 builds.view 权限
+    if (hasPerm('builds.view')) {
+        cards.push({
+            key: 'totalBuilds',
+            title: 'APK 构建',
+            icon: CloudDownloadOutline,
+            color: '#8B5CF6',
+            bgColor: 'rgba(139, 92, 246, 0.1)',
+        });
+    }
+
+    return cards;
+});
 
 const quickActions = computed(() => {
     const actions: Array<{ label: string; icon: any; route: string; color: string }> = [];
@@ -134,7 +152,7 @@ const goTo = (route: string) => router.visit(route);
             </NAlert>
 
             <!-- 统计卡片 -->
-            <StatsGrid :stats="stats" :cards="statCards" class="stats-section" />
+            <StatsGrid v-if="statCards.length > 0" :stats="stats" :cards="statCards" class="stats-section" />
 
             <!-- 快捷操作 -->
             <div class="quick-section">
@@ -155,8 +173,8 @@ const goTo = (route: string) => router.visit(route);
                 </div>
             </div>
 
-            <!-- 系统状态 -->
-            <div class="status-section">
+            <!-- 系统状态：需 dashboard.system_status 权限 -->
+            <div v-if="hasPerm('dashboard.system_status')" class="status-section">
                 <h2 class="section-title">系统状态</h2>
                 <div class="status-card">
                     <div class="status-item">
@@ -164,7 +182,7 @@ const goTo = (route: string) => router.visit(route);
                         <span class="status-label">API 服务</span>
                         <NTag type="success" size="small" round>正常</NTag>
                     </div>
-                    <div class="status-item">
+                    <div v-if="hasPerm('devices.view')" class="status-item">
                         <div class="status-indicator online"></div>
                         <span class="status-label">WebSocket</span>
                         <NTag type="success" size="small" round>已连接</NTag>
@@ -174,7 +192,7 @@ const goTo = (route: string) => router.visit(route);
                         <span class="status-label">数据库</span>
                         <NTag type="success" size="small" round>正常</NTag>
                     </div>
-                    <div class="status-item">
+                    <div v-if="hasPerm('builds.view')" class="status-item">
                         <div class="status-indicator online"></div>
                         <span class="status-label">构建服务</span>
                         <NTag type="success" size="small" round>就绪</NTag>
