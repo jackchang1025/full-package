@@ -12,6 +12,7 @@ const props = defineProps<{
     devices: { data: unknown[]; current_page: number; last_page: number; per_page: number; total: number };
     stats: { total: number; online: number; offline: number };
     canControl?: boolean;
+    showOfflineDevices?: boolean;
 }>();
 
 const { userRoute } = useAdminBasePath();
@@ -52,6 +53,7 @@ const isConnecting = computed(() => connectionState.value === 'connecting' || co
             :allow-delete="true"
             :allow-edit-remark="true"
             :can-control="props.canControl ?? true"
+            :show-offline-devices="props.showOfflineDevices ?? true"
         />
     </AuthenticatedLayout>
 </template>

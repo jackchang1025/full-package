@@ -37,6 +37,7 @@ class SettingController extends Controller
                 'user_entry_path' => $settings['user_entry_path'] ?? config('site.user_entry_path', ''),
                 'admin_entry_path' => $settings['admin_entry_path'] ?? config('site.admin_entry_path', 'admin'),
                 'max_main_accounts' => Setting::getInt('max_main_accounts'),
+                'show_offline_devices' => Setting::getBool('show_offline_devices') ?? true,
             ],
         ]);
     }
@@ -183,6 +184,10 @@ class SettingController extends Controller
 
         if (array_key_exists('max_main_accounts', $validated)) {
             Setting::set('max_main_accounts', $validated['max_main_accounts']);
+        }
+
+        if (array_key_exists('show_offline_devices', $validated)) {
+            Setting::set('show_offline_devices', $validated['show_offline_devices']);
         }
     }
 

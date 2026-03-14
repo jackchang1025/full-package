@@ -53,6 +53,16 @@ class Setting extends Model
     }
 
     /**
+     * Get a setting value as boolean. Returns null if not found.
+     */
+    public static function getBool(string $key): ?bool
+    {
+        $value = self::get($key);
+
+        return $value !== null ? (bool) (int) $value : null;
+    }
+
+    /**
      * Set a setting value. Creates or updates the row.
      * Accepts string, int, bool, or null. Stores int in value_int field.
      */

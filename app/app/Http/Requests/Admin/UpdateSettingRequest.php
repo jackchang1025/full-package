@@ -39,6 +39,7 @@ class UpdateSettingRequest extends FormRequest
                 Rule::notIn(self::RESERVED_PATHS),
             ],
             'max_main_accounts' => ['nullable', 'integer', 'min:0', 'max:99999'],
+            'show_offline_devices' => ['nullable', 'boolean'],
         ];
     }
 

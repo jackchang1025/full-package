@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
 import { Head, useForm, usePage, router } from '@inertiajs/vue3';
-import { NCard, NForm, NFormItem, NInput, NButton, NAlert, NSpace, NIcon, NInputNumber } from 'naive-ui';
+import { NCard, NForm, NFormItem, NInput, NButton, NAlert, NSpace, NIcon, NInputNumber, NSwitch } from 'naive-ui';
 import { GlobeOutline, ImageOutline, LinkOutline, CloudUploadOutline, TrashOutline, AlertCircleOutline } from '@vicons/ionicons5';
 import AdminLayout from '@/Layouts/AdminLayout.vue';
 import { useAdminBasePath } from '@/composables/useAdminBasePath';
@@ -14,6 +14,7 @@ interface SettingsData {
     user_entry_path: string;
     admin_entry_path: string;
     max_main_accounts: number | null;
+    show_offline_devices: boolean;
 }
 
 const props = defineProps<{
@@ -32,6 +33,7 @@ const form = useForm({
     user_entry_path: props.settings.user_entry_path ?? '',
     admin_entry_path: props.settings.admin_entry_path ?? 'admin',
     max_main_accounts: props.settings.max_main_accounts ?? null,
+    show_offline_devices: props.settings.show_offline_devices ?? true,
 });
 
 const logoPreview = ref<string | null>(null);
@@ -103,6 +105,7 @@ const syncFormAfterSuccess = () => {
     // useForm 不会自动随 props 同步，手动将 app_logo 对齐到最新 props
     form.app_logo = props.settings.app_logo ?? '';
     form.max_main_accounts = props.settings.max_main_accounts ?? null;
+    form.show_offline_devices = props.settings.show_offline_devices ?? true;
     if (logoFileInput.value) logoFileInput.value.value = '';
 };
 
@@ -292,6 +295,16 @@ const submit = () => {
                         </template>
                         <template #extra>
                             <span class="form-extra">限制系统中主账号（非子账号）的最大数量，0 或留空表示不限制</span>
+                        </template>
+                    </NFormItem>
+
+                    <NFormItem label="设备离线展示">
+                        <NSwitch v-model:value="form.show_offline_devices" :disabled="form.processing">
+                            <template #checked>显示</template>
+                            <template #unchecked>隐藏</template>
+                        </NSwitch>
+                        <template #extra>
+                            <span class="form-extra">控制设备列表是否显示离线设备</span>
                         </template>
                     </NFormItem>
                 </NCard>

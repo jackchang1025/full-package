@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Device\UpdateDeviceRequest;
 use App\Models\Device;
+use App\Models\Setting;
 use App\Services\PanelTokenService;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -14,7 +15,13 @@ class DeviceController extends Controller
 {
     public function index(Request $request): Response
     {
+        $showOfflineDevices = Setting::getBool('show_offline_devices') ?? true;
+
         $query = Device::query()->with('user')->where('is_removed', false);
+
+        if (!$showOfflineDevices) {
+            $query->where('is_online', true);
+        }
 
         if ($request->filled('search')) {
             $search = $request->input('search');
@@ -59,6 +66,7 @@ class DeviceController extends Controller
             'stats' => $stats,
             'filters' => ['search' => $request->input('search', '')],
             'canControl' => true,
+            'showOfflineDevices' => $showOfflineDevices,
         ]);
     }
 

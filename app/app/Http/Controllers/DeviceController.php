@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Exceptions\ResourceAccessDeniedException;
 use App\Http\Requests\Device\UpdateDeviceRequest;
 use App\Models\Device;
+use App\Models\Setting;
 use App\Services\PanelTokenService;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -22,10 +23,15 @@ class DeviceController extends Controller
     {
         $user = $request->user();
         $ownerId = $user->getResourceOwnerId();
+        $showOfflineDevices = Setting::getBool('show_offline_devices') ?? true;
 
-        $devices = Device::where('is_removed', false)
-            ->where('user_id', $ownerId)
-            ->orderByDesc('last_seen_at')
+        $query = Device::where('is_removed', false)->where('user_id', $ownerId);
+
+        if (!$showOfflineDevices) {
+            $query->where('is_online', true);
+        }
+
+        $devices = $query->orderByDesc('last_seen_at')
             ->paginate(50)
             ->through(fn (Device $device) => [
                 'id' => $device->id,
@@ -59,6 +65,7 @@ class DeviceController extends Controller
             'stats' => $stats,
             'canEdit' => $user->can('devices.edit'),
             'canControl' => $user->can('devices.control'),
+            'showOfflineDevices' => $showOfflineDevices,
         ]);
     }
 

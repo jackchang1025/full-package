@@ -90,6 +90,7 @@ const props = withDefaults(
         allowEditLink?: boolean;
         canControl?: boolean;
         filters?: Record<string, string>;
+        showOfflineDevices?: boolean;
     }>(),
     {
         basePath: '/devices',
@@ -100,6 +101,7 @@ const props = withDefaults(
         allowEditLink: false,
         canControl: true,
         filters: () => ({}),
+        showOfflineDevices: true,
     }
 );
 
@@ -164,6 +166,12 @@ const filteredDevices = computed(() => {
     }
     if (statusFilter.value === 'online') result = result.filter((d) => d.is_online);
     else if (statusFilter.value === 'offline') result = result.filter((d) => !d.is_online);
+
+    // 根据配置过滤离线设备（处理 WebSocket 推送的数据）
+    if (!props.showOfflineDevices) {
+        result = result.filter((d) => d.is_online);
+    }
+
     return result;
 });
 
