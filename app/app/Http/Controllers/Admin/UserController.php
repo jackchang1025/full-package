@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\StoreUserRequest;
 use App\Http\Requests\Admin\UpdateUserRequest;
+use App\Models\Setting;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -100,6 +101,18 @@ class UserController extends Controller
         $validated = $request->validated();
         $parent = isset($validated['parent_id']) ? User::find($validated['parent_id']) : null;
         $isSubAccount = $parent !== null;
+
+        if (!$isSubAccount) {
+            $maxMainAccounts = Setting::getInt('max_main_accounts');
+            if ($maxMainAccounts !== null && $maxMainAccounts > 0) {
+                $currentCount = User::whereNull('parent_id')->count();
+                if ($currentCount >= $maxMainAccounts) {
+                    return back()->withErrors([
+                        'parent_id' => "主账号数量已达上限（{$maxMainAccounts} 个），无法创建新主账号。",
+                    ])->withInput();
+                }
+            }
+        }
 
         if ($isSubAccount && $parent->subAccounts()->count() >= $parent->max_sub_accounts) {
             return back()->withErrors([

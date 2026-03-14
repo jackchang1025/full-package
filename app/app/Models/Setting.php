@@ -37,20 +37,49 @@ class Setting extends Model
     }
 
     /**
-     * Set a setting value. Creates or updates the row.
+     * Get a setting value as integer. Returns null if not found.
      */
-    public static function set(string $key, ?string $value): void
+    public static function getInt(string $key): ?int
+    {
+        if (! self::tableExists()) {
+            return null;
+        }
+
+        return Cache::remember(
+            self::cacheKey($key).':int',
+            now()->addMinutes(self::CACHE_TTL_MINUTES),
+            fn () => self::query()->where('key', $key)->value('value_int')
+        );
+    }
+
+    /**
+     * Set a setting value. Creates or updates the row.
+     * Accepts string, int, bool, or null. Stores int in value_int field.
+     */
+    public static function set(string $key, string|int|bool|null $value): void
     {
         if (! self::tableExists()) {
             return;
         }
 
-        self::query()->updateOrInsert(
-            ['key' => $key],
-            ['value' => $value, 'updated_at' => now()]
-        );
+        $data = ['updated_at' => now()];
+
+        if (is_int($value)) {
+            $data['value_int'] = $value;
+            $data['value'] = null;
+        } else {
+            $data['value'] = match (true) {
+                is_null($value) => null,
+                is_bool($value) => $value ? '1' : '0',
+                default => (string) $value,
+            };
+            $data['value_int'] = null;
+        }
+
+        self::query()->updateOrInsert(['key' => $key], $data);
 
         Cache::forget(self::cacheKey($key));
+        Cache::forget(self::cacheKey($key).':int');
     }
 
     /**

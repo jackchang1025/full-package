@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
 import { Head, useForm, usePage, router } from '@inertiajs/vue3';
-import { NCard, NForm, NFormItem, NInput, NButton, NAlert, NSpace, NIcon } from 'naive-ui';
+import { NCard, NForm, NFormItem, NInput, NButton, NAlert, NSpace, NIcon, NInputNumber } from 'naive-ui';
 import { GlobeOutline, ImageOutline, LinkOutline, CloudUploadOutline, TrashOutline, AlertCircleOutline } from '@vicons/ionicons5';
 import AdminLayout from '@/Layouts/AdminLayout.vue';
 import { useAdminBasePath } from '@/composables/useAdminBasePath';
@@ -13,6 +13,7 @@ interface SettingsData {
     logo_max_size_label: string;
     user_entry_path: string;
     admin_entry_path: string;
+    max_main_accounts: number | null;
 }
 
 const props = defineProps<{
@@ -30,6 +31,7 @@ const form = useForm({
     logo_file: null as File | null,
     user_entry_path: props.settings.user_entry_path ?? '',
     admin_entry_path: props.settings.admin_entry_path ?? 'admin',
+    max_main_accounts: props.settings.max_main_accounts ?? null,
 });
 
 const logoPreview = ref<string | null>(null);
@@ -100,6 +102,7 @@ const syncFormAfterSuccess = () => {
     logoPreview.value = null;
     // useForm 不会自动随 props 同步，手动将 app_logo 对齐到最新 props
     form.app_logo = props.settings.app_logo ?? '';
+    form.max_main_accounts = props.settings.max_main_accounts ?? null;
     if (logoFileInput.value) logoFileInput.value.value = '';
 };
 
@@ -271,6 +274,24 @@ const submit = () => {
                         </template>
                         <template #extra>
                             <span class="form-extra">管理后台 URL 前缀。例如 <code>admin</code> 则后台为 <code>/admin/login</code></span>
+                        </template>
+                    </NFormItem>
+
+                    <NFormItem label="主账号数量限制" :validation-status="form.errors.max_main_accounts ? 'error' : undefined">
+                        <NInputNumber
+                            v-model:value="form.max_main_accounts"
+                            :min="0"
+                            :max="99999"
+                            placeholder="留空则不限制"
+                            clearable
+                            :disabled="form.processing"
+                            style="width: 100%"
+                        />
+                        <template #feedback>
+                            {{ form.errors.max_main_accounts }}
+                        </template>
+                        <template #extra>
+                            <span class="form-extra">限制系统中主账号（非子账号）的最大数量，0 或留空表示不限制</span>
                         </template>
                     </NFormItem>
                 </NCard>

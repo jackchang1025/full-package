@@ -38,6 +38,7 @@ class UpdateSettingRequest extends FormRequest
                 'regex:'.self::PATH_REGEX,
                 Rule::notIn(self::RESERVED_PATHS),
             ],
+            'max_main_accounts' => ['nullable', 'integer', 'min:0', 'max:99999'],
         ];
     }
 
