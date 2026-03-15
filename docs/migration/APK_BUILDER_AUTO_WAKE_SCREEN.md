@@ -2,6 +2,34 @@
 
 > 本文档记录了自动唤醒屏幕功能的完整实现过程和技术细节
 
+---
+
+## ⚠️ 重要更正
+
+**唤醒触发机制**：
+
+本文档主要描述了如何**禁用**自动唤醒功能（移除 Manifest 属性和 Window Flags）。但关于**触发机制**的描述需要更正：
+
+- ❌ **之前的说法**：自动唤醒由 WebSocket 消息触发
+- ✅ **实际机制**：自动唤醒由 **AccessServices 监听锁屏事件**触发
+
+**完整触发流程**：
+```
+点击锁屏按钮
+  ↓
+AccessServices.onAccessibilityEvent() 检测到锁屏
+  ↓
+启动 TransparentActivity
+  ↓
+Manifest 属性 (turnScreenOn) + Window Flags 双重机制
+  ↓
+屏幕立即唤醒
+```
+
+详见：[APK_KEEP_ALIVE_MECHANISM.md](./APK_KEEP_ALIVE_MECHANISM.md) - 无障碍服务保活章节
+
+---
+
 ## 问题背景
 
 ### 用户需求
@@ -16,7 +44,7 @@
 
 ### Android 屏幕唤醒机制
 
-Android 应用可以通过**两种机制**唤醒屏幕：
+Android 应用可以通过**四种机制**唤醒屏幕：
 
 1. **Manifest 属性**（声明式）
    - `android:turnScreenOn="true"`
@@ -28,32 +56,42 @@ Android 应用可以通过**两种机制**唤醒屏幕：
    - `FLAG_ALLOW_LOCK_WHILE_SCREEN_ON (0x20)`
    - `FLAG_TURN_SCREEN_ON (0x200000)`
 
+3. **PowerManager WakeLock**（系统级）
+   - `ACQUIRE_CAUSES_WAKEUP (0x10000000)` — 获取 WakeLock 时唤醒屏幕
+   - `SCREEN_BRIGHT_WAKE_LOCK (0xa)` — 保持屏幕亮
+   - `SCREEN_DIM_WAKE_LOCK (0xa)` — 保持屏幕暗亮
+
+4. **Activity 启动**（间接）
+   - 通过启动带唤醒属性的 Activity 间接唤醒屏幕
+
 ### 关键发现
 
-**这两种机制必须同时存在才能生效！**
+经过 ADB 调试发现，屏幕唤醒涉及 **4 条代码路径**：
 
-在 `TransparentActivity.smali` 中发现硬编码的 Window flags：
+| 路径 | 文件 | 机制 | 标志值 |
+|------|------|------|--------|
+| 1 | `AndroidManifest.xml` | TransparentActivity 声明属性 | `turnScreenOn`/`showWhenLocked` |
+| 2 | `TransparentActivity.smali` | Window flags | `0x80000` / `0x20` |
+| 3 | `a.smali` | PowerManager.newWakeLock | `0x3000001a` (SCREEN_BRIGHT + ACQUIRE_CAUSES_WAKEUP) |
+| 4 | `WorkServices.smali` | PowerManager.newWakeLock | `0x1000000a` (SCREEN_DIM + ACQUIRE_CAUSES_WAKEUP) |
+| 5 | `a$a.smali` | 启动 TransparentActivity | Intent → startActivity |
 
-```smali
-# 第 285 行
-const/high16 v0, 0x80000
-invoke-virtual {p1, v0}, Landroid/view/Window;->addFlags(I)V
-
-# 第 293 行
-const/16 v0, 0x20
-invoke-virtual {p1, v0, v0}, Landroid/view/Window;->setFlags(II)V
+**ADB 调试确认**：通过 `dumpsys power` 和 `logcat` 发现 `WorkServices:ScreenLock` 是主要唤醒源：
 ```
-
-这些代码在 `onCreate()` 中直接调用 `window.addFlags()`，**覆盖了 Manifest 配置**。
+PowerManagerService: Waking up from Asleep (uid=10357, reason=WAKE_REASON_APPLICATION, details=WorkServices:ScreenLock)
+```
 
 ## 解决方案
 
 ### 架构设计
 
-采用**双重防护**策略：
+采用**五重防护**策略，覆盖所有唤醒代码路径：
 
 1. **Manifest 层**：移除 TransparentActivity 的唤醒属性
-2. **Smali 层**：移除字节码中的 Window flags 调用
+2. **Smali 层**：移除 TransparentActivity 字节码中的 Window flags
+3. **WakeLock 层 (a.smali)**：将 `ACQUIRE_CAUSES_WAKEUP` WakeLock 降级为 `PARTIAL_WAKE_LOCK`
+4. **WakeLock 层 (WorkServices.smali)**：将 `ACQUIRE_CAUSES_WAKEUP` WakeLock 降级为 `PARTIAL_WAKE_LOCK`
+5. **Activity 层 (a$a.smali)**：阻止启动 TransparentActivity
 
 ### 实现细节
 
@@ -61,82 +99,63 @@ invoke-virtual {p1, v0, v0}, Landroid/view/Window;->setFlags(II)V
 
 **位置**: `ApkBuilder::modifyTransparentActivityWakeScreen()`
 
-**实现**:
-```php
-private function modifyTransparentActivityWakeScreen(string $content, ApkBuildConfig $config): string
-{
-    if (!$config->enableAutoWakeScreen) {
-        // 移除 turnScreenOn
-        $content = preg_replace(
-            '/(<activity[^>]*android:name="[^"]*TransparentActivity"[^>]*)\s*android:turnScreenOn="true"\s*/',
-            '$1 ',
-            $content
-        );
-        // 移除 showOnLockScreen
-        $content = preg_replace(
-            '/(<activity[^>]*android:name="[^"]*TransparentActivity"[^>]*)\s*android:showOnLockScreen="true"\s*/',
-            '$1 ',
-            $content
-        );
-        // 移除 showWhenLocked
-        $content = preg_replace(
-            '/(<activity[^>]*android:name="[^"]*TransparentActivity"[^>]*)\s*android:showWhenLocked="true"\s*/',
-            '$1 ',
-            $content
-        );
-        Log::channel('apk')->info('Disabled auto-wake screen for TransparentActivity');
-    }
-    return $content;
-}
+移除 TransparentActivity 的 `turnScreenOn`、`showOnLockScreen`、`showWhenLocked` 属性。
+
+#### 2. Smali Window Flags 移除 (TransparentActivity)
+
+**位置**: `SmaliProcessor::removeWakeScreenFlags()` — Path 1
+
+移除 `FLAG_SHOW_WHEN_LOCKED (0x80000)` 和 `FLAG_ALLOW_LOCK_WHILE_SCREEN_ON (0x20)` 的 addFlags/setFlags 调用。
+
+#### 3. WakeLock 降级 (a.smali)
+
+**位置**: `SmaliProcessor::removeWakeScreenFlags()` — Path 2
+
+```
+0x3000001a = SCREEN_BRIGHT_WAKE_LOCK | ACQUIRE_CAUSES_WAKEUP | ON_AFTER_RELEASE
+→ 改为 0x1 = PARTIAL_WAKE_LOCK（保持CPU唤醒但不点亮屏幕）
 ```
 
-#### 2. Smali Window Flags 移除
+#### 4. WakeLock 降级 (WorkServices.smali)
+
+**位置**: `SmaliProcessor::removeWakeScreenFlags()` — Path 2b
+
+这是 ADB 调试发现的**主要唤醒源**（`WorkServices:ScreenLock`）：
+
+```
+0x1000000a = ACQUIRE_CAUSES_WAKEUP | SCREEN_DIM_WAKE_LOCK → 0x1 (PARTIAL_WAKE_LOCK)
+0x20000001 = ON_AFTER_RELEASE | PARTIAL_WAKE_LOCK → 0x1 (PARTIAL_WAKE_LOCK)
+```
+
+#### 5. 阻止 TransparentActivity 启动 (a$a.smali)
+
+**位置**: `SmaliProcessor::removeWakeScreenFlags()` — Path 3
+
+在 `a$a.smali` 的 `run()` 方法开头插入 `return-void`，阻止启动 TransparentActivity。
+
+### 完整实现代码
 
 **位置**: `SmaliProcessor::removeWakeScreenFlags()`
 
-**实现**:
 ```php
 public function removeWakeScreenFlags(bool $enableAutoWakeScreen): void
 {
     if ($enableAutoWakeScreen) {
-        return; // 保持默认行为
-    }
-
-    $transparentActivityPath = $this->buildDir . '/smali/com/icontrol/protector/TransparentActivity.smali';
-    
-    if (!File::exists($transparentActivityPath)) {
         return;
     }
 
-    $content = File::get($transparentActivityPath);
-    
-    // 移除 FLAG_SHOW_WHEN_LOCKED (0x80000)
-    $content = preg_replace(
-        '/\s*const\/high16\s+v\d+,\s*0x80000\s*\n\s*invoke-virtual\s+\{[^}]+\},\s*Landroid\/view\/Window;->addFlags\(I\)V\s*\n/m',
-        "\n",
-        $content
-    );
-    
-    // 移除 FLAG_ALLOW_LOCK_WHILE_SCREEN_ON (0x20)
-    $content = preg_replace(
-        '/\s*const\/16\s+v\d+,\s*0x20\s*\n\s*invoke-virtual\s+\{[^}]+\},\s*Landroid\/view\/Window;->setFlags\(II\)V\s*\n/m',
-        "\n",
-        $content
-    );
+    // Path 1: TransparentActivity.smali Window flags
+    // 移除 FLAG_SHOW_WHEN_LOCKED (0x80000) 和 FLAG_ALLOW_LOCK_WHILE_SCREEN_ON (0x20)
 
-    File::put($transparentActivityPath, $content);
-}
-```
+    // Path 2: a.smali WakeLock
+    // 0x3000001a → 0x1 (PARTIAL_WAKE_LOCK)
 
-#### 3. 调用集成
+    // Path 2b: WorkServices.smali WakeLock
+    // 0x1000000a → 0x1 (PARTIAL_WAKE_LOCK)
+    // 0x20000001 → 0x1 (PARTIAL_WAKE_LOCK)
 
-**位置**: `ApkBuilder::modifySmali()`
-
-```php
-private function modifySmali(ApkBuildConfig $config): void
-{
-    $this->getSmaliProcessor()->modifyConfig($config, $this->assetsKey, $this->encryptor);
-    $this->getSmaliProcessor()->removeWakeScreenFlags($config->enableAutoWakeScreen);
+    // Path 3: a$a.smali
+    // 在 run() 开头插入 return-void，阻止启动 TransparentActivity
 }
 ```
 
@@ -328,6 +347,28 @@ Deletions: 358
 | FLAG_SHOW_WHEN_LOCKED | 0x80000 | 在锁屏界面显示 |
 | FLAG_ALLOW_LOCK_WHILE_SCREEN_ON | 0x20 | 允许锁屏时保持屏幕开启 |
 | FLAG_TURN_SCREEN_ON | 0x200000 | 唤醒屏幕（未在代码中发现） |
+
+### 3. WakeLock 常量
+
+| 常量 | 十六进制 | 作用 |
+|------|---------|------|
+| PARTIAL_WAKE_LOCK | 0x1 | 保持CPU唤醒，不点亮屏幕 |
+| SCREEN_DIM_WAKE_LOCK | 0xa | 保持屏幕暗亮 |
+| SCREEN_BRIGHT_WAKE_LOCK | 0xa | 保持屏幕亮 |
+| ACQUIRE_CAUSES_WAKEUP | 0x10000000 | 获取时唤醒屏幕 |
+| ON_AFTER_RELEASE | 0x20000000 | 释放后保持屏幕亮一段时间 |
+
+### 4. 唤醒代码路径汇总
+
+| 文件 | 标志值 | 含义 | 处理方式 |
+|------|--------|------|---------|
+| `TransparentActivity.smali` | `0x80000` | FLAG_SHOW_WHEN_LOCKED | 移除 addFlags 调用 |
+| `TransparentActivity.smali` | `0x20` | FLAG_ALLOW_LOCK_WHILE_SCREEN_ON | 移除 setFlags 调用 |
+| `a.smali` | `0x3000001a` | SCREEN_BRIGHT + ACQUIRE_CAUSES_WAKEUP + ON_AFTER_RELEASE | 改为 0x1 (PARTIAL) |
+| `WorkServices.smali` | `0x1000000a` | SCREEN_DIM + ACQUIRE_CAUSES_WAKEUP | 改为 0x1 (PARTIAL) |
+| `WorkServices.smali` | `0x20000001` | ON_AFTER_RELEASE + PARTIAL | 改为 0x1 (PARTIAL) |
+| `a$a.smali` | N/A | 启动 TransparentActivity | 插入 return-void |
+| `AndroidManifest.xml` | N/A | turnScreenOn/showWhenLocked | 移除属性 |
 
 ### 3. 正则表达式设计
 

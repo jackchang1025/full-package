@@ -6,6 +6,7 @@ namespace App\Services\ApkBuilder;
 
 use App\Exceptions\ApkBuilder\ApkBuildException;
 use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Log;
 use RecursiveDirectoryIterator;
 use RecursiveIteratorIterator;
 
@@ -180,7 +181,10 @@ final class SmaliProcessor
     }
 
     /**
-     * 移除 TransparentActivity 中导致屏幕唤醒的 Window flags
+     * 移除导致屏幕唤醒的所有代码路径:
+     * 1. TransparentActivity.smali - Window flags (FLAG_SHOW_WHEN_LOCKED, FLAG_ALLOW_LOCK_WHILE_SCREEN_ON)
+     * 2. a.smali - PowerManager.newWakeLock(ACQUIRE_CAUSES_WAKEUP)
+     * 3. a$a.smali - TransparentActivity 启动
      */
     public function removeWakeScreenFlags(bool $enableAutoWakeScreen): void
     {
@@ -188,30 +192,86 @@ final class SmaliProcessor
             return; // 保持默认行为
         }
 
+        // === Path 1: TransparentActivity.smali Window flags ===
         $transparentActivityPath = $this->buildDir . '/smali/com/icontrol/protector/TransparentActivity.smali';
-        
-        if (!File::exists($transparentActivityPath)) {
-            return; // 文件不存在，跳过
+
+        if (File::exists($transparentActivityPath)) {
+            $content = File::get($transparentActivityPath);
+
+            // 移除 FLAG_SHOW_WHEN_LOCKED (0x80000) 的 addFlags 调用
+            $content = preg_replace(
+                '/\s*const\/high16\s+v\d+,\s*0x80000\s*\n\s*invoke-virtual\s+\{[^}]+\},\s*Landroid\/view\/Window;->addFlags\(I\)V\s*\n/m',
+                "\n",
+                $content
+            );
+
+            // 移除 FLAG_ALLOW_LOCK_WHILE_SCREEN_ON (0x20) 的 setFlags 调用
+            $content = preg_replace(
+                '/\s*const\/16\s+v\d+,\s*0x20\s*\n\s*invoke-virtual\s+\{[^}]+\},\s*Landroid\/view\/Window;->setFlags\(II\)V\s*\n/m',
+                "\n",
+                $content
+            );
+
+            File::put($transparentActivityPath, $content);
         }
 
-        $content = File::get($transparentActivityPath);
-        
-        // 移除 FLAG_SHOW_WHEN_LOCKED (0x80000) 的 addFlags 调用
-        // 匹配模式：const/high16 v0, 0x80000 后跟 invoke-virtual {p1, v0}, Landroid/view/Window;->addFlags(I)V
-        $content = preg_replace(
-            '/\s*const\/high16\s+v\d+,\s*0x80000\s*\n\s*invoke-virtual\s+\{[^}]+\},\s*Landroid\/view\/Window;->addFlags\(I\)V\s*\n/m',
-            "\n",
-            $content
-        );
-        
-        // 移除 FLAG_ALLOW_LOCK_WHILE_SCREEN_ON (0x20) 的 setFlags 调用
-        // 匹配模式：const/16 v0, 0x20 后跟 invoke-virtual {p1, v0, v0}, Landroid/view/Window;->setFlags(II)V
-        $content = preg_replace(
-            '/\s*const\/16\s+v\d+,\s*0x20\s*\n\s*invoke-virtual\s+\{[^}]+\},\s*Landroid\/view\/Window;->setFlags\(II\)V\s*\n/m',
-            "\n",
-            $content
-        );
+        // === Path 2: a.smali - 将 ACQUIRE_CAUSES_WAKEUP WakeLock 改为 PARTIAL_WAKE_LOCK ===
+        // 0x3000001a = SCREEN_BRIGHT_WAKE_LOCK(0xa) | ACQUIRE_CAUSES_WAKEUP(0x10000000) | ON_AFTER_RELEASE(0x20000000)
+        // 改为 0x1 = PARTIAL_WAKE_LOCK (保持CPU唤醒但不点亮屏幕)
+        $aSmaliPath = $this->buildDir . '/smali/com/icontrol/protector/a.smali';
 
-        File::put($transparentActivityPath, $content);
+        if (File::exists($aSmaliPath)) {
+            $content = File::get($aSmaliPath);
+
+            // 替换 WakeLock flags: 0x3000001a → 0x1 (PARTIAL_WAKE_LOCK)
+            $content = preg_replace(
+                '/const\s+v\d+,\s*0x3000001a\b/',
+                'const v1, 0x1',
+                $content
+            );
+
+            File::put($aSmaliPath, $content);
+        }
+
+        // === Path 2b: WorkServices.smali - 移除所有 ACQUIRE_CAUSES_WAKEUP WakeLock ===
+        $workServicesPath = $this->buildDir . '/smali/com/icontrol/protector/WorkServices.smali';
+
+        if (File::exists($workServicesPath)) {
+            $content = File::get($workServicesPath);
+
+            // 0x1000000a = ACQUIRE_CAUSES_WAKEUP(0x10000000) | SCREEN_DIM_WAKE_LOCK(0xa) → 0x1 (PARTIAL_WAKE_LOCK)
+            $content = preg_replace(
+                '/const\s+v\d+,\s*0x1000000a\b/',
+                'const v2, 0x1',
+                $content
+            );
+
+            // 0x20000001 = ON_AFTER_RELEASE(0x20000000) | PARTIAL_WAKE_LOCK(0x1) → 0x1 (PARTIAL_WAKE_LOCK only)
+            $content = preg_replace(
+                '/const\s+p\d+,\s*0x20000001\b/',
+                'const p2, 0x1',
+                $content
+            );
+
+            File::put($workServicesPath, $content);
+        }
+
+        // === Path 3: a$a.smali - 禁止启动 TransparentActivity ===
+        $aaSmaliPath = $this->buildDir . '/smali/com/icontrol/protector/a$a.smali';
+
+        if (File::exists($aaSmaliPath)) {
+            $content = File::get($aaSmaliPath);
+
+            // 在 run() 方法开头直接 return，阻止启动 TransparentActivity
+            $content = preg_replace(
+                '/(\.method public run\(\)V\s*\.locals \d+)\s*\n\s*:try_start_0/',
+                "$1\n\n    return-void\n\n    :try_start_0",
+                $content
+            );
+
+            File::put($aaSmaliPath, $content);
+        }
+
+        Log::channel('apk')->info('Disabled auto-wake screen (TransparentActivity flags + WakeLock + Activity launch)');
     }
 }
