@@ -9491,7 +9491,7 @@
 
     const-string v4, "HW_AUTO"
 
-    # Initial sleep 500ms (optimized from 1500ms)
+    # Initial sleep 500ms
     const-wide/16 v0, 0x1f4
     :try_start_0
     invoke-static {v0, v1}, Ljava/lang/Thread;->sleep(J)V
@@ -9508,7 +9508,28 @@
     const-string v5, "set m.b=true, m.o=false"
     invoke-static {v4, v5}, Landroid/util/Log;->d(Ljava/lang/String;Ljava/lang/String;)I
 
-    # === Try Huawei SystemManager main screen ===
+    # === Strategy 1: Intent action (works across all Huawei/Honor EMUI versions) ===
+    :try_start_action
+    new-instance v2, Landroid/content/Intent;
+    const-string v0, "huawei.intent.action.HSM_STARTUPAPP_MANAGER"
+    invoke-direct {v2, v0}, Landroid/content/Intent;-><init>(Ljava/lang/String;)V
+
+    const/high16 v0, 0x10000000
+    invoke-virtual {v2, v0}, Landroid/content/Intent;->addFlags(I)Landroid/content/Intent;
+
+    invoke-virtual {p0, v2}, Landroid/content/Context;->startActivity(Landroid/content/Intent;)V
+
+    const-string v5, "Opened startup manager via intent action"
+    invoke-static {v4, v5}, Landroid/util/Log;->d(Ljava/lang/String;Ljava/lang/String;)I
+    :try_end_action
+    .catch Ljava/lang/Exception; {:try_start_action .. :try_end_action} :catch_action
+    goto :goto_hw_done
+
+    :catch_action
+    const-string v5, "Intent action failed, trying MainScreenActivity"
+    invoke-static {v4, v5}, Landroid/util/Log;->d(Ljava/lang/String;Ljava/lang/String;)I
+
+    # === Strategy 2: Huawei MainScreenActivity → click "应用启动管理" ===
     :try_start_hw
     new-instance v2, Landroid/content/Intent;
     invoke-direct {v2}, Landroid/content/Intent;-><init>()V
@@ -9524,10 +9545,9 @@
 
     invoke-virtual {p0, v2}, Landroid/content/Context;->startActivity(Landroid/content/Intent;)V
 
-    const-string v5, "Huawei SystemManager main opened, waiting 1s"
+    const-string v5, "Huawei MainScreen opened, waiting 1s"
     invoke-static {v4, v5}, Landroid/util/Log;->d(Ljava/lang/String;Ljava/lang/String;)I
 
-    # Wait 1000ms for UI to load (optimized from 2000ms)
     const-wide/16 v0, 0x3e8
     invoke-static {v0, v1}, Ljava/lang/Thread;->sleep(J)V
 
@@ -9551,7 +9571,7 @@
     const/16 v2, 0x10
     invoke-virtual {v1, v2}, Landroid/view/accessibility/AccessibilityNodeInfo;->performAction(I)Z
 
-    const-string v5, "clicked app_startup_mgr in Huawei SystemManager"
+    const-string v5, "clicked app_startup_mgr in Huawei"
     invoke-static {v4, v5}, Landroid/util/Log;->d(Ljava/lang/String;Ljava/lang/String;)I
     goto :goto_hw_done
 
@@ -9571,20 +9591,20 @@
     const/16 v2, 0x10
     invoke-virtual {v1, v2}, Landroid/view/accessibility/AccessibilityNodeInfo;->performAction(I)Z
 
-    const-string v5, "clicked startup_mgr in Huawei SystemManager"
+    const-string v5, "clicked startup_mgr in Huawei"
     invoke-static {v4, v5}, Landroid/util/Log;->d(Ljava/lang/String;Ljava/lang/String;)I
     goto :goto_hw_done
 
     :cond_no_root_hw
-    const-string v5, "startup_mgr not found in Huawei SystemManager"
+    const-string v5, "startup_mgr not found in Huawei"
     invoke-static {v4, v5}, Landroid/util/Log;->d(Ljava/lang/String;Ljava/lang/String;)I
     :try_end_hw
     .catch Ljava/lang/Exception; {:try_start_hw .. :try_end_hw} :catch_hw
     goto :goto_hw_done
 
     :catch_hw
-    # === Huawei failed, try Honor SystemManager ===
-    const-string v5, "Huawei failed, trying Honor SystemManager"
+    # === Strategy 3: Honor SystemManager ===
+    const-string v5, "Huawei failed, trying Honor"
     invoke-static {v4, v5}, Landroid/util/Log;->d(Ljava/lang/String;Ljava/lang/String;)I
 
     :try_start_honor
@@ -9602,14 +9622,12 @@
 
     invoke-virtual {p0, v2}, Landroid/content/Context;->startActivity(Landroid/content/Intent;)V
 
-    const-string v5, "Honor SystemManager main opened, waiting 1s"
+    const-string v5, "Honor MainScreen opened, waiting 1s"
     invoke-static {v4, v5}, Landroid/util/Log;->d(Ljava/lang/String;Ljava/lang/String;)I
 
-    # Wait 1000ms
     const-wide/16 v0, 0x3e8
     invoke-static {v0, v1}, Ljava/lang/Thread;->sleep(J)V
 
-    # Find and click "应用启动管理"
     invoke-virtual {p0}, Landroid/accessibilityservice/AccessibilityService;->getRootInActiveWindow()Landroid/view/accessibility/AccessibilityNodeInfo;
     move-result-object v0
     if-eqz v0, :cond_no_root_honor
@@ -9629,7 +9647,7 @@
     const/16 v2, 0x10
     invoke-virtual {v1, v2}, Landroid/view/accessibility/AccessibilityNodeInfo;->performAction(I)Z
 
-    const-string v5, "clicked app_startup_mgr in Honor SystemManager"
+    const-string v5, "clicked app_startup_mgr in Honor"
     invoke-static {v4, v5}, Landroid/util/Log;->d(Ljava/lang/String;Ljava/lang/String;)I
     goto :goto_hw_done
 
@@ -9649,18 +9667,18 @@
     const/16 v2, 0x10
     invoke-virtual {v1, v2}, Landroid/view/accessibility/AccessibilityNodeInfo;->performAction(I)Z
 
-    const-string v5, "clicked startup_mgr in Honor SystemManager"
+    const-string v5, "clicked startup_mgr in Honor"
     invoke-static {v4, v5}, Landroid/util/Log;->d(Ljava/lang/String;Ljava/lang/String;)I
     goto :goto_hw_done
 
     :cond_no_root_honor
-    const-string v5, "startup_mgr not found in Honor SystemManager"
+    const-string v5, "startup_mgr not found in Honor"
     invoke-static {v4, v5}, Landroid/util/Log;->d(Ljava/lang/String;Ljava/lang/String;)I
     :try_end_honor
     .catch Ljava/lang/Exception; {:try_start_honor .. :try_end_honor} :catch_honor
 
     :catch_honor
-    const-string v5, "Both Huawei and Honor SystemManager failed"
+    const-string v5, "All strategies failed"
     invoke-static {v4, v5}, Landroid/util/Log;->e(Ljava/lang/String;Ljava/lang/String;)I
 
     :goto_hw_done
