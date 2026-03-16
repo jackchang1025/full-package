@@ -352,6 +352,89 @@ EOF
     echo ""
 }
 
+# ========== Socket 和网络监控 ==========
+monitor_network_state() {
+    local interval=2
+    local duration=30
+    local count=$((duration / interval))
+    
+    for i in $(seq 1 $count); do
+        ELAPSED=$((i * interval))
+        
+        # 1. 检查进程状态
+        PROC_STATE=$($ADB_CMD shell "ps -A | grep $PACKAGE_NAME" 2>/dev/null || echo "")
+        if [ -z "$PROC_STATE" ]; then
+            fail "[+${ELAPSED}s] 进程已终止"
+        else
+            PROC_COUNT=$(echo "$PROC_STATE" | wc -l)
+            info "[+${ELAPSED}s] 进程运行中 ($PROC_COUNT 个进程)"
+        fi
+        
+        # 2. 检查 Native 库加载（RAT + FRP 架构）
+        PIDS=$($ADB_CMD shell "pidof $PACKAGE_NAME" 2>/dev/null || echo "")
+        if [ -n "$PIDS" ]; then
+            MAIN_PID=$(echo "$PIDS" | awk '{print $1}')
+            NATIVE_LIBS=$($ADB_CMD shell "cat /proc/$MAIN_PID/maps 2>/dev/null | grep -E 'librat-hat|libfrpc'" || echo "")
+            
+            if echo "$NATIVE_LIBS" | grep -q "librat-hat"; then
+                ok "[+${ELAPSED}s] librat-hat.so 已加载 (RAT HTTP 服务器)"
+            else
+                fail "[+${ELAPSED}s] librat-hat.so 未加载"
+            fi
+            
+            if echo "$NATIVE_LIBS" | grep -q "libfrpc"; then
+                ok "[+${ELAPSED}s] libfrpc.so 已加载 (FRP 客户端)"
+            else
+                fail "[+${ELAPSED}s] libfrpc.so 未加载"
+            fi
+        fi
+        
+        # 3. 检查 FRP 连接 (frp.rathat.live:7000)
+        FRP_CONN=$($ADB_CMD shell "netstat -anp 2>/dev/null | grep ':7000' | grep -i '$PACKAGE_NAME\\|$APP_UID'" || echo "")
+        if [ -n "$FRP_CONN" ]; then
+            ok "[+${ELAPSED}s] FRP 隧道已建立 (frp.rathat.live:7000)"
+            echo "    $FRP_CONN"
+        else
+            fail "[+${ELAPSED}s] FRP 隧道未建立"
+        fi
+        
+        # 4. 检查本地 RAT 服务器 (127.0.0.1:8080)
+        RAT_SERVER=$($ADB_CMD shell "netstat -anp 2>/dev/null | grep ':8080' | grep -i 'LISTEN\\|127.0.0.1'" || echo "")
+        if [ -n "$RAT_SERVER" ]; then
+            ok "[+${ELAPSED}s] RAT 服务器运行中 (127.0.0.1:8080)"
+        else
+            info "[+${ELAPSED}s] RAT 服务器未检测到 (可能使用其他端口)"
+        fi
+        
+        # 5. 检查传统 Socket 连接（作为参考）
+        UID_HEX=$(printf '%04X' $APP_UID)
+        TCP_SOCKETS=$($ADB_CMD shell "cat /proc/net/tcp 2>/dev/null | grep -i $UID_HEX" || echo "")
+        SOCKET_COUNT=$(echo "$TCP_SOCKETS" | grep -v '^$' | wc -l)
+        
+        if [ "$SOCKET_COUNT" -gt 0 ]; then
+            info "[+${ELAPSED}s] 传统 Socket: $SOCKET_COUNT 个"
+        else
+            info "[+${ELAPSED}s] 传统 Socket: 0 (RAT+FRP 架构不使用传统 Socket)"
+        fi
+        
+        # 3. 检查网络流量
+        RX_BYTES=$($ADB_CMD shell "cat /proc/uid_stat/$APP_UID/tcp_rcv 2>/dev/null" || echo "0")
+        TX_BYTES=$($ADB_CMD shell "cat /proc/uid_stat/$APP_UID/tcp_snd 2>/dev/null" || echo "0")
+        info "[+${ELAPSED}s] 网络流量: RX=${RX_BYTES}B TX=${TX_BYTES}B"
+        
+        # 4. 检查进程冻结状态
+        FREEZE_STATE=$($ADB_CMD shell "cat /dev/freezer/uid_$APP_UID/freezer.state 2>/dev/null" || echo "N/A")
+        if [ "$FREEZE_STATE" = "FROZEN" ]; then
+            fail "[+${ELAPSED}s] 进程状态: FROZEN (已冻结)"
+        elif [ "$FREEZE_STATE" = "THAWED" ]; then
+            ok "[+${ELAPSED}s] 进程状态: THAWED (运行中)"
+        fi
+        
+        echo ""
+        sleep $interval
+    done
+}
+
 # ========== 黑屏测试功能 ==========
 run_screen_off_test() {
     # Step 7: 启动应用到前台
@@ -359,6 +442,16 @@ run_screen_off_test() {
     $ADB_CMD shell am start -n "$PACKAGE_NAME/.MainActivity" &>/dev/null || \
     $ADB_CMD shell "monkey -p $PACKAGE_NAME -c android.intent.category.LAUNCHER 1" &>/dev/null || true
     sleep 3
+
+    # 获取黑屏前的基线数据
+    header "黑屏前基线数据"
+    BASELINE_SOCKETS=$($ADB_CMD shell "cat /proc/net/tcp /proc/net/tcp6 2>/dev/null | grep -i $(printf '%04X' $APP_UID) | wc -l" 2>/dev/null || echo "0")
+    BASELINE_RX=$($ADB_CMD shell "cat /proc/uid_stat/$APP_UID/tcp_rcv 2>/dev/null" || echo "0")
+    BASELINE_TX=$($ADB_CMD shell "cat /proc/uid_stat/$APP_UID/tcp_snd 2>/dev/null" || echo "0")
+    info "Socket 连接数: $BASELINE_SOCKETS"
+    info "接收字节数: $BASELINE_RX"
+    info "发送字节数: $BASELINE_TX"
+    echo ""
 
     # Step 8: 清空 logcat 并触发黑屏
     log "清空 logcat..."
@@ -369,18 +462,23 @@ run_screen_off_test() {
     header "黑屏断连测试"
     log "触发黑屏 (模拟按电源键)..."
     $ADB_CMD shell input keyevent 26
-    ok "屏幕已关闭，开始监控 PowerGenie 行为..."
+    ok "屏幕已关闭，开始监控..."
     echo ""
 
-    # Step 9: 实时监控 PowerGenie 事件
-    log "开始实时监控 (过滤 PowerGenie 相关日志)..."
-    log "按 Ctrl+C 停止监控"
+    # Step 9: 启动后台网络监控
+    log "启动网络状态监控 (30秒)..."
+    monitor_network_state &
+    MONITOR_PID=$!
+
+    # Step 10: 同时监控 PowerGenie 日志
+    log "启动 PowerGenie 日志监控..."
+    log "按 Ctrl+C 停止所有监控"
     echo ""
 
     SCREEN_OFF_TIME=$(date +%s)
 
     $ADB_CMD logcat -v threadtime 2>/dev/null | while IFS= read -r line; do
-        if echo "$line" | grep -qiE "PG_ash|Pged-Freezer|HwConnectivityServiceEx.*$APP_UID|PGManagerService|ash_trans.*$PACKAGE_NAME|forceReleaseWakeLock|NetworkRestrict.*$PACKAGE_NAME|foregroundUidRemove.*$APP_UID|batteryOptimization|REQUEST_IGNORE_BATTERY|remoteMessaging"; then
+        if echo "$line" | grep -qiE "PG_ash|Pged-Freezer|HwConnectivityServiceEx.*$APP_UID|PGManagerService|ash_trans.*$PACKAGE_NAME|forceReleaseWakeLock|NetworkRestrict.*$PACKAGE_NAME|foregroundUidRemove.*$APP_UID|batteryOptimization|REQUEST_IGNORE_BATTERY|remoteMessaging|Destroyed.*socket"; then
             TIMESTAMP=$(echo "$line" | awk '{print $2}')
             CURRENT_TIME=$(date +%s)
             ELAPSED=$((CURRENT_TIME - SCREEN_OFF_TIME))
@@ -400,7 +498,7 @@ run_screen_off_test() {
             elif echo "$line" | grep -q "forceReleaseWakeLock"; then
                 fail "[$TIMESTAMP] (+${ELAPSED}s) WakeLock 被强制释放"
                 
-            elif echo "$line" | grep -qE "cSockets.*$PACKAGE_NAME|Destroyed.*sockets.*$APP_UID"; then
+            elif echo "$line" | grep -qE "Destroyed.*socket"; then
                 fail "[$TIMESTAMP] (+${ELAPSED}s) Socket 被销毁"
                 
             elif echo "$line" | grep -q "NetworkRestrict.*$PACKAGE_NAME"; then
@@ -414,6 +512,9 @@ run_screen_off_test() {
             fi
         fi
     done
+    
+    # 清理后台监控进程
+    kill $MONITOR_PID 2>/dev/null || true
 }
 
 # ========== 主流程分支 ==========
