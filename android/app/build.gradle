@@ -1,0 +1,78 @@
+plugins {
+    id 'com.android.application'
+}
+
+android {
+    namespace 'com.vendor.rat'
+    compileSdk 34
+
+    defaultConfig {
+        applicationId "com.vendor.rat"
+        minSdk 21
+        targetSdk 34
+        versionCode 1
+        versionName "1.0.0"
+
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+    }
+
+    buildTypes {
+        debug {
+            debuggable true
+            minifyEnabled false
+        }
+        release {
+            minifyEnabled true
+            shrinkResources true
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+
+    // 测试配置
+    testOptions {
+        unitTests {
+            includeAndroidResources = true
+            returnDefaultValues = true
+        }
+    }
+
+    // lint 配置
+    lint {
+        abortOnError false
+        checkReleaseBuilds false
+    }
+}
+
+dependencies {
+    // ============ AndroidX ============
+    implementation 'androidx.appcompat:appcompat:1.6.1'
+    implementation 'androidx.core:core:1.12.0'
+
+    // ============ 网络通信 (模块 01) ============
+    // OkHttp - HTTP/WebSocket 客户端
+    implementation 'com.squareup.okhttp3:okhttp:4.12.0'
+    // Conscrypt - TLS 1.3 支持
+    implementation 'org.conscrypt:conscrypt-android:2.5.2'
+
+    // ============ JSON 序列化 ============
+    implementation 'com.google.code.gson:gson:2.10.1'
+
+    // ============ 单元测试 (Level 1) ============
+    testImplementation 'junit:junit:4.13.2'
+    testImplementation 'org.mockito:mockito-core:5.3.1'
+    testImplementation 'com.squareup.okhttp3:mockwebserver:4.12.0'
+
+    // ============ Robolectric 测试 (Level 2) ============
+    testImplementation 'org.robolectric:robolectric:4.11.1'
+
+    // ============ Instrumentation 测试 (Level 3) ============
+    androidTestImplementation 'androidx.test:runner:1.5.2'
+    androidTestImplementation 'androidx.test:rules:1.5.0'
+    androidTestImplementation 'androidx.test.ext:junit:1.1.5'
+    androidTestImplementation 'androidx.test.uiautomator:uiautomator:2.2.0'
+}

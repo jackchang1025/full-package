@@ -1,0 +1,7 @@
+// Top-level build file
+// Vendor RAT - Java Android Project
+// 构建工具: Gradle 8.x + Android Gradle Plugin 8.x
+
+plugins {
+    id 'com.android.application' version '8.2.2' apply false
+}
