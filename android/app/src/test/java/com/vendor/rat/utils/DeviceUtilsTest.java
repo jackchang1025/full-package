@@ -15,4 +15,18 @@ public class DeviceUtilsTest {
         assertNotNull(brand);
         assertFalse(brand.isEmpty());
     }
+
+    @Test
+    public void testGetVendorId_returnsValidRange() {
+        int vendorId = DeviceUtils.getVendorId();
+        assertTrue("Vendor ID should be >= 0", vendorId >= 0);
+        assertTrue("Vendor ID should be <= 14", vendorId <= 14);
+    }
+
+    @Test
+    public void testGetVendorName_returnsNonNull() {
+        String vendorName = DeviceUtils.getVendorName();
+        assertNotNull(vendorName);
+        assertFalse(vendorName.isEmpty());
+    }
 }

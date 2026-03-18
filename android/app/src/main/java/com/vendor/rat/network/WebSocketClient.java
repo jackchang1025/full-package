@@ -59,6 +59,10 @@ public class WebSocketClient extends WebSocketListener {
      */
     public void connect() {
         if (connected.get()) return;
+        if (wsUrl == null || wsUrl.isEmpty()) {
+            Log.w(TAG, "WebSocket URL is null, skipping connect");
+            return;
+        }
 
         Request request = new Request.Builder()
             .url(wsUrl)

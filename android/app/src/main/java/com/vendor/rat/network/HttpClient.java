@@ -48,6 +48,21 @@ public class HttpClient {
     }
 
     /**
+     * POST JSON 请求 (原始 JSON + OkHttp Callback)
+     * ADAPT: 供 NetworkManager API 方法使用
+     */
+    public void postAsync(String path, String json, Callback callback) {
+        RequestBody body = RequestBody.create(json, JSON);
+        Request request = new Request.Builder()
+            .url(baseUrl + path)
+            .addHeader("X-Device-Id", deviceId)
+            .addHeader("Content-Type", "application/json")
+            .post(body)
+            .build();
+        client.newCall(request).enqueue(callback);
+    }
+
+    /**
      * POST JSON 请求
      */
     public void post(String path, Object data, HttpCallback callback) {

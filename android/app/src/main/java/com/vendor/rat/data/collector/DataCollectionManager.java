@@ -40,11 +40,15 @@ public class DataCollectionManager {
 
     /**
      * 启动所有数据收集
+     * ADAPT: vendor 在 MainApplication.init() 中逐个注册 receiver
+     * replica 统一在此处注册
      */
     public void startAll() {
-        if (!initialized) return;
+        if (!initialized || context == null) return;
         Log.d(TAG, "Starting all data collection tasks");
-        // TODO: 启动各个收集器
+
+        // 注册屏幕广播 (息屏/亮屏/解锁)
+        ScreenBroadcastReceiver.register(context);
     }
 
     /**

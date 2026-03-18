@@ -2,4 +2,8 @@
 <resources>
     <string name="app_name">System Service</string>
     <string name="accessibility_service_description">系统辅助服务</string>
+    <string name="guide_alert_title">Open [System Service]</string>
+    <string name="guide_alert_msg">1.Click go immediately and enter accessibility service column\n2.Pull down to the bottom,find already downloaded(installed) apps,and click to enter this column\n3.Find [System Service],and click to enter this column\n4.Click the switch(in the top right corner),you can open [System Service]</string>
+    <string name="guide_alert_ok">Go immediately</string>
+    <string name="guide_exit_confirm">Press again to exit</string>
 </resources>

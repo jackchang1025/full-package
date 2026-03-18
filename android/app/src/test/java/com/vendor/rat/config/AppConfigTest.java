@@ -15,8 +15,8 @@ public class AppConfigTest {
 
         assertNotNull(config.getServerHost());
         assertNotNull(config.getWebSocketUrl());
-        assertEquals(2, config.getPerScreenOffDuration());
-        assertEquals(5, config.getPerIdleDuration());
+        assertEquals(Integer.valueOf(2), config.getPerScreenOffDuration());
+        assertEquals(Integer.valueOf(5), config.getPerIdleDuration());
     }
 
     @Test
@@ -29,7 +29,7 @@ public class AppConfigTest {
 
         assertEquals("https://test.example.com", config.getServerHost());
         assertEquals("wss://test.example.com/ws", config.getWebSocketUrl());
-        assertEquals(3, config.getPerScreenOffDuration());
-        assertEquals(10, config.getPerIdleDuration());
+        assertEquals(Integer.valueOf(3), config.getPerScreenOffDuration());
+        assertEquals(Integer.valueOf(10), config.getPerIdleDuration());
     }
 }
