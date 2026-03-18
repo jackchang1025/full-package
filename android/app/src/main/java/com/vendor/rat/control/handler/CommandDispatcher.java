@@ -267,21 +267,21 @@ public class CommandDispatcher implements WebSocketClient.CommandListener {
         NavAction action = NavAction.fromShortcut(nav);
         Log.d(TAG, "nav: " + nav + " → " + action);
 
+        MyAccessibilityService service = MyAccessibilityService.P();
+        if (service == null) {
+            Log.w(TAG, "nav: AccessibilityService not available");
+            return;
+        }
+
         switch (action) {
-            case WAKE_SCREEN:
-                wakeScreen();
+            case HOME:
+                service.performGlobalAction(AccessibilityService.GLOBAL_ACTION_HOME);
                 break;
             case BACK:
+                service.performGlobalAction(AccessibilityService.GLOBAL_ACTION_BACK);
+                break;
             case RECENTS:
-                MyAccessibilityService service = MyAccessibilityService.P();
-                if (service == null) {
-                    Log.w(TAG, "nav: AccessibilityService not available");
-                    return;
-                }
-                int globalAction = (action == NavAction.BACK)
-                    ? AccessibilityService.GLOBAL_ACTION_BACK
-                    : AccessibilityService.GLOBAL_ACTION_RECENTS;
-                service.performGlobalAction(globalAction);
+                service.performGlobalAction(AccessibilityService.GLOBAL_ACTION_RECENTS);
                 break;
             default:
                 Log.w(TAG, "nav: unknown nav=" + nav);
