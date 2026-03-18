@@ -38,8 +38,8 @@ public class CheckThread extends Thread {
     private void checkWebSocket() {
         WebSocketClient wsClient = NetworkManager.getInstance().getWebSocketClient();
         if (wsClient != null && !wsClient.isConnected()) {
-            Log.w(TAG, "WebSocket disconnected, reconnecting");
-            wsClient.reconnect();
+            Log.w(TAG, "WebSocket disconnected, will reconnect on next KeepHeartThread tick");
+            // 对齐 vendor: 不在 CheckThread 中重连，由 KeepHeartThread 统一管理
         }
     }
 

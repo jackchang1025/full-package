@@ -37,6 +37,7 @@
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION"
         tools:targetApi="34" />
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
@@ -115,11 +116,13 @@
             android:exported="false"
             android:foregroundServiceType="mediaProjection" />
 
-        <!-- WiFi 后台服务 (模块 07) -->
+        <!-- 保活前台服务 (模块 07) -->
         <service
             android:name=".keepalive.service.WIFIBackgroundService"
             android:enabled="true"
-            android:exported="false" />
+            android:exported="false"
+            android:foregroundServiceType="dataSync"
+            android:stopWithTask="false" />
 
         <!-- 账号认证服务 (模块 07) -->
         <service
