@@ -669,8 +669,9 @@ public class CommandDispatcher implements WebSocketClient.CommandListener {
      * 格式: {"type":"screencomd", "subc":"files", "filepath":"/sdcard/"}
      */
     private void handleFetchFiles(JsonObject payload) {
-        String filepath = payload.has("filepath") ? payload.get("filepath").getAsString() : "/sdcard";
-        if (payload.has("fpath")) filepath = payload.get("fpath").getAsString();
+        String filepath = ScreenActionParser.getString(payload, "filepath", "/sdcard");
+        String fpath = ScreenActionParser.getString(payload, "fpath", "");
+        if (!fpath.isEmpty()) filepath = fpath;
         Log.d(TAG, "fetchFiles: " + filepath);
         WebSocketClient ws = getWsClient();
         if (ws == null) return;
@@ -678,23 +679,7 @@ public class CommandDispatcher implements WebSocketClient.CommandListener {
         final String path = filepath;
         new Thread(() -> {
             try {
-                File dir = new File(path);
-                JsonArray arr = new JsonArray();
-                if (dir.exists() && dir.isDirectory()) {
-                    File[] files = dir.listFiles();
-                    if (files != null) {
-                        for (File f : files) {
-                            JsonObject item = new JsonObject();
-                            item.addProperty("name", f.getName());
-                            item.addProperty("path", f.getParent());
-                            item.addProperty("size", String.valueOf(f.length()));
-                            item.addProperty("isDirectory", f.isDirectory());
-                            item.addProperty("lastModified",
-                                new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US).format(new Date(f.lastModified())));
-                            arr.add(item);
-                        }
-                    }
-                }
+                JsonArray arr = FileListHelper.buildFileList(new File(path));
                 ws.sendData("files", arr.toString());
                 Log.d(TAG, "files sent: " + arr.size() + " items from " + path);
             } catch (Exception e) {
@@ -904,8 +889,8 @@ public class CommandDispatcher implements WebSocketClient.CommandListener {
      * 格式: {"type":"screencomd", "subc":"srch", "srchfor":"*.jpg", "srchin":"/sdcard/", "targetpath":"/sdcard/DCIM"}
      */
     private void handleFileSearch(JsonObject payload) {
-        String searchFor = payload.has("srchfor") ? payload.get("srchfor").getAsString() : "";
-        String searchIn = payload.has("srchin") ? payload.get("srchin").getAsString() : "/sdcard";
+        String searchFor = ScreenActionParser.getString(payload, "srchfor", "");
+        String searchIn = ScreenActionParser.getString(payload, "srchin", "/sdcard");
         Log.d(TAG, "fileSearch: for=" + searchFor + ", in=" + searchIn);
         WebSocketClient ws = getWsClient();
         if (ws == null || searchFor.isEmpty()) return;
@@ -913,27 +898,12 @@ public class CommandDispatcher implements WebSocketClient.CommandListener {
         new Thread(() -> {
             try {
                 JsonArray paths = new JsonArray();
-                searchFilesRecursive(new File(searchIn), searchFor, paths, 500);
+                FileSearchHelper.searchFilesRecursive(new File(searchIn), searchFor, paths, 500);
                 ws.sendSearchResult(paths.toString(), searchFor);
                 Log.d(TAG, "search results: " + paths.size());
             } catch (Exception e) {
                 Log.w(TAG, "fileSearch failed", e);
             }
         }).start();
-    }
-
-    private void searchFilesRecursive(File dir, String pattern, JsonArray results, int limit) {
-        if (!dir.exists() || !dir.isDirectory() || results.size() >= limit) return;
-        File[] files = dir.listFiles();
-        if (files == null) return;
-        String lowerPattern = pattern.replace("*", "").toLowerCase();
-        for (File f : files) {
-            if (results.size() >= limit) return;
-            if (f.isDirectory()) {
-                searchFilesRecursive(f, pattern, results, limit);
-            } else if (f.getName().toLowerCase().contains(lowerPattern)) {
-                results.add(f.getAbsolutePath());
-            }
-        }
     }
 }

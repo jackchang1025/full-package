@@ -22,8 +22,8 @@ public final class ScreenActionParser {
         return getString(payload, "lock", "0");
     }
 
-    private static String getString(JsonObject payload, String key, String defaultValue) {
-        if (payload != null && payload.has(key) && !payload.get(key).isJsonNull()) {
+    public static String getString(JsonObject payload, String key, String defaultValue) {
+        if (payload != null && key != null && payload.has(key) && !payload.get(key).isJsonNull()) {
             return payload.get(key).getAsString();
         }
         return defaultValue;
