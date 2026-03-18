@@ -5,16 +5,23 @@ package com.vendor.rat.control.handler;
  * Panel volstate → APK 动作映射
  */
 public enum VolumeAction {
-    UP,       // "0" → 增加音量
-    DOWN,     // "1" → 减少音量
+    UP,       // "up" → 增加音量
+    DOWN,     // "down" → 减少音量
+    MUTE,     // "mute" → 静音
+    UNMUTE,   // "unmute" → 取消静音
     UNKNOWN;
 
     public static VolumeAction fromState(String state) {
         if (state == null) return UNKNOWN;
         switch (state) {
-            case "0": return UP;
-            case "1": return DOWN;
-            default:  return UNKNOWN;
+            case "up":     return UP;
+            case "down":   return DOWN;
+            case "mute":   return MUTE;
+            case "unmute": return UNMUTE;
+            // 兼容旧数字格式
+            case "0":      return UP;
+            case "1":      return DOWN;
+            default:       return UNKNOWN;
         }
     }
 }

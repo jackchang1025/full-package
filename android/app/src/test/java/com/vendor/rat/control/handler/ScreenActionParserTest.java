@@ -21,9 +21,8 @@ public class ScreenActionParserTest {
     // ============ nav 命令解析 ============
 
     @Test
-    public void nav_ho_shouldMapToWakeScreen() {
-        // Panel 发送 nav "ho" 的意图是点亮屏幕
-        assertEquals(NavAction.WAKE_SCREEN, NavAction.fromShortcut("ho"));
+    public void nav_ho_shouldMapToHome() {
+        assertEquals(NavAction.HOME, NavAction.fromShortcut("ho"));
     }
 
     @Test
@@ -49,14 +48,33 @@ public class ScreenActionParserTest {
     // ============ vol 命令解析 ============
 
     @Test
-    public void vol_0_shouldMapToVolumeUp() {
-        // Panel volstate=0 → 增加音量
+    public void vol_up_shouldMapToVolumeUp() {
+        assertEquals(VolumeAction.UP, VolumeAction.fromState("up"));
+    }
+
+    @Test
+    public void vol_down_shouldMapToVolumeDown() {
+        assertEquals(VolumeAction.DOWN, VolumeAction.fromState("down"));
+    }
+
+    @Test
+    public void vol_mute_shouldMapToMute() {
+        assertEquals(VolumeAction.MUTE, VolumeAction.fromState("mute"));
+    }
+
+    @Test
+    public void vol_unmute_shouldMapToUnmute() {
+        assertEquals(VolumeAction.UNMUTE, VolumeAction.fromState("unmute"));
+    }
+
+    @Test
+    public void vol_0_shouldMapToVolumeUp_compat() {
+        // 兼容旧数字格式
         assertEquals(VolumeAction.UP, VolumeAction.fromState("0"));
     }
 
     @Test
-    public void vol_1_shouldMapToVolumeDown() {
-        // Panel volstate=1 → 减少音量
+    public void vol_1_shouldMapToVolumeDown_compat() {
         assertEquals(VolumeAction.DOWN, VolumeAction.fromState("1"));
     }
 

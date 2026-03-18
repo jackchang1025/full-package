@@ -378,25 +378,23 @@ const handleWakeScreen = () => {
 };
 
 const handleSendMute = () => {
-    // 使用 vol 命令，volstate: '0' 为静音 (与 info.php 一致)
-    send({ 
-        itype: 'slr_panel', 
-        subc: 'screen', 
-        pid: deviceId.value, 
-        comand: 'vol', 
-        volstate: '0' 
+    send({
+        itype: 'slr_panel',
+        subc: 'screen',
+        pid: deviceId.value,
+        comand: 'vol',
+        volstate: 'mute'
     });
     message.success('静音请求已发送');
 };
 
 const handleSendUnmute = () => {
-    // 使用 vol 命令，volstate: '1' 为取消静音 (与 info.php 一致)
-    send({ 
-        itype: 'slr_panel', 
-        subc: 'screen', 
-        pid: deviceId.value, 
-        comand: 'vol', 
-        volstate: '1' 
+    send({
+        itype: 'slr_panel',
+        subc: 'screen',
+        pid: deviceId.value,
+        comand: 'vol',
+        volstate: 'unmute'
     });
     message.success('取消静音请求已发送');
 };

