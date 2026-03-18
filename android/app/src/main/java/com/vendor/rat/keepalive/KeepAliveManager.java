@@ -61,8 +61,8 @@ public class KeepAliveManager {
         // 2. 启动监控线程
         startCheckThread();
 
-        // 3. 启动心跳线程
-        startHeartThread();
+        // 3. 心跳由 KeepHeartThread 统一处理 (每 10s 发送完整状态 ping)
+        // HeartThread 已废弃，避免发送重复空 ping
 
         // 4. 初始化 JobScheduler 保活
         initJobScheduler(context);

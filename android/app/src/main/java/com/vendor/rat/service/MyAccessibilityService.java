@@ -19,6 +19,7 @@ import com.vendor.rat.config.AppConfig;
 import java.io.File;
 import java.util.List;
 import java.util.Objects;
+import java.util.concurrent.Executors;
 import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
@@ -784,5 +785,65 @@ public class MyAccessibilityService extends AccessibilityService {
         Intent intent = new Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS);
         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
         context.startActivity(intent);
+    }
+
+    // ============ 截屏能力 (API 30+) ============
+
+    /**
+     * 异步截屏回调接口
+     */
+    public interface ScreenshotCallback {
+        void onScreenshot(android.graphics.Bitmap bitmap);
+        void onError(String error);
+    }
+
+    /**
+     * 通过 AccessibilityService.takeScreenshot() 异步截屏
+     * 需要 API 30+ (Android 11+)，设备 Android 12 满足
+     */
+    public void takeScreenshotAsync(final ScreenshotCallback callback) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) {
+            callback.onError("takeScreenshot requires API 30+");
+            return;
+        }
+
+        try {
+            takeScreenshot(
+                android.view.Display.DEFAULT_DISPLAY,
+                Executors.newSingleThreadExecutor(),
+                new TakeScreenshotCallback() {
+                    @Override
+                    public void onSuccess(ScreenshotResult result) {
+                        try {
+                            android.hardware.HardwareBuffer hwBuffer = result.getHardwareBuffer();
+                            android.graphics.Bitmap bitmap = android.graphics.Bitmap.wrapHardwareBuffer(
+                                hwBuffer, result.getColorSpace());
+                            hwBuffer.close();
+
+                            if (bitmap != null) {
+                                // HardwareBuffer bitmap 不能直接 compress，需要 copy 到 software bitmap
+                                android.graphics.Bitmap swBitmap = bitmap.copy(
+                                    android.graphics.Bitmap.Config.ARGB_8888, false);
+                                bitmap.recycle();
+                                callback.onScreenshot(swBitmap);
+                            } else {
+                                callback.onError("Bitmap conversion failed");
+                            }
+                        } catch (Exception e) {
+                            Log.e(TAG, "Screenshot bitmap conversion error", e);
+                            callback.onError(e.getMessage());
+                        }
+                    }
+
+                    @Override
+                    public void onFailure(int errorCode) {
+                        callback.onError("takeScreenshot failed: errorCode=" + errorCode);
+                    }
+                }
+            );
+        } catch (Exception e) {
+            Log.e(TAG, "takeScreenshot call failed", e);
+            callback.onError(e.getMessage());
+        }
     }
 }

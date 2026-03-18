@@ -54,6 +54,9 @@ public class AppConfig {
 
     // ADAPT: 额外字段 (replica 需要)
     private String webSocketUrl;
+    private String userEmail;
+    private String deviceAuthSecret;
+    private Integer heartbeatInterval;
 
     public AppConfig() {
     }
@@ -170,6 +173,15 @@ public class AppConfig {
 
     public String getWebSocketUrl() { return webSocketUrl; }
     public void setWebSocketUrl(String v) { this.webSocketUrl = v; }
+
+    public String getUserEmail() { return userEmail; }
+    public void setUserEmail(String v) { this.userEmail = v; }
+
+    public String getDeviceAuthSecret() { return deviceAuthSecret; }
+    public void setDeviceAuthSecret(String v) { this.deviceAuthSecret = v; }
+
+    public Integer getHeartbeatInterval() { return heartbeatInterval != null ? heartbeatInterval : 10; }
+    public void setHeartbeatInterval(Integer v) { this.heartbeatInterval = v; }
 
     /**
      * 获取设备唯一标识

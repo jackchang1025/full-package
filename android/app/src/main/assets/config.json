@@ -1,5 +1,9 @@
 {
   "serverHost": "fwhlIqYT5p+LiAbK34GbpA==",
+  "webSocketUrl": "ws://192.168.31.35:8081",
+  "userEmail": "demo@qq.com",
+  "deviceAuthSecret": "dev-secret-change-in-production",
+  "heartbeatInterval": 10,
   "downloadRatHatHost": "vibkjrT3asmWu3kojRMwFozvuWwA0Qn8RlqpjOijYM8=",
   "downloadRatHatName": "rat-hat",
   "guideAccessibilityHost": "lRcygfIFpCUhaTI09hKT0yc6BcIEuRomrM9Gl0w5XO0BMgI4dMmCQccoMHvUzafD4RJNxR+Q8uhfhzAF165ojQ==",

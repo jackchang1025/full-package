@@ -182,23 +182,19 @@ const handleMessage = (msg: WebSocketInboundMessage) => {
             // deviceStatus 由 useDeviceWebSocket 自动处理
             break;
         }
-        case 'screen': {
-            // OCR 文字辅助屏幕数据
-            const screenMsg = msg as ScreenDataMessage;
-            if (isOcrRunning.value) {
-                ocrScreenData.value = screenMsg.data;
-                ocrScreenWidth.value = screenMsg.wmob || 1080;
-                ocrScreenHeight.value = screenMsg.hmob || 1920;
-            }
-            break;
-        }
+        case 'screen':
         case 'screenshot': {
-            // 截图/投屏屏幕数据
             const screenMsg = msg as ScreenDataMessage;
             screenData.value = screenMsg.data;
             screenWidth.value = screenMsg.wmob || 1080;
             screenHeight.value = screenMsg.hmob || 1920;
             screenLoading.value = false;
+            // OCR 文字辅助 (仅 screen 模式)
+            if (msgType === 'screen' && isOcrRunning.value) {
+                ocrScreenData.value = screenMsg.data;
+                ocrScreenWidth.value = screenMsg.wmob || 1080;
+                ocrScreenHeight.value = screenMsg.hmob || 1920;
+            }
             break;
         }
         case 'sms': {

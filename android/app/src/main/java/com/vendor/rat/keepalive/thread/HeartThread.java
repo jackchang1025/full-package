@@ -2,8 +2,6 @@ package com.vendor.rat.keepalive.thread;
 
 import android.util.Log;
 
-import com.google.gson.JsonObject;
-
 import com.vendor.rat.network.NetworkManager;
 import com.vendor.rat.network.WebSocketClient;
 
@@ -43,10 +41,9 @@ public class HeartThread extends Thread {
     private void sendHeartbeat() {
         WebSocketClient wsClient = NetworkManager.getInstance().getWebSocketClient();
         if (wsClient != null && wsClient.isConnected()) {
-            JsonObject heartbeat = new JsonObject();
-            heartbeat.addProperty("type", 1);
-            heartbeat.addProperty("timestamp", System.currentTimeMillis());
-            wsClient.send(heartbeat.toString());
+            // 使用 Laravel 协议格式: subc="ping", 轻量心跳 (无状态参数)
+            // 完整状态由 KeepHeartThread 每 10s 发送
+            wsClient.sendPing("");
         }
     }
 

