@@ -645,8 +645,31 @@ const handleToggleKeylogMonitor = () => {
     });
     isKeylogMonitoring.value = newState;
 };
+
+const isLocationTracking = ref(false);
+
+const handleStartLocationTracking = () => {
+    deviceData.locationLoading.value = true;
+    send({
+        itype: 'slr_panelsend',
+        subc: 'loc',
+        pid: props.device.uuid,
+    });
+    isLocationTracking.value = true;
+    deviceData.locationLoading.value = false;
+};
+
+const handleStopLocationTracking = () => {
+    send({
+        itype: 'slr_panelsend',
+        subc: 'locoff',
+        pid: props.device.uuid,
+    });
+    isLocationTracking.value = false;
+};
+
 const handleRefreshLocation = () => {
-    deviceData.fetchLocation();
+    handleStartLocationTracking();
 };
 
 const handleStartCamera = (camera: 'front' | 'back') => {
@@ -1147,7 +1170,9 @@ const tabList = [
                                     v-else-if="activeTab === 'location'"
                                     :location="deviceData.locationInfo.value"
                                     :loading="deviceData.locationLoading.value"
-                                    @refresh="handleRefreshLocation"
+                                    :is-tracking="isLocationTracking"
+                                    @start-tracking="handleStartLocationTracking"
+                                    @stop-tracking="handleStopLocationTracking"
                                 />
                             </div>
                         </Transition>

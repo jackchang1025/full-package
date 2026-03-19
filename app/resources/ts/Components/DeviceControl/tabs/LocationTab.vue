@@ -17,10 +17,12 @@ import type { LocationInfo } from '@/types/device';
 interface Props {
     location: LocationInfo | null;
     loading: boolean;
+    isTracking: boolean;
 }
 
 interface Emits {
-    (e: 'refresh'): void;
+    (e: 'startTracking'): void;
+    (e: 'stopTracking'): void;
 }
 
 const props = defineProps<Props>();
@@ -65,12 +67,32 @@ const formatTimestamp = (timestamp?: string) => {
 <template>
     <div class="location-tab">
         <NSpace justify="space-between" class="tab-header">
-            <NButton size="small" @click="emit('refresh')">
-                <template #icon>
-                    <NIcon><RefreshOutline /></NIcon>
-                </template>
-                获取位置
-            </NButton>
+            <NSpace>
+                <NButton
+                    v-if="!isTracking"
+                    size="small"
+                    type="primary"
+                    :loading="loading"
+                    @click="emit('startTracking')"
+                >
+                    <template #icon>
+                        <NIcon><LocationOutline /></NIcon>
+                    </template>
+                    开始定位
+                </NButton>
+                <NButton
+                    v-else
+                    size="small"
+                    type="warning"
+                    @click="emit('stopTracking')"
+                >
+                    <template #icon>
+                        <NIcon><LocationOutline /></NIcon>
+                    </template>
+                    停止定位
+                </NButton>
+                <NTag v-if="isTracking" type="success" size="small">持续追踪中</NTag>
+            </NSpace>
             <NSpace v-if="hasLocation">
                 <NButton size="small" tag="a" :href="googleMapsUrl" target="_blank">
                     <template #icon>
