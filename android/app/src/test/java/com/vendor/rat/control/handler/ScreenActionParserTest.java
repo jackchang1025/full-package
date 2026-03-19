@@ -21,8 +21,8 @@ public class ScreenActionParserTest {
     // ============ nav 命令解析 ============
 
     @Test
-    public void nav_ho_shouldMapToHome() {
-        assertEquals(NavAction.HOME, NavAction.fromShortcut("ho"));
+    public void nav_ho_shouldMapToWakeScreen() {
+        assertEquals(NavAction.WAKE_SCREEN, NavAction.fromShortcut("ho"));
     }
 
     @Test
