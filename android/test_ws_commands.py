@@ -84,7 +84,9 @@ def check_response(test_name, expected_type=None):
             status = "✅ PASS"
         else:
             status = "❌ FAIL (0 msgs)"
-        results.append((test_name, status, f"expected type={expected_type}, got {len(msgs)} msgs"))
+        results.append(
+            (test_name, status, f"expected type={expected_type}, got {len(msgs)} msgs")
+        )
     else:
         status = "✅ PASS" if len(msgs) > 0 else "⚠️ NO RESPONSE"
         results.append((test_name, status, f"{len(msgs)} messages received"))
@@ -94,11 +96,11 @@ def check_response(test_name, expected_type=None):
 
 
 def run_tests(host, port, device_id):
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print(f"  WebSocket 回归测试")
     print(f"  Server: ws://{host}:{port}")
     print(f"  Device: {device_id}")
-    print(f"{'='*60}\n")
+    print(f"{'=' * 60}\n")
 
     token = generate_panel_token()
     url = f"ws://{host}:{port}"
@@ -107,12 +109,16 @@ def run_tests(host, port, device_id):
     ws_send = websocket.WebSocket()
     ws_send.connect(url)
     # 认证发送端
-    ws_send.send(json.dumps({
-        "itype": "slr_panel",
-        "subc": "join",
-        "pid": device_id,
-        "token": token,
-    }))
+    ws_send.send(
+        json.dumps(
+            {
+                "itype": "slr_panel",
+                "subc": "join",
+                "pid": device_id,
+                "token": token,
+            }
+        )
+    )
     time.sleep(1)
     # 消费 join 响应
     try:
@@ -125,12 +131,16 @@ def run_tests(host, port, device_id):
     # 连接 2: 接收设备响应 (独立连接)
     ws_recv = websocket.WebSocket()
     ws_recv.connect(url)
-    ws_recv.send(json.dumps({
-        "itype": "slr_panel",
-        "subc": "join",
-        "pid": device_id,
-        "token": token,
-    }))
+    ws_recv.send(
+        json.dumps(
+            {
+                "itype": "slr_panel",
+                "subc": "join",
+                "pid": device_id,
+                "token": token,
+            }
+        )
+    )
     time.sleep(1)
     # 消费 join 响应
     try:
@@ -141,6 +151,7 @@ def run_tests(host, port, device_id):
 
     # 启动接收线程
     stop_recv = threading.Event()
+
     def recv_loop():
         while not stop_recv.is_set():
             try:
@@ -184,151 +195,177 @@ def run_tests(host, port, device_id):
     print("\n[Test 1] 投屏 SM (截图模式)...")
     with lock:
         received_messages.clear()
-    send_and_check({
-        "itype": "slr_panelsend",
-        "subc": "screen",
-        "pid": device_id,
-        "screentype": "SM",
-        "token": token,
-    }, wait_sec=5)
+    send_and_check(
+        {
+            "itype": "slr_panelsend",
+            "subc": "screen",
+            "pid": device_id,
+            "screentype": "SM",
+            "token": token,
+        },
+        wait_sec=5,
+    )
     check_response("投屏 SM", expected_type="screenshot")
 
     # 停止投屏
-    send_cmd({
-        "itype": "slr_panelsend",
-        "subc": "screen",
-        "pid": device_id,
-        "screentype": "SMOFF",
-        "token": token,
-    })
+    send_cmd(
+        {
+            "itype": "slr_panelsend",
+            "subc": "screen",
+            "pid": device_id,
+            "screentype": "SMOFF",
+            "token": token,
+        }
+    )
     time.sleep(1)
 
     # Test 2: 投屏 SN
     print("[Test 2] 投屏 SN (实时投屏)...")
     with lock:
         received_messages.clear()
-    send_and_check({
-        "itype": "slr_panelsend",
-        "subc": "screen",
-        "pid": device_id,
-        "screentype": "SN",
-        "token": token,
-    }, wait_sec=5)
+    send_and_check(
+        {
+            "itype": "slr_panelsend",
+            "subc": "screen",
+            "pid": device_id,
+            "screentype": "SN",
+            "token": token,
+        },
+        wait_sec=5,
+    )
     check_response("投屏 SN", expected_type="screen")
 
     # 停止投屏
-    send_cmd({
-        "itype": "slr_panelsend",
-        "subc": "screen",
-        "pid": device_id,
-        "screentype": "SNOFF",
-        "token": token,
-    })
+    send_cmd(
+        {
+            "itype": "slr_panelsend",
+            "subc": "screen",
+            "pid": device_id,
+            "screentype": "SNOFF",
+            "token": token,
+        }
+    )
     time.sleep(1)
 
     # Test 3: 点击
     print("[Test 3] 触摸点击 (500, 800)...")
-    send_cmd({
-        "itype": "slr_panel",
-        "subc": "screen",
-        "pid": device_id,
-        "comand": "mov",
-        "movetype": "0",
-        "poi": {"x": 500, "y": 800},
-        "token": token,
-    })
+    send_cmd(
+        {
+            "itype": "slr_panel",
+            "subc": "screen",
+            "pid": device_id,
+            "comand": "mov",
+            "movetype": "0",
+            "poi": {"x": 500, "y": 800},
+            "token": token,
+        }
+    )
     time.sleep(1)
     results.append(("触摸点击", "✅ SENT", "poi={500,800}"))
 
     # Test 4: 滑动
     print("[Test 4] 滑动 (500,1500)→(500,500)...")
-    send_cmd({
-        "itype": "slr_panel",
-        "subc": "screen",
-        "pid": device_id,
-        "comand": "mov",
-        "movetype": "1",
-        "poi": "(500,1500):(500,500)",
-        "token": token,
-    })
+    send_cmd(
+        {
+            "itype": "slr_panel",
+            "subc": "screen",
+            "pid": device_id,
+            "comand": "mov",
+            "movetype": "1",
+            "poi": "(500,1500):(500,500)",
+            "token": token,
+        }
+    )
     time.sleep(1)
     results.append(("滑动", "✅ SENT", "swipe up"))
 
     # Test 5: 导航返回
     print("[Test 5] 导航返回...")
-    send_cmd({
-        "itype": "slr_panel",
-        "subc": "screen",
-        "pid": device_id,
-        "comand": "nav",
-        "navshort": "bak",
-        "token": token,
-    })
+    send_cmd(
+        {
+            "itype": "slr_panel",
+            "subc": "screen",
+            "pid": device_id,
+            "comand": "nav",
+            "navshort": "bak",
+            "token": token,
+        }
+    )
     time.sleep(1)
     results.append(("导航返回", "✅ SENT", "nav=bak"))
 
     # Test 6: 唤醒屏幕
     print("[Test 6] 唤醒屏幕 (nav ho)...")
-    send_cmd({
-        "itype": "slr_panel",
-        "subc": "screen",
-        "pid": device_id,
-        "comand": "nav",
-        "navshort": "ho",
-        "token": token,
-    })
+    send_cmd(
+        {
+            "itype": "slr_panel",
+            "subc": "screen",
+            "pid": device_id,
+            "comand": "nav",
+            "navshort": "ho",
+            "token": token,
+        }
+    )
     time.sleep(1)
     results.append(("唤醒屏幕", "✅ SENT", "nav=ho"))
 
     # Test 7: 静音
     print("[Test 7] 静音...")
-    send_cmd({
-        "itype": "slr_panel",
-        "subc": "screen",
-        "pid": device_id,
-        "comand": "vol",
-        "volstate": "mute",
-        "token": token,
-    })
+    send_cmd(
+        {
+            "itype": "slr_panel",
+            "subc": "screen",
+            "pid": device_id,
+            "comand": "vol",
+            "volstate": "mute",
+            "token": token,
+        }
+    )
     time.sleep(1)
     results.append(("静音", "✅ SENT", "volstate=mute"))
 
     # Test 8: 取消静音
     print("[Test 8] 取消静音...")
-    send_cmd({
-        "itype": "slr_panel",
-        "subc": "screen",
-        "pid": device_id,
-        "comand": "vol",
-        "volstate": "unmute",
-        "token": token,
-    })
+    send_cmd(
+        {
+            "itype": "slr_panel",
+            "subc": "screen",
+            "pid": device_id,
+            "comand": "vol",
+            "volstate": "unmute",
+            "token": token,
+        }
+    )
     time.sleep(1)
     results.append(("取消静音", "✅ SENT", "volstate=unmute"))
 
     # Test 9: 音量+
     print("[Test 9] 音量+...")
-    send_cmd({
-        "itype": "slr_panel",
-        "subc": "screen",
-        "pid": device_id,
-        "comand": "vol",
-        "volstate": "up",
-        "token": token,
-    })
+    send_cmd(
+        {
+            "itype": "slr_panel",
+            "subc": "screen",
+            "pid": device_id,
+            "comand": "vol",
+            "volstate": "up",
+            "token": token,
+        }
+    )
     time.sleep(1)
     results.append(("音量+", "✅ SENT", "volstate=up"))
 
     # Test 10: 音量-
     print("[Test 10] 音量-...")
-    send_cmd({
-        "itype": "slr_panel",
-        "subc": "screen",
-        "pid": device_id,
-        "comand": "vol",
-        "volstate": "down",
-        "token": token,
-    })
+    send_cmd(
+        {
+            "itype": "slr_panel",
+            "subc": "screen",
+            "pid": device_id,
+            "comand": "vol",
+            "volstate": "down",
+            "token": token,
+        }
+    )
     time.sleep(1)
     results.append(("音量-", "✅ SENT", "volstate=down"))
 
@@ -338,86 +375,105 @@ def run_tests(host, port, device_id):
     print("[Test 11] 获取短信...")
     with lock:
         received_messages.clear()
-    send_and_check({
-        "itype": "slr_panelsend",
-        "subc": "SMS",
-        "pid": device_id,
-        "token": token,
-    }, wait_sec=3)
+    send_and_check(
+        {
+            "itype": "slr_panelsend",
+            "subc": "SMS",
+            "pid": device_id,
+            "token": token,
+        },
+        wait_sec=3,
+    )
     check_response("获取短信", expected_type="sms")
 
     # Test 12: 获取联系人
     print("[Test 12] 获取联系人...")
     with lock:
         received_messages.clear()
-    send_and_check({
-        "itype": "slr_panelsend",
-        "subc": "Contacts",
-        "pid": device_id,
-        "token": token,
-    }, wait_sec=3)
+    send_and_check(
+        {
+            "itype": "slr_panelsend",
+            "subc": "Contacts",
+            "pid": device_id,
+            "token": token,
+        },
+        wait_sec=3,
+    )
     check_response("获取联系人", expected_type="loadcontacts")
 
     # Test 13: 获取应用列表
     print("[Test 13] 获取应用列表...")
     with lock:
         received_messages.clear()
-    send_and_check({
-        "itype": "slr_panelsend",
-        "subc": "LOADAPPS",
-        "pid": device_id,
-        "token": token,
-    }, wait_sec=3)
+    send_and_check(
+        {
+            "itype": "slr_panelsend",
+            "subc": "LOADAPPS",
+            "pid": device_id,
+            "token": token,
+        },
+        wait_sec=3,
+    )
     check_response("获取应用列表", expected_type="loadapps")
 
     # Test 14: 文件浏览
     print("[Test 14] 文件浏览 /sdcard...")
     with lock:
         received_messages.clear()
-    send_and_check({
-        "itype": "slr_panelsend",
-        "subc": "files",
-        "pid": device_id,
-        "filepath": "/sdcard",
-        "token": token,
-    }, wait_sec=3)
+    send_and_check(
+        {
+            "itype": "slr_panelsend",
+            "subc": "files",
+            "pid": device_id,
+            "filepath": "/sdcard",
+            "token": token,
+        },
+        wait_sec=3,
+    )
     check_response("文件浏览", expected_type="files")
 
     # Test 15: 获取位置
     print("[Test 15] 获取位置...")
     with lock:
         received_messages.clear()
-    send_and_check({
-        "itype": "slr_panelsend",
-        "subc": "loc",
-        "pid": device_id,
-        "token": token,
-    }, wait_sec=3)
+    send_and_check(
+        {
+            "itype": "slr_panelsend",
+            "subc": "loc",
+            "pid": device_id,
+            "token": token,
+        },
+        wait_sec=3,
+    )
     check_response("获取位置", expected_type="loc")
 
     # ============ 键盘/摄像头/录音 ============
 
     # Test 16: 开启键盘监听
     print("[Test 16] 开启键盘监听...")
-    send_cmd({
-        "itype": "slr_panelsend",
-        "subc": "Keylog",
-        "pid": device_id,
-        "keylogtype": "0",
-        "token": token,
-    })
+    send_cmd(
+        {
+            "itype": "slr_panelsend",
+            "subc": "Keylog",
+            "pid": device_id,
+            "keylogtype": "0",
+            "token": token,
+        }
+    )
     time.sleep(1)
     results.append(("开启键盘监听", "✅ SENT", "keylogtype=0"))
 
     # Test 17: 关闭键盘监听
     print("[Test 17] 关闭键盘监听...")
-    send_cmd({
-        "itype": "slr_panelsend",
-        "subc": "Keylog",
-        "pid": device_id,
-        "keylogtype": "1",
-        "token": token,
-    })
+    send_cmd(
+        {
+            "itype": "slr_panelsend",
+            "subc": "Keylog",
+            "pid": device_id,
+            "keylogtype": "1",
+            "token": token,
+        }
+    )
     time.sleep(1)
     results.append(("关闭键盘监听", "✅ SENT", "keylogtype=1"))
 
@@ -425,92 +481,186 @@ def run_tests(host, port, device_id):
     print("[Test 18] 开启后置摄像头...")
     with lock:
         received_messages.clear()
-    send_and_check({
-        "itype": "slr_panelsend",
-        "subc": "cam",
-        "pid": device_id,
-        "SelectedCam": "back",
-        "token": token,
-    }, wait_sec=5)
+    send_and_check(
+        {
+            "itype": "slr_panelsend",
+            "subc": "cam",
+            "pid": device_id,
+            "SelectedCam": "back",
+            "token": token,
+        },
+        wait_sec=5,
+    )
     check_response("后置摄像头", expected_type="cam")
 
     # 关闭摄像头并等待释放
-    send_cmd({
-        "itype": "slr_panelsend",
-        "subc": "camoff",
-        "pid": device_id,
-        "token": token,
-    })
+    send_cmd(
+        {
+            "itype": "slr_panelsend",
+            "subc": "camoff",
+            "pid": device_id,
+            "token": token,
+        }
+    )
     time.sleep(3)
 
     # Test 19: 开启前置摄像头
     print("[Test 19] 开启前置摄像头...")
     with lock:
         received_messages.clear()
-    send_and_check({
-        "itype": "slr_panelsend",
-        "subc": "cam",
-        "pid": device_id,
-        "SelectedCam": "front",
-        "token": token,
-    }, wait_sec=5)
+    send_and_check(
+        {
+            "itype": "slr_panelsend",
+            "subc": "cam",
+            "pid": device_id,
+            "SelectedCam": "front",
+            "token": token,
+        },
+        wait_sec=5,
+    )
     check_response("前置摄像头", expected_type="cam")
 
     # 关闭摄像头
-    send_cmd({
-        "itype": "slr_panelsend",
-        "subc": "camoff",
-        "pid": device_id,
-        "token": token,
-    })
+    send_cmd(
+        {
+            "itype": "slr_panelsend",
+            "subc": "camoff",
+            "pid": device_id,
+            "token": token,
+        }
+    )
     time.sleep(2)
 
     # Test 20: 开启录音
     print("[Test 20] 开启录音 (等待8s)...")
     with lock:
         received_messages.clear()
-    send_and_check({
-        "itype": "slr_panelsend",
-        "subc": "mic",
-        "pid": device_id,
-        "token": token,
-    }, wait_sec=8)
+    send_and_check(
+        {
+            "itype": "slr_panelsend",
+            "subc": "mic",
+            "pid": device_id,
+            "token": token,
+        },
+        wait_sec=8,
+    )
     check_response("录音", expected_type="mic")
 
     # 关闭录音
-    send_cmd({
-        "itype": "slr_panelsend",
-        "subc": "micoff",
-        "pid": device_id,
-        "token": token,
-    })
+    send_cmd(
+        {
+            "itype": "slr_panelsend",
+            "subc": "micoff",
+            "pid": device_id,
+            "token": token,
+        }
+    )
     time.sleep(1)
+
+    # ============ WebSocket 保活测试 ============
+
+    # Test 23: 后台保活 — 按 Home 后设备 ping 是否持续
+    print("[Test 23] 后台保活: 按 Home → 等待 40s → 检查 ping...")
+    with lock:
+        received_messages.clear()
+    import subprocess
+
+    adb = r"/mnt/c/Users/Administrator/Downloads/platform-tools/adb.exe"
+    dev = "192.168.31.162:5555"
+    subprocess.run(
+        [adb, "-s", dev, "shell", "input", "keyevent", "KEYCODE_HOME"], timeout=5
+    )
+    time.sleep(40)
+    with lock:
+        ping_msgs = [m for m in received_messages if m.get("type") == "statusBatch"]
+        ping_count = len(ping_msgs)
+    if ping_count >= 2:
+        status = f"✅ PASS ({ping_count} pings in 40s)"
+    elif ping_count >= 1:
+        status = f"⚠️ PARTIAL ({ping_count} ping in 40s)"
+    else:
+        status = "❌ FAIL (0 pings — device disconnected in background)"
+    results.append(("后台保活 (Home 40s)", status, f"{ping_count} statusBatch msgs"))
+    print(f"  {status}")
+
+    # Test 24: 息屏保活 — 息屏后设备是否重连
+    print("[Test 24] 息屏保活: 息屏 10s → 亮屏 → 等待 15s → 检查 ping...")
+    with lock:
+        received_messages.clear()
+    subprocess.run(
+        [adb, "-s", dev, "shell", "input", "keyevent", "KEYCODE_POWER"], timeout=5
+    )
+    time.sleep(10)
+    subprocess.run(
+        [adb, "-s", dev, "shell", "input", "keyevent", "KEYCODE_POWER"], timeout=5
+    )
+    time.sleep(15)
+    with lock:
+        ping_msgs = [m for m in received_messages if m.get("type") == "statusBatch"]
+        ping_count = len(ping_msgs)
+    if ping_count >= 1:
+        status = f"✅ PASS ({ping_count} pings after screen on)"
+    else:
+        status = "❌ FAIL (0 pings — device did not reconnect after screen on)"
+    results.append(
+        ("息屏保活 (10s off → on)", status, f"{ping_count} statusBatch msgs")
+    )
+    print(f"  {status}")
+
+    # Test 25: 切换应用保活 — 打开设置再回来
+    print("[Test 25] 切换应用保活: 打开设置 → 等待 20s → 检查 ping...")
+    with lock:
+        received_messages.clear()
+    subprocess.run(
+        [adb, "-s", dev, "shell", "am", "start", "-a", "android.settings.SETTINGS"],
+        timeout=5,
+    )
+    time.sleep(20)
+    subprocess.run(
+        [adb, "-s", dev, "shell", "input", "keyevent", "KEYCODE_HOME"], timeout=5
+    )
+    time.sleep(5)
+    with lock:
+        ping_msgs = [m for m in received_messages if m.get("type") == "statusBatch"]
+        ping_count = len(ping_msgs)
+    if ping_count >= 1:
+        status = f"✅ PASS ({ping_count} pings during app switch)"
+    else:
+        status = "❌ FAIL (0 pings — device disconnected during app switch)"
+    results.append(
+        ("切换应用保活 (设置 20s)", status, f"{ping_count} statusBatch msgs")
+    )
+    print(f"  {status}")
 
     # ============ 锁屏测试 (最后执行，可能导致断连) ============
 
     # Test 21: 锁屏
     print("[Test 21] 锁屏...")
-    send_cmd({
-        "itype": "slr_panel",
-        "subc": "screen",
-        "pid": device_id,
-        "comand": "L",
-        "lockit": "1",
-        "token": token,
-    })
+    send_cmd(
+        {
+            "itype": "slr_panel",
+            "subc": "screen",
+            "pid": device_id,
+            "comand": "L",
+            "lockit": "1",
+            "token": token,
+        }
+    )
     time.sleep(2)
     results.append(("锁屏", "✅ SENT", "lockit=1"))
 
     # Test 17: 解锁
     print("[Test 22] 解锁...")
-    send_cmd({
-        "itype": "slr_panel",
-        "subc": "screen",
-        "pid": device_id,
-        "comand": "L",
-        "lockit": "0",
-        "token": token,
-    })
+    send_cmd(
+        {
+            "itype": "slr_panel",
+            "subc": "screen",
+            "pid": device_id,
+            "comand": "L",
+            "lockit": "0",
+            "token": token,
+        }
+    )
     time.sleep(3)
     results.append(("解锁", "✅ SENT", "lockit=0"))
 
@@ -519,9 +669,9 @@ def run_tests(host, port, device_id):
     ws_send.close()
     ws_recv.close()
 
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print(f"  回归测试结果")
-    print(f"{'='*60}")
+    print(f"{'=' * 60}")
 
     pass_count = 0
     fail_count = 0
@@ -533,7 +683,7 @@ def run_tests(host, port, device_id):
             fail_count += 1
 
     print(f"\n  总计: {len(results)} 项, 通过: {pass_count}, 失败: {fail_count}")
-    print(f"{'='*60}\n")
+    print(f"{'=' * 60}\n")
 
     return fail_count == 0
 
