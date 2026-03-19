@@ -198,6 +198,8 @@ cd app
 |------|------|
 | JAVA_PROJECT_REQUIREMENTS.md | 项目需求与设计 |
 | APK_VENDOR_REPLICATION_PLAN.md | 功能复刻计划 |
+| FIX_PLAN*.md (3个) | 差异修复方案 |
+| HUAWEI_ENGINE_ALIGNMENT.md | 华为引擎对齐 |
 
 #### 模块设计 (`modules/`)
 
@@ -212,6 +214,7 @@ cd app
 | AUDIT_MODULE_01~09.md (9个) | Vendor 行为审计 (Phase 1 输出) |
 | AUDIT_PANEL_COMMANDS.md | Camera/Mic/Block/KB/Q/Keylog/File 审计 |
 | VENDOR_NETWORK_ARCHITECTURE_AUDIT.md | 网络架构审计 |
+| DEEP_COMPARISON_AUDIT.md | Vendor vs Replica 深度对比审计 |
 
 #### 真机验证与测试 (`verification/`)
 
@@ -221,13 +224,12 @@ cd app
 | TESTING_GUIDE*.md (2个) | 测试指南 |
 | ADB_CONNECTION.md | ADB 连接配置 |
 
-#### 对比报告与修复 (`comparison/`)
+#### 对比报告 (`comparison/`)
 
 | 文档 | 说明 |
 |------|------|
-| COMPARISON_*.md + DEEP_COMPARISON_AUDIT.md | Vendor vs Replica 对比 |
-| FIX_PLAN*.md (3个) | 差异修复方案 |
-| HUAWEI_ENGINE_ALIGNMENT.md | 华为引擎对齐 |
+| COMPARISON_REPORT.md | Vendor vs Replica 对比协议 |
+| COMPARISON_RESULT.md | 对比结果 |
 
 #### 补充文档 (`supplementary/`)
 

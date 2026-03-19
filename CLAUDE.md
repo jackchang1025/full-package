@@ -163,8 +163,8 @@ All commands run from the `android/` directory:
 - **ADB 连接指南**: `docs/vendor-replication/verification/ADB_CONNECTION.md`
 - **真机深度对比协议**: `docs/vendor-replication/comparison/COMPARISON_REPORT.md`
 - **真机对比结果**: `docs/vendor-replication/comparison/COMPARISON_RESULT.md`
-- **初始化修复计划**: `docs/vendor-replication/comparison/FIX_PLAN.md`
-- **HuaweiEngine 对齐**: `docs/vendor-replication/comparison/HUAWEI_ENGINE_ALIGNMENT.md`
+- **初始化修复计划**: `docs/vendor-replication/planning/FIX_PLAN.md`
+- **HuaweiEngine 对齐**: `docs/vendor-replication/planning/HUAWEI_ENGINE_ALIGNMENT.md`
 
 ## Android Vendor APK Replication (MANDATORY)
 
