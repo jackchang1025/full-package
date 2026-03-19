@@ -159,12 +159,12 @@ All commands run from the `android/` directory:
 - **Legacy system features**: `docs/legacy/system/SYSTEM_FEATURES.md`
 - **Vendor APK reverse engineering**: `docs/vendor-reverse/`
 - **Android client modules**: `docs/vendor-replication/README.md`
-- **Android testing guide**: `docs/vendor-replication/TESTING_GUIDE.md`
-- **ADB 连接指南**: `docs/vendor-replication/ADB_CONNECTION.md`
-- **真机深度对比协议**: `docs/vendor-replication/COMPARISON_REPORT.md`
-- **真机对比结果**: `docs/vendor-replication/COMPARISON_RESULT.md`
-- **初始化修复计划**: `docs/vendor-replication/FIX_PLAN.md`
-- **HuaweiEngine 对齐**: `docs/vendor-replication/HUAWEI_ENGINE_ALIGNMENT.md`
+- **Android testing guide**: `docs/vendor-replication/verification/TESTING_GUIDE.md`
+- **ADB 连接指南**: `docs/vendor-replication/verification/ADB_CONNECTION.md`
+- **真机深度对比协议**: `docs/vendor-replication/comparison/COMPARISON_REPORT.md`
+- **真机对比结果**: `docs/vendor-replication/comparison/COMPARISON_RESULT.md`
+- **初始化修复计划**: `docs/vendor-replication/comparison/FIX_PLAN.md`
+- **HuaweiEngine 对齐**: `docs/vendor-replication/comparison/HUAWEI_ENGINE_ALIGNMENT.md`
 
 ## Android Vendor APK Replication (MANDATORY)
 
@@ -241,9 +241,9 @@ User says any of these → Claude Code auto-executes build + install + verify:
 "对齐 TASK-1~5" → HuaweiEngine 事件驱动链路对齐 (见 HUAWEI_ENGINE_ALIGNMENT.md)
 ```
 
-Verification protocol: `docs/vendor-replication/DEVICE_VERIFY_MODULE02.md`
+Verification protocol: `docs/vendor-replication/verification/DEVICE_VERIFY_MODULE02.md`
 
-ADB config: `docs/vendor-replication/ADB_CONNECTION.md`
+ADB config: `docs/vendor-replication/verification/ADB_CONNECTION.md`
 
 ```
 ADB = /mnt/c/Users/Administrator/Downloads/platform-tools/adb.exe

@@ -184,18 +184,52 @@ cd app
 
 一比一复刻 Vendor APK 的 Java Android 项目文档（39 篇）。项目代码位于 `android/` 目录。
 
-| 类别 | 文档 | 说明 |
-|------|------|------|
-| **总览** | [README.md](./docs/vendor-replication/README.md) | 模块索引、项目结构、路线图 |
-| **协议** | [REPLICATION_PROTOCOL.md](./docs/vendor-replication/REPLICATION_PROTOCOL.md) | V3 行为驱动复刻协议 (5 阶段) |
-| **映射** | [REPLICATION_MAP.md](./docs/vendor-replication/REPLICATION_MAP.md) | Vendor → Replica 文件映射表 |
-| **模块设计** | MODULE_01~08.md (8个) | 各模块详细设计文档 |
-| **行为审计** | AUDIT_MODULE_01~09.md (9个) | Vendor 行为审计 (Phase 1 输出) |
-| **面板命令审计** | [AUDIT_PANEL_COMMANDS.md](./docs/vendor-replication/AUDIT_PANEL_COMMANDS.md) | Camera/Mic/Block/KB/Q/Keylog/File 审计 |
-| **真机验证** | DEVICE_VERIFY_*.md (3个) | 真机功能测试用例 |
-| **对比报告** | COMPARISON_*.md + DEEP_COMPARISON_AUDIT.md | Vendor vs Replica 对比 |
-| **修复计划** | FIX_PLAN*.md (3个) | 差异修复方案 |
-| **其他** | TESTING_GUIDE*.md, ADB_CONNECTION.md 等 | 测试指南、环境配置 |
+#### 根目录 — 核心文档
+
+| 文档 | 用途 |
+|------|------|
+| [README.md](./docs/vendor-replication/README.md) | 模块索引、项目结构、路线图 |
+| [REPLICATION_PROTOCOL.md](./docs/vendor-replication/REPLICATION_PROTOCOL.md) | V3 行为驱动复刻协议 (5 阶段) |
+| [REPLICATION_MAP.md](./docs/vendor-replication/REPLICATION_MAP.md) | Vendor → Replica 文件映射表 |
+| [JAVA_PROJECT_REQUIREMENTS.md](./docs/vendor-replication/JAVA_PROJECT_REQUIREMENTS.md) | 项目需求与设计 |
+| [APK_VENDOR_REPLICATION_PLAN.md](./docs/vendor-replication/APK_VENDOR_REPLICATION_PLAN.md) | 功能复刻计划 |
+
+#### 模块设计 (`modules/`)
+
+| 文档 | 说明 |
+|------|------|
+| MODULE_01~08.md (8个) | 各模块详细设计文档 (网络/权限/厂商/UI自动化/数据/控制/保活/启动) |
+
+#### 行为审计 (`audits/`)
+
+| 文档 | 说明 |
+|------|------|
+| AUDIT_MODULE_01~09.md (9个) | Vendor 行为审计 (Phase 1 输出) |
+| AUDIT_PANEL_COMMANDS.md | Camera/Mic/Block/KB/Q/Keylog/File 审计 |
+| VENDOR_NETWORK_ARCHITECTURE_AUDIT.md | 网络架构审计 |
+
+#### 真机验证与测试 (`verification/`)
+
+| 文档 | 说明 |
+|------|------|
+| DEVICE_VERIFY_*.md (3个) | 真机功能测试用例 |
+| TESTING_GUIDE*.md (2个) | 测试指南 |
+| ADB_CONNECTION.md | ADB 连接配置 |
+
+#### 对比报告与修复 (`comparison/`)
+
+| 文档 | 说明 |
+|------|------|
+| COMPARISON_*.md + DEEP_COMPARISON_AUDIT.md | Vendor vs Replica 对比 |
+| FIX_PLAN*.md (3个) | 差异修复方案 |
+| HUAWEI_ENGINE_ALIGNMENT.md | 华为引擎对齐 |
+
+#### 补充文档 (`supplementary/`)
+
+| 文档 | 说明 |
+|------|------|
+| ACCESSIBILITY_MODULES.md | 无障碍模块参考 |
+| DEVICE_ADMIN_MODULE.md | 设备管理员模块参考 |
 
 ---
 
