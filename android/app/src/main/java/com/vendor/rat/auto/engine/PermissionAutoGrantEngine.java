@@ -124,6 +124,9 @@ public class PermissionAutoGrantEngine extends AutoEngine {
         UiNode root = getRootNode();
         if (root == null) return;
 
+        // 先处理"不再询问"复选框 — 如果勾选了要取消
+        uncheckDontAskAgain(root);
+
         // 优先: "始终允许" / "Allow all the time" (最高权限)
         UiNode btn = findAllowButton(root, "始终允许", "Allow all the time");
         if (btn != null) {
@@ -214,5 +217,30 @@ public class PermissionAutoGrantEngine extends AutoEngine {
             if (btn != null) return btn;
         }
         return null;
+    }
+
+    /**
+     * 取消"不再询问"复选框
+     * Android 权限对话框可能有"不再询问"(Don't ask again) 复选框
+     * 如果勾选了，后续无法再弹出权限请求
+     */
+    private void uncheckDontAskAgain(UiNode root) {
+        try {
+            // 查找 CheckBox
+            UiNode checkBox = root.findOneByCombine(
+                CombineFilter.and(
+                    StringCondition.className("android.widget.CheckBox"),
+                    new com.vendor.rat.auto.condition.BoolCondition(
+                        com.vendor.rat.auto.condition.BoolCondition.Property.CHECKED, true)
+                )
+            );
+            if (checkBox != null) {
+                checkBox.click();
+                log("Unchecked 'Don't ask again' checkbox");
+                sleep(200);
+            }
+        } catch (Exception e) {
+            // 忽略，不影响主流程
+        }
     }
 }
