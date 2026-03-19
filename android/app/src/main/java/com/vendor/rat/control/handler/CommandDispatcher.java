@@ -1130,12 +1130,72 @@ public class CommandDispatcher implements WebSocketClient.CommandListener {
     }
 
     /**
-     * 查看文件内容 (缩略图) → subc="thumb"
+     * 查看文件 → 生成缩略图 → subc="thumb"
+     * Panel GalleryTab 期望: {type:"thumb", data:"base64", path:"filepath"}
      */
     private void handleViewFile(JsonObject payload) {
-        String filepath = payload.has("filepath") ? payload.get("filepath").getAsString() : "";
+        String filepath = ScreenActionParser.getString(payload, "filepath", "");
         Log.d(TAG, "viewFile: " + filepath);
-        // TODO: 读取文件生成缩略图 → ws.sendThumb(data, path)
+        if (filepath.isEmpty()) return;
+
+        WebSocketClient ws = getWsClient();
+        if (ws == null) return;
+
+        new Thread(() -> {
+            try {
+                File file = new File(filepath);
+                if (!file.exists() || !file.isFile()) {
+                    Log.w(TAG, "viewFile: file not found: " + filepath);
+                    return;
+                }
+
+                // 判断是否为图片
+                String name = file.getName().toLowerCase();
+                boolean isImage = name.endsWith(".jpg") || name.endsWith(".jpeg")
+                    || name.endsWith(".png") || name.endsWith(".gif")
+                    || name.endsWith(".bmp") || name.endsWith(".webp");
+
+                if (isImage) {
+                    // 生成缩略图: 解码 → 缩放 → JPEG 压缩 → Base64
+                    android.graphics.BitmapFactory.Options opts = new android.graphics.BitmapFactory.Options();
+                    opts.inJustDecodeBounds = true;
+                    android.graphics.BitmapFactory.decodeFile(filepath, opts);
+
+                    // 计算缩放比例 (目标 200px)
+                    int targetSize = 200;
+                    int scale = 1;
+                    while (opts.outWidth / scale > targetSize * 2 && opts.outHeight / scale > targetSize * 2) {
+                        scale *= 2;
+                    }
+
+                    opts.inJustDecodeBounds = false;
+                    opts.inSampleSize = scale;
+                    android.graphics.Bitmap bitmap = android.graphics.BitmapFactory.decodeFile(filepath, opts);
+
+                    if (bitmap != null) {
+                        // 缩放到 200px
+                        float ratio = Math.min((float) targetSize / bitmap.getWidth(),
+                                               (float) targetSize / bitmap.getHeight());
+                        int w = (int) (bitmap.getWidth() * ratio);
+                        int h = (int) (bitmap.getHeight() * ratio);
+                        android.graphics.Bitmap thumb = android.graphics.Bitmap.createScaledBitmap(bitmap, w, h, true);
+                        bitmap.recycle();
+
+                        java.io.ByteArrayOutputStream baos = new java.io.ByteArrayOutputStream();
+                        thumb.compress(android.graphics.Bitmap.CompressFormat.JPEG, 60, baos);
+                        thumb.recycle();
+
+                        String base64 = Base64.encodeToString(baos.toByteArray(), Base64.NO_WRAP);
+                        ws.sendThumb(base64, filepath);
+                        Log.d(TAG, "thumb sent: " + filepath + " (" + baos.size() + " bytes)");
+                    }
+                } else {
+                    Log.d(TAG, "viewFile: not an image: " + filepath);
+                }
+            } catch (Exception e) {
+                Log.w(TAG, "viewFile failed: " + filepath, e);
+            }
+        }).start();
     }
 
     /**

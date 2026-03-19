@@ -263,8 +263,28 @@ export function parseContactsData(data: string): Contact[] {
 export function parseFilesData(data: string): FileItem[] {
     if (!data) return [];
     const files: FileItem[] = [];
-    const items = data.split('[>D<]');
 
+    // 尝试 JSON 格式 (Replica APK)
+    try {
+        const parsed = JSON.parse(data);
+        if (Array.isArray(parsed)) {
+            for (const item of parsed) {
+                files.push({
+                    name: item.name || '',
+                    size: String(item.size || '0'),
+                    path: item.path || '',
+                    lastModified: item.lastModified || '',
+                    isDirectory: item.isDirectory === true || item.isDirectory === 'true',
+                });
+            }
+            return files;
+        }
+    } catch {
+        // 不是 JSON，尝试旧格式
+    }
+
+    // 旧格式: [>D<] 分隔项, [>A<] 分隔字段
+    const items = data.split('[>D<]');
     for (const item of items) {
         if (!item.trim()) continue;
         const parts = item.split('[>A<]');
