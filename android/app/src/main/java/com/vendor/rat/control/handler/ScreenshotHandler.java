@@ -30,7 +30,7 @@ public class ScreenshotHandler {
     private static final String TAG = "ScreenshotHandler";
     private static final int JPEG_QUALITY = 30;
     private static final float SCALE_FACTOR = 0.5f;
-    private static final long FRAME_INTERVAL_MS = 500;
+    private static final long FRAME_INTERVAL_MS = 1100;
 
     private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
     private ScheduledFuture<?> streamingTask;
