@@ -59,6 +59,8 @@ public class WebSocketClient extends WebSocketListener {
     private WebSocket webSocket;
     private final AtomicBoolean connected = new AtomicBoolean(false);
     private final AtomicBoolean connecting = new AtomicBoolean(false);
+    private volatile long connectingStartTime = 0;
+    private static final long CONNECTING_TIMEOUT_MS = 20000;
     private final AtomicInteger reconnectAttempts = new AtomicInteger(0);
     private final ScheduledExecutorService reconnectScheduler = Executors.newSingleThreadScheduledExecutor();
     private volatile ScheduledFuture<?> pendingReconnect;
@@ -86,12 +88,21 @@ public class WebSocketClient extends WebSocketListener {
      */
     public void connect() {
         if (connected.get()) return;
+        if (connecting.get()) {
+            long elapsed = System.currentTimeMillis() - connectingStartTime;
+            if (elapsed < CONNECTING_TIMEOUT_MS) return;
+            Log.w(TAG, "Connecting stuck for " + elapsed + "ms, forcing reset");
+            forceCloseWebSocket();
+        }
         if (!connecting.compareAndSet(false, true)) return;
+        connectingStartTime = System.currentTimeMillis();
         if (wsUrl == null || wsUrl.isEmpty()) {
             Log.w(TAG, "WebSocket URL is null, skipping connect");
             connecting.set(false);
             return;
         }
+
+        forceCloseWebSocket();
 
         Request request = new Request.Builder()
             .url(wsUrl)
@@ -100,6 +111,16 @@ public class WebSocketClient extends WebSocketListener {
 
         webSocket = client.newWebSocket(request, this);
         Log.d(TAG, "Connecting to: " + wsUrl);
+    }
+
+    private void forceCloseWebSocket() {
+        WebSocket ws = webSocket;
+        if (ws != null) {
+            try {
+                ws.cancel();
+            } catch (Exception ignored) {}
+            webSocket = null;
+        }
     }
 
     /**
