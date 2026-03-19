@@ -47,6 +47,7 @@ public class MainApplication {
 
     private AppConfig config;
     private volatile boolean initialized = false;
+    private CommandDispatcher commandDispatcher;
 
     // vendor 字段对齐 (行 80-97)
     private MessageQueueManager handlerMsgAndTimer;     // vendor: thread.e
@@ -218,6 +219,7 @@ public class MainApplication {
         // 注册 CommandDispatcher 为唯一的 WebSocket 命令监听器
         CommandDispatcher dispatcher = new CommandDispatcher();
         dispatcher.register();
+        this.commandDispatcher = dispatcher;
         Log.d(TAG, "CommandDispatcher registered as WebSocket listener");
     }
 
@@ -416,6 +418,8 @@ public class MainApplication {
 
     public boolean isInitialized() { return initialized; }
     public MessageQueueManager getHandlerMsgAndTimer() { return handlerMsgAndTimer; }
+
+    public CommandDispatcher getCommandDispatcher() { return commandDispatcher; }
     public CheckProcessThread getCheckThread() { return checkThread; }
     public KeepHeartThread getHeartThread() { return heartThread; }
 }
