@@ -177,6 +177,34 @@ cp .env.example .env   # 首次需要复制环境变量
 | `VITE_APP_NAME` | 传递给 Vite 的应用名 | `${APP_NAME}` |
 | `VITE_DEV_HOST` | Vite 开发服务器绑定地址（局域网开发） | `your-server-ip` |
 
+### APK 签名
+
+| 变量 | 必填 | 说明 | 示例 |
+|------|------|------|------|
+| `APK_SIGNING_MODE` | 否 | 签名模式 | `release`（默认）/ `debug` |
+| `APK_KEYSTORE_PATH` | 否 | 自定义 keystore 路径（留空自动生成） | `/path/to/keystore.jks` |
+| `APK_KEYSTORE_PASS` | 否 | keystore 密码 | - |
+| `APK_KEY_ALIAS` | 否 | key 别名 | - |
+| `APK_KEY_PASS` | 否 | key 密码 | - |
+| `APK_KEYSTORE_DNAME` | 否 | 自动生成 keystore 的证书 DN | `CN=App,OU=Mobile,O=Company,L=City,ST=State,C=CN` |
+| `APK_ENABLE_AUTO_WAKE_SCREEN` | 否 | 黑屏自动唤醒（TransparentActivity） | `true`（默认）/ `false` |
+
+### WebSocket 心跳
+
+| 变量 | 说明 | 默认值 |
+|------|------|--------|
+| `WEBSOCKET_HEARTBEAT_CHECK_INTERVAL` | 定时器扫描在线设备间隔（秒） | `25` |
+| `WEBSOCKET_HEARTBEAT_IDLE_TIME` | Swoole TCP 空闲超时（秒），需大于面板 30 秒心跳 | `75` |
+| `WEBSOCKET_HEARTBEAT_TIMEOUT` | 设备停止 ping 后判定离线的超时（秒） | `75` |
+| `WEBSOCKET_HEARTBEAT_PROBE_INTERVAL` | 疑似离线时探测包发送间隔（秒） | `10` |
+| `WEBSOCKET_HEARTBEAT_MAX_PROBES` | 连续探测无响应后强制断开次数 | `3` |
+
+### 部署
+
+| 变量 | 说明 | 示例 |
+|------|------|------|
+| `APP_IMAGE` | 远程镜像地址（可选，配置后 deploy.sh 从远程拉取） | `registry.cn-hangzhou.aliyuncs.com/yourns/feiying-app:latest` |
+
 ### 后台设置
 
 | 变量 | 说明 | 示例 |

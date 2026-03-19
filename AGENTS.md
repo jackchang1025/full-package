@@ -24,13 +24,20 @@
 
 ```
 full-package/
-├── app/                      # 🆕 Laravel 12 应用 (主项目)
-├── legacy/                   # 📦 旧项目归档
-├── shared/                   # 🔗 共享资源 (APK 构建模板)
-├── docs/                     # 📚 文档
-│   ├── legacy/               # 旧系统文档
-│   └── migration/            # 迁移文档
-└── AGENTS.md                 # 本文件
+├── app/                      # Laravel 12 应用 (主项目)
+├── android/                  # Android 客户端项目 (Vendor APK 复刻)
+├── legacy/                   # 旧项目归档 (仅参考)
+├── shared/                   # 共享资源 (APK 构建模板)
+├── docs/                     # 📚 文档 (按领域分类)
+│   ├── platform/             # V2 Web 平台 (Laravel + Vue)
+│   ├── apk-template/         # Replica APK 模板 (Smali 构建)
+│   ├── apk-research/         # APK 客户端可行性研究
+│   ├── vendor-reverse/       # Vendor APK 逆向分析
+│   ├── vendor-replication/   # Vendor APK Java 复刻 (8模块)
+│   ├── legacy/               # V1 旧系统文档
+│   └── _archive/             # 非文档文件归档
+├── AGENTS.md                 # 本文件
+└── CLAUDE.md                 # Claude Code 指南
 ```
 
 ## 快速启动
@@ -82,71 +89,144 @@ cd app
 
 ---
 
-## 📚 扩展文档索引
+## 📚 文档索引
 
-### 新系统文档 (位于 `docs/migration/`)
+### 一、V2 Web 平台文档 (`docs/platform/`)
 
-| 文档 | 用途 | 推荐阅读场景 |
-|------|------|-------------|
-| [FRONTEND.md](./docs/migration/FRONTEND.md) | **前端架构文档** - Vue 3 + Inertia.js 技术栈、页面组件、Composables、WebSocket 类型 | ⭐ 前端开发首选 |
-| [API.md](./docs/migration/API.md) | API 接口文档 | 开发 API 功能 |
-| [DEVELOPMENT.md](./docs/migration/DEVELOPMENT.md) | 开发环境详解 | 环境配置、常用命令 |
-| [APK_BUILDER.md](./docs/migration/APK_BUILDER.md) | **APK 构建服务** - Laravel 版构建服务、配置参数、使用示例 | 开发/维护 APK 构建功能 |
-| [DOCKER_SUPERVISOR.md](./docs/migration/DOCKER_SUPERVISOR.md) | **Docker Supervisor 配置** - 容器内服务管理、WebSocket 自动启动、添加新服务 | 配置容器后台服务 |
-| [CONTROL_PANEL_SCREEN_OPERATIONS.md](./docs/migration/CONTROL_PANEL_SCREEN_OPERATIONS.md) | **控制面板屏幕操作** - 投屏点击/滑动/长按实现、坐标换算、PanelHandler 与 PanelSendHandler 分工 | 开发设备控制页、触摸转发、WebSocket 消息流 |
-| [ADMIN_USER_MANAGEMENT.md](./docs/migration/ADMIN_USER_MANAGEMENT.md) | **总后台用户管理与子账号** - 子账号模型、用户管理两栏布局、URL 状态、StatusModal、树节点删除 | 总后台用户/子账号功能、Admin Users 页面维护 |
-| [SINGLE_SIGN_ON.md](./docs/migration/SINGLE_SIGN_ON.md) | **单点登录功能** - 多设备登出、session_token 机制、EnsureSingleSession 中间件、前端处理 | ⭐ 开发/维护单点登录功能、理解会话管理 |
-| [DEPLOYMENT.md](./docs/DEPLOYMENT.md) | **V2 部署文档** - Docker/Compose 部署、宝塔面板 Docker 部署、Nginx 反向代理、SSL、故障排查 | 生产部署、宝塔环境部署 |
+核心开发文档，覆盖 Laravel 后端、Vue 前端、部署运维。
 
-### 核心系统文档 (位于 `docs/legacy/`)
+| 文档 | 用途 | 推荐场景 |
+|------|------|---------|
+| [FRONTEND.md](./docs/platform/FRONTEND.md) | **前端架构** - Vue 3 + Inertia.js、页面组件、Composables | ⭐ 前端开发首选 |
+| [API.md](./docs/platform/API.md) | API 接口文档 | 开发 API 功能 |
+| [DEVELOPMENT.md](./docs/platform/DEVELOPMENT.md) | 开发环境详解 | 环境配置、常用命令 |
+| [DEPLOYMENT.md](./docs/platform/DEPLOYMENT.md) | **部署文档** - Docker/Compose、宝塔面板、Nginx、SSL | 生产部署 |
+| [RUNBOOK.md](./docs/platform/RUNBOOK.md) | 运维手册 | 日常运维、故障排查 |
+| [CONTRIB.md](./docs/platform/CONTRIB.md) | 贡献指南 | 新开发者入门 |
+| [DOCKER_SUPERVISOR.md](./docs/platform/DOCKER_SUPERVISOR.md) | Docker Supervisor 配置 | 容器后台服务管理 |
+| [SINGLE_SIGN_ON.md](./docs/platform/SINGLE_SIGN_ON.md) | **单点登录** - session_token、中间件 | ⭐ 会话管理 |
+| [ADMIN_USER_MANAGEMENT.md](./docs/platform/ADMIN_USER_MANAGEMENT.md) | 总后台用户管理与子账号 | Admin Users 页面 |
+| [CONTROL_PANEL_SCREEN_OPERATIONS.md](./docs/platform/CONTROL_PANEL_SCREEN_OPERATIONS.md) | **控制面板屏幕操作** - 投屏、坐标换算、触摸转发 | 设备控制页开发 |
+| [DEVICE_STATUS_FIELDS.md](./docs/platform/DEVICE_STATUS_FIELDS.md) | 设备状态字段参考 | 前端字段映射 |
+| [DEVICE_CONTROL_MIGRATION.md](./docs/platform/DEVICE_CONTROL_MIGRATION.md) | 设备控制迁移记录 | 迁移参考 |
+| [GALLERY_THUMBNAIL_FIX.md](./docs/platform/GALLERY_THUMBNAIL_FIX.md) | 相册缩略图修复 | Bug 修复参考 |
+| LOGIN_TITLE_*.md (3个) | 登录标题功能 | 登录页定制 |
 
-| 文档 | 用途 | 推荐阅读场景 |
-|------|------|-------------|
-| [SYSTEM_FEATURES.md](./docs/legacy/SYSTEM_FEATURES.md) | **系统功能详解** - 完整的功能列表、架构设计和商业模式 | 了解系统全貌、功能范围 |
-| [DEPLOYMENT.md](./docs/legacy/DEPLOYMENT.md) | **部署文档** - Docker/手动部署指南、SSL配置、安全加固 | 部署上线、环境配置 |
-| [QUICK_REFERENCE.md](./docs/legacy/QUICK_REFERENCE.md) | **快速参考** - 参数表格、加密密钥、常见错误速查 | 开发时快速查阅 |
-| [DEVICE_CONTROL_PANEL.md](./docs/legacy/DEVICE_CONTROL_PANEL.md) | **设备控制面板** - 旧版 info.php 单页应用、WebSocket 协议、功能模块、UI 组件 | 理解旧版控制面板、迁移参考 |
+#### WebSocket 专题 (`docs/platform/websocket/`)
 
-### WebSocket 文档
+| 文档 | 用途 | 推荐场景 |
+|------|------|---------|
+| [CLIENT.md](./docs/platform/websocket/CLIENT.md) | **WebSocket 系统架构** - 三端架构、数据流、消息协议 | ⭐ WebSocket 开发首选 |
+| [SERVER_PHP.md](./docs/platform/websocket/SERVER_PHP.md) | **PHP WebSocket 服务器** - Swoole 实现、Handler 详解 | 维护 WebSocket 服务 |
+| [SERVER_NODEJS.md](./docs/platform/websocket/SERVER_NODEJS.md) | **Node.js 原始实现** - 消息协议、命令列表 | 理解原始协议 |
+| [PROTOCOL.md](./docs/platform/websocket/PROTOCOL.md) | WebSocket 协议定义 | 协议参考 |
+| [TESTING.md](./docs/platform/websocket/TESTING.md) | WebSocket 测试套件 | 测试架构 |
+| [COMPATIBILITY_REPORT.md](./docs/platform/websocket/COMPATIBILITY_REPORT.md) | 兼容性报告 | 协议对比 |
+| [FRONTEND_CLIENT_ANALYSIS.md](./docs/platform/websocket/FRONTEND_CLIENT_ANALYSIS.md) | 前端 WebSocket 客户端分析 (旧版逆向) | 理解旧前端 |
 
-| 文档 | 用途 | 推荐阅读场景 |
-|------|------|-------------|
-| [WEBSOCKET_CLIENT.md](./docs/migration/WEBSOCKET_CLIENT.md) | **WebSocket 系统架构** - 三端架构 (设备/Web/服务器)、数据流、消息协议、前后端实现 | ⭐ WebSocket 开发首选 |
-| [WEBSOCKET_SERVER_PHP.md](./docs/migration/WEBSOCKET_SERVER_PHP.md) | **PHP WebSocket 服务器** - Swoole 实现、Handler 详解、配置说明 | 开发/维护 PHP WebSocket 服务 |
-| [DEVICE_STATUS_FIELDS.md](./docs/migration/DEVICE_STATUS_FIELDS.md) | **设备状态字段参考** - statusBatch 消息结构、phoneInfo 字段详解、电池/密码格式解析 | 理解设备数据结构、前端字段映射 |
-| [WebSocket 功能测试 README](./app/tests/Feature/WebSocket/README.md) | **WebSocket 功能测试** - 测试专用服务器、随机端口、MockPanel/MockDevice、运行命令 | ⭐ 运行/编写 WebSocket 功能测试 |
-| [WEBSOCKET_TESTING.md](./docs/migration/WEBSOCKET_TESTING.md) | **WebSocket 测试套件** - Unit Tests (Pest) + E2E Tests (Node.js)、Mock 客户端、测试命令 | 测试架构总览 |
-| [WEBSOCKET_SERVER.md](./docs/WEBSOCKET_SERVER.md) | **Node.js WebSocket 服务器** - 原始实现分析、消息协议、命令列表 | 理解原始协议、对比参考 |
-| [FRONTEND_WEBSOCKET_CLIENT.md](./docs/FRONTEND_WEBSOCKET_CLIENT.md) | **前端 WebSocket 客户端分析** - 编译后代码逆向、消息处理、触摸事件、状态管理 | 理解旧前端实现 |
-| [CONTROL_PANEL_SCREEN_OPERATIONS.md](./docs/migration/CONTROL_PANEL_SCREEN_OPERATIONS.md) | **控制面板屏幕操作** - ScreenViewer 坐标与事件、mov 消息格式、PanelHandler 转发 | 实现/调试投屏点击滑动长按 |
+---
 
-### APK 构建系统文档 (位于 `docs/legacy/`)
+### 二、Replica APK 模板文档 (`docs/apk-template/`)
 
-| 文档 | 用途 | 推荐阅读场景 |
-|------|------|-------------|
-| [APK_BUILD_SYSTEM.md](./docs/legacy/APK_BUILD_SYSTEM.md) | **APK 构建系统详解** - 构建流程、参数、PHP/VB.NET 交互 | 理解 APK 构建机制 |
-| [APK_STUB_TEMPLATE.md](./docs/legacy/APK_STUB_TEMPLATE.md) | **APK Stub 模板分析** - Smali 代码结构、占位符系统、配置注入 | 修改 APK 模板、调试构建问题 |
-| [APK_RUNTIME_FLOW.md](./docs/legacy/APK_RUNTIME_FLOW.md) | **APK 运行流程** - 启动机制、服务依赖、WebSocket 通信、保活策略 | 理解客户端行为、调试设备问题 |
-| [APKBUILDER_OPTIMIZATION.md](./docs/legacy/APKBUILDER_OPTIMIZATION.md) | **ApkBuilder.php 优化** - HTTP 回调机制、数据库更新流程 | 修复构建状态不更新问题 |
+当前使用的 APK 客户端模板（Smali 占位符注入方式构建）。
 
-### 逆向工程文档 (位于 `docs/legacy/`)
+| 文档 | 用途 | 推荐场景 |
+|------|------|---------|
+| [BUILDER.md](./docs/apk-template/BUILDER.md) | **APK 构建服务** - Laravel 版、配置参数 | ⭐ APK 构建开发 |
+| [BUILDER_AUTO_WAKE_SCREEN.md](./docs/apk-template/BUILDER_AUTO_WAKE_SCREEN.md) | 自动唤醒屏幕功能 | 构建参数扩展 |
+| [GUIDE_ACTIVITY.md](./docs/apk-template/GUIDE_ACTIVITY.md) | APK 引导页流程 | 启动流程理解 |
+| [KEEP_ALIVE_MECHANISM.md](./docs/apk-template/KEEP_ALIVE_MECHANISM.md) | **保活机制** - 多层防护策略 | ⭐ 调试服务问题 |
+| [KEEPALIVE_REPLICATION_DESIGN.md](./docs/apk-template/KEEPALIVE_REPLICATION_DESIGN.md) | 保活复刻设计 | 保活方案设计 |
+| TEMPLATE_*_FEASIBILITY.md (2个) | 模板重构/逆向可行性 | 架构决策 |
 
-| 文档 | 用途 | 推荐阅读场景 |
-|------|------|-------------|
-| [REVERSE_ANALYSIS.md](./docs/legacy/REVERSE_ANALYSIS.md) | **逆向源码分析** - EaodStarter/EaodWorker 完整分析 | 深入理解构建程序逻辑 |
-| [CODE_MAPPING.md](./docs/legacy/CODE_MAPPING.md) | **代码映射指南** - 参数传递、数据结构、PHP 实现指南 | 实现新功能、重构代码 |
-| [README_ANALYSIS.md](./docs/legacy/README_ANALYSIS.md) | **逆向文档索引** - 所有逆向分析文档的导航 | 快速定位逆向相关信息 |
+#### 华为适配专题 (`docs/apk-template/huawei/`)
 
-### APK 构建系统逆向工程专题 (位于 `docs/legacy/APKBuildSystemReverseEngineeringDocumentation/`)
+| 文档 | 用途 |
+|------|------|
+| SILENT_AUTOMATION.md | 华为静默自动化 |
+| STEALTH_AUTOMATION_*.md (4个) | 华为隐蔽自动化方案迭代 |
+| POWERGENIE_*.md (3个) | 华为 PowerGenie 电源管理分析 |
+| ANDROID_BACKGROUND_KEEPALIVE_RESEARCH.md | Android 后台保活研究 |
 
-| 文档 | 用途 | 推荐阅读场景 |
-|------|------|-------------|
-| [README.md](./docs/legacy/APKBuildSystemReverseEngineeringDocumentation/README.md) | **专题索引** - 逆向分析项目概述和关键发现 | 了解构建失败根因 |
-| [01-system-architecture.md](./docs/legacy/APKBuildSystemReverseEngineeringDocumentation/01-system-architecture.md) | **系统架构分析** - 前端→PHP→VB.NET→Java 完整链路 | 理解系统架构 |
-| [02-decompile-analysis.md](./docs/legacy/APKBuildSystemReverseEngineeringDocumentation/02-decompile-analysis.md) | **反编译分析** - ILSpy 反编译、核心代码解析 | 修改 EaodWorker 行为 |
-| [03-problem-diagnosis.md](./docs/legacy/APKBuildSystemReverseEngineeringDocumentation/03-problem-diagnosis.md) | **问题诊断** - AndroidManifest 膨胀问题分析 | 排查构建失败 |
-| [04-fix-solution.md](./docs/legacy/APKBuildSystemReverseEngineeringDocumentation/04-fix-solution.md) | **修复方案** - dnSpy 修改、手动修复、自动脚本 | 修复构建问题 |
-| [05-verification.md](./docs/legacy/APKBuildSystemReverseEngineeringDocumentation/05-verification.md) | **验证测试** - 修复后的验证流程 | 确认修复有效 |
+---
+
+### 三、APK 客户端研究 (`docs/apk-research/`)
+
+| 文档 | 用途 |
+|------|------|
+| [NEW_ANDROID_CLIENT_FEASIBILITY.md](./docs/apk-research/NEW_ANDROID_CLIENT_FEASIBILITY.md) | 新 Android 客户端可行性评估 |
+| [OPEN_SOURCE_ANDROID_CLIENT_RESEARCH.md](./docs/apk-research/OPEN_SOURCE_ANDROID_CLIENT_RESEARCH.md) | 开源 Android 客户端调研 |
+
+---
+
+### 四、Vendor APK 逆向分析 (`docs/vendor-reverse/`)
+
+成熟 Vendor APK 的完整逆向工程文档（15 篇），覆盖网络架构、权限绕过、厂商适配、保活机制、隐蔽自动化等。
+
+| 文档 | 用途 |
+|------|------|
+| APK_NETWORK_ARCHITECTURE.md | 网络架构分析 |
+| APK_STARTUP_FLOW_ANALYSIS.md | 启动流程分析 |
+| APK_PERMISSION_BYPASS_CODE_REVIEW.md | 权限绕过代码审查 |
+| APK_VENDOR_ADAPTATION_ANALYSIS.md | 厂商适配分析 |
+| APK_VENDOR_CODE_REVIEW.md | Vendor 代码审查 |
+| APK_STEALTH_*.md (2个) | 隐蔽机制分析 |
+| APK_HUAWEI_*.md (3个) | 华为专项分析 |
+| APK_AUTOMATION_TRIGGER_ANALYSIS.md | 自动化触发分析 |
+| APK_CODE_LEVEL_ANALYSIS.md | 代码级分析 |
+| APK_DEEP_ANALYSIS_encryption_keepalive.md | 加密与保活深度分析 |
+| APK_SCREEN_OFF_KEEPALIVE_DEEP_ANALYSIS.md | 息屏保活深度分析 |
+| APK_REVERSE_ANALYSIS_stripchat-release.md | 特定版本逆向分析 |
+
+---
+
+### 五、Vendor APK Java 复刻 (`docs/vendor-replication/`)
+
+一比一复刻 Vendor APK 的 Java Android 项目文档（39 篇）。项目代码位于 `android/` 目录。
+
+| 类别 | 文档 | 说明 |
+|------|------|------|
+| **总览** | [README.md](./docs/vendor-replication/README.md) | 模块索引、项目结构、路线图 |
+| **协议** | [REPLICATION_PROTOCOL.md](./docs/vendor-replication/REPLICATION_PROTOCOL.md) | V3 行为驱动复刻协议 (5 阶段) |
+| **映射** | [REPLICATION_MAP.md](./docs/vendor-replication/REPLICATION_MAP.md) | Vendor → Replica 文件映射表 |
+| **模块设计** | MODULE_01~08.md (8个) | 各模块详细设计文档 |
+| **行为审计** | AUDIT_MODULE_01~09.md (9个) | Vendor 行为审计 (Phase 1 输出) |
+| **面板命令审计** | [AUDIT_PANEL_COMMANDS.md](./docs/vendor-replication/AUDIT_PANEL_COMMANDS.md) | Camera/Mic/Block/KB/Q/Keylog/File 审计 |
+| **真机验证** | DEVICE_VERIFY_*.md (3个) | 真机功能测试用例 |
+| **对比报告** | COMPARISON_*.md + DEEP_COMPARISON_AUDIT.md | Vendor vs Replica 对比 |
+| **修复计划** | FIX_PLAN*.md (3个) | 差异修复方案 |
+| **其他** | TESTING_GUIDE*.md, ADB_CONNECTION.md 等 | 测试指南、环境配置 |
+
+---
+
+### 六、V1 旧系统文档 (`docs/legacy/`)
+
+#### 系统文档 (`docs/legacy/system/`)
+
+| 文档 | 用途 |
+|------|------|
+| [SYSTEM_FEATURES.md](./docs/legacy/system/SYSTEM_FEATURES.md) | **系统功能详解** - 完整功能列表、架构设计 |
+| [DEPLOYMENT.md](./docs/legacy/system/DEPLOYMENT.md) | 旧版部署文档 |
+| [QUICK_REFERENCE.md](./docs/legacy/system/QUICK_REFERENCE.md) | 参数表格、加密密钥速查 |
+| [DEVICE_CONTROL_PANEL.md](./docs/legacy/system/DEVICE_CONTROL_PANEL.md) | 旧版设备控制面板 (info.php) |
+
+#### APK 构建系统 (`docs/legacy/apk-build/`)
+
+| 文档 | 用途 |
+|------|------|
+| [APK_BUILD_SYSTEM.md](./docs/legacy/apk-build/APK_BUILD_SYSTEM.md) | 构建流程、参数、PHP/VB.NET 交互 |
+| [APK_STUB_TEMPLATE.md](./docs/legacy/apk-build/APK_STUB_TEMPLATE.md) | Smali 代码结构、占位符系统 |
+| [APK_RUNTIME_FLOW.md](./docs/legacy/apk-build/APK_RUNTIME_FLOW.md) | 启动机制、服务依赖、保活策略 |
+| [APKBUILDER_OPTIMIZATION.md](./docs/legacy/apk-build/APKBUILDER_OPTIMIZATION.md) | ApkBuilder.php 优化 |
+
+#### 逆向工程 (`docs/legacy/reverse-engineering/`)
+
+| 文档 | 用途 |
+|------|------|
+| [REVERSE_ANALYSIS.md](./docs/legacy/reverse-engineering/REVERSE_ANALYSIS.md) | EaodStarter/EaodWorker 逆向分析 |
+| [CODE_MAPPING.md](./docs/legacy/reverse-engineering/CODE_MAPPING.md) | 代码映射指南 |
+| [README_ANALYSIS.md](./docs/legacy/reverse-engineering/README_ANALYSIS.md) | 逆向文档索引 |
+| APKBuildSystemReverseEngineeringDocumentation/ (6个) | 构建系统逆向专题 |
 
 ---
 
@@ -154,22 +234,22 @@ cd app
 
 **新手入门**:
 ```
-AGENTS.md → docs/migration/DEVELOPMENT.md → docs/legacy/SYSTEM_FEATURES.md
+AGENTS.md → docs/platform/DEVELOPMENT.md → docs/legacy/system/SYSTEM_FEATURES.md
 ```
 
 **前端开发**:
 ```
-docs/migration/FRONTEND.md → docs/migration/WEBSOCKET_CLIENT.md
+docs/platform/FRONTEND.md → docs/platform/websocket/CLIENT.md
 ```
 
 **设备控制页 / 屏幕操作**:
 ```
-docs/migration/CONTROL_PANEL_SCREEN_OPERATIONS.md → docs/migration/WEBSOCKET_CLIENT.md
+docs/platform/CONTROL_PANEL_SCREEN_OPERATIONS.md → docs/platform/websocket/CLIENT.md
 ```
 
 **WebSocket 开发**:
 ```
-docs/WEBSOCKET_SERVER.md → docs/migration/WEBSOCKET_SERVER_PHP.md → docs/migration/WEBSOCKET_CLIENT.md
+docs/platform/websocket/SERVER_NODEJS.md → docs/platform/websocket/SERVER_PHP.md → docs/platform/websocket/CLIENT.md
 ```
 
 **WebSocket 功能测试**:
@@ -179,20 +259,15 @@ app/tests/Feature/WebSocket/README.md → ./vendor/bin/sail pest tests/Feature/W
 
 **APK 构建开发**:
 ```
-docs/migration/APK_BUILDER.md → docs/legacy/APK_BUILD_SYSTEM.md → APK_STUB_TEMPLATE.md
+docs/apk-template/BUILDER.md → docs/legacy/apk-build/APK_BUILD_SYSTEM.md → docs/legacy/apk-build/APK_STUB_TEMPLATE.md
 ```
 
-**排查构建问题**:
+**Vendor APK 复刻**:
 ```
-docs/legacy/APKBuildSystemReverseEngineeringDocumentation/README.md → 03-problem-diagnosis.md → 04-fix-solution.md
-```
-
-**深度逆向分析**:
-```
-docs/legacy/REVERSE_ANALYSIS.md → CODE_MAPPING.md → 02-decompile-analysis.md
+docs/vendor-replication/README.md → docs/vendor-replication/REPLICATION_PROTOCOL.md → docs/vendor-reverse/
 ```
 
 **总后台用户管理 / 子账号**:
 ```
-docs/migration/ADMIN_USER_MANAGEMENT.md → app/Http/Controllers/Admin/UserController.php → app/resources/ts/Pages/Admin/Users/Index.vue
+docs/platform/ADMIN_USER_MANAGEMENT.md → app/Http/Controllers/Admin/UserController.php
 ```
