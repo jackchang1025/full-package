@@ -284,15 +284,25 @@ const handleMessage = (msg: WebSocketInboundMessage) => {
         }
         case 'thumb': {
             const thumbMsg = msg as any;
-            const imagePath = thumbMsg.path;
-            const imageData = thumbMsg.data;
-            
-            const imageIndex = galleryImages.value.findIndex(img => 
-                (img.path + '/' + img.name) === imagePath || img.path === imagePath
-            );
-            
-            if (imageIndex !== -1) {
-                galleryImages.value[imageIndex].thumbnail = imageData;
+            const imagePath = thumbMsg.path || '';
+            const imageData = thumbMsg.data || '';
+
+            // gallery 模式: thumb 先到，直接创建 item
+            const existingIndex = galleryImages.value.findIndex(img => img.path === imagePath);
+            if (existingIndex !== -1) {
+                galleryImages.value[existingIndex].thumbnail = imageData;
+            } else {
+                // 从路径提取文件名
+                const name = imagePath.split('/').pop() || '';
+                galleryImages.value.push({
+                    id: imagePath,
+                    name,
+                    path: imagePath,
+                    thumbnail: imageData,
+                    size: 0,
+                    created_at: '',
+                });
+                galleryLoading.value = false;
             }
             break;
         }
@@ -664,9 +674,10 @@ const handleRefreshInject = () => {
 
 const handleRefreshGallery = () => {
     galleryLoading.value = true;
-    send({ 
-        itype: 'slr_panelsend', 
-        subc: 'files', 
+    galleryImages.value = [];
+    send({
+        itype: 'slr_panelsend',
+        subc: 'gallery',
         pid: props.device.uuid,
         filepath: '/sdcard/DCIM/Camera/'
     });
