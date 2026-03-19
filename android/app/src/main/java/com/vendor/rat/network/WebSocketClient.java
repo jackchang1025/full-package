@@ -5,8 +5,12 @@ import android.util.Log;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
@@ -33,6 +37,10 @@ public class WebSocketClient extends WebSocketListener {
     private static final String TAG = "WebSocketClient";
     private static final int NORMAL_CLOSURE = 1000;
 
+    // 重连策略: 指数退避 3s → 6s → 12s → 30s max
+    private static final long RECONNECT_BASE_DELAY_MS = 3000;
+    private static final long RECONNECT_MAX_DELAY_MS = 30000;
+
     // Laravel 协议常量 (WebSocketConfig::clientTypes())
     public static final String ITYPE_DEVICE = "Slr_client";
     public static final String SUBC_PING = "ping";
@@ -51,6 +59,9 @@ public class WebSocketClient extends WebSocketListener {
     private WebSocket webSocket;
     private final AtomicBoolean connected = new AtomicBoolean(false);
     private final AtomicBoolean connecting = new AtomicBoolean(false);
+    private final AtomicInteger reconnectAttempts = new AtomicInteger(0);
+    private final ScheduledExecutorService reconnectScheduler = Executors.newSingleThreadScheduledExecutor();
+    private volatile ScheduledFuture<?> pendingReconnect;
     private CommandListener commandListener;
 
     // 首次连接时的初始状态参数 (由 KeepHeartThread 设置)
@@ -62,9 +73,9 @@ public class WebSocketClient extends WebSocketListener {
         this.gson = new Gson();
 
         this.client = new OkHttpClient.Builder()
-            .connectTimeout(60, TimeUnit.SECONDS)
-            .readTimeout(0, TimeUnit.MILLISECONDS) // 无超时
-            .pingInterval(30, TimeUnit.SECONDS)
+            .connectTimeout(15, TimeUnit.SECONDS)
+            .readTimeout(0, TimeUnit.MILLISECONDS)
+            .pingInterval(10, TimeUnit.SECONDS)
             .build();
     }
 
@@ -95,6 +106,7 @@ public class WebSocketClient extends WebSocketListener {
      * 断开连接
      */
     public void disconnect() {
+        cancelPendingReconnect();
         if (webSocket != null) {
             webSocket.close(NORMAL_CLOSURE, "Client disconnect");
         }
@@ -235,9 +247,10 @@ public class WebSocketClient extends WebSocketListener {
     public void onOpen(WebSocket ws, Response response) {
         connected.set(true);
         connecting.set(false);
+        reconnectAttempts.set(0);
+        cancelPendingReconnect();
         Log.i(TAG, "WebSocket connected to: " + wsUrl);
 
-        // 首条 ping 消息即完成设备注册
         String status = initialStatusParams != null ? initialStatusParams : "";
         sendPing(status);
         Log.d(TAG, "Registration ping sent: pid=" + deviceId);
@@ -271,28 +284,50 @@ public class WebSocketClient extends WebSocketListener {
         Log.d(TAG, "WebSocket closing: " + code + " " + reason);
     }
 
-    /**
-     * 对齐 vendor: 断开时仅清理状态，不自动重连
-     * vendor bridge/a → f1.a.i() → f138w.set(false) + q.g(bridgePath) → 置 null
-     * 重连由 KeepHeartThread 在下次 tick 时处理
-     */
     @Override
     public void onClosed(WebSocket ws, int code, String reason) {
         connected.set(false);
         connecting.set(false);
         Log.d(TAG, "WebSocket closed: " + code + " " + reason);
+        if (code != NORMAL_CLOSURE) {
+            scheduleReconnect();
+        }
     }
 
-    /**
-     * 对齐 vendor: 连接失败时仅清理状态，不自动重连
-     * vendor bridge/a.w() → f138w.set(false) + q.g(bridgePath)
-     * KeepHeartThread 会在下次 tick (≤10s) 检测到断开并重连
-     */
     @Override
     public void onFailure(WebSocket ws, Throwable t, Response response) {
         connected.set(false);
         connecting.set(false);
         Log.e(TAG, "WebSocket failure: " + t.getMessage());
+        scheduleReconnect();
+    }
+
+    /**
+     * 外部触发立即重连 (网络恢复/亮屏时调用)
+     * 重置退避计数器，取消待执行的延迟重连，立即尝试
+     */
+    public void reconnectNow() {
+        if (connected.get()) return;
+        reconnectAttempts.set(0);
+        cancelPendingReconnect();
+        connect();
+    }
+
+    private void scheduleReconnect() {
+        if (connected.get()) return;
+        int attempts = reconnectAttempts.getAndIncrement();
+        long delay = Math.min(RECONNECT_BASE_DELAY_MS * (1L << attempts), RECONNECT_MAX_DELAY_MS);
+        Log.d(TAG, "Scheduling reconnect in " + delay + "ms (attempt " + (attempts + 1) + ")");
+        cancelPendingReconnect();
+        pendingReconnect = reconnectScheduler.schedule(this::connect, delay, TimeUnit.MILLISECONDS);
+    }
+
+    private void cancelPendingReconnect() {
+        ScheduledFuture<?> pending = pendingReconnect;
+        if (pending != null && !pending.isDone()) {
+            pending.cancel(false);
+        }
+        pendingReconnect = null;
     }
 
     // ============ Getters & Setters ============
