@@ -191,8 +191,13 @@ cd app
 | [README.md](./docs/vendor-replication/README.md) | 模块索引、项目结构、路线图 |
 | [REPLICATION_PROTOCOL.md](./docs/vendor-replication/REPLICATION_PROTOCOL.md) | V3 行为驱动复刻协议 (5 阶段) |
 | [REPLICATION_MAP.md](./docs/vendor-replication/REPLICATION_MAP.md) | Vendor → Replica 文件映射表 |
-| [JAVA_PROJECT_REQUIREMENTS.md](./docs/vendor-replication/JAVA_PROJECT_REQUIREMENTS.md) | 项目需求与设计 |
-| [APK_VENDOR_REPLICATION_PLAN.md](./docs/vendor-replication/APK_VENDOR_REPLICATION_PLAN.md) | 功能复刻计划 |
+
+#### 计划与需求 (`planning/`)
+
+| 文档 | 说明 |
+|------|------|
+| JAVA_PROJECT_REQUIREMENTS.md | 项目需求与设计 |
+| APK_VENDOR_REPLICATION_PLAN.md | 功能复刻计划 |
 
 #### 模块设计 (`modules/`)
 
