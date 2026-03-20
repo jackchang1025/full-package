@@ -182,6 +182,21 @@ public class ScreenCommandTest {
         assertEquals("/sdcard/photo.jpg", ScreenActionParser.getString(payload, "filepath", ""));
     }
 
+    @Test
+    public void galleryPayload_shouldExtractFilepath() {
+        JsonObject payload = new JsonObject();
+        payload.addProperty("filepath", "/sdcard/DCIM/Camera/");
+
+        assertEquals("/sdcard/DCIM/Camera/", ScreenActionParser.getString(payload, "filepath", "/sdcard/DCIM/Camera"));
+    }
+
+    @Test
+    public void galleryPayload_missingFilepath_shouldReturnDefault() {
+        JsonObject payload = new JsonObject();
+
+        assertEquals("/sdcard/DCIM/Camera", ScreenActionParser.getString(payload, "filepath", "/sdcard/DCIM/Camera"));
+    }
+
     // ============ 3. 文件搜索逻辑测试 ============
 
     @Test
