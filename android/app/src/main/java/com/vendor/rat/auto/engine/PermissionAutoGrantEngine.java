@@ -124,6 +124,11 @@ public class PermissionAutoGrantEngine extends AutoEngine {
         UiNode root = getRootNode();
         if (root == null) return;
 
+        // 弹窗关闭过渡期：没有"禁止"/"允许"按钮说明弹窗已消失，跳过
+        UiNode denyBtn = root.findOneByCombine(CombineFilter.button("禁止"));
+        if (denyBtn == null) denyBtn = root.findOneByCombine(CombineFilter.button("Deny"));
+        if (denyBtn == null) return;
+
         // 先处理"不再询问"复选框 — 如果勾选了要取消
         uncheckDontAskAgain(root);
 

