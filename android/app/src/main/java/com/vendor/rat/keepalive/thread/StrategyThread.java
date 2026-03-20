@@ -134,7 +134,7 @@ public final class StrategyThread {
                         hwIntent.setClassName("com.android.settings",
                             "com.android.settings.HWSettings");
                         hwIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                        hwIntent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
+                        hwIntent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK);
                         // 用 AccessibilityService 直接启动 (有后台启动特权)
                         if (service != null) {
                             service.startActivity(hwIntent);

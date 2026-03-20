@@ -11,6 +11,8 @@
 
 ## 一、项目概述
 
+**运行时交互文档**: [APK_RUNTIME_INTERACTION_FLOW.md](./APK_RUNTIME_INTERACTION_FLOW.md)
+
 本项目旨在一比一复刻 Vendor APK 的核心功能，构建一个完整的 Java Android 项目，用于企业安全培训靶场环境。
 
 ### 1.1 技术栈

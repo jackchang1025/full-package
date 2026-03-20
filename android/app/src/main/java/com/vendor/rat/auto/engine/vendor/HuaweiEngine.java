@@ -496,13 +496,33 @@ public class HuaweiEngine extends AutoEngine {
         UiNode root = getRootNode();
         if (root == null) return;
 
+        // 华为"手动管理"对话框 UI 结构 (uiautomator dump 确认):
+        //   RelativeLayout > [LinearLayout > [TextView "允许自启动"], Switch]
+        // 需要先开启三个开关，再点击确定
+        toggleSwitchInDialog(root, "HUA_WEI_ALLOW_AUTO_STARTUP_TEXT", mainAutoStart);
+        T0(1);
+        root = getRootNode();
+        if (root != null) {
+            toggleSwitchInDialog(root, "HUA_WEI_ALLOW_RELATE_STARTUP_TEXT", mainRelateStart);
+        }
+        T0(1);
+        root = getRootNode();
+        if (root != null) {
+            toggleSwitchInDialog(root, "HUA_WEI_ALLOW_IN_BACKGROUND_TEXT", mainBackground);
+        }
+        T0(1);
+
+        // 点击确定
+        root = getRootNode();
+        if (root == null) return;
+
         List<String> texts = getConfigTexts("COMMON_CONFIRM_TEXT");
         if (texts != null) {
             for (String text : texts) {
                 UiNode btn = root.findOneByCombine(CombineFilter.button(text));
                 if (btn != null) {
                     btn.click();
-                    log("点击对话框: " + text);
+                    log("点击对话框确定: " + text);
                     updateProgress(70);
                     T0(5);
                     return;
@@ -522,6 +542,54 @@ public class HuaweiEngine extends AutoEngine {
             }
         }
         logError("对话框按钮未找到");
+    }
+
+    /**
+     * 在对话框中查找标签对应的 Switch 并开启
+     * UI 结构: RelativeLayout > [LinearLayout > [TextView label], Switch]
+     * label.getParent() = LinearLayout, 需要再上一层到 RelativeLayout 才能找到 Switch
+     */
+    private void toggleSwitchInDialog(UiNode root, String configKey, AtomicBoolean flag) {
+        CombineFilter filter = buildTextViewFilter(configKey);
+        if (filter == null) return;
+
+        UiNode label = root.findOneByCombine(filter);
+        if (label == null) {
+            List<String> texts = getConfigTexts(configKey);
+            if (texts != null) {
+                for (String text : texts) {
+                    label = root.findOneByTextContains(text);
+                    if (label != null) break;
+                }
+            }
+        }
+        if (label == null) {
+            logError("对话框中标签未找到: " + configKey);
+            return;
+        }
+
+        // 上两层: TextView → LinearLayout → RelativeLayout
+        UiNode parent = label.getParent();
+        if (parent != null) parent = parent.getParent();
+        if (parent == null) {
+            logError("对话框中父节点未找到: " + configKey);
+            return;
+        }
+
+        UiNode sw = parent.findOneByClassName("android.widget.Switch");
+        if (sw == null) sw = parent.findOneByCombine(CombineFilter.switchWidget());
+
+        if (sw != null) {
+            if (!sw.isChecked()) {
+                sw.click();
+                log("对话框中已开启: " + configKey);
+            } else {
+                log("对话框中已经开启: " + configKey);
+            }
+            flag.set(true);
+        } else {
+            logError("对话框中 Switch 未找到: " + configKey);
+        }
     }
 
     // ============ 华为设置 / 应用和服务 ============
@@ -655,7 +723,8 @@ public class HuaweiEngine extends AutoEngine {
                 node.click();
                 log("点击应用启动管理栏目完成");
             } else {
-                logError("启动管理栏目未找到");
+                logError("启动管理栏目未找到，移除状态允许重试");
+                stateQueue.remove(ST_APP_NOTIF);
             }
         } catch (Exception e) {
             logError("handleAppAndNotification error", e);
