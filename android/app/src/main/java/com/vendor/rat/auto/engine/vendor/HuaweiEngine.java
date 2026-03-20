@@ -296,7 +296,7 @@ public class HuaweiEngine extends AutoEngine {
             if (appNode == null) {
                 logError("主进程App查找失败");
                 saveState();
-                Z();
+                finishAsync();
                 return;
             }
 
@@ -340,7 +340,7 @@ public class HuaweiEngine extends AutoEngine {
                     log("主进程已选择手动管理");
                     updateProgress(80);
                     saveState();
-                    Z();
+                    finishAsync();
                 }
             } else {
                 logError("Switch 未找到");
@@ -353,7 +353,7 @@ public class HuaweiEngine extends AutoEngine {
                     handleAppDetail();
                 } else {
                     saveState();
-                    Z();
+                    finishAsync();
                 }
             }
         } catch (Exception e) {
@@ -456,10 +456,8 @@ public class HuaweiEngine extends AutoEngine {
         performBack();
 
         saveState();
-        finish();
-    }
-
-    private void toggleSwitch(UiNode root, String configKey, AtomicBoolean flag) {
+        finishAsync();
+    }    private void toggleSwitch(UiNode root, String configKey, AtomicBoolean flag) {
         CombineFilter filter = buildTextViewFilter(configKey);
         if (filter == null) return;
 
@@ -742,7 +740,7 @@ public class HuaweiEngine extends AutoEngine {
         if (isCompleted()) return;
         if (mainAutoStart.get() && mainBackground.get()) {
             log("所有华为权限已授予");
-            finish();
+            finishAsync();
         }
     }
 
@@ -767,4 +765,12 @@ public class HuaweiEngine extends AutoEngine {
     }
 
     public void setAppName(String name) { this.appName = name; }
+
+    /**
+     * 异步完成引擎 — 脱离 onAccessibilityEvent 的 f227l 锁
+     * 使 Z() 中的遮罩移除和权限请求不阻塞事件分发
+     */
+    private void finishAsync() {
+        new Thread(() -> finish(), "huawei-finish").start();
+    }
 }

