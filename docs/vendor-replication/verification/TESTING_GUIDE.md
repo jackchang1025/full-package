@@ -1,7 +1,7 @@
 # Vendor APK 项目测试文档
 
-> **文档版本**: 1.1
-> **日期**: 2026-03-17
+> **文档版本**: 1.2
+> **日期**: 2026-03-21
 > **适用项目**: Vendor APK Java 复刻项目
 > **测试策略**: 分层测试 + 持续集成
 > **构建环境**: WSL Ubuntu 22.04 + JDK 17 + Android SDK CLI
@@ -108,7 +108,7 @@ dependencies {
 
 ```
 android/app/src/
-├── main/java/com/vendor/rat/       # 51 个源文件
+├── main/java/com/vendor/rat/
 │   ├── network/
 │   ├── service/
 │   ├── auto/
@@ -119,13 +119,27 @@ android/app/src/
 │   ├── activity/
 │   ├── exception/
 │   └── utils/
-└── test/java/com/vendor/rat/       # 4 个单元测试（已全部通过）
+└── test/java/com/vendor/rat/       # 14 个单元测试（已全部通过）
+    ├── StartupModuleTest.java       # 启动模块集成测试
     ├── network/
     │   └── HttpClientTest.java      # MockWebServer POST/GET 测试
     ├── auto/
-    │   └── NodeFilterTest.java      # StringCondition/BoolCondition/CombineFilter 测试
+    │   ├── NodeFilterTest.java      # StringCondition/BoolCondition/CombineFilter 测试
+    │   └── engine/
+    │       ├── AutoEngineWindowMatcherTest.java              # WindowMatcher.matches() 边界 (15 用例)
+    │       ├── PermissionAutoGrantEngineMatchWindowTest.java  # 权限弹窗窗口匹配 (12 用例)
+    │       └── vendor/
+    │           ├── HuaweiEngineWindowMatchTest.java          # 华为四组窗口检测 (21 用例)
+    │           ├── HuaweiEngineStateMachineTest.java         # 华为状态机转换 (12 用例)
+    │           ├── XiaomiEngineWindowMatchTest.java          # 小米窗口检测
+    │           └── XiaomiEngineStateMachineTest.java         # 小米状态机转换
     ├── config/
     │   └── AppConfigTest.java       # 默认配置和 getter/setter 测试
+    ├── control/handler/
+    │   ├── ScreenCommandTest.java       # 屏幕命令解析测试
+    │   └── ScreenActionParserTest.java  # 屏幕动作解析测试
+    ├── service/
+    │   └── DeviceAdminReceiverTest.java # 设备管理接收器测试
     └── utils/
         └── DeviceUtilsTest.java     # getBrandName 非空测试
 ```
@@ -477,6 +491,68 @@ public class DeviceUtilsTest {
 
 ---
 
+### 3.5 自动化引擎测试（纯 JVM，无需 Android 框架）
+
+以下测试覆盖华为保活自动化和权限自动授予的核心逻辑，全部纯 JVM 运行。
+
+#### 3.5.1 WindowMatcher 边界测试
+
+**文件**: `test/java/com/vendor/rat/auto/engine/AutoEngineWindowMatcherTest.java` (15 用例)
+
+测试 `AutoEngine.WindowMatcher.matches(pkg, cls, eventType)` 的所有分支：
+- 精确包名+类名匹配、包名通配（className=null/空）
+- eventType 过滤（集合内/集合外/空集合/eventType=0 边界）
+- buildAllMatchers 风格（带 eventTypes）vs buildDetectionGroups 风格（无 eventTypes）行为差异
+
+```bash
+./gradlew testDebugUnitTest --tests "com.vendor.rat.auto.engine.AutoEngineWindowMatcherTest"
+```
+
+#### 3.5.2 华为四组窗口检测测试
+
+**文件**: `test/java/com/vendor/rat/auto/engine/vendor/HuaweiEngineWindowMatchTest.java` (21 用例)
+
+复制 HuaweiEngine 常量和 buildDetectionGroups 逻辑，验证四组检测列表：
+- hwSettingsWins (j0): HWSettings ✓, CleanSubSettings ✓, SubSettings ✗
+- appNotifWins (i0): SubSettings ✓, AppAndNotification ✓, InstalledAppDetails ✓
+- startupWindows (k0): StartupAppControl ✓, StartupNormalList ✓, HonorStartup ✓
+- dialogWins (h0): HUAWEI_SM+AlertDialog ✓, HONOR_SM+AlertDialog ✓, SETTINGS+AlertDialog ✗
+- 跨组互斥验证 + 空列表/null/错误包名边界
+
+```bash
+./gradlew testDebugUnitTest --tests "com.vendor.rat.auto.engine.vendor.HuaweiEngineWindowMatchTest"
+```
+
+#### 3.5.3 华为状态机转换测试
+
+**文件**: `test/java/com/vendor/rat/auto/engine/vendor/HuaweiEngineStateMachineTest.java` (12 用例)
+
+创建 TestableEngine 暴露 stateQueue，测试状态转换：
+- 初始状态为空、enterState 添加/互斥移除、重复添加不重复
+- exitState 移除/不存在不报错
+- 完整转换序列: HW→APP→STARTUP→DIALOG
+- stateQueue.clear() 清空、完成条件检查
+
+```bash
+./gradlew testDebugUnitTest --tests "com.vendor.rat.auto.engine.vendor.HuaweiEngineStateMachineTest"
+```
+
+#### 3.5.4 权限弹窗窗口匹配测试
+
+**文件**: `test/java/com/vendor/rat/auto/engine/PermissionAutoGrantEngineMatchWindowTest.java` (12 用例)
+
+测试 `PermissionAutoGrantEngine.matchWindow()` 重写逻辑：
+- 权限控制器包名匹配 (android/google/packageinstaller)
+- 华为 systemmanager + className 含 "Permission" → true
+- 通用 GrantPermissions 类名匹配
+- null 包名/类名边界、不匹配的包名
+
+```bash
+./gradlew testDebugUnitTest --tests "com.vendor.rat.auto.engine.PermissionAutoGrantEngineMatchWindowTest"
+```
+
+---
+
 ## 四、Robolectric 测试（Level 2）
 
 ### 4.1 Service 测试
@@ -528,10 +604,13 @@ cd /home/code/php/project/full-package/android
 ./gradlew test
 
 # 运行特定测试类
-./gradlew test --tests "com.vendor.rat.network.HttpClientTest"
+./gradlew testDebugUnitTest --tests "com.vendor.rat.network.HttpClientTest"
 
 # 运行特定测试方法
-./gradlew test --tests "com.vendor.rat.network.HttpClientTest.testPostRequest"
+./gradlew testDebugUnitTest --tests "com.vendor.rat.network.HttpClientTest.testPostRequest"
+
+# 运行自动化引擎全部测试
+./gradlew testDebugUnitTest --tests "com.vendor.rat.auto.engine.*"
 
 # 清理后运行（构建缓存出问题时使用）
 ./gradlew clean test
@@ -629,6 +708,6 @@ open app/build/reports/jacoco/jacocoTestReport/html/index.html
 
 ---
 
-**文档版本**: 1.1
-**最后更新**: 2026-03-17
+**文档版本**: 1.2
+**最后更新**: 2026-03-21
 **下一部分**: Instrumentation 测试和真机测试

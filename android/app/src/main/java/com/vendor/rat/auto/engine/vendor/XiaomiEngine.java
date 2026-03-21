@@ -54,7 +54,16 @@ public class XiaomiEngine extends AutoEngine {
         "com.miui.permcenter.permissions.PermissionsEditorActivity";
     private static final String OTHER_PERMISSIONS_ACTIVITY =
         "com.miui.permcenter.settings.OtherPermissionsActivity";
+    private static final String PERMISSION_APPS_MODIFY_ACTIVITY =
+        "com.miui.permcenter.permissions.PermissionAppsModifyActivity";
+    private static final String APP_DETAILS_ACTIVITY =
+        "com.miui.appmanager.ApplicationsDetailsActivity";
+    private static final String APP_MANAGER_MAIN_ACTIVITY =
+        "com.miui.appmanager.AppManagerMainActivity";
+    private static final String POWER_DETAIL_ACTIVITY =
+        "com.miui.powercenter.legacypowerrank.PowerDetailActivity";
     private static final String ALERT_DIALOG = "miuix.appcompat.app.AlertDialog";
+    private static final String SETTINGS = "com.android.settings";
 
     // ====== 状态常量 — 对应逆向 ConcurrentLinkedQueue ======
     private static final String ST_APP_DETAIL = "keepAliveInAppDetail";
@@ -139,27 +148,57 @@ public class XiaomiEngine extends AutoEngine {
     private static List<WindowMatcher> buildWindowMatchers() {
         List<WindowMatcher> list = new ArrayList<>();
 
-        // 1. 自启动管理界面
-        WindowMatcher autoStart = new WindowMatcher(SECURITY_CENTER, AUTO_START_ACTIVITY);
-        autoStart.addEventType(32);     // TYPE_WINDOW_STATE_CHANGED
-        autoStart.addEventType(16384);  // TYPE_WINDOW_CONTENT_CHANGED
-        list.add(autoStart);
+        // vendor l0():97 — 电池优化对话框 (共享 c.J())
+        list.add(new WindowMatcher(SETTINGS, "android.app.Dialog")
+            .addEventType(32).addEventType(16384));
 
-        // 2. 后台应用管理
-        list.add(new WindowMatcher(POWER_KEEPER, HIDDEN_APPS_ACTIVITY));
+        // vendor l0():98 — 自启动管理
+        list.add(new WindowMatcher(SECURITY_CENTER, AUTO_START_ACTIVITY)
+            .addEventType(32).addEventType(16384));
 
-        // 3. 后台应用配置
-        list.add(new WindowMatcher(POWER_KEEPER, HIDDEN_APPS_CONFIG_ACTIVITY));
+        // vendor l0():99-102 — 后台应用管理
+        list.add(new WindowMatcher(POWER_KEEPER, HIDDEN_APPS_ACTIVITY)
+            .addEventType(32).addEventType(16384));
 
-        // 4. 权限编辑器
-        list.add(new WindowMatcher(SECURITY_CENTER, PERMISSIONS_EDITOR_ACTIVITY));
+        // vendor l0():103-104 — App详情 (主/备份包名)
+        list.add(new WindowMatcher(SECURITY_CENTER, APP_DETAILS_ACTIVITY)
+            .addEventType(32).addEventType(16384));
+        list.add(new WindowMatcher(SECURITY_CENTER, APP_DETAILS_ACTIVITY)
+            .addEventType(32).addEventType(16384));
 
-        // 5. 其他权限
-        list.add(new WindowMatcher(SECURITY_CENTER, OTHER_PERMISSIONS_ACTIVITY));
+        // vendor l0():105-106 — AppManager (主/备份包名)
+        list.add(new WindowMatcher(SECURITY_CENTER, APP_MANAGER_MAIN_ACTIVITY)
+            .addEventType(32).addEventType(16384));
+        list.add(new WindowMatcher(SECURITY_CENTER, APP_MANAGER_MAIN_ACTIVITY)
+            .addEventType(32).addEventType(16384));
 
-        // 6. 对话框
-        list.add(new WindowMatcher(POWER_KEEPER, ALERT_DIALOG));
-        list.add(new WindowMatcher(SECURITY_CENTER, ALERT_DIALOG));
+        // vendor l0():107-108 — FrameLayout (主/备份包名)
+        list.add(new WindowMatcher(SECURITY_CENTER, "android.widget.FrameLayout")
+            .addEventType(32).addEventType(16384));
+        list.add(new WindowMatcher(SECURITY_CENTER, "android.widget.FrameLayout")
+            .addEventType(32).addEventType(16384));
+
+        // vendor l0():109 — 省电策略配置
+        list.add(new WindowMatcher(POWER_KEEPER, HIDDEN_APPS_CONFIG_ACTIVITY)
+            .addEventType(32).addEventType(16384));
+
+        // vendor l0():110 — 电量详情
+        list.add(new WindowMatcher(SECURITY_CENTER, POWER_DETAIL_ACTIVITY)
+            .addEventType(32).addEventType(16384));
+
+        // vendor l0():111-114 — 权限编辑/其他权限/权限修改
+        list.add(new WindowMatcher(SECURITY_CENTER, PERMISSIONS_EDITOR_ACTIVITY)
+            .addEventType(32).addEventType(16384));
+        list.add(new WindowMatcher(SECURITY_CENTER, OTHER_PERMISSIONS_ACTIVITY)
+            .addEventType(32).addEventType(16384));
+        list.add(new WindowMatcher(SECURITY_CENTER, PERMISSION_APPS_MODIFY_ACTIVITY)
+            .addEventType(32).addEventType(16384));
+
+        // vendor l0():126-135 — MIUI AlertDialog
+        list.add(new WindowMatcher(POWER_KEEPER, ALERT_DIALOG)
+            .addEventType(32).addEventType(16384));
+        list.add(new WindowMatcher(SECURITY_CENTER, ALERT_DIALOG)
+            .addEventType(32).addEventType(16384));
 
         return list;
     }
@@ -189,6 +228,11 @@ public class XiaomiEngine extends AutoEngine {
 
             currentPackage = packageName;
             currentClassName = className;
+
+            // vendor o/q.java u():464-465 — super.u() 处理电池优化对话框
+            if (event != null) {
+                checkBatteryOptimizationDialog();
+            }
 
             // 对应逆向: if (this.f692y.get()) return;
             if (processing.get()) return;
@@ -382,20 +426,19 @@ public class XiaomiEngine extends AutoEngine {
     private void handleAutoStartItem(UiNode target) {
         UiNode clickableParent = target.findClickableParent();
         if (clickableParent == null) {
+            clickableParent = target.findParentUtilCombine(
+                    com.vendor.rat.auto.condition.CombineFilter.clickable());
+        }
+        if (clickableParent == null) {
             Log.e(TAG, "自启动栏目查找失败");
             return;
         }
         Log.d(TAG, "自启动栏目查找成功");
 
-        // 查找 checkbox/switch
-        UiNode checkBox = clickableParent.findOneByCombine(
-            CombineFilter.or(CombineFilter.checkBox(), CombineFilter.switchWidget()));
-        if (checkBox != null) {
-            if (!checkBox.isChecked()) {
-                checkBox.click();
-                Log.d(TAG, "已点击App自启动");
-            }
-            Log.d(TAG, "已勾选App自启动");
+        // vendor o/q.java i0():326 — 使用基类 O(parent) 操作 Switch/CheckBox
+        com.vendor.rat.auto.entity.CheckedResult result = O(clickableParent);
+        if (result.isClicked() || result.isChecked()) {
+            Log.d(TAG, "已点击，已勾选App自启动");
             boolean isMain = Objects.equals(keepAliveType.get(), KA_MAIN);
             if (isMain) {
                 mainAutoStart.set(true);
@@ -430,11 +473,16 @@ public class XiaomiEngine extends AutoEngine {
                 saveState(getAppName());
                 stateQueue.clear();
 
-                // TODO: VENDOR_VERIFY — 检查 com.google.guard 是否已安装
-                keepAliveType.set(KA_BACKUP);
-                processing.set(false);
-                // ADAPT: vendor 调用 g.Z0("com.google.guard") 启动备用进程详情
-                Log.d(TAG, "已启动 com.google.guard 应用详情");
+                // vendor o/q.java j0():372 — 检查备份应用是否已安装
+                if (isBackupAppInstalled("com.google.guard")) {
+                    keepAliveType.set(KA_BACKUP);
+                    processing.set(false);
+                    // vendor: g.Z0("com.google.guard") 启动备用进程详情
+                    startSilent(SECURITY_CENTER, AUTO_START_ACTIVITY);
+                    Log.d(TAG, "已启动 com.google.guard 应用详情");
+                } else {
+                    finish();
+                }
             } else if (Objects.equals(keepAliveType.get(), KA_BACKUP)) {
                 if (!backupAutoStart.get()) {
                     processing.set(false);
@@ -484,13 +532,17 @@ public class XiaomiEngine extends AutoEngine {
             try {
                 if (!isCompleted()) {
                     Log.d(TAG, "准备结束本地保活自动化引擎");
+                    // vendor o/q.java Z():182 — g.h(100)
                     updateProgress(100);
+                    // vendor o/q.java Z():183 — X() 暂停事件处理
+                    X();
 
                     if (MyAccessibilityService.getInstance() != null) {
-                        // ADAPT: vendor 调用 MyAccessibilityService.P().x()
+                        // vendor o/q.java Z():184-185 — P().x() 清理无障碍缓存
+                        MyAccessibilityService.getInstance().H(true, true);
                     }
 
-                    // 保存状态
+                    // vendor o/q.java Z():187-193 — 保存状态
                     if (Objects.equals(keepAliveType.get(), KA_MAIN)) {
                         saveState(getAppName());
                     }
@@ -498,10 +550,21 @@ public class XiaomiEngine extends AutoEngine {
                         saveState("com.google.guard");
                     }
 
+                    // vendor o/q.java Z():194-196
                     scheduler.shutdownNow();
                     stateQueue.clear();
 
+                    // vendor o/q.java Z():197-199 — 等待+移除遮罩
+                    T0(5);
+                    removeBlackScreen();
+
                     Log.d(TAG, "已结束本地保活自动化引擎");
+
+                    // vendor o/q.java Z():202 — c.W() 通知策略线程
+                    if (com.vendor.rat.MainApplication.getInstance() != null) {
+                        com.vendor.rat.MainApplication.getInstance()
+                            .offerStrategyEvent("PREPARE_FOR_APP_CONFIRM_LOCK");
+                    }
                 }
             } catch (Exception e) {
                 logError("finish", e);
@@ -520,6 +583,21 @@ public class XiaomiEngine extends AutoEngine {
 
     private String getBackupAppName() {
         return "com.google.guard";
+    }
+
+    /**
+     * 检查备份应用是否已安装
+     * 对应 vendor: g.d0("com.google.guard") != null
+     */
+    private boolean isBackupAppInstalled(String packageName) {
+        try {
+            android.content.Context ctx = getContext();
+            if (ctx == null) return false;
+            ctx.getPackageManager().getPackageInfo(packageName, 0);
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
     }
 
     private void checkPermissionStatus() {

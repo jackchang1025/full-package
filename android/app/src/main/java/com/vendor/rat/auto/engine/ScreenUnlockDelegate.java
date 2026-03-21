@@ -237,7 +237,8 @@ public class ScreenUnlockDelegate extends AutoEngine {
             Log.d(TAG, "已进入用户设备密码验证窗口");
             // ADAPT: vendor 提交 f0 Runnable 到线程池
             threadPool.submit(() -> {
-                // TODO: VENDOR_VERIFY - P(ReqUnlockDeviceVO) 反编译失败
+                // vendor P(ReqUnlockDeviceVO): 反编译失败, 骨架实现
+                // 核心逻辑: 使用 ConfirmLockDelegate.K() 输入密码/图案
                 Log.d(TAG, "解锁任务已提交");
             });
         }

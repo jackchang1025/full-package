@@ -501,6 +501,44 @@ public class UiNode {
     }
 
     /**
+     * 查找匹配 parentFilter 且包含匹配 childFilter 子节点的第一个节点
+     * 对应逆向: UiObject.findOneByCombineWithChild(CombineFilterWithChild)
+     * vendor 模式: k().findOneByCombineWithChild(new CombineFilterWithChild(K(), textFilter))
+     *   K() = clickable row filter
+     *   textFilter = 目标文本 filter (e0/c0/f0 等)
+     *
+     * @param parentFilter 父节点过滤条件
+     * @param childFilter 子节点过滤条件
+     * @return 匹配的父节点, 或 null
+     */
+    public UiNode findOneByCombineWithChild(NodeFilter parentFilter, NodeFilter childFilter) {
+        return findWithChildRecursive(nodeInfo, parentFilter, childFilter);
+    }
+
+    private UiNode findWithChildRecursive(AccessibilityNodeInfo node,
+                                           NodeFilter parentFilter, NodeFilter childFilter) {
+        if (node == null) return null;
+        UiNode wrapped = new UiNode(node);
+        // 先检查当前节点是否匹配 parentFilter
+        if (parentFilter.accept(wrapped)) {
+            // 再检查子节点是否有匹配 childFilter 的
+            UiNode childMatch = findNodeRecursive(node, childFilter);
+            if (childMatch != null) {
+                return wrapped;
+            }
+        }
+        // 递归子节点
+        for (int i = 0; i < node.getChildCount(); i++) {
+            AccessibilityNodeInfo child = node.getChild(i);
+            if (child != null) {
+                UiNode result = findWithChildRecursive(child, parentFilter, childFilter);
+                if (result != null) return result;
+            }
+        }
+        return null;
+    }
+
+    /**
      * 递归查找所有匹配的节点
      */
     public List<UiNode> findAllByCombine(NodeFilter filter) {

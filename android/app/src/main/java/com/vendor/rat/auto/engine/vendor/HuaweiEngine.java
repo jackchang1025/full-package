@@ -67,10 +67,20 @@ public class HuaweiEngine extends AutoEngine {
     private static final String ST_STARTUP = "keepAlvieInStartupAppControl";
     private static final String ST_DIALOG = "keepAliveInAlertDialog";
 
-    // ====== 状态字段 ======
+    // ====== 状态字段 — 对齐 vendor o/n.java 字段 ======
+    // 主应用
     private final AtomicBoolean mainAutoStart = new AtomicBoolean(false);
     private final AtomicBoolean mainRelateStart = new AtomicBoolean(true);
     private final AtomicBoolean mainBackground = new AtomicBoolean(false);
+    // 备份应用 (vendor: f676t, f678v, f680x)
+    private final AtomicBoolean backupAutoStart = new AtomicBoolean(false);
+    private final AtomicBoolean backupRelateStart = new AtomicBoolean(true);
+    private final AtomicBoolean backupBackground = new AtomicBoolean(false);
+
+    // vendor: f674r — 当前保活目标
+    private enum KeepAliveTarget { UNKNOWN, MAIN_APP, BACKUP_APP }
+    private final AtomicReference<KeepAliveTarget> keepAliveTarget =
+            new AtomicReference<>(KeepAliveTarget.UNKNOWN);
 
     private String appName;
 
@@ -288,19 +298,27 @@ public class HuaweiEngine extends AutoEngine {
         try {
             updateProgress(50);
 
+            // vendor o/n.java:254-258: 首次进入设置目标为 MAIN_APP
+            if (keepAliveTarget.get() == KeepAliveTarget.UNKNOWN) {
+                keepAliveTarget.set(KeepAliveTarget.MAIN_APP);
+            }
+
             String target = getAppName();
+            if (keepAliveTarget.get() == KeepAliveTarget.BACKUP_APP) {
+                target = getBackupAppName();
+            }
 
             // 使用搜索查找应用 (不依赖滚动视图)
             UiNode appNode = searchAppInStartupControl(target);
 
             if (appNode == null) {
-                logError("主进程App查找失败");
+                logError(keepAliveTarget.get() + " App查找失败: " + target);
                 saveState();
-                finishAsync();
+                handleAppSwitchOrFinish();
                 return;
             }
 
-            log("主进程App查找成功");
+            log(keepAliveTarget.get() + " App查找成功: " + target);
             updateProgress(55);
 
             // 华为启动管理: 查找同行的 Switch
@@ -334,13 +352,22 @@ public class HuaweiEngine extends AutoEngine {
                     T0(5);
                     return;
                 } else {
-                    mainAutoStart.set(true);
-                    mainRelateStart.set(true);
-                    mainBackground.set(true);
-                    log("主进程已选择手动管理");
+                    // vendor o/n.java:296-301 / 337-343: 标记当前目标完成
+                    if (keepAliveTarget.get() == KeepAliveTarget.MAIN_APP
+                            || keepAliveTarget.get() == KeepAliveTarget.UNKNOWN) {
+                        mainAutoStart.set(true);
+                        mainRelateStart.set(true);
+                        mainBackground.set(true);
+                        log("主进程已选择手动管理");
+                    } else {
+                        backupAutoStart.set(true);
+                        backupRelateStart.set(true);
+                        backupBackground.set(true);
+                        log("备用进程已选择手动管理");
+                    }
                     updateProgress(80);
-                    saveState();
-                    finishAsync();
+                    // vendor o/n.java:300-301 / 341-343: 切换到下一个目标或结束
+                    handleAppSwitchOrFinish();
                 }
             } else {
                 logError("Switch 未找到");
@@ -734,6 +761,69 @@ public class HuaweiEngine extends AutoEngine {
     private void saveState() {
         log("保存保活策略 — 主进程: auto=" + mainAutoStart.get()
             + " relate=" + mainRelateStart.get() + " bg=" + mainBackground.get());
+        if (keepAliveTarget.get() == KeepAliveTarget.BACKUP_APP) {
+            log("保存保活策略 — 备用进程: auto=" + backupAutoStart.get()
+                + " relate=" + backupRelateStart.get() + " bg=" + backupBackground.get());
+        }
+    }
+
+    /**
+     * 双应用保活切换逻辑
+     * 对应 vendor o/n.java r0() 行 259-265 + 341-343
+     *
+     * 流程:
+     *   MAIN_APP 完成 → 如果备份应用存在 → 切换到 BACKUP_APP → 重新处理
+     *   BACKUP_APP 完成 → 保存状态 → Z() 结束
+     *   无备份应用 → 直接结束
+     */
+    private void handleAppSwitchOrFinish() {
+        saveState();
+        if (keepAliveTarget.get() == KeepAliveTarget.MAIN_APP) {
+            // vendor o/n.java:260-265: 检查备份应用
+            String backupPkg = "com.google.guard";
+            if (isBackupAppInstalled(backupPkg)) {
+                keepAliveTarget.set(KeepAliveTarget.BACKUP_APP);
+                stateQueue.clear();
+                log("切换到备用进程: " + backupPkg);
+                // 不调用 finishAsync，等待下一次事件触发
+            } else {
+                finishAsync();
+            }
+        } else {
+            // BACKUP_APP 或 UNKNOWN 完成
+            finishAsync();
+        }
+    }
+
+    /**
+     * 检查备份应用是否已安装
+     * 对应 vendor: g.d0("com.google.guard") != null
+     */
+    private boolean isBackupAppInstalled(String packageName) {
+        try {
+            android.content.Context ctx = getContext();
+            if (ctx == null) return false;
+            ctx.getPackageManager().getPackageInfo(packageName, 0);
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    /**
+     * 获取备份应用名称
+     * vendor: 固定为 "com.google.guard" 的应用标签
+     */
+    private String getBackupAppName() {
+        try {
+            android.content.Context ctx = getContext();
+            if (ctx == null) return "com.google.guard";
+            android.content.pm.PackageManager pm = ctx.getPackageManager();
+            android.content.pm.ApplicationInfo ai = pm.getApplicationInfo("com.google.guard", 0);
+            return pm.getApplicationLabel(ai).toString();
+        } catch (Exception e) {
+            return "com.google.guard";
+        }
     }
 
     private void checkCompletion() {

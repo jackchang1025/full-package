@@ -112,6 +112,39 @@ public abstract class MiscUtils {
         return false;
     }
 
+    /**
+     * 坐标点击 — 对应 vendor g.s(Integer, Integer) → g.G0() → g.S()
+     * vendor: g.java:2649-2651 + g.java:390-392
+     *
+     * 逻辑: 构建单点 Path → GestureDescription → dispatchGesture
+     * 延迟: startTime=16ms, duration=tapTimeout+50ms
+     */
+    public static boolean tapAtCoordinate(int x, int y) {
+        com.vendor.rat.service.MyAccessibilityService service =
+                com.vendor.rat.service.MyAccessibilityService.getInstance();
+        if (service == null) {
+            Log.w(TAG, "tapAtCoordinate: service is null");
+            return false;
+        }
+        try {
+            android.graphics.Path path = new android.graphics.Path();
+            path.moveTo(x, y);
+            // vendor: g.G0(x, y, ViewConfiguration.getTapTimeout() + 50)
+            long duration = android.view.ViewConfiguration.getTapTimeout() + 50;
+            android.accessibilityservice.GestureDescription gesture =
+                    new android.accessibilityservice.GestureDescription.Builder()
+                            .addStroke(new android.accessibilityservice.GestureDescription
+                                    .StrokeDescription(path, 16, duration))
+                            .build();
+            boolean result = service.dispatchGesture(gesture, null, null);
+            Log.d(TAG, "tapAtCoordinate(" + x + "," + y + ") = " + result);
+            return result;
+        } catch (Exception e) {
+            Log.e(TAG, "tapAtCoordinate error", e);
+            return false;
+        }
+    }
+
     /** Perform global action. Vendor: g.a() */
     public static boolean performGlobalAction(Object condition) {
         // ADAPT: vendor dispatches global action via AccessibilityService
