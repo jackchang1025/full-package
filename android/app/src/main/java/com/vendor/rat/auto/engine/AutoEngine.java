@@ -1111,19 +1111,51 @@ public abstract class AutoEngine {
      */
     protected void checkBatteryOptimizationDialog() {
         try {
-            // vendor c.java:769-776: 检查是否在电池优化对话框
             ListenWindow dialogWindow = buildBatteryDialogWindow();
             if (matchListenWindows(java.util.Collections.singletonList(dialogWindow))) {
                 Log.d(TAG, "已进入是否允许忽略电池优化窗口");
-                // vendor c.java:784-791: 状态机防重复
                 if (!stateQueue.contains("keepInBatteryUnRestricted")) {
                     stateQueue.add("keepInBatteryUnRestricted");
-                    // TODO: 异步执行点击"允许"按钮
                     // vendor: thread.l.c(new o.a(this, 0), this.c)
+                    scheduler.execute(new Runnable() {
+                        @Override
+                        public void run() {
+                            dismissBatteryOptimizationDialog();
+                        }
+                    });
                 }
             }
         } catch (Exception e) {
             Log.e(TAG, "checkBatteryOptimizationDialog error", e);
+        }
+    }
+
+    /**
+     * 点击电池优化对话框的"允许"按钮
+     * 对应 vendor: o/a.java case 0 — 查找 android:id/button1 并点击
+     */
+    private void dismissBatteryOptimizationDialog() {
+        try {
+            UiNode root = getRootNode();
+            if (root == null) {
+                stateQueue.remove("keepInBatteryUnRestricted");
+                return;
+            }
+            // vendor: 查找 android:id/button1 (允许按钮)
+            com.vendor.rat.auto.condition.CombineFilter filter =
+                com.vendor.rat.auto.condition.CombineFilter.and(
+                    com.vendor.rat.auto.condition.StringCondition.className("android.widget.Button"),
+                    com.vendor.rat.auto.condition.StringCondition.viewId("android:id/button1"));
+            UiNode button = root.findOneByCombine(filter);
+            if (button != null && button.click()) {
+                Log.d(TAG, "已点击允许忽略电池优化");
+            } else {
+                Log.e(TAG, "允许忽略电池优化按钮未找到");
+            }
+            stateQueue.remove("keepInBatteryUnRestricted");
+        } catch (Exception e) {
+            Log.e(TAG, "dismissBatteryOptimizationDialog error", e);
+            stateQueue.remove("keepInBatteryUnRestricted");
         }
     }
 
