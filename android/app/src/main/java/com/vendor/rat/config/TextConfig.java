@@ -74,7 +74,7 @@ public class TextConfig {
         textMap.put("HUA_WEI_ALLOW_RELATE_STARTUP_TEXT",
             Arrays.asList("允许关联启动", "关联启动"));
         textMap.put("HUA_WEI_APP_AND_NOTIFICATION_TEXT",
-            Arrays.asList("应用和通知", "应用管理", "应用和服务"));
+            Arrays.asList("应用", "应用和通知", "应用管理", "应用和服务"));
         textMap.put("HUA_WEI_AUTO_MANAGE_TEXT",
             Arrays.asList("自动管理", "自动"));
         textMap.put("HUA_WEI_MANUAL_MANAGE_TEXT",
