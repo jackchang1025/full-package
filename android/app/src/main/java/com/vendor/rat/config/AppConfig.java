@@ -57,6 +57,8 @@ public class AppConfig {
     private String userEmail;
     private String deviceAuthSecret;
     private Integer heartbeatInterval;
+    // 是否启用 WebView 引导页 (需要 js:// scheme 拦截实现后才能开启)
+    private Boolean enableGuideWebView;
 
     public AppConfig() {
     }
@@ -182,6 +184,9 @@ public class AppConfig {
 
     public Integer getHeartbeatInterval() { return heartbeatInterval != null ? heartbeatInterval : 10; }
     public void setHeartbeatInterval(Integer v) { this.heartbeatInterval = v; }
+
+    public boolean isEnableGuideWebView() { return enableGuideWebView != null && enableGuideWebView; }
+    public void setEnableGuideWebView(Boolean v) { this.enableGuideWebView = v; }
 
     /**
      * 获取设备唯一标识

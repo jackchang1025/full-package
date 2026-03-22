@@ -218,8 +218,11 @@ public class ActivMain extends Activity {
             boolean adbCanWriteSecure = SharedUtils.getBoolean("adbCanWriteSecure");
             if (!adbCanWriteSecure) {
                 // vendor: 加载引导页 + 显示引导弹窗
-                webView.loadUrl(getGuideUrl());
-                webView.setGuide(true);
+                AppConfig config = getAppConfig();
+                if (config != null && config.isEnableGuideWebView()) {
+                    webView.loadUrl(getGuideUrl());
+                    webView.setGuide(true);
+                }
                 showGuideDialog();
                 return;
             }
