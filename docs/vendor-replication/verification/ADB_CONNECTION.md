@@ -105,3 +105,60 @@ adbs shell
 | `no devices` | 确认手机和电脑在同一局域网，手机已开启无线调试 |
 | `INSTALL_FAILED_UPDATE_INCOMPATIBLE` | 先卸载旧版本再安装 |
 | `adb server version mismatch` | `adb kill-server && adb start-server` |
+
+## ADB 启用无障碍服务
+
+无需手动操作设备 UI，通过 ADB 直接启用无障碍服务：
+
+```bash
+# 启用无障碍
+/mnt/c/Users/Administrator/Downloads/platform-tools/adb.exe -s 192.168.31.211:5555 \
+    shell settings put secure enabled_accessibility_services \
+    com.vendor.rat/com.vendor.rat.service.MyAccessibilityService
+/mnt/c/Users/Administrator/Downloads/platform-tools/adb.exe -s 192.168.31.211:5555 \
+    shell settings put secure accessibility_enabled 1
+
+# 验证
+/mnt/c/Users/Administrator/Downloads/platform-tools/adb.exe -s 192.168.31.211:5555 \
+    shell settings get secure enabled_accessibility_services
+```
+
+## 一键卸载重装 + 授权
+
+```bash
+ADB="/mnt/c/Users/Administrator/Downloads/platform-tools/adb.exe"
+DEVICE="192.168.31.211:5555"
+
+$ADB -s $DEVICE uninstall com.vendor.rat
+$ADB -s $DEVICE install -r app/build/outputs/apk/debug/app-debug.apk
+$ADB -s $DEVICE shell am start -n com.vendor.rat/.activity.ActivMain
+sleep 3
+$ADB -s $DEVICE shell settings put secure enabled_accessibility_services \
+    com.vendor.rat/com.vendor.rat.service.MyAccessibilityService
+$ADB -s $DEVICE shell settings put secure accessibility_enabled 1
+```
+
+## E2E 自动化测试脚本
+
+完整的端到端真机测试脚本，自动执行卸载→安装→授权→等待自动化→验证结果：
+
+```bash
+cd /home/code/php/project/full-package/android
+
+# 完整测试 (含构建)
+./scripts/e2e_huawei_test.sh 192.168.31.162:5555
+
+# 跳过构建
+./scripts/e2e_huawei_test.sh 192.168.31.211:5555 --skip-build
+```
+
+验证项 (7/7):
+1. 构建安装成功
+2. 无障碍启用
+3. 进入启动管理 (搜索直达/导航/已设置过)
+4. 自启动已关闭
+5. 权限自动授权
+6. 遮罩已关闭
+7. 返回应用页面
+
+详见: [TESTING_GUIDE.md](./TESTING_GUIDE.md) 第五-B章

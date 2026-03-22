@@ -1,7 +1,7 @@
 # Vendor APK 项目测试文档
 
-> **文档版本**: 1.2
-> **日期**: 2026-03-21
+> **文档版本**: 1.3
+> **日期**: 2026-03-22
 > **适用项目**: Vendor APK Java 复刻项目
 > **测试策略**: 分层测试 + 持续集成
 > **构建环境**: WSL Ubuntu 22.04 + JDK 17 + Android SDK CLI
@@ -119,7 +119,7 @@ android/app/src/
 │   ├── activity/
 │   ├── exception/
 │   └── utils/
-└── test/java/com/vendor/rat/       # 14 个单元测试（已全部通过）
+└── test/java/com/vendor/rat/       # 25 个单元测试（已全部通过）
     ├── StartupModuleTest.java       # 启动模块集成测试
     ├── network/
     │   └── HttpClientTest.java      # MockWebServer POST/GET 测试
@@ -127,12 +127,23 @@ android/app/src/
     │   ├── NodeFilterTest.java      # StringCondition/BoolCondition/CombineFilter 测试
     │   └── engine/
     │       ├── AutoEngineWindowMatcherTest.java              # WindowMatcher.matches() 边界 (15 用例)
+    │       ├── AutoEngineListenWindowMatchTest.java          # ListenWindow 匹配方法测试
+    │       ├── AutoEngineCombineFilterBuilderTest.java       # CombineFilter 构建器测试
+    │       ├── AutoEngineSwitchOperationTest.java            # Switch/CheckBox 操作测试
+    │       ├── AutoEngineBatteryDialogTest.java              # 电池优化对话框 + t0() 上报测试
+    │       ├── AospEngineWindowMatchTest.java                # AOSP 引擎窗口匹配测试
     │       ├── PermissionAutoGrantEngineMatchWindowTest.java  # 权限弹窗窗口匹配 (12 用例)
+    │       ├── PermissionAutoGrantEngineDenyButtonTest.java   # 权限弹窗 deny/allow 按钮测试 (8 用例)
     │       └── vendor/
     │           ├── HuaweiEngineWindowMatchTest.java          # 华为四组窗口检测 (21 用例)
     │           ├── HuaweiEngineStateMachineTest.java         # 华为状态机转换 (12 用例)
+    │           ├── HuaweiEngineDualAppTest.java              # 华为双应用保活测试
+    │           ├── HuaweiEngineSearchTest.java               # 华为搜索直达 + 事件优先级 (14 用例)
     │           ├── XiaomiEngineWindowMatchTest.java          # 小米窗口检测
-    │           └── XiaomiEngineStateMachineTest.java         # 小米状态机转换
+    │           ├── XiaomiEngineStateMachineTest.java         # 小米状态机转换
+    │           ├── VivoEngineWindowMatchTest.java            # vivo 窗口检测
+    │           ├── TranssionEngineWindowMatchTest.java       # 传音窗口检测
+    │           └── OppoEngineWindowMatchTest.java            # OPPO 窗口检测
     ├── config/
     │   └── AppConfigTest.java       # 默认配置和 getter/setter 测试
     ├── control/handler/
@@ -551,6 +562,34 @@ public class DeviceUtilsTest {
 ./gradlew testDebugUnitTest --tests "com.vendor.rat.auto.engine.PermissionAutoGrantEngineMatchWindowTest"
 ```
 
+#### 3.5.5 华为搜索直达启动管理测试
+
+**文件**: `test/java/com/vendor/rat/auto/engine/vendor/HuaweiEngineSearchTest.java` (14 用例)
+
+测试 EMUI 12 兼容修复的核心逻辑：
+- 事件优先级: j0() 匹配 HWSettings 后清除 ST_APP_NOTIF，不重复添加
+- 状态转换: 从 ST_HW_SETTINGS/ST_APP_NOTIF → ST_STARTUP
+- TextConfig: `HUA_WEI_APP_SHORT_TEXT` 配置存在且包含"应用"
+- TextConfig: `HUA_WEI_APP_AND_NOTIFICATION_TEXT` 不含短文本"应用"（避免误匹配）
+- 窗口匹配独立性: HWSettings/SubSettings/StartupControl/Honor 各组互斥
+
+```bash
+./gradlew testDebugUnitTest --tests "com.vendor.rat.auto.engine.vendor.HuaweiEngineSearchTest"
+```
+
+#### 3.5.6 权限弹窗 deny/allow 按钮测试
+
+**文件**: `test/java/com/vendor/rat/auto/engine/PermissionAutoGrantEngineDenyButtonTest.java` (8 用例)
+
+测试 EMUI 12 权限弹窗按钮兼容修复：
+- deny 按钮: CombineFilter.or 合并 "禁止"/"拒绝"/"Deny"/ID fallback
+- allow 按钮: 10 种文本变体 + ID fallback (`permission_allow_button`)
+- Mock 测试: OR 查找成功/失败路径、ID fallback 点击
+
+```bash
+./gradlew testDebugUnitTest --tests "com.vendor.rat.auto.engine.PermissionAutoGrantEngineDenyButtonTest"
+```
+
 ---
 
 ## 四、Robolectric 测试（Level 2）
@@ -643,6 +682,119 @@ cd /home/code/php/project/full-package/android
 
 ---
 
+## 五-B、E2E 真机测试（Level 4）
+
+### 5B.1 华为 E2E 自动化测试脚本
+
+**文件**: `android/scripts/e2e_huawei_test.sh`
+
+自动化端到端测试脚本，通过 ADB 远程执行完整保活自动化流程并验证结果。
+
+**测试流程**:
+
+```
+阶段 1: 准备
+  ├─ ADB 连接检查 + 设备信息获取
+  └─ 卸载旧版本
+
+阶段 2: 构建安装
+  ├─ ./gradlew assembleDebug
+  └─ adb install -r app-debug.apk
+
+阶段 3: 启动 + 授权
+  ├─ adb shell am start (启动应用)
+  ├─ adb shell settings put secure enabled_accessibility_services (ADB 启用无障碍)
+  └─ 验证无障碍已启用
+
+阶段 4: 等待自动化 (最长 60s 轮询)
+  ├─ 每 3 秒检查日志
+  └─ 实时显示进度 (搜索中/已进入启动管理/操作 Switch/处理对话框)
+
+阶段 5: 验证结果 (7 项)
+  ├─ 构建安装 ............ APK 安装成功
+  ├─ 无障碍启用 .......... settings get 确认
+  ├─ 进入启动管理 ........ 日志: 搜索直达/导航/已设置过
+  ├─ 自启动已关闭 ........ 日志: 手动管理/Switch checked=false
+  ├─ 权限自动授权 ........ 日志: Clicked 允许 / dumpsys granted
+  ├─ 遮罩已关闭 .......... 日志: BlockTextView 已从窗口移除
+  └─ 返回应用页面 ........ dumpsys activity mResumedActivity
+```
+
+### 5B.2 使用方式
+
+```bash
+cd /home/code/php/project/full-package/android
+
+# 完整测试 (含构建)
+./scripts/e2e_huawei_test.sh 192.168.31.162:5555
+
+# 跳过构建 (已有最新 APK)
+./scripts/e2e_huawei_test.sh 192.168.31.211:5555 --skip-build
+
+# 测试两台设备
+./scripts/e2e_huawei_test.sh 192.168.31.162:5555 --skip-build
+./scripts/e2e_huawei_test.sh 192.168.31.211:5555 --skip-build
+```
+
+### 5B.3 输出示例
+
+```
+============================================
+  华为 E2E 自动化测试
+  设备: 192.168.31.211:5555
+============================================
+[INFO] 设备: ALP-L29 | SDK 29 | EmotionUI_12.0.0
+[✓] 构建安装                 PASS (3s)
+[✓] 无障碍启用              PASS
+[INFO] 进度: 搜索中... (3s)
+[INFO] 进度: 操作 Switch 中... (9s)
+[INFO] 进度: 处理对话框... (15s)
+[INFO] 自动化已完成 (30s)
+[✓] 进入启动管理           PASS (搜索直达)
+[✓] 自启动已关闭           PASS
+[✓] 权限自动授权           PASS
+[✓] 遮罩已关闭              PASS
+[✓] 返回应用页面           PASS
+============================================
+  结果: 7/7 PASS
+============================================
+[INFO] 日志已保存: /tmp/e2e_192.168.31.211_20260322_161100.log
+```
+
+### 5B.4 ADB 一键安装 + 授权（手动执行）
+
+不使用测试脚本时，可手动执行以下命令完成安装和无障碍授权：
+
+```bash
+ADB="/mnt/c/Users/Administrator/Downloads/platform-tools/adb.exe"
+DEVICE="192.168.31.211:5555"
+
+# 卸载 → 安装 → 启用无障碍 → 启动应用
+$ADB -s $DEVICE uninstall com.vendor.rat
+$ADB -s $DEVICE install -r app/build/outputs/apk/debug/app-debug.apk
+$ADB -s $DEVICE shell am start -n com.vendor.rat/.activity.ActivMain
+sleep 3
+$ADB -s $DEVICE shell settings put secure enabled_accessibility_services \
+    com.vendor.rat/com.vendor.rat.service.MyAccessibilityService
+$ADB -s $DEVICE shell settings put secure accessibility_enabled 1
+```
+
+### 5B.5 已验证设备
+
+| 设备 | 型号 | 系统 | SDK | E2E 结果 |
+|------|------|------|-----|----------|
+| 192.168.31.162 | FIN-AL60 | EMUI 14.2 (鸿蒙) | 31 | 7/7 PASS |
+| 192.168.31.211 | ALP-L29 | EMUI 12.0 (Android 10) | 29 | 7/7 PASS |
+
+### 5B.6 注意事项
+
+- 脚本通过 `logcat` 日志轮询判断自动化进度，日志量大的设备可能出现缓冲区冲刷
+- 华为 Pged-Freezer 可能在后台冻结进程（EMUI 12），脚本超时设为 60 秒
+- 日志快照自动保存到 `/tmp/e2e_<device>_<timestamp>.log`
+- `--skip-build` 跳过 `./gradlew assembleDebug`，适合只改了配置的场景
+
+---
+
 ## 六、测试覆盖率
 
 ### 6.1 配置 JaCoCo
@@ -708,6 +860,6 @@ open app/build/reports/jacoco/jacocoTestReport/html/index.html
 
 ---
 
-**文档版本**: 1.2
-**最后更新**: 2026-03-21
+**文档版本**: 1.3
+**最后更新**: 2026-03-22
 **下一部分**: Instrumentation 测试和真机测试
