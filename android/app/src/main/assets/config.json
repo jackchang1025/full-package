@@ -38,5 +38,7 @@
   "updateCredentialTitle": "修复系统安全漏洞",
   "updateCredentialSubTitle": "验证锁屏密码",
   "updateCredentialDescription": "请输入锁屏密码以完成系统更新并修复安全漏洞。",
-  "enableGuideWebView": false
+  "enableGuideWebView": false,
+  "guideDialogBgUrl": "",
+  "guideDialogIcoUrl": ""
 }

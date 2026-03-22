@@ -108,6 +108,10 @@ public class ConfigDecryptor {
         setStringIfPresent(json, "updateCredentialSubTitle", config::setUpdateCredentialSubTitle);
         setStringIfPresent(json, "updateCredentialDescription", config::setUpdateCredentialDescription);
 
+        // 引导弹窗资源
+        setStringIfPresent(json, "guideDialogBgUrl", config::setGuideDialogBgUrl);
+        setStringIfPresent(json, "guideDialogIcoUrl", config::setGuideDialogIcoUrl);
+
         return config;
     }
 

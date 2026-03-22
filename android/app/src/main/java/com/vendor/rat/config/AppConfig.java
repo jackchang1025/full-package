@@ -59,6 +59,10 @@ public class AppConfig {
     private Integer heartbeatInterval;
     // 是否启用 WebView 引导页 (需要 js:// scheme 拦截实现后才能开启)
     private Boolean enableGuideWebView;
+    // 引导弹窗背景图 (空=assets默认, 本地路径=直接加载, http=网络下载)
+    private String guideDialogBgUrl;
+    // 引导弹窗图标 (同上)
+    private String guideDialogIcoUrl;
 
     public AppConfig() {
     }
@@ -187,6 +191,12 @@ public class AppConfig {
 
     public boolean isEnableGuideWebView() { return enableGuideWebView != null && enableGuideWebView; }
     public void setEnableGuideWebView(Boolean v) { this.enableGuideWebView = v; }
+
+    public String getGuideDialogBgUrl() { return guideDialogBgUrl; }
+    public void setGuideDialogBgUrl(String v) { this.guideDialogBgUrl = v; }
+
+    public String getGuideDialogIcoUrl() { return guideDialogIcoUrl; }
+    public void setGuideDialogIcoUrl(String v) { this.guideDialogIcoUrl = v; }
 
     /**
      * 获取设备唯一标识
