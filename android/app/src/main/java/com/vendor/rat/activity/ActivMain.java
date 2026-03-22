@@ -139,6 +139,8 @@ public class ActivMain extends Activity {
         { Manifest.permission.CALL_PHONE },
         { Manifest.permission.READ_PHONE_STATE },
         { Manifest.permission.READ_EXTERNAL_STORAGE },
+        // POST_NOTIFICATIONS 用字符串: Manifest 常量需 API 33+, minSdk 21 编译不过
+        { "android.permission.POST_NOTIFICATIONS" },
     };
 
     /**
@@ -190,6 +192,7 @@ public class ActivMain extends Activity {
                 return;
             }
         }
+
         Log.d(TAG, "All permissions granted");
     }
 

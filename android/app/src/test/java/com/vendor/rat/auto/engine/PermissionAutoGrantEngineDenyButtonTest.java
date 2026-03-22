@@ -155,4 +155,45 @@ public class PermissionAutoGrantEngineDenyButtonTest {
         assertNotNull(found);
         assertTrue(found.click());
     }
+
+    // ============ 通知权限弹窗测试 ============
+
+    @Test
+    public void notificationDialog_matchedByEngine() {
+        // 验证: 通知权限弹窗的包名 com.android.permissioncontroller 已在 matchWindow 中
+        PermissionAutoGrantEngine engine = new PermissionAutoGrantEngine();
+        assertTrue(engine.matchWindow("com.android.permissioncontroller",
+                "com.android.permissioncontroller.permission.ui.GrantPermissionsActivity", 32));
+        engine.destroy();
+    }
+
+    @Test
+    public void notificationDialog_permissionMessageNode_detected() {
+        UiNode root = mock(UiNode.class);
+        UiNode msgNode = mock(UiNode.class);
+
+        // 模拟: permission_message 节点包含"通知"
+        when(root.findOneByCombine(any(NodeFilter.class))).thenReturn(msgNode);
+        when(msgNode.getText()).thenReturn("是否允许\"System Service\"发送通知？");
+
+        UiNode found = root.findOneByCombine(
+                StringCondition.viewId("com.android.permissioncontroller:id/permission_message"));
+
+        assertNotNull(found);
+        assertTrue(found.getText().contains("通知"));
+    }
+
+    @Test
+    public void notificationDialog_allowButton_clicked() {
+        UiNode root = mock(UiNode.class);
+        UiNode allowBtn = mock(UiNode.class);
+
+        // 模拟: 通知弹窗的允许按钮
+        when(root.findOneByCombine(any(NodeFilter.class))).thenReturn(allowBtn);
+        when(allowBtn.click()).thenReturn(true);
+
+        UiNode found = root.findOneByCombine(CombineFilter.button("允许"));
+        assertNotNull(found);
+        assertTrue(found.click());
+    }
 }

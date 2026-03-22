@@ -218,19 +218,6 @@ public class KeepAliveManager {
             if (jobScheduler == null) return;
 
             if (jobScheduler.getPendingJob(116) == null) {
-                // 启动保活前台服务 (防止华为 PowerGenie 冻结进程)
-                try {
-                    Intent serviceIntent = new Intent(context, com.vendor.rat.keepalive.service.WIFIBackgroundService.class);
-                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-                        context.startForegroundService(serviceIntent);
-                    } else {
-                        context.startService(serviceIntent);
-                    }
-                } catch (Exception e) {
-                    Log.w(TAG, "startForegroundService WIFIBackgroundService failed: " + e.getMessage());
-                }
-
-                // vendor: JobInfo.Builder(116, KeepAliveJobService)
                 // ADAPT: vendor targets WIFIBackgroundService but it extends Service, not JobService
                 // KeepAliveJobService extends JobService and is registered with BIND_JOB_SERVICE in Manifest
                 ComponentName componentName = new ComponentName(context, KeepAliveJobService.class);
