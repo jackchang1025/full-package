@@ -3,6 +3,7 @@ package com.vendor.rat.auto.engine;
 import com.vendor.rat.auto.condition.CombineFilter;
 import com.vendor.rat.auto.filter.NodeFilter;
 import com.vendor.rat.model.req.ListenWindow;
+import com.vendor.rat.model.resp.PowerControlStateVO;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -19,6 +20,8 @@ import static org.junit.Assert.*;
 public class AutoEngineBatteryDialogTest {
 
     private static class TestableEngine extends AutoEngine {
+        private PowerControlStateVO lastReportedState;
+
         TestableEngine() {
             super(new ArrayList<WindowMatcher>(), "com.android.settings");
         }
@@ -40,6 +43,19 @@ public class AutoEngineBatteryDialogTest {
 
         public void doCheckBatteryOptimizationDialog() {
             checkBatteryOptimizationDialog();
+        }
+
+        public void doReportPowerControlState() {
+            t0();
+        }
+
+        @Override
+        protected void reportPowerControlState(PowerControlStateVO state) {
+            lastReportedState = state;
+        }
+
+        public PowerControlStateVO getLastReportedState() {
+            return lastReportedState;
         }
     }
 
@@ -83,6 +99,22 @@ public class AutoEngineBatteryDialogTest {
     public void testBuildCancelButtonFilter_notNull() {
         CombineFilter filter = AutoEngine.buildCancelButtonFilter();
         assertNotNull(filter);
+    }
+
+    // ============ t0 (vendor c.java t0()) ============
+
+    @Test
+    public void testReportPowerControlState_buildsDefaultStateForPrimaryPackage() {
+        engine.doReportPowerControlState();
+
+        PowerControlStateVO state = engine.getLastReportedState();
+        assertNotNull(state);
+        assertEquals("com.android.settings", state.getPackageName());
+        assertFalse(Boolean.TRUE.equals(state.getAllowAllFullBackground()));
+        assertFalse(Boolean.TRUE.equals(state.getAllowPopupInBackground()));
+        assertFalse(Boolean.TRUE.equals(state.getAllowAutoStart()));
+        assertFalse(Boolean.TRUE.equals(state.getAllowRelateStart()));
+        assertEquals(0, state.getRetryCount());
     }
 
     // ============ checkBatteryOptimizationDialog (vendor c.java u() :762-801) ============

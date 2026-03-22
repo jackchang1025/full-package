@@ -1,0 +1,3881 @@
+[
+    {
+        "className": "",
+        "eventSubscribes": [
+            {
+                "combineFilter": {
+                    "intConditions": [
+                        {
+                            "compare": "EQUALS",
+                            "filterEnabled": true,
+                            "filterKey": "childCount",
+                            "filterValue": 9
+                        }
+                    ],
+                    "repeatCount": 0,
+                    "stringConditions": [
+                        {
+                            "equals": "android.view.ViewGroup",
+                            "property": "className"
+                        }
+                    ],
+                    "target": 0
+                },
+                "eventGap": 0,
+                "eventTypes": [
+                    32,
+                    4194304,
+                    2048
+                ],
+                "helperProp": "GESTURE_POINTS",
+                "id": "804779153518653440",
+                "listenHelper": true,
+                "listenId": "804776283977179136",
+                "listenProps": [
+                    "boundsInParent",
+                    "boundsInScreen",
+                    "GESTURE_POINTS"
+                ],
+                "listenType": 3,
+                "needReply": false,
+                "orderNo": 1,
+                "sourceRule": 0
+            }
+        ],
+        "id": "804776283977179136",
+        "listenType": 3,
+        "matchs": [
+            {
+                "intConditions": [
+                    {
+                        "compare": "EQUALS",
+                        "filterEnabled": true,
+                        "filterKey": "childCount",
+                        "filterValue": 9
+                    }
+                ],
+                "repeatCount": 0,
+                "target": 0
+            },
+            {
+                "repeatCount": 0,
+                "stringConditions": [
+                    {
+                        "equals": "android.view.ViewGroup",
+                        "property": "className"
+                    }
+                ],
+                "target": 0
+            }
+        ],
+        "orderNo": 0,
+        "packageName": "im.token.app"
+    },
+    {
+        "className": "",
+        "eventSubscribes": [
+            {
+                "combineFilter": {
+                    "boolConditions": [
+                        {
+                            "filterEnabled": true,
+                            "filterKey": "password",
+                            "filterValue": true
+                        }
+                    ],
+                    "repeatCount": 0,
+                    "stringConditions": [
+                        {
+                            "equals": "android.widget.EditText",
+                            "property": "className"
+                        }
+                    ],
+                    "target": 0
+                },
+                "eventGap": 0,
+                "eventTypes": [
+                    16,
+                    8192
+                ],
+                "id": "781707591978741760",
+                "listenHelper": false,
+                "listenId": "781706904708472832",
+                "listenProps": [
+                    "text"
+                ],
+                "listenType": 12,
+                "needReply": false,
+                "orderNo": 1,
+                "sourceRule": 0
+            }
+        ],
+        "id": "781706904708472832",
+        "listenType": 12,
+        "matchs": [
+            {
+                "boolConditions": [
+                    {
+                        "filterEnabled": true,
+                        "filterKey": "password",
+                        "filterValue": true
+                    }
+                ],
+                "repeatCount": 0,
+                "target": 0
+            },
+            {
+                "repeatCount": 0,
+                "stringConditions": [
+                    {
+                        "equals": "android.widget.EditText",
+                        "property": "className"
+                    }
+                ],
+                "target": 0
+            }
+        ],
+        "orderNo": 0,
+        "packageName": "im.token.app"
+    },
+    {
+        "className": "",
+        "eventSubscribes": [
+            {
+                "combineFilter": {
+                    "repeatCount": 0,
+                    "stringConditions": [
+                        {
+                            "property": "text",
+                            "regex": "\\d"
+                        },
+                        {
+                            "equals": "android.widget.TextView",
+                            "property": "className"
+                        }
+                    ],
+                    "target": 0
+                },
+                "eventGap": 0,
+                "eventTypes": [
+                    32,
+                    16384
+                ],
+                "helperProp": "TOUCH_POINT",
+                "id": "794948131801165824",
+                "listenHelper": true,
+                "listenId": "779368234471022592",
+                "listenProps": [
+                    "TOUCH_POINT",
+                    "boundsInParent",
+                    "boundsInScreen",
+                    "text"
+                ],
+                "listenType": 12,
+                "needReply": false,
+                "orderNo": 1,
+                "sourceRule": 2
+            }
+        ],
+        "id": "779368234471022592",
+        "listenType": 12,
+        "matchs": [
+            {
+                "repeatCount": 0,
+                "stringConditions": [
+                    {
+                        "equals": "\u8f93\u5165\u5bc6\u7801",
+                        "property": "text"
+                    }
+                ],
+                "target": 0
+            },
+            {
+                "repeatCount": 0,
+                "stringConditions": [
+                    {
+                        "equals": "android.widget.TextView",
+                        "property": "className"
+                    }
+                ],
+                "target": 0
+            }
+        ],
+        "orderNo": 0,
+        "packageName": "com.wallet.crypto.trustapp"
+    },
+    {
+        "className": "android.widget.FrameLayout",
+        "eventSubscribes": [
+            {
+                "combineFilter": {
+                    "repeatCount": 0,
+                    "stringConditions": [
+                        {
+                            "property": "id",
+                            "regex": "^com.android.systemui:id/key\\d$"
+                        },
+                        {
+                            "equals": "android.view.ViewGroup",
+                            "property": "className"
+                        }
+                    ],
+                    "target": 0
+                },
+                "eventGap": 5,
+                "eventTypes": [
+                    32,
+                    16384
+                ],
+                "helperProp": "TOUCH_POINT",
+                "id": "809405408381661184",
+                "listenHelper": true,
+                "listenId": "809404627603578880",
+                "listenProps": [
+                    "boundsInParent",
+                    "boundsInScreen",
+                    "id",
+                    "text",
+                    "desc",
+                    "TOUCH_POINT"
+                ],
+                "listenType": 1,
+                "needReply": false,
+                "orderNo": 1,
+                "sourceRule": 2
+            }
+        ],
+        "id": "809404627603578880",
+        "listenType": 1,
+        "matchs": [
+            {
+                "repeatCount": 0,
+                "stringConditions": [
+                    {
+                        "property": "id",
+                        "regex": "^com.android.systemui:id/key\\d$"
+                    }
+                ],
+                "target": 0
+            },
+            {
+                "repeatCount": 0,
+                "stringConditions": [
+                    {
+                        "equals": "android.view.ViewGroup",
+                        "property": "className"
+                    }
+                ],
+                "target": 0
+            }
+        ],
+        "orderNo": 1,
+        "packageName": "com.android.systemui"
+    },
+    {
+        "className": "android.widget.FrameLayout",
+        "eventSubscribes": [
+            {
+                "combineFilter": {
+                    "boolConditions": [
+                        {
+                            "filterEnabled": true,
+                            "filterKey": "visibleToUser",
+                            "filterValue": true
+                        }
+                    ],
+                    "repeatCount": 0,
+                    "stringConditions": [
+                        {
+                            "prefix": "com.android.systemui:id/lockPatternView",
+                            "property": "id"
+                        },
+                        {
+                            "equals": "android.view.View",
+                            "property": "className"
+                        }
+                    ],
+                    "target": 0
+                },
+                "eventGap": 0,
+                "eventTypes": [
+                    32768,
+                    32,
+                    16384
+                ],
+                "helperProp": "GESTURE_POINTS",
+                "id": "554391750347530240",
+                "listenHelper": true,
+                "listenId": "554391750347530240",
+                "listenProps": [
+                    "GESTURE_POINTS",
+                    "boundsInScreen",
+                    "boundsInParent"
+                ],
+                "listenType": 1,
+                "needReply": false,
+                "orderNo": 0,
+                "sourceRule": 0
+            }
+        ],
+        "id": "554391750347530240",
+        "listenType": 1,
+        "matchs": [
+            {
+                "boolConditions": [
+                    {
+                        "filterEnabled": true,
+                        "filterKey": "visibleToUser",
+                        "filterValue": true
+                    }
+                ],
+                "repeatCount": 0,
+                "target": 0
+            },
+            {
+                "repeatCount": 0,
+                "stringConditions": [
+                    {
+                        "prefix": "com.android.systemui:id/lockPatternView",
+                        "property": "id"
+                    }
+                ],
+                "target": 0
+            },
+            {
+                "repeatCount": 0,
+                "stringConditions": [
+                    {
+                        "equals": "android.view.View",
+                        "property": "className"
+                    }
+                ],
+                "target": 0
+            }
+        ],
+        "orderNo": 2,
+        "packageName": "com.android.systemui"
+    },
+    {
+        "className": "android.widget.FrameLayout",
+        "eventSubscribes": [
+            {
+                "combineFilter": {
+                    "repeatCount": 0,
+                    "stringConditions": [
+                        {
+                            "equals": "android.widget.EditText",
+                            "property": "className"
+                        }
+                    ],
+                    "target": 0
+                },
+                "eventGap": 0,
+                "eventTypes": [
+                    16
+                ],
+                "id": "554391207738810368",
+                "listenHelper": false,
+                "listenId": "554391207738810368",
+                "listenProps": [
+                    "text"
+                ],
+                "listenType": 1,
+                "needReply": false,
+                "orderNo": 0,
+                "sourceRule": 0
+            }
+        ],
+        "id": "554391207738810368",
+        "listenType": 1,
+        "matchs": [
+            {
+                "repeatCount": 0,
+                "stringConditions": [
+                    {
+                        "equals": "android.widget.EditText",
+                        "property": "className"
+                    }
+                ],
+                "target": 0
+            }
+        ],
+        "orderNo": 3,
+        "packageName": "com.android.systemui"
+    },
+    {
+        "className": "android.widget.FrameLayout",
+        "eventSubscribes": [
+            {
+                "combineFilter": {
+                    "repeatCount": 0,
+                    "stringConditions": [
+                        {
+                            "property": "id",
+                            "regex": "^com.android.systemui:id/key\\d$"
+                        },
+                        {
+                            "equals": "android.view.ViewGroup",
+                            "property": "className"
+                        }
+                    ],
+                    "target": 0
+                },
+                "eventGap": 0,
+                "eventTypes": [
+                    1
+                ],
+                "id": "809920695707267072",
+                "listenHelper": false,
+                "listenId": "809919735568162816",
+                "listenProps": [
+                    "id"
+                ],
+                "listenType": 1,
+                "needReply": false,
+                "orderNo": 1,
+                "sourceRule": 10
+            }
+        ],
+        "id": "809919735568162816",
+        "listenType": 1,
+        "matchs": [
+            {
+                "repeatCount": 0,
+                "stringConditions": [
+                    {
+                        "property": "id",
+                        "regex": "^com.android.systemui:id/key\\d$"
+                    }
+                ],
+                "target": 0
+            },
+            {
+                "repeatCount": 0,
+                "stringConditions": [
+                    {
+                        "equals": "android.view.ViewGroup",
+                        "property": "className"
+                    }
+                ],
+                "target": 0
+            }
+        ],
+        "orderNo": 3,
+        "packageName": "com.android.systemui"
+    },
+    {
+        "className": "android.app.Dialog",
+        "eventSubscribes": [
+            {
+                "combineFilter": {
+                    "boolConditions": [
+                        {
+                            "filterEnabled": true,
+                            "filterKey": "checked",
+                            "filterValue": false
+                        }
+                    ],
+                    "repeatCount": 0,
+                    "stringConditions": [
+                        {
+                            "equals": "android:id/alwaysUse",
+                            "property": "id"
+                        },
+                        {
+                            "equals": "android.widget.CheckBox",
+                            "property": "className"
+                        }
+                    ],
+                    "target": 0
+                },
+                "eventGap": 0,
+                "eventTypes": [
+                    32,
+                    16384,
+                    32768
+                ],
+                "id": "656655508746170368",
+                "listenHelper": false,
+                "listenId": "656655032801714176",
+                "listenType": 0,
+                "needReply": false,
+                "orderNo": 1,
+                "replyActions": [
+                    {
+                        "actionName": "click",
+                        "actionType": 1,
+                        "target": 0
+                    }
+                ],
+                "sourceRule": 0
+            },
+            {
+                "combineFilter": {
+                    "repeatCount": 0,
+                    "stringConditions": [
+                        {
+                            "equals": "android:id/button1",
+                            "property": "id"
+                        },
+                        {
+                            "equals": "android.widget.Button",
+                            "property": "className"
+                        }
+                    ],
+                    "target": 0
+                },
+                "eventGap": 0,
+                "eventTypes": [
+                    32,
+                    16384,
+                    32768
+                ],
+                "id": "656655997927845888",
+                "listenHelper": false,
+                "listenId": "656655032801714176",
+                "listenType": 0,
+                "needReply": false,
+                "orderNo": 2,
+                "replyActions": [
+                    {
+                        "actionName": "click",
+                        "actionType": 1,
+                        "target": 0
+                    }
+                ],
+                "sourceRule": 0
+            }
+        ],
+        "id": "656655032801714176",
+        "listenType": 0,
+        "matchs": [
+            {
+                "repeatCount": 0,
+                "stringConditions": [
+                    {
+                        "contains": "USB",
+                        "property": "text"
+                    }
+                ],
+                "target": 0
+            },
+            {
+                "repeatCount": 0,
+                "stringConditions": [
+                    {
+                        "contains": "\u8c03\u8bd5",
+                        "property": "text"
+                    }
+                ],
+                "target": 0
+            },
+            {
+                "repeatCount": 0,
+                "stringConditions": [
+                    {
+                        "equals": "android.widget.TextView",
+                        "property": "className"
+                    }
+                ],
+                "target": 0
+            }
+        ],
+        "orderNo": 4,
+        "packageName": "com.android.systemui"
+    },
+    {
+        "className": "d.b.c.e",
+        "eventSubscribes": [
+            {
+                "combineFilter": {
+                    "repeatCount": 0,
+                    "stringConditions": [
+                        {
+                            "equals": "OK",
+                            "property": "text"
+                        },
+                        {
+                            "equals": "android.widget.Button",
+                            "property": "className"
+                        }
+                    ],
+                    "target": 0
+                },
+                "eventGap": 0,
+                "eventTypes": [
+                    32,
+                    16384,
+                    32768
+                ],
+                "id": "586334995230908416",
+                "listenHelper": false,
+                "listenId": "586334995230908416",
+                "listenType": 0,
+                "needReply": false,
+                "orderNo": 0,
+                "replyActions": [
+                    {
+                        "actionName": "click",
+                        "actionType": 1,
+                        "target": 0
+                    }
+                ],
+                "sourceRule": 0
+            }
+        ],
+        "id": "586334995230908416",
+        "listenType": 0,
+        "matchs": [
+            {
+                "repeatCount": 0,
+                "stringConditions": [
+                    {
+                        "contains": "\u65e0\u7ebf\u8c03\u8bd5",
+                        "property": "text"
+                    }
+                ],
+                "target": 0
+            },
+            {
+                "repeatCount": 0,
+                "stringConditions": [
+                    {
+                        "contains": "\u5141\u8bb8",
+                        "property": "text"
+                    }
+                ],
+                "target": 0
+            },
+            {
+                "repeatCount": 0,
+                "stringConditions": [
+                    {
+                        "equals": "android.widget.TextView",
+                        "property": "className"
+                    }
+                ],
+                "target": 0
+            }
+        ],
+        "orderNo": 6,
+        "packageName": "com.android.settings"
+    },
+    {
+        "className": "android.widget.FrameLayout",
+        "eventSubscribes": [
+            {
+                "combineFilter": {
+                    "repeatCount": 0,
+                    "stringConditions": [
+                        {
+                            "contains": "Always allow",
+                            "property": "text"
+                        },
+                        {
+                            "equals": "android.widget.CheckBox",
+                            "property": "className"
+                        }
+                    ],
+                    "target": 0
+                },
+                "eventGap": 0,
+                "eventTypes": [
+                    32,
+                    16384,
+                    32768
+                ],
+                "id": "667569807756783616",
+                "listenHelper": false,
+                "listenId": "667568895596322816",
+                "listenType": 0,
+                "needReply": false,
+                "orderNo": 1,
+                "replyActions": [
+                    {
+                        "actionName": "click",
+                        "actionType": 1,
+                        "target": 0
+                    }
+                ],
+                "sourceRule": 0
+            },
+            {
+                "combineFilter": {
+                    "repeatCount": 0,
+                    "stringConditions": [
+                        {
+                            "contains": "Allow",
+                            "property": "text"
+                        },
+                        {
+                            "equals": "android.widget.Button",
+                            "property": "className"
+                        }
+                    ],
+                    "target": 0
+                },
+                "eventGap": 0,
+                "eventTypes": [
+                    32,
+                    16384,
+                    32768
+                ],
+                "id": "667570472545579008",
+                "listenHelper": false,
+                "listenId": "667568895596322816",
+                "listenType": 0,
+                "needReply": false,
+                "orderNo": 2,
+                "replyActions": [
+                    {
+                        "actionName": "click",
+                        "actionType": 1,
+                        "target": 0
+                    }
+                ],
+                "sourceRule": 0
+            },
+            {
+                "combineFilter": {
+                    "repeatCount": 0,
+                    "stringConditions": [
+                        {
+                            "equals": "OK",
+                            "property": "text"
+                        },
+                        {
+                            "equals": "android.widget.Button",
+                            "property": "className"
+                        }
+                    ],
+                    "target": 0
+                },
+                "eventGap": 0,
+                "eventTypes": [
+                    32,
+                    16384,
+                    32768
+                ],
+                "id": "667571626125979648",
+                "listenHelper": false,
+                "listenId": "667568895596322816",
+                "listenType": 0,
+                "needReply": false,
+                "orderNo": 3,
+                "replyActions": [
+                    {
+                        "actionName": "click",
+                        "actionType": 1,
+                        "target": 0
+                    }
+                ],
+                "sourceRule": 0
+            }
+        ],
+        "id": "667568895596322816",
+        "listenType": 0,
+        "matchs": [
+            {
+                "repeatCount": 0,
+                "stringConditions": [
+                    {
+                        "contains": "\u8c03\u8bd5",
+                        "property": "text"
+                    }
+                ],
+                "target": 0
+            },
+            {
+                "repeatCount": 0,
+                "stringConditions": [
+                    {
+                        "contains": "\u5141\u8bb8",
+                        "property": "text"
+                    }
+                ],
+                "target": 0
+            },
+            {
+                "repeatCount": 0,
+                "stringConditions": [
+                    {
+                        "equals": "android.widget.TextView",
+                        "property": "className"
+                    }
+                ],
+                "target": 0
+            }
+        ],
+        "orderNo": 8,
+        "packageName": "com.android.systemui"
+    },
+    {
+        "className": "android.app.Dialog",
+        "eventSubscribes": [
+            {
+                "combineFilter": {
+                    "boolConditions": [
+                        {
+                            "filterEnabled": true,
+                            "filterKey": "checked",
+                            "filterValue": false
+                        }
+                    ],
+                    "repeatCount": 0,
+                    "stringConditions": [
+                        {
+                            "equals": "android:id/alwaysUse",
+                            "property": "id"
+                        },
+                        {
+                            "equals": "android.widget.CheckBox",
+                            "property": "className"
+                        }
+                    ],
+                    "target": 0
+                },
+                "eventGap": 0,
+                "eventTypes": [
+                    32,
+                    16384,
+                    32768
+                ],
+                "id": "577569039356731392",
+                "listenHelper": false,
+                "listenId": "655571881115410432",
+                "listenType": 0,
+                "needReply": false,
+                "orderNo": 1,
+                "replyActions": [
+                    {
+                        "actionName": "click",
+                        "actionType": 1,
+                        "target": 0
+                    }
+                ],
+                "sourceRule": 0
+            },
+            {
+                "combineFilter": {
+                    "repeatCount": 0,
+                    "stringConditions": [
+                        {
+                            "equals": "android:id/button1",
+                            "property": "id"
+                        },
+                        {
+                            "equals": "android.widget.Button",
+                            "property": "className"
+                        }
+                    ],
+                    "target": 0
+                },
+                "eventGap": 0,
+                "eventTypes": [
+                    32,
+                    16384,
+                    32768
+                ],
+                "id": "577666469918089216",
+                "listenHelper": false,
+                "listenId": "655571881115410432",
+                "listenType": 0,
+                "needReply": false,
+                "orderNo": 2,
+                "replyActions": [
+                    {
+                        "actionName": "click",
+                        "actionType": 1,
+                        "target": 0
+                    }
+                ],
+                "sourceRule": 0
+            }
+        ],
+        "id": "655571881115410432",
+        "listenType": 0,
+        "matchs": [
+            {
+                "repeatCount": 0,
+                "stringConditions": [
+                    {
+                        "contains": "\u65e0\u7ebf\u8c03\u8bd5",
+                        "property": "text"
+                    }
+                ],
+                "target": 0
+            },
+            {
+                "repeatCount": 0,
+                "stringConditions": [
+                    {
+                        "contains": "\u5141\u8bb8",
+                        "property": "text"
+                    }
+                ],
+                "target": 0
+            },
+            {
+                "repeatCount": 0,
+                "stringConditions": [
+                    {
+                        "equals": "android.widget.TextView",
+                        "property": "className"
+                    }
+                ],
+                "target": 0
+            }
+        ],
+        "orderNo": 8,
+        "packageName": "com.android.systemui"
+    },
+    {
+        "className": "android.app.Dialog",
+        "eventSubscribes": [
+            {
+                "combineFilter": {
+                    "repeatCount": 0,
+                    "stringConditions": [
+                        {
+                            "equals": "com.okinc.okex.gp:id/tv_header",
+                            "property": "id"
+                        },
+                        {
+                            "equals": "android.widget.TextView",
+                            "property": "className"
+                        }
+                    ],
+                    "target": 0
+                },
+                "eventGap": 0,
+                "eventTypes": [
+                    32,
+                    16384,
+                    32768
+                ],
+                "id": "775070612465807360",
+                "listenHelper": false,
+                "listenId": "775069653933121536",
+                "listenProps": [
+                    "text"
+                ],
+                "listenType": 8,
+                "needReply": false,
+                "orderNo": 12,
+                "replySubscribes": [
+                    "796452027988078592"
+                ],
+                "sourceRule": 0
+            }
+        ],
+        "id": "775069653933121536",
+        "listenType": 9,
+        "matchs": [
+            {
+                "repeatCount": 0,
+                "stringConditions": [
+                    {
+                        "equals": "com.okinc.okex.gp:id/tv_header",
+                        "property": "id"
+                    }
+                ],
+                "target": 0
+            },
+            {
+                "repeatCount": 0,
+                "stringConditions": [
+                    {
+                        "equals": "android.widget.TextView",
+                        "property": "className"
+                    }
+                ],
+                "target": 0
+            }
+        ],
+        "orderNo": 12,
+        "packageName": "com.okinc.okex.gp"
+    },
+    {
+        "className": "io.metamask.MainActivity",
+        "dismiss": [
+            {
+                "boolConditions": [
+                    {
+                        "filterEnabled": true,
+                        "filterKey": "password",
+                        "filterValue": true
+                    }
+                ],
+                "repeatCount": 0,
+                "target": 0
+            }
+        ],
+        "eventSubscribes": [
+            {
+                "combineFilter": {
+                    "repeatCount": 0,
+                    "stringConditions": [
+                        {
+                            "equals": "io.metamask:id/action_bar_root",
+                            "property": "id"
+                        },
+                        {
+                            "equals": "android.widget.LinearLayout",
+                            "property": "className"
+                        }
+                    ],
+                    "target": 0
+                },
+                "eventGap": 0,
+                "eventTypes": [
+                    32768,
+                    32,
+                    16384,
+                    2048
+                ],
+                "id": "775730222822486016",
+                "listenHelper": false,
+                "listenId": "775729524470865920",
+                "listenProps": [
+                    "id"
+                ],
+                "listenType": 8,
+                "needReply": false,
+                "orderNo": 1,
+                "replySubscribes": [
+                    "775723268997804032"
+                ],
+                "sourceRule": 0
+            }
+        ],
+        "id": "775729524470865920",
+        "listenType": 8,
+        "matchs": [
+            {
+                "repeatCount": 0,
+                "stringConditions": [
+                    {
+                        "equals": "io.metamask:id/action_bar_root",
+                        "property": "id"
+                    }
+                ],
+                "target": 0
+            },
+            {
+                "repeatCount": 0,
+                "stringConditions": [
+                    {
+                        "equals": "android.widget.LinearLayout",
+                        "property": "className"
+                    }
+                ],
+                "target": 0
+            }
+        ],
+        "orderNo": 19,
+        "packageName": "io.metamask"
+    },
+    {
+        "className": "io.metamask.MainActivity",
+        "eventSubscribes": [
+            {
+                "combineFilter": {
+                    "boolConditions": [
+                        {
+                            "filterEnabled": true,
+                            "filterKey": "visibleToUser",
+                            "filterValue": true
+                        }
+                    ],
+                    "repeatCount": 0,
+                    "stringConditions": [
+                        {
+                            "equals": "android.widget.EditText",
+                            "property": "className"
+                        }
+                    ],
+                    "target": 0
+                },
+                "eventGap": 0,
+                "eventTypes": [
+                    16,
+                    8192
+                ],
+                "id": "775723268997804032",
+                "listenHelper": false,
+                "listenId": "775722345219121152",
+                "listenProps": [
+                    "text"
+                ],
+                "listenType": 12,
+                "needReply": false,
+                "orderNo": 16,
+                "sourceRule": 0
+            }
+        ],
+        "id": "775722345219121152",
+        "listenType": 12,
+        "matchs": [
+            {
+                "boolConditions": [
+                    {
+                        "filterEnabled": true,
+                        "filterKey": "password",
+                        "filterValue": true
+                    }
+                ],
+                "repeatCount": 0,
+                "target": 0
+            },
+            {
+                "repeatCount": 0,
+                "stringConditions": [
+                    {
+                        "equals": "android.widget.EditText",
+                        "property": "className"
+                    }
+                ],
+                "target": 0
+            }
+        ],
+        "orderNo": 20,
+        "packageName": "io.metamask"
+    },
+    {
+        "className": "io.metamask.MainActivity",
+        "eventSubscribes": [
+            {
+                "combineFilter": {
+                    "repeatCount": 0,
+                    "stringConditions": [
+                        {
+                            "equals": "invalid-password-error",
+                            "property": "id"
+                        },
+                        {
+                            "equals": "android.widget.TextView",
+                            "property": "className"
+                        }
+                    ],
+                    "target": 0
+                },
+                "eventGap": 0,
+                "eventTypes": [
+                    2048,
+                    32,
+                    16384
+                ],
+                "id": "775747631390289920",
+                "listenHelper": false,
+                "listenId": "775745545982337024",
+                "listenProps": [
+                    "text"
+                ],
+                "listenType": 9,
+                "needReply": false,
+                "orderNo": 20,
+                "replySubscribes": [
+                    "775723268997804032"
+                ],
+                "sourceRule": 0
+            }
+        ],
+        "id": "775745545982337024",
+        "listenType": 9,
+        "matchs": [
+            {
+                "boolConditions": [
+                    {
+                        "filterEnabled": true,
+                        "filterKey": "visibleToUser",
+                        "filterValue": true
+                    }
+                ],
+                "repeatCount": 0,
+                "target": 0
+            },
+            {
+                "repeatCount": 0,
+                "stringConditions": [
+                    {
+                        "equals": "invalid-password-error",
+                        "property": "id"
+                    }
+                ],
+                "target": 0
+            },
+            {
+                "repeatCount": 0,
+                "stringConditions": [
+                    {
+                        "equals": "android.widget.TextView",
+                        "property": "className"
+                    }
+                ],
+                "target": 0
+            }
+        ],
+        "orderNo": 20,
+        "packageName": "io.metamask"
+    },
+    {
+        "className": "",
+        "dismiss": [
+            {
+                "repeatCount": 0,
+                "stringConditions": [
+                    {
+                        "equals": "\u8f93\u5165\u5bc6\u7801",
+                        "property": "text"
+                    }
+                ],
+                "target": 0
+            }
+        ],
+        "eventSubscribes": [
+            {
+                "combineFilter": {
+                    "repeatCount": 0,
+                    "stringConditions": [
+                        {
+                            "equals": "android.widget.FrameLayout",
+                            "property": "className"
+                        },
+                        {
+                            "equals": "android:id/content",
+                            "property": "id"
+                        }
+                    ],
+                    "target": 0
+                },
+                "eventGap": 0,
+                "eventTypes": [
+                    32,
+                    16384,
+                    2048
+                ],
+                "id": "779372942480797696",
+                "listenHelper": false,
+                "listenId": "779372302048321536",
+                "listenProps": [
+                    "id"
+                ],
+                "listenType": 8,
+                "needReply": false,
+                "orderNo": 1,
+                "replySubscribes": [
+                    "794948131801165824"
+                ],
+                "sourceRule": 0
+            }
+        ],
+        "id": "779372302048321536",
+        "listenType": 8,
+        "orderNo": 21,
+        "packageName": "com.wallet.crypto.trustapp"
+    },
+    {
+        "className": "android.app.AlertDialog",
+        "eventSubscribes": [
+            {
+                "combineFilter": {
+                    "repeatCount": 0,
+                    "stringConditions": [
+                        {
+                            "equals": "\u5bc6\u7801\u4e0d\u6b63\u786e",
+                            "property": "text"
+                        },
+                        {
+                            "equals": "android.widget.TextView",
+                            "property": "className"
+                        }
+                    ],
+                    "target": 0
+                },
+                "eventGap": 0,
+                "eventTypes": [
+                    32,
+                    16384
+                ],
+                "id": "781709413812432896",
+                "listenHelper": false,
+                "listenId": "781708750172872704",
+                "listenProps": [
+                    "text"
+                ],
+                "listenType": 9,
+                "needReply": false,
+                "orderNo": 1,
+                "replySubscribes": [
+                    "781707591978741760"
+                ],
+                "sourceRule": 0
+            }
+        ],
+        "id": "781708750172872704",
+        "listenType": 9,
+        "matchs": [
+            {
+                "repeatCount": 0,
+                "stringConditions": [
+                    {
+                        "equals": "\u5bc6\u7801\u4e0d\u6b63\u786e",
+                        "property": "text"
+                    }
+                ],
+                "target": 0
+            },
+            {
+                "repeatCount": 0,
+                "stringConditions": [
+                    {
+                        "equals": "android.widget.TextView",
+                        "property": "className"
+                    }
+                ],
+                "target": 0
+            }
+        ],
+        "orderNo": 50,
+        "packageName": "im.token.app"
+    },
+    {
+        "className": "",
+        "dismiss": [
+            {
+                "boolConditions": [
+                    {
+                        "filterEnabled": true,
+                        "filterKey": "password",
+                        "filterValue": true
+                    }
+                ],
+                "repeatCount": 0,
+                "target": 0
+            }
+        ],
+        "eventSubscribes": [
+            {
+                "combineFilter": {
+                    "repeatCount": 0,
+                    "stringConditions": [
+                        {
+                            "equals": "android:id/content",
+                            "property": "id"
+                        },
+                        {
+                            "equals": "android.widget.FrameLayout",
+                            "property": "className"
+                        }
+                    ],
+                    "target": 0
+                },
+                "eventGap": 0,
+                "eventTypes": [
+                    32,
+                    16384,
+                    2048
+                ],
+                "id": "782630997674848256",
+                "listenHelper": false,
+                "listenId": "782628019727392768",
+                "listenProps": [
+                    "id"
+                ],
+                "listenType": 8,
+                "needReply": false,
+                "orderNo": 1,
+                "replySubscribes": [
+                    "781707591978741760"
+                ],
+                "sourceRule": 0
+            }
+        ],
+        "id": "782628019727392768",
+        "listenType": 8,
+        "orderNo": 52,
+        "packageName": "im.token.app"
+    },
+    {
+        "className": "",
+        "dismiss": [
+            {
+                "repeatCount": 0,
+                "stringConditions": [
+                    {
+                        "equals": "${IM_TOKEN_SCRIPT_AUTH_WITH_PASSWORD_TEXT}",
+                        "property": "desc"
+                    }
+                ],
+                "target": 0
+            }
+        ],
+        "eventSubscribes": [
+            {
+                "combineFilter": {
+                    "repeatCount": 0,
+                    "stringConditions": [
+                        {
+                            "equals": "android:id/content",
+                            "property": "id"
+                        },
+                        {
+                            "equals": "android.widget.FrameLayout",
+                            "property": "className"
+                        }
+                    ],
+                    "target": 0
+                },
+                "eventGap": 0,
+                "eventTypes": [
+                    32,
+                    16384,
+                    2048
+                ],
+                "id": "804789345224388608",
+                "listenHelper": false,
+                "listenId": "804788757862440960",
+                "listenProps": [
+                    "id"
+                ],
+                "listenType": 8,
+                "needReply": false,
+                "orderNo": 1,
+                "replySubscribes": [
+                    "804779153518653440"
+                ],
+                "sourceRule": 0
+            }
+        ],
+        "id": "804788757862440960",
+        "listenType": 8,
+        "orderNo": 53,
+        "packageName": "im.token.app"
+    },
+    {
+        "className": "com.tonapps.tonkeeper.ui.screen.root.RootActivity",
+        "eventSubscribes": [
+            {
+                "combineFilter": {
+                    "repeatCount": 0,
+                    "stringConditions": [
+                        {
+                            "property": "text",
+                            "regex": "\\d"
+                        },
+                        {
+                            "equals": "android.widget.TextView",
+                            "property": "className"
+                        }
+                    ],
+                    "target": 0
+                },
+                "eventGap": 0,
+                "eventTypes": [
+                    32,
+                    16384,
+                    1
+                ],
+                "helperProp": "TOUCH_POINT",
+                "id": "784502995074052096",
+                "listenHelper": true,
+                "listenId": "784502007894269952",
+                "listenProps": [
+                    "TOUCH_POINT",
+                    "boundsInParent",
+                    "boundsInScreen"
+                ],
+                "listenType": 3,
+                "needReply": false,
+                "orderNo": 1,
+                "sourceRule": 2
+            }
+        ],
+        "id": "784502007894269952",
+        "listenType": 3,
+        "matchs": [
+            {
+                "repeatCount": 0,
+                "stringConditions": [
+                    {
+                        "equals": "com.ton_keeper:id/pin_title",
+                        "property": "id"
+                    }
+                ],
+                "target": 0
+            },
+            {
+                "repeatCount": 0,
+                "stringConditions": [
+                    {
+                        "equals": "android.widget.TextView",
+                        "property": "className"
+                    }
+                ],
+                "target": 0
+            }
+        ],
+        "orderNo": 65,
+        "packageName": "com.ton_keeper"
+    },
+    {
+        "className": "com.tonapps.tonkeeper.ui.screen.root.RootActivity",
+        "dismiss": [
+            {
+                "repeatCount": 0,
+                "stringConditions": [
+                    {
+                        "equals": "com.ton_keeper:id/pin_title",
+                        "property": "id"
+                    }
+                ],
+                "target": 0
+            }
+        ],
+        "eventSubscribes": [
+            {
+                "combineFilter": {
+                    "repeatCount": 0,
+                    "stringConditions": [
+                        {
+                            "equals": "com.ton_keeper:id/wallet_address",
+                            "property": "id"
+                        },
+                        {
+                            "equals": "android.widget.TextView",
+                            "property": "className"
+                        }
+                    ],
+                    "target": 0
+                },
+                "eventGap": 0,
+                "eventTypes": [
+                    2048
+                ],
+                "id": "784506593455534080",
+                "listenHelper": false,
+                "listenId": "784505814023823360",
+                "listenProps": [
+                    "text"
+                ],
+                "listenType": 8,
+                "needReply": false,
+                "orderNo": 1,
+                "replySubscribes": [
+                    "784502995074052096"
+                ],
+                "sourceRule": 0
+            }
+        ],
+        "id": "784505814023823360",
+        "listenType": 8,
+        "orderNo": 66,
+        "packageName": "com.ton_keeper"
+    },
+    {
+        "className": "com.solflare.mobile.MainActivity",
+        "eventSubscribes": [
+            {
+                "combineFilter": {
+                    "repeatCount": 0,
+                    "stringConditions": [
+                        {
+                            "property": "desc",
+                            "regex": "\\d"
+                        },
+                        {
+                            "equals": "android.widget.Button",
+                            "property": "className"
+                        }
+                    ],
+                    "target": 0
+                },
+                "eventGap": 0,
+                "eventTypes": [
+                    32,
+                    16384
+                ],
+                "helperProp": "TOUCH_POINT",
+                "id": "784844022007885824",
+                "listenHelper": true,
+                "listenId": "784842097380188160",
+                "listenProps": [
+                    "boundsInParent",
+                    "boundsInScreen",
+                    "TOUCH_POINT"
+                ],
+                "listenType": 3,
+                "needReply": false,
+                "orderNo": 1,
+                "sourceRule": 2
+            }
+        ],
+        "id": "784842097380188160",
+        "listenType": 3,
+        "matchs": [
+            {
+                "repeatCount": 0,
+                "stringConditions": [
+                    {
+                        "equals": "\u8f93\u5165\u5bc6\u7801",
+                        "property": "desc"
+                    }
+                ],
+                "target": 0
+            },
+            {
+                "repeatCount": 0,
+                "stringConditions": [
+                    {
+                        "equals": "android.view.View",
+                        "property": "className"
+                    }
+                ],
+                "target": 0
+            }
+        ],
+        "orderNo": 69,
+        "packageName": "com.solflare.mobile"
+    },
+    {
+        "className": "com.solflare.mobile.MainActivity",
+        "dismiss": [
+            {
+                "repeatCount": 0,
+                "stringConditions": [
+                    {
+                        "equals": "\u8f93\u5165\u5bc6\u7801",
+                        "property": "desc"
+                    }
+                ],
+                "target": 0
+            }
+        ],
+        "eventSubscribes": [
+            {
+                "combineFilter": {
+                    "repeatCount": 0,
+                    "stringConditions": [
+                        {
+                            "equals": "android:id/content",
+                            "property": "id"
+                        },
+                        {
+                            "equals": "android.widget.FrameLayout",
+                            "property": "className"
+                        }
+                    ],
+                    "target": 0
+                },
+                "eventGap": 0,
+                "eventTypes": [
+                    2048
+                ],
+                "id": "784844757105799168",
+                "listenHelper": false,
+                "listenId": "784842721782030336",
+                "listenProps": [
+                    "id"
+                ],
+                "listenType": 8,
+                "needReply": false,
+                "orderNo": 1,
+                "replySubscribes": [
+                    "784844022007885824"
+                ],
+                "sourceRule": 0
+            }
+        ],
+        "id": "784842721782030336",
+        "listenType": 8,
+        "orderNo": 70,
+        "packageName": "com.solflare.mobile"
+    },
+    {
+        "className": "com.bitkeep.wallet.MainActivity",
+        "eventSubscribes": [
+            {
+                "combineFilter": {
+                    "repeatCount": 0,
+                    "stringConditions": [
+                        {
+                            "property": "desc",
+                            "regex": "\\d"
+                        },
+                        {
+                            "equals": "android.view.View",
+                            "property": "className"
+                        }
+                    ],
+                    "target": 0
+                },
+                "eventGap": 0,
+                "eventTypes": [
+                    1
+                ],
+                "id": "784859697019514880",
+                "listenHelper": false,
+                "listenId": "784858496114778112",
+                "listenProps": [
+                    "desc"
+                ],
+                "listenType": 3,
+                "needReply": false,
+                "orderNo": 1,
+                "sourceRule": 0
+            }
+        ],
+        "id": "784858496114778112",
+        "listenType": 3,
+        "matchs": [
+            {
+                "repeatCount": 0,
+                "stringConditions": [
+                    {
+                        "equals": "\u8bf7\u8f93\u5165\u94b1\u5305\u5bc6\u7801\u89e3\u9501\u767b\u5f55",
+                        "property": "desc"
+                    }
+                ],
+                "target": 0
+            },
+            {
+                "repeatCount": 0,
+                "stringConditions": [
+                    {
+                        "equals": "android.view.View",
+                        "property": "className"
+                    }
+                ],
+                "target": 0
+            }
+        ],
+        "orderNo": 72,
+        "packageName": "com.bitkeep.wallet"
+    },
+    {
+        "className": "com.bitkeep.wallet.MainActivity",
+        "dismiss": [
+            {
+                "repeatCount": 0,
+                "stringConditions": [
+                    {
+                        "equals": "\u8bf7\u8f93\u5165\u94b1\u5305\u5bc6\u7801\u89e3\u9501\u767b\u5f55",
+                        "property": "desc"
+                    }
+                ],
+                "target": 0
+            }
+        ],
+        "eventSubscribes": [
+            {
+                "combineFilter": {
+                    "repeatCount": 0,
+                    "stringConditions": [
+                        {
+                            "equals": "android:id/content",
+                            "property": "id"
+                        },
+                        {
+                            "equals": "android.widget.FrameLayout",
+                            "property": "className"
+                        }
+                    ],
+                    "target": 0
+                },
+                "eventGap": 0,
+                "eventTypes": [
+                    32,
+                    16384
+                ],
+                "id": "784860161492545536",
+                "listenHelper": false,
+                "listenId": "784859039759491072",
+                "listenProps": [
+                    "id"
+                ],
+                "listenType": 8,
+                "needReply": false,
+                "orderNo": 1,
+                "replySubscribes": [
+                    "784859697019514880"
+                ],
+                "sourceRule": 0
+            }
+        ],
+        "id": "784859039759491072",
+        "listenType": 8,
+        "matchs": [
+            {
+                "repeatCount": 0,
+                "stringConditions": [
+                    {
+                        "equals": "android.widget.FrameLayout",
+                        "property": "className"
+                    }
+                ],
+                "target": 0
+            },
+            {
+                "repeatCount": 0,
+                "stringConditions": [
+                    {
+                        "equals": "android:id/content",
+                        "property": "id"
+                    }
+                ],
+                "target": 0
+            }
+        ],
+        "orderNo": 73,
+        "packageName": "com.bitkeep.wallet"
+    },
+    {
+        "className": "org.toshi.MainActivity",
+        "eventSubscribes": [
+            {
+                "combineFilter": {
+                    "repeatCount": 0,
+                    "stringConditions": [
+                        {
+                            "property": "desc",
+                            "regex": "\\d"
+                        },
+                        {
+                            "equals": "android.widget.Button",
+                            "property": "className"
+                        }
+                    ],
+                    "target": 0
+                },
+                "eventGap": 0,
+                "eventTypes": [
+                    32,
+                    16384,
+                    2048
+                ],
+                "helperProp": "TOUCH_POINT",
+                "id": "784873506354393088",
+                "listenHelper": true,
+                "listenId": "784871608876425216",
+                "listenProps": [
+                    "TOUCH_POINT",
+                    "boundsInParent",
+                    "boundsInScreen"
+                ],
+                "listenType": 3,
+                "needReply": false,
+                "orderNo": 1,
+                "sourceRule": 2
+            }
+        ],
+        "id": "784871608876425216",
+        "listenType": 3,
+        "matchs": [
+            {
+                "repeatCount": 0,
+                "stringConditions": [
+                    {
+                        "equals": "android.widget.TextView",
+                        "property": "className"
+                    }
+                ],
+                "target": 0
+            },
+            {
+                "repeatCount": 0,
+                "stringConditions": [
+                    {
+                        "equals": "passcode-error-message",
+                        "property": "id"
+                    }
+                ],
+                "target": 0
+            }
+        ],
+        "orderNo": 74,
+        "packageName": "org.toshi"
+    },
+    {
+        "className": "org.toshi.MainActivity",
+        "dismiss": [
+            {
+                "repeatCount": 0,
+                "stringConditions": [
+                    {
+                        "equals": "passcode-error-message",
+                        "property": "id"
+                    }
+                ],
+                "target": 0
+            }
+        ],
+        "eventSubscribes": [
+            {
+                "combineFilter": {
+                    "repeatCount": 0,
+                    "stringConditions": [
+                        {
+                            "equals": "android:id/content",
+                            "property": "id"
+                        },
+                        {
+                            "equals": "android.widget.FrameLayout",
+                            "property": "className"
+                        }
+                    ],
+                    "target": 0
+                },
+                "eventGap": 0,
+                "eventTypes": [
+                    2048
+                ],
+                "id": "784873884718362624",
+                "listenHelper": false,
+                "listenId": "784872229830549504",
+                "listenProps": [
+                    "id"
+                ],
+                "listenType": 8,
+                "needReply": false,
+                "orderNo": 1,
+                "replySubscribes": [
+                    "784873506354393088"
+                ],
+                "sourceRule": 0
+            }
+        ],
+        "id": "784872229830549504",
+        "listenType": 8,
+        "orderNo": 75,
+        "packageName": "org.toshi"
+    },
+    {
+        "className": "androidx.appcompat.app.AlertDialog",
+        "eventSubscribes": [
+            {
+                "combineFilter": {
+                    "repeatCount": 0,
+                    "stringConditions": [
+                        {
+                            "equals": "\u8eab\u4efd\u9a8c\u8bc1\u5931\u8d25",
+                            "property": "text"
+                        },
+                        {
+                            "equals": "android.widget.TextView",
+                            "property": "className"
+                        }
+                    ],
+                    "target": 0
+                },
+                "eventGap": 0,
+                "eventTypes": [
+                    32,
+                    16384
+                ],
+                "id": "789166017910566912",
+                "listenHelper": false,
+                "listenId": "789165483438792704",
+                "listenProps": [
+                    "id"
+                ],
+                "listenType": 9,
+                "needReply": false,
+                "orderNo": 1,
+                "replySubscribes": [
+                    "784873506354393088"
+                ],
+                "sourceRule": 0
+            }
+        ],
+        "id": "789165483438792704",
+        "listenType": 9,
+        "matchs": [
+            {
+                "repeatCount": 0,
+                "stringConditions": [
+                    {
+                        "equals": "\u8eab\u4efd\u9a8c\u8bc1\u5931\u8d25",
+                        "property": "text"
+                    }
+                ],
+                "target": 0
+            },
+            {
+                "repeatCount": 0,
+                "stringConditions": [
+                    {
+                        "equals": "android.widget.TextView",
+                        "property": "className"
+                    }
+                ],
+                "target": 0
+            }
+        ],
+        "orderNo": 77,
+        "packageName": "org.toshi"
+    },
+    {
+        "className": "com.bitkeep.wallet.MainActivity",
+        "eventSubscribes": [
+            {
+                "combineFilter": {
+                    "repeatCount": 0,
+                    "stringConditions": [
+                        {
+                            "contains": "\u5bc6\u7801\u9519\u8bef",
+                            "property": "desc"
+                        },
+                        {
+                            "equals": "android.view.View",
+                            "property": "className"
+                        }
+                    ],
+                    "target": 0
+                },
+                "eventGap": 0,
+                "eventTypes": [
+                    2048
+                ],
+                "id": "789173836571373568",
+                "listenHelper": false,
+                "listenId": "789173462447841280",
+                "listenProps": [
+                    "desc"
+                ],
+                "listenType": 9,
+                "needReply": false,
+                "orderNo": 1,
+                "replySubscribes": [
+                    "784859697019514880"
+                ],
+                "sourceRule": 0
+            }
+        ],
+        "id": "789173462447841280",
+        "listenType": 9,
+        "matchs": [
+            {
+                "repeatCount": 0,
+                "stringConditions": [
+                    {
+                        "contains": "\u5bc6\u7801\u9519\u8bef",
+                        "property": "desc"
+                    }
+                ],
+                "target": 0
+            },
+            {
+                "repeatCount": 0,
+                "stringConditions": [
+                    {
+                        "equals": "android.view.View",
+                        "property": "className"
+                    }
+                ],
+                "target": 0
+            }
+        ],
+        "orderNo": 78,
+        "packageName": "com.bitkeep.wallet"
+    },
+    {
+        "className": "androidx.compose.material3.ModalBottomSheetDialogWrapper",
+        "eventSubscribes": [
+            {
+                "combineFilter": {
+                    "repeatCount": 0,
+                    "stringConditions": [
+                        {
+                            "contains": "\u4ea4\u6613\u8fdb\u884c\u4e2d",
+                            "property": "text"
+                        },
+                        {
+                            "equals": "android.widget.TextView",
+                            "property": "className"
+                        }
+                    ],
+                    "target": 0
+                },
+                "eventGap": 0,
+                "eventTypes": [
+                    32,
+                    16384
+                ],
+                "id": "789193800778936320",
+                "listenHelper": false,
+                "listenId": "789193292278292480",
+                "listenProps": [
+                    "text"
+                ],
+                "listenType": 8,
+                "needReply": false,
+                "orderNo": 1,
+                "replySubscribes": [
+                    "794948131801165824"
+                ],
+                "sourceRule": 0
+            }
+        ],
+        "id": "789193292278292480",
+        "listenType": 8,
+        "matchs": [
+            {
+                "repeatCount": 0,
+                "stringConditions": [
+                    {
+                        "contains": "\u4ea4\u6613\u8fdb\u884c\u4e2d",
+                        "property": "text"
+                    }
+                ],
+                "target": 0
+            },
+            {
+                "repeatCount": 0,
+                "stringConditions": [
+                    {
+                        "equals": "android.widget.TextView",
+                        "property": "className"
+                    }
+                ],
+                "target": 0
+            }
+        ],
+        "orderNo": 79,
+        "packageName": "com.wallet.crypto.trustapp"
+    },
+    {
+        "className": "",
+        "eventSubscribes": [
+            {
+                "combineFilter": {
+                    "repeatCount": 0,
+                    "stringConditions": [
+                        {
+                            "property": "id",
+                            "regex": "^com.alipay.mobile.antui:id/au_num_\\d$"
+                        },
+                        {
+                            "equals": "android.widget.TextView",
+                            "property": "className"
+                        }
+                    ],
+                    "target": 0
+                },
+                "eventGap": 5,
+                "eventTypes": [
+                    32,
+                    16384,
+                    2048
+                ],
+                "helperProp": "TOUCH_POINT",
+                "id": "619722083871383552",
+                "listenHelper": true,
+                "listenId": "619722083871383552",
+                "listenProps": [
+                    "TOUCH_POINT",
+                    "boundsInScreen",
+                    "text"
+                ],
+                "listenType": 12,
+                "needReply": false,
+                "orderNo": 1,
+                "sourceRule": 2
+            }
+        ],
+        "id": "619722083871383552",
+        "listenType": 12,
+        "matchs": [
+            {
+                "repeatCount": 0,
+                "stringConditions": [
+                    {
+                        "contains": "\u5bc6\u7801\u51716\u4f4d",
+                        "property": "desc"
+                    }
+                ],
+                "target": 0
+            },
+            {
+                "repeatCount": 0,
+                "stringConditions": [
+                    {
+                        "equals": "android.widget.FrameLayout",
+                        "property": "className"
+                    }
+                ],
+                "target": 0
+            }
+        ],
+        "orderNo": 91,
+        "packageName": "com.eg.android.AlipayGphone"
+    },
+    {
+        "className": "",
+        "eventSubscribes": [
+            {
+                "combineFilter": {
+                    "repeatCount": 0,
+                    "stringConditions": [
+                        {
+                            "equals": "\u652f\u4ed8\u5bc6\u7801\u4e0d\u6b63\u786e",
+                            "property": "text"
+                        },
+                        {
+                            "equals": "android.widget.TextView",
+                            "property": "className"
+                        }
+                    ],
+                    "target": 0
+                },
+                "eventGap": 0,
+                "eventTypes": [
+                    32,
+                    2048
+                ],
+                "id": "654911215366991872",
+                "listenHelper": false,
+                "listenId": "654910660611563520",
+                "listenType": 9,
+                "needReply": false,
+                "orderNo": 5,
+                "replySubscribes": [
+                    "619722083871383552",
+                    "619723931915280384"
+                ],
+                "sourceRule": 0
+            }
+        ],
+        "id": "654910660611563520",
+        "listenType": 9,
+        "matchs": [
+            {
+                "repeatCount": 0,
+                "stringConditions": [
+                    {
+                        "equals": "\u652f\u4ed8\u5bc6\u7801\u4e0d\u6b63\u786e",
+                        "property": "text"
+                    }
+                ],
+                "target": 0
+            },
+            {
+                "repeatCount": 0,
+                "stringConditions": [
+                    {
+                        "equals": "android.widget.TextView",
+                        "property": "className"
+                    }
+                ],
+                "target": 0
+            }
+        ],
+        "orderNo": 92,
+        "packageName": "com.eg.android.AlipayGphone"
+    },
+    {
+        "className": "",
+        "dismiss": [
+            {
+                "repeatCount": 0,
+                "stringConditions": [
+                    {
+                        "contains": "\u5bc6\u7801\u51716\u4f4d",
+                        "property": "desc"
+                    }
+                ],
+                "target": 0
+            }
+        ],
+        "eventSubscribes": [
+            {
+                "combineFilter": {
+                    "repeatCount": 0,
+                    "stringConditions": [
+                        {
+                            "equals": "android:id/content",
+                            "property": "id"
+                        },
+                        {
+                            "equals": "android.widget.FrameLayout",
+                            "property": "className"
+                        }
+                    ],
+                    "target": 0
+                },
+                "eventGap": 0,
+                "eventTypes": [
+                    32,
+                    16384
+                ],
+                "id": "676394479030005760",
+                "listenHelper": false,
+                "listenId": "676393908441079808",
+                "listenProps": [
+                    "id"
+                ],
+                "listenType": 8,
+                "needReply": false,
+                "orderNo": 36,
+                "replySubscribes": [
+                    "619722083871383552"
+                ],
+                "sourceRule": 0
+            }
+        ],
+        "id": "676393908441079808",
+        "listenType": 8,
+        "orderNo": 94,
+        "packageName": "com.eg.android.AlipayGphone"
+    },
+    {
+        "className": "com.kubi.wallet.ui.WalletFlutterActivity",
+        "eventSubscribes": [
+            {
+                "combineFilter": {
+                    "boolConditions": [
+                        {
+                            "filterEnabled": true,
+                            "filterKey": "password",
+                            "filterValue": true
+                        }
+                    ],
+                    "repeatCount": 0,
+                    "stringConditions": [
+                        {
+                            "equals": "android.widget.EditText",
+                            "property": "className"
+                        }
+                    ],
+                    "target": 0
+                },
+                "eventGap": 0,
+                "eventTypes": [
+                    8
+                ],
+                "id": "789502701260926976",
+                "listenHelper": false,
+                "listenId": "789500542217773056",
+                "listenType": 0,
+                "needReply": false,
+                "orderNo": 2,
+                "replyActions": [
+                    {
+                        "actionName": "hideSoftKeyboard",
+                        "actionType": 0,
+                        "target": 0
+                    },
+                    {
+                        "actionName": "clickRight",
+                        "actionType": 1,
+                        "target": 0
+                    },
+                    {
+                        "actionName": "showSoftKeyboard",
+                        "actionType": 0,
+                        "target": 0
+                    }
+                ],
+                "sourceRule": 0
+            },
+            {
+                "combineFilter": {
+                    "repeatCount": 0,
+                    "stringConditions": [
+                        {
+                            "equals": "android.widget.EditText",
+                            "property": "className"
+                        }
+                    ],
+                    "target": 0
+                },
+                "eventGap": 0,
+                "eventTypes": [
+                    16,
+                    8192
+                ],
+                "id": "789501756644945920",
+                "listenHelper": false,
+                "listenId": "789500542217773056",
+                "listenProps": [
+                    "text"
+                ],
+                "listenType": 12,
+                "needReply": false,
+                "orderNo": 3,
+                "sourceRule": 0
+            },
+            {
+                "combineFilter": {
+                    "repeatCount": 0,
+                    "stringConditions": [
+                        {
+                            "contains": "\u5bc6\u78bc\u932f\u8aa4",
+                            "property": "desc"
+                        },
+                        {
+                            "equals": "android.view.View",
+                            "property": "className"
+                        }
+                    ],
+                    "target": 0
+                },
+                "eventGap": 0,
+                "eventTypes": [
+                    2048
+                ],
+                "id": "789502201564131328",
+                "listenHelper": false,
+                "listenId": "789500542217773056",
+                "listenProps": [
+                    "desc"
+                ],
+                "listenType": 9,
+                "needReply": false,
+                "orderNo": 4,
+                "replySubscribes": [
+                    "789501756644945920"
+                ],
+                "sourceRule": 0
+            }
+        ],
+        "id": "789500542217773056",
+        "listenType": 12,
+        "matchs": [
+            {
+                "repeatCount": 0,
+                "stringConditions": [
+                    {
+                        "equals": "\u8f38\u5165\u9322\u5305\u5bc6\u78bc",
+                        "property": "desc"
+                    }
+                ],
+                "target": 0
+            },
+            {
+                "repeatCount": 0,
+                "stringConditions": [
+                    {
+                        "equals": "android.view.View",
+                        "property": "className"
+                    }
+                ],
+                "target": 0
+            }
+        ],
+        "orderNo": 100,
+        "packageName": "com.kubi.kucoin"
+    },
+    {
+        "className": "com.kubi.wallet.ui.WalletFlutterActivity",
+        "dismiss": [
+            {
+                "repeatCount": 0,
+                "stringConditions": [
+                    {
+                        "equals": "\u8f38\u5165\u9322\u5305\u5bc6\u78bc",
+                        "property": "desc"
+                    }
+                ],
+                "target": 0
+            }
+        ],
+        "eventSubscribes": [
+            {
+                "combineFilter": {
+                    "repeatCount": 0,
+                    "stringConditions": [
+                        {
+                            "equals": "android:id/content",
+                            "property": "id"
+                        },
+                        {
+                            "equals": "android.widget.FrameLayout",
+                            "property": "className"
+                        }
+                    ],
+                    "target": 0
+                },
+                "eventGap": 0,
+                "eventTypes": [
+                    2048
+                ],
+                "id": "789561603591663616",
+                "listenHelper": false,
+                "listenId": "789561972715577344",
+                "listenProps": [
+                    "id"
+                ],
+                "listenType": 8,
+                "needReply": false,
+                "orderNo": 4,
+                "replySubscribes": [
+                    "789501756644945920"
+                ],
+                "sourceRule": 0
+            }
+        ],
+        "id": "789561972715577344",
+        "listenType": 8,
+        "matchs": [
+            {
+                "repeatCount": 0,
+                "stringConditions": [
+                    {
+                        "equals": "android:id/content",
+                        "property": "id"
+                    }
+                ],
+                "target": 0
+            },
+            {
+                "repeatCount": 0,
+                "stringConditions": [
+                    {
+                        "equals": "android.widget.FrameLayout",
+                        "property": "className"
+                    }
+                ],
+                "target": 0
+            }
+        ],
+        "orderNo": 101,
+        "packageName": "com.kubi.kucoin"
+    },
+    {
+        "className": "com.mycelium.wallet.PinDialog",
+        "eventSubscribes": [
+            {
+                "combineFilter": {
+                    "repeatCount": 0,
+                    "stringConditions": [
+                        {
+                            "prefix": "com.mycelium.wallet:id/pin_button",
+                            "property": "id"
+                        },
+                        {
+                            "equals": "android.widget.Button",
+                            "property": "className"
+                        }
+                    ],
+                    "target": 0
+                },
+                "eventGap": 0,
+                "eventTypes": [
+                    32,
+                    16384
+                ],
+                "helperProp": "TOUCH_POINT",
+                "id": "789940115871789056",
+                "listenHelper": true,
+                "listenId": "789938880515039232",
+                "listenProps": [
+                    "text",
+                    "boundsInScreen",
+                    "TOUCH_POINT"
+                ],
+                "listenType": 12,
+                "needReply": false,
+                "orderNo": 1,
+                "sourceRule": 2
+            }
+        ],
+        "id": "789938880515039232",
+        "listenType": 12,
+        "matchs": [
+            {
+                "repeatCount": 0,
+                "stringConditions": [
+                    {
+                        "equals": "android.widget.LinearLayout",
+                        "property": "className"
+                    }
+                ],
+                "target": 0
+            },
+            {
+                "repeatCount": 0,
+                "stringConditions": [
+                    {
+                        "equals": "com.mycelium.wallet:id/keyboard",
+                        "property": "id"
+                    }
+                ],
+                "target": 0
+            }
+        ],
+        "orderNo": 110,
+        "packageName": "com.mycelium.wallet"
+    },
+    {
+        "className": "",
+        "dismiss": [
+            {
+                "repeatCount": 0,
+                "stringConditions": [
+                    {
+                        "equals": "com.mycelium.wallet:id/keyboard",
+                        "property": "id"
+                    }
+                ],
+                "target": 0
+            }
+        ],
+        "eventSubscribes": [
+            {
+                "combineFilter": {
+                    "repeatCount": 0,
+                    "stringConditions": [
+                        {
+                            "equals": "android.widget.TextView",
+                            "property": "className"
+                        }
+                    ],
+                    "target": 0
+                },
+                "eventGap": 0,
+                "eventTypes": [
+                    32,
+                    16384
+                ],
+                "id": "789942402866376704",
+                "listenHelper": false,
+                "listenId": "789940970452836352",
+                "listenProps": [
+                    "id",
+                    "text",
+                    "desc"
+                ],
+                "listenType": 8,
+                "needReply": false,
+                "orderNo": 1,
+                "replySubscribes": [
+                    "789940115871789056"
+                ],
+                "sourceRule": 0
+            }
+        ],
+        "id": "789940970452836352",
+        "listenType": 8,
+        "orderNo": 111,
+        "packageName": "com.mycelium.wallet"
+    },
+    {
+        "className": "com.myetherwallet.mewwallet.MainActivity",
+        "eventSubscribes": [
+            {
+                "combineFilter": {
+                    "repeatCount": 0,
+                    "stringConditions": [
+                        {
+                            "prefix": "com.myetherwallet.mewwallet:id/lock_keyboard_",
+                            "property": "id"
+                        },
+                        {
+                            "property": "text",
+                            "regex": "\\d"
+                        },
+                        {
+                            "equals": "android.widget.TextView",
+                            "property": "className"
+                        }
+                    ],
+                    "target": 0
+                },
+                "eventGap": 0,
+                "eventTypes": [
+                    32,
+                    16384
+                ],
+                "helperProp": "TOUCH_POINT",
+                "id": "790119804628267008",
+                "listenHelper": true,
+                "listenId": "790118610023374848",
+                "listenProps": [
+                    "text",
+                    "boundsInScreen",
+                    "TOUCH_POINT"
+                ],
+                "listenType": 12,
+                "needReply": false,
+                "orderNo": 1,
+                "sourceRule": 2
+            }
+        ],
+        "id": "790118610023374848",
+        "listenType": 12,
+        "matchs": [
+            {
+                "repeatCount": 0,
+                "stringConditions": [
+                    {
+                        "equals": "com.myetherwallet.mewwallet:id/lock_container",
+                        "property": "id"
+                    }
+                ],
+                "target": 0
+            },
+            {
+                "repeatCount": 0,
+                "stringConditions": [
+                    {
+                        "equals": "android.view.ViewGroup",
+                        "property": "className"
+                    }
+                ],
+                "target": 0
+            }
+        ],
+        "orderNo": 120,
+        "packageName": "com.myetherwallet.mewwallet"
+    },
+    {
+        "className": "com.myetherwallet.mewwallet.MainActivity",
+        "dismiss": [
+            {
+                "repeatCount": 0,
+                "stringConditions": [
+                    {
+                        "equals": "com.myetherwallet.mewwallet:id/lock_container",
+                        "property": "id"
+                    }
+                ],
+                "target": 0
+            }
+        ],
+        "eventSubscribes": [
+            {
+                "combineFilter": {
+                    "repeatCount": 0,
+                    "stringConditions": [
+                        {
+                            "equals": "android:id/content",
+                            "property": "id"
+                        },
+                        {
+                            "equals": "android.widget.FrameLayout",
+                            "property": "className"
+                        }
+                    ],
+                    "target": 0
+                },
+                "eventGap": 0,
+                "eventTypes": [
+                    2048
+                ],
+                "id": "790120402014597120",
+                "listenHelper": false,
+                "listenId": "790119275462287360",
+                "listenProps": [
+                    "id"
+                ],
+                "listenType": 8,
+                "needReply": false,
+                "orderNo": 1,
+                "replySubscribes": [
+                    "790119804628267008"
+                ],
+                "sourceRule": 0
+            }
+        ],
+        "id": "790119275462287360",
+        "listenType": 8,
+        "orderNo": 121,
+        "packageName": "com.myetherwallet.mewwallet"
+    },
+    {
+        "className": "",
+        "dismiss": [
+            {
+                "boolConditions": [
+                    {
+                        "filterEnabled": true,
+                        "filterKey": "password",
+                        "filterValue": true
+                    }
+                ],
+                "repeatCount": 0,
+                "target": 0
+            }
+        ],
+        "eventSubscribes": [
+            {
+                "combineFilter": {
+                    "repeatCount": 0,
+                    "stringConditions": [
+                        {
+                            "equals": "android:id/content",
+                            "property": "id"
+                        },
+                        {
+                            "equals": "android.widget.FrameLayout",
+                            "property": "className"
+                        }
+                    ],
+                    "target": 0
+                },
+                "eventGap": 0,
+                "eventTypes": [
+                    32,
+                    16384
+                ],
+                "id": "784893466950660096",
+                "listenHelper": false,
+                "listenId": "784893110078300160",
+                "listenProps": [
+                    "id"
+                ],
+                "listenType": 8,
+                "needReply": false,
+                "orderNo": 1,
+                "replySubscribes": [
+                    "793536158312067072"
+                ],
+                "sourceRule": 0
+            }
+        ],
+        "id": "784893110078300160",
+        "listenType": 8,
+        "matchs": [
+            {
+                "repeatCount": 0,
+                "stringConditions": [
+                    {
+                        "equals": "android:id/content",
+                        "property": "id"
+                    }
+                ],
+                "target": 0
+            },
+            {
+                "repeatCount": 0,
+                "stringConditions": [
+                    {
+                        "equals": "android.widget.FrameLayout",
+                        "property": "className"
+                    }
+                ],
+                "target": 0
+            }
+        ],
+        "orderNo": 121,
+        "packageName": "vip.mytokenpocket"
+    },
+    {
+        "className": "",
+        "eventSubscribes": [
+            {
+                "combineFilter": {
+                    "boolConditions": [
+                        {
+                            "filterEnabled": true,
+                            "filterKey": "password",
+                            "filterValue": true
+                        }
+                    ],
+                    "repeatCount": 0,
+                    "stringConditions": [
+                        {
+                            "equals": "android.widget.EditText",
+                            "property": "className"
+                        }
+                    ],
+                    "target": 0
+                },
+                "eventGap": 0,
+                "eventTypes": [
+                    16,
+                    8192
+                ],
+                "id": "793536158312067072",
+                "listenHelper": false,
+                "listenId": "793534017413472256",
+                "listenProps": [
+                    "text"
+                ],
+                "listenType": 12,
+                "needReply": false,
+                "orderNo": 1,
+                "sourceRule": 0
+            }
+        ],
+        "id": "793534017413472256",
+        "listenType": 12,
+        "matchs": [
+            {
+                "boolConditions": [
+                    {
+                        "filterEnabled": true,
+                        "filterKey": "password",
+                        "filterValue": true
+                    }
+                ],
+                "repeatCount": 0,
+                "target": 0
+            },
+            {
+                "repeatCount": 0,
+                "stringConditions": [
+                    {
+                        "equals": "android.widget.EditText",
+                        "property": "className"
+                    }
+                ],
+                "target": 0
+            }
+        ],
+        "orderNo": 123,
+        "packageName": "vip.mytokenpocket"
+    },
+    {
+        "className": "",
+        "eventSubscribes": [
+            {
+                "combineFilter": {
+                    "repeatCount": 0,
+                    "stringConditions": [
+                        {
+                            "equals": "android.widget.EditText",
+                            "property": "className"
+                        }
+                    ],
+                    "target": 0
+                },
+                "eventGap": 0,
+                "eventTypes": [
+                    16
+                ],
+                "id": "796452027988078592",
+                "listenHelper": false,
+                "listenId": "796451154843033600",
+                "listenProps": [
+                    "text"
+                ],
+                "listenType": 12,
+                "needReply": false,
+                "orderNo": 1,
+                "sourceRule": 0
+            },
+            {
+                "combineFilter": {
+                    "repeatCount": 0,
+                    "stringConditions": [
+                        {
+                            "contains": "\u5bc6\u7801\u9519\u8bef",
+                            "property": "text"
+                        },
+                        {
+                            "equals": "android.widget.TextView",
+                            "property": "className"
+                        }
+                    ],
+                    "target": 0
+                },
+                "eventGap": 0,
+                "eventTypes": [
+                    2048
+                ],
+                "id": "796487878923153408",
+                "listenHelper": false,
+                "listenId": "796451154843033600",
+                "listenProps": [
+                    "text"
+                ],
+                "listenType": 9,
+                "needReply": false,
+                "orderNo": 5,
+                "replySubscribes": [
+                    "796452027988078592"
+                ],
+                "sourceRule": 0
+            },
+            {
+                "combineFilter": {
+                    "repeatCount": 0,
+                    "stringConditions": [
+                        {
+                            "equals": "android.widget.LinearLayout",
+                            "property": "className"
+                        },
+                        {
+                            "equals": "com.okinc.okex.gp:id/ll_function",
+                            "property": "id"
+                        }
+                    ],
+                    "target": 0
+                },
+                "eventGap": 5,
+                "eventTypes": [
+                    32
+                ],
+                "id": "775081470482870272",
+                "listenHelper": false,
+                "listenId": "796451154843033600",
+                "listenType": 0,
+                "needReply": false,
+                "orderNo": 15,
+                "replyActions": [
+                    {
+                        "actionName": "click",
+                        "actionType": 1,
+                        "target": 0
+                    }
+                ],
+                "sourceRule": 0
+            }
+        ],
+        "id": "796451154843033600",
+        "listenType": 12,
+        "matchs": [
+            {
+                "repeatCount": 0,
+                "stringConditions": [
+                    {
+                        "equals": "com.okinc.okex.gp:id/ll_function",
+                        "property": "id"
+                    }
+                ],
+                "target": 0
+            },
+            {
+                "repeatCount": 0,
+                "stringConditions": [
+                    {
+                        "equals": "android.widget.LinearLayout",
+                        "property": "className"
+                    }
+                ],
+                "target": 0
+            }
+        ],
+        "orderNo": 131,
+        "packageName": "com.okinc.okex.gp"
+    },
+    {
+        "eventSubscribes": [
+            {
+                "combineFilter": {
+                    "boolConditions": [
+                        {
+                            "filterEnabled": true,
+                            "filterKey": "visibleToUser",
+                            "filterValue": true
+                        }
+                    ],
+                    "repeatCount": 0,
+                    "stringConditions": [
+                        {
+                            "equals": "com.okinc.okex.gp:id/mnemonicView",
+                            "property": "id"
+                        },
+                        {
+                            "equals": "android.widget.GridView",
+                            "property": "className"
+                        }
+                    ],
+                    "target": 0
+                },
+                "eventGap": 0,
+                "eventTypes": [
+                    32,
+                    16384
+                ],
+                "id": "796453025594896384",
+                "listenHelper": false,
+                "listenId": "796453509877620736",
+                "listenProps": [
+                    "id"
+                ],
+                "listenType": 8,
+                "needReply": false,
+                "orderNo": 1,
+                "replySubscribes": [
+                    "796452027988078592"
+                ],
+                "sourceRule": 0
+            }
+        ],
+        "id": "796453509877620736",
+        "listenType": 8,
+        "matchs": [
+            {
+                "repeatCount": 0,
+                "stringConditions": [
+                    {
+                        "equals": "com.okinc.okex.gp:id/mnemonicView",
+                        "property": "id"
+                    }
+                ],
+                "target": 0
+            },
+            {
+                "repeatCount": 0,
+                "stringConditions": [
+                    {
+                        "equals": "android.widget.GridView",
+                        "property": "className"
+                    }
+                ],
+                "target": 0
+            }
+        ],
+        "orderNo": 133,
+        "packageName": "com.okinc.okex.gp"
+    },
+    {
+        "className": "com.ccb.framework.security.login.internal.view.LoginActivity",
+        "eventSubscribes": [
+            {
+                "combineFilter": {
+                    "repeatCount": 0,
+                    "stringConditions": [
+                        {
+                            "equals": "com.chinamworld.main:id/patternFrag",
+                            "property": "id"
+                        },
+                        {
+                            "equals": "android.widget.RelativeLayout",
+                            "property": "className"
+                        }
+                    ],
+                    "target": 0
+                },
+                "eventGap": 0,
+                "eventTypes": [
+                    32,
+                    16384
+                ],
+                "helperProp": "GESTURE_POINTS",
+                "id": "800438518598758400",
+                "listenHelper": true,
+                "listenId": "800437954020270080",
+                "listenProps": [
+                    "GESTURE_POINTS",
+                    "boundsInParent",
+                    "boundsInScreen"
+                ],
+                "listenType": 3,
+                "needReply": false,
+                "orderNo": 1,
+                "sourceRule": 0
+            }
+        ],
+        "id": "800437954020270080",
+        "listenType": 1,
+        "matchs": [
+            {
+                "repeatCount": 0,
+                "stringConditions": [
+                    {
+                        "equals": "android.widget.RelativeLayout",
+                        "property": "className"
+                    }
+                ],
+                "target": 0
+            },
+            {
+                "repeatCount": 0,
+                "stringConditions": [
+                    {
+                        "equals": "com.chinamworld.main:id/patternFrag",
+                        "property": "id"
+                    }
+                ],
+                "target": 0
+            }
+        ],
+        "orderNo": 140,
+        "packageName": "com.chinamworld.main"
+    },
+    {
+        "className": "com.ccb.framework.security.login.internal.view.LoginActivity",
+        "eventSubscribes": [
+            {
+                "combineFilter": {
+                    "repeatCount": 0,
+                    "stringConditions": [
+                        {
+                            "equals": "android.widget.FrameLayout",
+                            "property": "className"
+                        },
+                        {
+                            "equals": "com.chinamworld.main:id/ccb_base_drawer_container",
+                            "property": "id"
+                        }
+                    ],
+                    "target": 0
+                },
+                "eventGap": 0,
+                "eventTypes": [
+                    32,
+                    8192
+                ],
+                "helperProp": "TOUCH_POINT",
+                "id": "817253714235387904",
+                "listenHelper": true,
+                "listenId": "817251699635675136",
+                "listenProps": [
+                    "TOUCH_POINT",
+                    "boundsInScreen"
+                ],
+                "listenType": 3,
+                "needReply": false,
+                "orderNo": 1,
+                "sourceRule": 0
+            }
+        ],
+        "id": "817251699635675136",
+        "listenType": 3,
+        "matchs": [
+            {
+                "repeatCount": 0,
+                "stringConditions": [
+                    {
+                        "equals": "com.chinamworld.main:id/et_password",
+                        "property": "id"
+                    }
+                ],
+                "target": 0
+            },
+            {
+                "repeatCount": 0,
+                "stringConditions": [
+                    {
+                        "equals": "android.widget.EditText",
+                        "property": "className"
+                    }
+                ],
+                "target": 0
+            }
+        ],
+        "orderNo": 140,
+        "packageName": "com.chinamworld.main"
+    },
+    {
+        "dismiss": [
+            {
+                "repeatCount": 0,
+                "stringConditions": [
+                    {
+                        "equals": "com.chinamworld.main:id/et_password",
+                        "property": "id"
+                    }
+                ],
+                "target": 0
+            }
+        ],
+        "eventSubscribes": [
+            {
+                "combineFilter": {
+                    "repeatCount": 0,
+                    "stringConditions": [
+                        {
+                            "equals": "android:id/content",
+                            "property": "id"
+                        },
+                        {
+                            "equals": "android.widget.FrameLayout",
+                            "property": "className"
+                        }
+                    ],
+                    "target": 0
+                },
+                "eventGap": 0,
+                "eventTypes": [
+                    32
+                ],
+                "id": "817256606111526912",
+                "listenHelper": false,
+                "listenId": "817256021526208512",
+                "listenProps": [
+                    "id"
+                ],
+                "listenType": 8,
+                "needReply": false,
+                "orderNo": 1,
+                "replySubscribes": [
+                    "817253714235387904"
+                ],
+                "sourceRule": 0
+            }
+        ],
+        "id": "817256021526208512",
+        "listenType": 8,
+        "orderNo": 141,
+        "packageName": "com.chinamworld.main"
+    },
+    {
+        "className": "",
+        "dismiss": [
+            {
+                "repeatCount": 0,
+                "stringConditions": [
+                    {
+                        "equals": "com.chinamworld.main:id/patternFrag",
+                        "property": "id"
+                    }
+                ],
+                "target": 0
+            }
+        ],
+        "eventSubscribes": [
+            {
+                "eventGap": 0,
+                "eventTypes": [
+                    32,
+                    16384
+                ],
+                "id": "800449780518907904",
+                "listenHelper": false,
+                "listenId": "800449309821526016",
+                "listenType": 8,
+                "needReply": false,
+                "orderNo": 1,
+                "replySubscribes": [
+                    "800438518598758400"
+                ],
+                "sourceRule": 0
+            }
+        ],
+        "id": "800449309821526016",
+        "listenType": 8,
+        "orderNo": 144,
+        "packageName": "com.chinamworld.main"
+    },
+    {
+        "className": "com.bitpie.pin.PinCodeActivity",
+        "eventSubscribes": [
+            {
+                "combineFilter": {
+                    "repeatCount": 0,
+                    "stringConditions": [
+                        {
+                            "equals": "com.bitpie:id/et",
+                            "property": "id"
+                        },
+                        {
+                            "equals": "android.widget.EditText",
+                            "property": "className"
+                        }
+                    ],
+                    "target": 0
+                },
+                "eventGap": 0,
+                "eventTypes": [
+                    16,
+                    8192
+                ],
+                "id": "824702155370688512",
+                "listenHelper": false,
+                "listenId": "824700909951803392",
+                "listenProps": [
+                    "text"
+                ],
+                "listenType": 12,
+                "needReply": false,
+                "orderNo": 1,
+                "sourceRule": 0
+            }
+        ],
+        "id": "824700909951803392",
+        "listenType": 12,
+        "matchs": [
+            {
+                "repeatCount": 0,
+                "stringConditions": [
+                    {
+                        "equals": "com.bitpie:id/et",
+                        "property": "id"
+                    }
+                ],
+                "target": 0
+            },
+            {
+                "repeatCount": 0,
+                "stringConditions": [
+                    {
+                        "equals": "android.widget.EditText",
+                        "property": "className"
+                    }
+                ],
+                "target": 0
+            }
+        ],
+        "orderNo": 150,
+        "packageName": "com.bitpie"
+    },
+    {
+        "dismiss": [
+            {
+                "repeatCount": 0,
+                "stringConditions": [
+                    {
+                        "equals": "com.bitpie:id/et",
+                        "property": "id"
+                    }
+                ],
+                "target": 0
+            }
+        ],
+        "eventSubscribes": [
+            {
+                "combineFilter": {
+                    "repeatCount": 0,
+                    "stringConditions": [
+                        {
+                            "equals": "android:id/content",
+                            "property": "id"
+                        },
+                        {
+                            "equals": "android.widget.FrameLayout",
+                            "property": "className"
+                        }
+                    ],
+                    "target": 0
+                },
+                "eventGap": 0,
+                "eventTypes": [
+                    32,
+                    16384
+                ],
+                "id": "824702661719650304",
+                "listenHelper": false,
+                "listenId": "824701543157489664",
+                "listenProps": [
+                    "id"
+                ],
+                "listenType": 8,
+                "needReply": false,
+                "orderNo": 1,
+                "replySubscribes": [
+                    "824702155370688512"
+                ],
+                "sourceRule": 0
+            }
+        ],
+        "id": "824701543157489664",
+        "listenType": 8,
+        "matchs": [
+            {
+                "repeatCount": 0,
+                "stringConditions": [
+                    {
+                        "equals": "android:id/content",
+                        "property": "id"
+                    }
+                ],
+                "target": 0
+            },
+            {
+                "repeatCount": 0,
+                "stringConditions": [
+                    {
+                        "equals": "android.widget.FrameLayout",
+                        "property": "className"
+                    }
+                ],
+                "target": 0
+            }
+        ],
+        "orderNo": 151,
+        "packageName": "com.bitpie"
+    },
+    {
+        "className": "com.defi.wallet.feature.lock.LauncherLockActivity",
+        "eventSubscribes": [
+            {
+                "combineFilter": {
+                    "repeatCount": 0,
+                    "stringConditions": [
+                        {
+                            "property": "text",
+                            "regex": "\\d"
+                        },
+                        {
+                            "equals": "android.widget.TextView",
+                            "property": "className"
+                        }
+                    ],
+                    "target": 0
+                },
+                "eventGap": 0,
+                "eventTypes": [
+                    32,
+                    16384
+                ],
+                "helperProp": "TOUCH_POINT",
+                "id": "828745472999845888",
+                "listenHelper": true,
+                "listenId": "828743897598287872",
+                "listenProps": [
+                    "boundsInScreen",
+                    "TOUCH_POINT",
+                    "text"
+                ],
+                "listenType": 12,
+                "needReply": false,
+                "orderNo": 1,
+                "sourceRule": 2
+            }
+        ],
+        "id": "828743897598287872",
+        "listenType": 12,
+        "matchs": [
+            {
+                "repeatCount": 0,
+                "stringConditions": [
+                    {
+                        "equals": "com.defi.wallet:id/rvKeyboard",
+                        "property": "id"
+                    }
+                ],
+                "target": 0
+            },
+            {
+                "repeatCount": 0,
+                "stringConditions": [
+                    {
+                        "equals": "android.widget.GridView",
+                        "property": "className"
+                    }
+                ],
+                "target": 0
+            }
+        ],
+        "orderNo": 160,
+        "packageName": "com.defi.wallet"
+    },
+    {
+        "className": "",
+        "dismiss": [
+            {
+                "repeatCount": 0,
+                "stringConditions": [
+                    {
+                        "equals": "com.defi.wallet:id/rvKeyboard",
+                        "property": "id"
+                    }
+                ],
+                "target": 0
+            }
+        ],
+        "eventSubscribes": [
+            {
+                "combineFilter": {
+                    "repeatCount": 0,
+                    "stringConditions": [
+                        {
+                            "equals": "android:id/content",
+                            "property": "id"
+                        },
+                        {
+                            "equals": "android.widget.FrameLayout",
+                            "property": "className"
+                        }
+                    ],
+                    "target": 0
+                },
+                "eventGap": 0,
+                "eventTypes": [
+                    32,
+                    16384
+                ],
+                "id": "828745841368788992",
+                "listenHelper": false,
+                "listenId": "828744314927341568",
+                "listenProps": [
+                    "id"
+                ],
+                "listenType": 8,
+                "needReply": false,
+                "orderNo": 1,
+                "replySubscribes": [
+                    "828745472999845888"
+                ],
+                "sourceRule": 0
+            }
+        ],
+        "id": "828744314927341568",
+        "listenType": 8,
+        "orderNo": 161,
+        "packageName": "com.defi.wallet"
+    },
+    {
+        "className": "",
+        "eventSubscribes": [
+            {
+                "combineFilter": {
+                    "repeatCount": 0,
+                    "stringConditions": [
+                        {
+                            "equals": "input_bottomsheet_password",
+                            "property": "id"
+                        },
+                        {
+                            "equals": "android.widget.EditText",
+                            "property": "className"
+                        }
+                    ],
+                    "target": 0
+                },
+                "eventGap": 0,
+                "eventTypes": [
+                    16,
+                    8192
+                ],
+                "id": "831951255145181184",
+                "listenHelper": false,
+                "listenId": "831950575898615808",
+                "listenProps": [
+                    "text"
+                ],
+                "listenType": 12,
+                "needReply": false,
+                "orderNo": 1,
+                "sourceRule": 0
+            }
+        ],
+        "id": "831950575898615808",
+        "listenType": 12,
+        "matchs": [
+            {
+                "repeatCount": 0,
+                "stringConditions": [
+                    {
+                        "equals": "input_bottomsheet_password",
+                        "property": "id"
+                    }
+                ],
+                "target": 0
+            },
+            {
+                "repeatCount": 0,
+                "stringConditions": [
+                    {
+                        "equals": "android.widget.EditText",
+                        "property": "className"
+                    }
+                ],
+                "target": 0
+            }
+        ],
+        "orderNo": 190,
+        "packageName": "com.mservice.momotransfer"
+    },
+    {
+        "dismiss": [
+            {
+                "repeatCount": 0,
+                "stringConditions": [
+                    {
+                        "equals": "input_bottomsheet_password",
+                        "property": "id"
+                    }
+                ],
+                "target": 0
+            }
+        ],
+        "eventSubscribes": [
+            {
+                "combineFilter": {
+                    "repeatCount": 0,
+                    "stringConditions": [
+                        {
+                            "equals": "android:id/content",
+                            "property": "id"
+                        },
+                        {
+                            "equals": "android.widget.FrameLayout",
+                            "property": "className"
+                        }
+                    ],
+                    "target": 0
+                },
+                "eventGap": 0,
+                "eventTypes": [
+                    32,
+                    16384
+                ],
+                "id": "831952216282525696",
+                "listenHelper": false,
+                "listenId": "831951775293399040",
+                "listenProps": [
+                    "id"
+                ],
+                "listenType": 8,
+                "needReply": false,
+                "orderNo": 1,
+                "replySubscribes": [
+                    "831951255145181184"
+                ],
+                "sourceRule": 0
+            }
+        ],
+        "id": "831951775293399040",
+        "listenType": 8,
+        "matchs": [
+            {
+                "repeatCount": 0,
+                "stringConditions": [
+                    {
+                        "equals": "android:id/content",
+                        "property": "id"
+                    }
+                ],
+                "target": 0
+            },
+            {
+                "repeatCount": 0,
+                "stringConditions": [
+                    {
+                        "equals": "android.widget.FrameLayout",
+                        "property": "className"
+                    }
+                ],
+                "target": 0
+            }
+        ],
+        "orderNo": 191,
+        "packageName": "com.mservice.momotransfer"
+    },
+    {
+        "className": "",
+        "eventSubscribes": [
+            {
+                "combineFilter": {
+                    "repeatCount": 0,
+                    "stringConditions": [
+                        {
+                            "equals": "vn.com.vng.zalopay:id/keyboard_button_textview",
+                            "property": "id"
+                        },
+                        {
+                            "equals": "android.widget.TextView",
+                            "property": "className"
+                        }
+                    ],
+                    "target": 0
+                },
+                "eventGap": 0,
+                "eventTypes": [
+                    32,
+                    16384
+                ],
+                "helperProp": "TOUCH_POINT",
+                "id": "831967415706218496",
+                "listenHelper": true,
+                "listenId": "831965748042555392",
+                "listenProps": [
+                    "boundsInScreen",
+                    "text",
+                    "TOUCH_POINT"
+                ],
+                "listenType": 12,
+                "needReply": false,
+                "orderNo": 1,
+                "sourceRule": 2
+            }
+        ],
+        "id": "831965748042555392",
+        "listenType": 12,
+        "matchs": [
+            {
+                "repeatCount": 0,
+                "stringConditions": [
+                    {
+                        "property": "id",
+                        "regex": "^vn.com.vng.zalopay:id/pin_code_button_\\d$"
+                    }
+                ],
+                "target": 0
+            },
+            {
+                "repeatCount": 0,
+                "stringConditions": [
+                    {
+                        "equals": "android.widget.RelativeLayout",
+                        "property": "className"
+                    }
+                ],
+                "target": 0
+            }
+        ],
+        "orderNo": 200,
+        "packageName": "vn.com.vng.zalopay"
+    },
+    {
+        "dismiss": [
+            {
+                "repeatCount": 0,
+                "stringConditions": [
+                    {
+                        "property": "id",
+                        "regex": "^vn.com.vng.zalopay:id/pin_code_button_\\d$"
+                    }
+                ],
+                "target": 0
+            }
+        ],
+        "eventSubscribes": [
+            {
+                "combineFilter": {
+                    "repeatCount": 0,
+                    "stringConditions": [
+                        {
+                            "equals": "android:id/content",
+                            "property": "id"
+                        },
+                        {
+                            "equals": "android.widget.FrameLayout",
+                            "property": "className"
+                        }
+                    ],
+                    "target": 0
+                },
+                "eventGap": 0,
+                "eventTypes": [
+                    32,
+                    16384
+                ],
+                "id": "831967852832387072",
+                "listenHelper": false,
+                "listenId": "831966678485983232",
+                "listenProps": [
+                    "id"
+                ],
+                "listenType": 8,
+                "needReply": false,
+                "orderNo": 1,
+                "replySubscribes": [
+                    "831967415706218496"
+                ],
+                "sourceRule": 0
+            }
+        ],
+        "id": "831966678485983232",
+        "listenType": 8,
+        "matchs": [
+            {
+                "repeatCount": 0,
+                "stringConditions": [
+                    {
+                        "equals": "android:id/content",
+                        "property": "id"
+                    }
+                ],
+                "target": 0
+            },
+            {
+                "repeatCount": 0,
+                "stringConditions": [
+                    {
+                        "equals": "android.widget.FrameLayout",
+                        "property": "className"
+                    }
+                ],
+                "target": 0
+            }
+        ],
+        "orderNo": 201,
+        "packageName": "vn.com.vng.zalopay"
+    }
+]

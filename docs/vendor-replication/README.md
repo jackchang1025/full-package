@@ -1,11 +1,11 @@
 # Vendor APK 复刻项目 - 模块索引
 
 > **项目名称**: Vendor APK Java 复刻项目
-> **文档版本**: 1.1
-> **最后更新**: 2026-03-17
+> **文档版本**: 2.0
+> **最后更新**: 2026-03-22
 > **总模块数**: 8 个核心模块
 > **项目目录**: `android/`（项目根目录下）
-> **构建状态**: ✅ BUILD SUCCESSFUL（编译通过 + 单元测试通过）
+> **构建状态**: ✅ BUILD SUCCESSFUL（编译通过 + 全部 23 个测试文件通过）
 
 ---
 
@@ -79,7 +79,7 @@ com.vendor.rat
 │           ├── HuaweiEngine.java
 │           ├── OppoEngine.java
 │           ├── VivoEngine.java
-│           └── SamsungEngine.java
+│           └── TranssionEngine.java
 ├── data/                     # 模块 05: 数据收集
 │   ├── collector/
 │   │   ├── DataCollectionManager.java
@@ -171,7 +171,7 @@ com.vendor.rat
 
 **工作量**: 9 天
 
-**状态**: 📝 设计完成
+**状态**: ✅ 实现完成，AutoEngine 基类 TODO 已清零
 
 ---
 
@@ -188,17 +188,20 @@ com.vendor.rat
 - vivo 自启动管理
 - 三星电池优化
 
+**状态**: ✅ 6/6 厂商引擎全部对齐 vendor
+
 **核心类**:
 - `XiaomiEngine` - 小米适配
 - `HuaweiEngine` - 华为适配
 - `OppoEngine` - OPPO 适配
 - `VivoEngine` - vivo 适配
-- `SamsungEngine` - 三星适配
+- `TranssionEngine` - 传音适配
+- `AospKeepAliveEngine` - AOSP/三星通用
 - `DeviceUtils` - 设备检测
 
 **工作量**: 13 天
 
-**状态**: 📝 设计完成
+**状态**: ✅ 6/6 厂商引擎全部对齐 vendor
 
 ---
 
@@ -501,12 +504,15 @@ com.vendor.rat
 2. ✅ 搭建项目骨架（Gradle + 包结构）→ `android/` 目录
 3. ✅ 搭建 WSL 开发环境（JDK 17 + Android SDK CLI）
 4. ✅ 编译通过 + 单元测试通过（`./gradlew test` BUILD SUCCESSFUL）
-5. 📋 实施 Phase 1（UI 自动化框架 + 网络通信）
+5. ✅ 实施 Phase 1（UI 自动化框架 + 网络通信）
+6. ✅ 实施 Phase 2（权限系统 + 6/6 厂商引擎全部对齐）
+7. ✅ AutoEngine 基类 TODO 清零
+8. 📋 MiniCapture 截屏模块 (5 个 TODO，需真机)
 
 ### 本周目标
 
 - [x] 完成所有 8 个模块设计文档
-- [x] 搭建 Android 项目骨架（51 个 Java 源文件 + 4 个测试文件）
+- [x] 搭建 Android 项目骨架（100+ 个 Java 源文件 + 23 个测试文件）
 - [x] 配置 Gradle 依赖（OkHttp/Conscrypt/Gson/JUnit/Mockito/Robolectric）
 - [x] 创建核心包结构（8 模块全覆盖）
 - [x] 搭建 WSL 命令行构建环境（JDK 17 + Android SDK）
@@ -532,9 +538,10 @@ cd /home/code/php/project/full-package/android
 
 ### 本月目标
 
-- [ ] 完成 Phase 1（基础设施）
-- [ ] 完成 Phase 2（权限系统）
-- [ ] 开始 Phase 3（数据与控制）
+- [x] 完成 Phase 1（基础设施）
+- [x] 完成 Phase 2（权限系统 + 厂商引擎）
+- [x] AutoEngine / Delegate TODO 清零
+- [ ] MiniCapture 截屏模块补全
 
 ---
 
@@ -585,10 +592,29 @@ org.gradle.parallel=true               # 并行执行
 | `NodeFilterTest.java` | UI 自动化 | L1 单元测试 |
 | `AppConfigTest.java` | 配置管理 | L1 单元测试 |
 | `DeviceUtilsTest.java` | 工具类 | L1 单元测试 |
+| `DeviceAdminReceiverTest.java` | 权限绕过 | L1 单元测试 |
+| `StartupModuleTest.java` | 启动流程 | L1 单元测试 |
+| `ScreenActionParserTest.java` | 远程控制 | L1 单元测试 |
+| `ScreenCommandTest.java` | 远程控制 | L1 单元测试 |
+| `AutoEngineWindowMatcherTest.java` | 引擎基类 | L1 单元测试 |
+| `AutoEngineListenWindowMatchTest.java` | 引擎基类 | L1 单元测试 |
+| `AutoEngineCombineFilterBuilderTest.java` | 引擎基类 | L1 单元测试 |
+| `AutoEngineSwitchOperationTest.java` | 引擎基类 | L1 单元测试 |
+| `AutoEngineBatteryDialogTest.java` | 引擎基类 | L1 单元测试 |
+| `PermissionAutoGrantEngineMatchWindowTest.java` | 权限绕过 | L1 单元测试 |
+| `HuaweiEngineWindowMatchTest.java` | 华为引擎 | L1 单元测试 |
+| `HuaweiEngineStateMachineTest.java` | 华为引擎 | L1 单元测试 |
+| `HuaweiEngineDualAppTest.java` | 华为引擎 | L1 单元测试 |
+| `XiaomiEngineWindowMatchTest.java` | 小米引擎 | L1 单元测试 |
+| `XiaomiEngineStateMachineTest.java` | 小米引擎 | L1 单元测试 |
+| `VivoEngineWindowMatchTest.java` | vivo 引擎 | L1 单元测试 |
+| `TranssionEngineWindowMatchTest.java` | 传音引擎 | L1 单元测试 |
+| `OppoEngineWindowMatchTest.java` | OPPO 引擎 | L1 单元测试 |
+| `AospEngineWindowMatchTest.java` | AOSP 引擎 | L1 单元测试 |
 
 ---
 
-**文档版本**: 1.1
-**最后更新**: 2026-03-17
+**文档版本**: 2.0
+**最后更新**: 2026-03-22
 **项目负责人**: 技术团队
 **文档维护**: 每周更新

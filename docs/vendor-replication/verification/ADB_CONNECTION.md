@@ -12,28 +12,35 @@ WSL2 环境下通过 Windows 侧 platform-tools 连接 Android 设备。
 
 ## 目标设备
 
-```
-192.168.31.162:5555
-```
+| 设备 | 地址 | 说明 |
+|------|------|------|
+| 华为鸿蒙系统设备 1 | `192.168.31.162:5555` | 主调试设备 |
+| 华为安卓系统设备 2 | `192.168.31.211:5555` | 辅助调试设备 |
 
 ## 常用命令
 
 ### 连接设备
 
 ```bash
+# 设备 1
 /mnt/c/Users/Administrator/Downloads/platform-tools/adb.exe connect 192.168.31.162:5555
+# 设备 2
+/mnt/c/Users/Administrator/Downloads/platform-tools/adb.exe connect 192.168.31.211:5555
 ```
 
 ### 检查连接状态
 
 ```bash
-/mnt/c/Users/Administrator/Downloads/platform-tools/adb.exe -s 192.168.31.162:5555 devices
+/mnt/c/Users/Administrator/Downloads/platform-tools/adb.exe devices
 ```
 
 ### 安装 APK
 
 ```bash
+# 设备 1
 /mnt/c/Users/Administrator/Downloads/platform-tools/adb.exe -s 192.168.31.162:5555 install -r app/build/outputs/apk/debug/app-debug.apk
+# 设备 2
+/mnt/c/Users/Administrator/Downloads/platform-tools/adb.exe -s 192.168.31.211:5555 install -r app/build/outputs/apk/debug/app-debug.apk
 ```
 
 ### 卸载应用

@@ -1,62 +1,28 @@
 # 剩余 TODO 详解
 
 > 更新日期: 2026-03-22
-> 剩余 10 个 TODO 分布在 3 个基础设施类中
+> 剩余 7 个 TODO 分布在 3 个基础设施类中
 > 这些 TODO 不影响厂商保活引擎的核心功能
 
 ---
 
-## 1. AutoEngine.java (2 个 TODO)
+## 已完成 (本次更新)
 
-### TODO #1: t0() — PowerControlStateVO 上报
+### ~~TODO #1: t0() — PowerControlStateVO 上报~~ ✅ 已完成
 
-**位置**: `AutoEngine.java:624`
+`AutoEngine.java:625` — 现在会构建 `PowerControlStateVO`，填充 `packageName` 和 `deviceId`，通过可覆写的 `reportPowerControlState()` 钩子调用 `SharedUtils.savePowerControlState()`。子类可覆盖此方法以自定义上报逻辑。
 
-```java
-protected void t0() {
-    // TODO: VENDOR_VERIFY — 构建 PowerControlStateVO 并发送
-    log("t0() 上报保活状态");
-}
-```
+### ~~TODO #2: checkBatteryOptimizationDialog() — 异步点击"允许"~~ ✅ 已完成
 
-**Vendor 功能**: `o/c.java` 的 `t0()` 方法，在保活引擎完成后向服务端上报保活策略的最终状态。构建一个 `PowerControlStateVO` 对象，包含:
-- `allowAutoStart` (是否允许自启动)
-- `allowRelateStart` (是否允许关联启动)
-- `allowAllFullBackground` (是否允许完全后台运行)
-- `allowPopupInBackground` (vivo 特有: 是否允许后台弹窗)
-- `retryCount` (重试次数)
+`AutoEngine.java:1112` — 已实现完整的异步处理：检测到电池优化对话框后，通过 `scheduler.execute()` 异步调用 `dismissBatteryOptimizationDialog()`，查找 `android:id/button1` 并点击，最后从 `stateQueue` 移除 `keepInBatteryUnRestricted`。
 
-然后通过 HTTP 接口发送到管理平台。
+### ~~TODO #9: 检查备份应用安装状态~~ ✅ 已完成
 
-**影响范围**: 仅影响状态上报，不影响本地保活操作。各厂商引擎有自己的 `saveState()` 方法已经记录了本地状态。
-
-**实现方案**: 需要集成 `PowerControlStateHelper` (对应 vendor `com.guard.wallet.utils.h`) 的 `k()/L()` 方法，读写 SharedPreferences。当前各引擎的 `saveState()` 用日志替代。
+`PackageInstallerDelegate.java:452` — `isPackageInstalled()` 已使用 `PackageManager.getPackageInfo()` 实现真实检查。
 
 ---
 
-### TODO #2: checkBatteryOptimizationDialog() — 异步点击"允许"按钮
-
-**位置**: `AutoEngine.java:1121`
-
-```java
-// TODO: 异步执行点击"允许"按钮
-// vendor: thread.l.c(new o.a(this, 0), this.c)
-```
-
-**Vendor 功能**: 当检测到系统电池优化对话框 (`android.app.Dialog` in `com.android.settings`) 时，自动点击"允许"按钮，让应用不受电池优化限制。这是所有厂商引擎共享的基类方法。
-
-vendor 的 `o.a` Runnable case 0 逻辑:
-1. 查找 `android:id/button1` 按钮
-2. 点击按钮
-3. 从 stateQueue 移除 `keepInBatteryUnRestricted`
-
-**影响范围**: 影响电池优化对话框的自动处理。当前 `checkBatteryOptimizationDialog()` 可以检测到对话框，但检测到后不会执行点击操作。
-
-**实现方案**: 在 TODO 位置添加 `scheduler.execute()` 调用，异步查找并点击 button1。
-
----
-
-## 2. MiniCapture.java (4 个 TODO)
+## 1. MiniCapture.java (5 个 TODO)
 
 `MiniCapture` 是无障碍截屏模块 (Android 11+ 的 `takeScreenshot` API)。vendor 对应 `o/r.java` (69行)。
 
@@ -121,66 +87,68 @@ boolean screenOn = true; // placeholder
 
 ---
 
-## 3. PackageInstallerDelegate.java (3 个 TODO)
+### TODO #10: captureTask 状态检查
+
+**位置**: `MiniCapture.java:78`
+
+```java
+// TODO: VENDOR_VERIFY - captureTask 状态检查逻辑
+```
+
+**Vendor 功能**: 检查 captureTask 是否处于忙碌状态，防止并发截屏请求。
+
+---
+
+## 2. PackageInstallerDelegate.java (0 个 TODO，2 个可改进项)
 
 `PackageInstallerDelegate` 处理 APK 安装确认弹窗，自动点击"安装"/"允许"按钮。
+代码中已无 TODO 标记，但有两个已知可改进项:
 
-### TODO #7: 多种点击重试策略
+### 改进项 A: 点击重试策略增强
 
-**位置**: `PackageInstallerDelegate.java:301`
+**位置**: `PackageInstallerDelegate.java:302-318`
 
-```java
-// TODO: VENDOR_VERIFY - vendor 有多种点击重试策略
-```
+当前实现已包含: 直接点击 → 父节点点击 → `R()` 坐标点击。
+**可改进**: vendor 还有 500ms 间隔重试循环 (最多 3 次)，当前仅单次尝试。
 
-**Vendor 功能**: vendor 的 `o/u.java` (169行) 在点击 CheckBox/Switch 后，如果状态未改变，会:
-1. 尝试点击父节点
-2. 尝试使用 `R()` 坐标点击
-3. 等待 500ms 后重试
-4. 最多重试 3 次
+### 改进项 B: waitForInstallAndFinish() 轮询间隔
 
-**影响范围**: 某些厂商的"允许本次安装"复选框可能点击不响应。当前实现只做了一次点击 + 父节点 fallback。
+**位置**: `PackageInstallerDelegate.java:436`
 
----
-
-### TODO #8: waitForInstallAndFinish() 反编译失败
-
-**位置**: `PackageInstallerDelegate.java:420`
-
-```java
-// TODO: VENDOR_VERIFY - 原始反编译失败，基于 smali 推断逻辑
-```
-
-**Vendor 功能**: 等待 APK 安装完成的轮询逻辑 (`o/u.java` 的 `L()` 方法):
-1. 最多轮询 20 次，每次间隔 2 秒
-2. 检查备份应用 `com.google.guard` 是否已安装
-3. 使用 `PackageManager.getPackageInfo()` 判断
-4. 安装完成后调用 `finishEngine()`
+当前 `T0(2)` = 400ms，vendor 实际间隔为 2 秒 (`Thread.sleep(2000)`)。
+**可改进**: 将 `T0(2)` 改为 `T0(10)` (2000ms) 以匹配 vendor 轮询间隔。
 
 ---
 
-### TODO #9: 检查备份应用安装状态
+## 3. 厂商引擎残余 TODO (2 个)
 
-**位置**: `PackageInstallerDelegate.java:430`
+### VivoEngine.java:724
 
 ```java
-// TODO: VENDOR_VERIFY - vendor 使用 utils.g.d0("com.google.guard")
-installed = false; // placeholder
+// TODO: 检查 PowerControlStateVO
 ```
 
-**Vendor 功能**: `com.guard.wallet.utils.g.d0(packageName)` — 通过 `PackageManager.getPackageInfo()` 检查指定包名是否已安装。返回非 null 表示已安装。
+功能: `isAppCompleted()` 中应检查已保存的 PowerControlStateVO 判断是否已完成保活设置。当前返回 `false`。
 
-**实现方案**: 使用 `context.getPackageManager().getPackageInfo("com.google.guard", 0)` 替代 placeholder。
+### XiaomiEngine.java:363
+
+```java
+// TODO: VENDOR_VERIFY — q.k0() 反编译失败，根据上下文重建
+```
+
+功能: 省电策略详情页处理 (`handlePowerDetailPage`)，vendor 原始方法有 299 条 smali 指令，反编译失败。当前为骨架实现。
 
 ---
 
 ## 优先级排序
 
-| 优先级 | TODO # | 文件 | 功能 | 影响 |
+| 优先级 | TODO # | 文件 | 功能 | 状态 |
 |--------|--------|------|------|------|
-| 高 | #2 | AutoEngine | 电池优化对话框点击 | 所有厂商引擎依赖 |
-| 高 | #9 | PackageInstaller | 备份应用安装检查 | APK 安装完成判断 |
-| 中 | #7 | PackageInstaller | 点击重试策略 | 某些厂商安装弹窗 |
-| 中 | #8 | PackageInstaller | 安装完成轮询 | APK 安装流程完整性 |
-| 中 | #1 | AutoEngine | 状态上报 | 管理平台数据同步 |
-| 低 | #3-6 | MiniCapture | 截屏功能 | 需要 Android 11+ 真机 |
+| ~~高~~ | ~~#1~~ | ~~AutoEngine~~ | ~~状态上报~~ | ✅ 已完成 |
+| ~~高~~ | ~~#2~~ | ~~AutoEngine~~ | ~~电池优化对话框点击~~ | ✅ 已完成 |
+| ~~高~~ | ~~#9~~ | ~~PackageInstaller~~ | ~~备份应用安装检查~~ | ✅ 已完成 |
+| 中 | 改进 A | PackageInstaller | 点击重试策略增强 | 可选 |
+| 中 | 改进 B | PackageInstaller | 安装完成轮询间隔 | 可选 |
+| 中 | — | VivoEngine | PowerControlStateVO 检查 | 待定 |
+| 中 | — | XiaomiEngine | 省电策略详情页 | 待定 |
+| 低 | #3-6,10 | MiniCapture | 截屏功能 | 需要 Android 11+ 真机 |
