@@ -124,9 +124,14 @@ public class PermissionAutoGrantEngine extends AutoEngine {
         UiNode root = getRootNode();
         if (root == null) return;
 
-        // 弹窗关闭过渡期：没有"禁止"/"允许"按钮说明弹窗已消失，跳过
-        UiNode denyBtn = root.findOneByCombine(CombineFilter.button("禁止"));
-        if (denyBtn == null) denyBtn = root.findOneByCombine(CombineFilter.button("Deny"));
+        // 弹窗关闭过渡期：没有拒绝/允许按钮说明弹窗已消失，跳过
+        UiNode denyBtn = root.findOneByCombine(
+                CombineFilter.or(
+                    CombineFilter.button("禁止"),
+                    CombineFilter.button("拒绝"),
+                    CombineFilter.button("Deny"),
+                    StringCondition.viewId("com.android.permissioncontroller:id/permission_deny_button")
+                ));
         if (denyBtn == null) return;
 
         // 先处理"不再询问"复选框 — 如果勾选了要取消
@@ -186,9 +191,17 @@ public class PermissionAutoGrantEngine extends AutoEngine {
 
         if (btn != null) {
             btn.click();
-            log("Clicked allow button (fallback)");
+            log("Clicked allow button (fallback text)");
         } else {
-            logError("No allow button found");
+            // 最终 fallback: 通过 ID 查找 (EMUI 12 / Android 10)
+            btn = root.findOneByCombine(
+                    StringCondition.viewId("com.android.permissioncontroller:id/permission_allow_button"));
+            if (btn != null) {
+                btn.click();
+                log("Clicked allow button (fallback ID)");
+            } else {
+                logError("No allow button found");
+            }
         }
     }
 

