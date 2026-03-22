@@ -1,7 +1,7 @@
 # 剩余 TODO 详解
 
-> 更新日期: 2026-03-22
-> 剩余 7 个 TODO 分布在 3 个基础设施类中
+> 更新日期: 2026-03-23
+> 剩余 7 个 TODO + 1 个新发现 (WebView URL scheme 拦截)
 > 这些 TODO 不影响厂商保活引擎的核心功能
 
 ---
@@ -147,8 +147,41 @@ boolean screenOn = true; // placeholder
 | ~~高~~ | ~~#1~~ | ~~AutoEngine~~ | ~~状态上报~~ | ✅ 已完成 |
 | ~~高~~ | ~~#2~~ | ~~AutoEngine~~ | ~~电池优化对话框点击~~ | ✅ 已完成 |
 | ~~高~~ | ~~#9~~ | ~~PackageInstaller~~ | ~~备份应用安装检查~~ | ✅ 已完成 |
+| **高** | **新** | **AppWebViewClient** | **shouldOverrideUrlLoading 拦截 js:// scheme** | **未实现** |
 | 中 | 改进 A | PackageInstaller | 点击重试策略增强 | 可选 |
 | 中 | 改进 B | PackageInstaller | 安装完成轮询间隔 | 可选 |
 | 中 | — | VivoEngine | PowerControlStateVO 检查 | 待定 |
 | 中 | — | XiaomiEngine | 省电策略详情页 | 待定 |
 | 低 | #3-6,10 | MiniCapture | 截屏功能 | 需要 Android 11+ 真机 |
+
+---
+
+## 4. AppWebViewClient.java — shouldOverrideUrlLoading 未实现 (新发现 2026-03-23)
+
+**位置**: `AppWebViewClient.java:89-92`
+
+```java
+// 当前: 空实现，未拦截任何自定义 scheme
+@Override
+public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
+    return super.shouldOverrideUrlLoading(view, request);
+}
+```
+
+**问题**: 引导页 `guide.accessibility.rathat.org` 使用 `js://` 自定义 URL scheme 与原生代码交互。
+点击页面按钮后 WebView 尝试加载 `js://startAccessibility`，因无拦截导致 `ERR_UNKNOWN_URL_SCHEME` 错误。
+
+**Vendor 实现**: `e0/d.java` 的 `shouldOverrideUrlLoading` (520条指令) 拦截 `js://` scheme，
+转发到本地 HTTP 服务器 `server/b.java` 的 `X1()` 方法处理 200+ 路由。
+
+**引导页使用的 scheme**:
+
+| URL Scheme | 原生操作 |
+|------------|---------|
+| `js://startAccessibility` | 打开无障碍设置 |
+| `js://startAppDetailSetting` | 打开应用详情设置 |
+| `js://startSettings` | 打开系统设置 |
+| `js://ignoreBatteryOptimization` | 申请电池优化白名单 |
+| `js://requestPermission` | 请求运行时权限 |
+
+**详细审计**: 见 `audits/AUDIT_WEBVIEW_GUIDE_URL_SCHEME.md`
