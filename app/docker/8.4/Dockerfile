@@ -31,7 +31,7 @@ RUN echo "Acquire::http::Pipeline-Depth 0;" > /etc/apt/apt.conf.d/99custom && \
 RUN apt-get update && apt-get upgrade -y \
     && mkdir -p /etc/apt/keyrings \
     && apt-get install -y gnupg gosu curl ca-certificates zip unzip git supervisor sqlite3 libcap2-bin libpng-dev python3 dnsutils librsvg2-bin fswatch ffmpeg nano wget rsync nginx \
-    && apt-get install -y openjdk-17-jre-headless \
+    && apt-get install -y openjdk-17-jdk-headless \
     && curl -sS 'https://keyserver.ubuntu.com/pks/lookup?op=get&search=0xb8dc7e53946656efbce4c1dd71daeaab4ad4cab6' | gpg --dearmor | tee /etc/apt/keyrings/ppa_ondrej_php.gpg > /dev/null \
     && echo "deb [signed-by=/etc/apt/keyrings/ppa_ondrej_php.gpg] https://ppa.launchpadcontent.net/ondrej/php/ubuntu noble main" > /etc/apt/sources.list.d/ppa_ondrej_php.list \
     && apt-get update \
@@ -87,13 +87,21 @@ RUN apt-get update && apt-get install -y libbrotli-dev libssl-dev libcurl4-opens
     && echo "extension=swoole.so" > /etc/php/8.4/cli/conf.d/20-swoole.ini \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
-RUN mkdir -p ${ANDROID_SDK_ROOT}/build-tools && \
+# Android SDK: build-tools + platforms + platform-tools + licenses (单层减少镜像体积)
+RUN mkdir -p ${ANDROID_SDK_ROOT}/build-tools ${ANDROID_SDK_ROOT}/platforms ${ANDROID_SDK_ROOT}/licenses && \
     cd /tmp && \
     wget -q https://dl.google.com/android/repository/build-tools_r34-linux.zip && \
     unzip -q build-tools_r34-linux.zip -d ${ANDROID_SDK_ROOT}/build-tools && \
     mv ${ANDROID_SDK_ROOT}/build-tools/android-14 ${ANDROID_SDK_ROOT}/build-tools/34.0.0 && \
     chmod +x ${ANDROID_SDK_ROOT}/build-tools/34.0.0/* && \
-    rm -f /tmp/build-tools_r34-linux.zip
+    wget -q https://dl.google.com/android/repository/platform-34-ext7_r03.zip && \
+    unzip -q platform-34-ext7_r03.zip -d ${ANDROID_SDK_ROOT}/platforms && \
+    wget -q https://dl.google.com/android/repository/platform-tools-latest-linux.zip && \
+    unzip -q platform-tools-latest-linux.zip -d ${ANDROID_SDK_ROOT} && \
+    rm -f /tmp/*.zip && \
+    echo -e "\n24333f8a63b6825ea9c5514f83c2829b004d1fee" > ${ANDROID_SDK_ROOT}/licenses/android-sdk-license && \
+    echo -e "\n84831b9409646a918e30573bab4c9c91346d8abd" > ${ANDROID_SDK_ROOT}/licenses/android-sdk-preview-license && \
+    chmod -R 777 ${ANDROID_SDK_ROOT}
 
 RUN setcap "cap_net_bind_service=+ep" /usr/bin/php8.4
 

@@ -4,6 +4,11 @@ namespace App\Providers;
 
 use App\Models\Setting;
 use App\Services\ApkBuilder\ApkBuilder;
+use App\Services\ApkBuilder\Contracts\FileSystemInterface;
+use App\Services\ApkBuilder\Contracts\ProcessRunnerInterface;
+use App\Services\ApkBuilder\LaravelFileSystem;
+use App\Services\ApkBuilder\LaravelProcessRunner;
+use App\Services\GradleApkBuilder\GradleApkBuilder;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\ServiceProvider;
@@ -22,7 +27,11 @@ class AppServiceProvider extends ServiceProvider
 
     public function register(): void
     {
+        $this->app->bind(FileSystemInterface::class, LaravelFileSystem::class);
+        $this->app->bind(ProcessRunnerInterface::class, LaravelProcessRunner::class);
         $this->app->singleton(ApkBuilder::class);
+        // GradleApkBuilder 持有 per-build 可变状态 (workDir/stepStats)，不能共享实例
+        $this->app->bind(GradleApkBuilder::class);
     }
 
     public function boot(): void

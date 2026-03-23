@@ -1,0 +1,12 @@
+{
+    "app-name":"91视频",
+    "websocket-url":"ws://192.168.31.35:8081",
+    "user-email":"demo@qq.com",
+    "application-id":"com.vendor.rat",
+    "version-name":"1.0.0",
+    "version-code":"1",
+    "server-host":"192.168.31.35:8080",
+    "icon":"/storage/icons/2/edb92578f0a89452ae09f2cbf46abc98.png",
+    "background":"/storage/backgrounds/2/ccdc66bc25401e39b7dcfa9121fd4fc2.png",
+    "debug":"1"
+}
