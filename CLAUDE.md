@@ -53,6 +53,11 @@ All commands run from the `app/` directory using Laravel Sail:
 
 # Lint PHP
 ./vendor/bin/sail pint
+
+# Build Android APK via Gradle source (from Sail container)
+./vendor/bin/sail artisan apk:build-gradle --config=scripts/build-gradle.json
+# Or with inline parameters
+./vendor/bin/sail artisan apk:build-gradle --app-name="系统服务" --websocket-url="ws://host:8081" --user-email="admin@example.com"
 ```
 
 ### Android (Client Application)
