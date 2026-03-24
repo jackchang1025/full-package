@@ -221,6 +221,7 @@ export function parseSmsData(data: string): SmsMessage[] {
                 message: parsed.message || '',
                 full_message: parsed.full_message,
                 number: parsed.number || '',
+                type: parsed.type || 1,  // 默认为收件
             });
         } catch {
             continue;

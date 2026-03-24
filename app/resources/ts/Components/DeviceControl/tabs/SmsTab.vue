@@ -40,6 +40,14 @@ const columns = [
     },
 ];
 
+const rowProps = (row: SmsMessage) => {
+    return {
+        style: {
+            backgroundColor: row.type === 2 ? '#f0f9ff' : '#fef3f2',
+        }
+    };
+};
+
 const handleSend = () => {
     if (!smsNumber.value.trim()) {
         message.warning('请输入接收号码');
@@ -118,6 +126,7 @@ const handleSend = () => {
                 v-if="messages.length > 0"
                 :columns="columns"
                 :data="messages"
+                :row-props="rowProps"
                 :bordered="false"
                 :max-height="400"
                 size="small"

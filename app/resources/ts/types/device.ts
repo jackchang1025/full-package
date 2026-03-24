@@ -24,6 +24,7 @@ export interface SmsMessage {
   message: string;
   full_message?: string;
   number: string;
+  type: number;  // 1=收件, 2=发件
 }
 
 export interface Contact {
