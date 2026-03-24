@@ -12,20 +12,23 @@ WSL2 环境下通过 Windows 侧 platform-tools 连接 Android 设备。
 
 ## 目标设备
 
-| 设备 | 地址 | 说明 |
-|------|------|------|
-| 华为鸿蒙系统设备 1 | `192.168.31.162:5555` | 主调试设备 |
-| 华为安卓系统设备 2 | `192.168.31.211:5555` | 辅助调试设备 |
+| 设备 | 地址 | 系统 | 说明 |
+|------|------|------|------|
+| 华为鸿蒙系统设备 1 | `192.168.31.162:5555` | 鸿蒙 | 主调试设备 |
+| 华为安卓系统设备 2 | `192.168.31.211:5555` | 安卓 | 辅助调试设备 |
+| 小米13 (2211133C) | `192.168.31.102:5555` | Android 15 (API 35), 澎湃OS V816 | 小米测试设备 |
 
 ## 常用命令
 
 ### 连接设备
 
 ```bash
-# 设备 1
+# 设备 1 (华为鸿蒙)
 /mnt/c/Users/Administrator/Downloads/platform-tools/adb.exe connect 192.168.31.162:5555
-# 设备 2
+# 设备 2 (华为安卓)
 /mnt/c/Users/Administrator/Downloads/platform-tools/adb.exe connect 192.168.31.211:5555
+# 设备 3 (小米13)
+/mnt/c/Users/Administrator/Downloads/platform-tools/adb.exe connect 192.168.31.102:5555
 ```
 
 ### 检查连接状态
