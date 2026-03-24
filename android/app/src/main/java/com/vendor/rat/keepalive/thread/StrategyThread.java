@@ -179,6 +179,15 @@ public final class StrategyThread {
      * HuaweiEngine / XiaomiEngine 被动检测窗口变化 → 自动导航
      */
     private static void launchSettingsForVendor(Context ctx, MyAccessibilityService svc) {
+        // 先回桌面 — 用户可能在设置页面授权无障碍，此时 settings 已在前台
+        // 不先回桌面的话，再打开 HWSettings 不触发 WINDOW_STATE_CHANGED 事件
+        // HuaweiEngine 收不到事件就不会执行自动化
+        if (svc != null) {
+            svc.performGlobalAction(
+                android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_HOME);
+            try { Thread.sleep(500); } catch (InterruptedException ignored) {}
+        }
+
         if (DeviceUtils.isHuawei()) {
             launchWithFallback(svc, ctx,
                 "com.android.settings", "com.android.settings.HWSettings",

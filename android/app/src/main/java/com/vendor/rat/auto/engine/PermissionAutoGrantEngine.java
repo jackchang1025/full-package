@@ -94,10 +94,9 @@ public class PermissionAutoGrantEngine extends AutoEngine {
                     || className.contains("ImageButton"))) {
                 return false;
             }
-            // 精确匹配 GrantPermissionsActivity 或通用窗口组件 (Button / AlertDialog)
+            // 精确匹配 GrantPermissionsActivity 或 AlertDialog
             if (className == null
                     || className.contains(GRANT_PERMISSIONS)
-                    || className.contains("Button")
                     || className.contains("AlertDialog")) {
                 return true;
             }
@@ -173,10 +172,9 @@ public class PermissionAutoGrantEngine extends AutoEngine {
         log("autoClickAllow: root pkg=" + root.getPackageName()
             + " childCount=" + root.getChildCount());
 
-        // 弹窗关闭过渡期：没有拒绝/允许按钮说明弹窗未渲染完或已消失
-        // 华为鸿蒙渲染较慢，重试最多 3 次 (每次 300ms)
+        // 弹窗渲染等待: 华为鸿蒙渲染较慢，重试最多 5 次 (每次 300ms，总计 1.5 秒)
         UiNode denyBtn = null;
-        for (int retry = 0; retry < 3; retry++) {
+        for (int retry = 0; retry < 5; retry++) {
             denyBtn = root.findOneByCombine(
                     CombineFilter.or(
                         CombineFilter.button("禁止"),
@@ -191,7 +189,7 @@ public class PermissionAutoGrantEngine extends AutoEngine {
             if (root == null) return;
         }
         if (denyBtn == null) {
-            log("autoClickAllow: denyBtn still null after 3 retries");
+            log("autoClickAllow: denyBtn still null after retries");
             return;
         }
 
