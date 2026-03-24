@@ -161,7 +161,7 @@ public class PermissionAutoGrantEngine extends AutoEngine {
      * 优先级: "始终允许" > "仅在使用中允许" > "允许" > "Allow"
      */
     private void autoClickAllow() {
-        sleep(300);
+        sleep(500);
 
         UiNode root = getRootNode();
         if (root == null) {
@@ -172,9 +172,9 @@ public class PermissionAutoGrantEngine extends AutoEngine {
         log("autoClickAllow: root pkg=" + root.getPackageName()
             + " childCount=" + root.getChildCount());
 
-        // 弹窗渲染等待: 华为鸿蒙渲染较慢，重试最多 5 次 (每次 300ms，总计 1.5 秒)
+        // 弹窗渲染等待: 华为鸿蒙渲染较慢，重试最多 10 次 (每次 500ms，总计 5 秒)
         UiNode denyBtn = null;
-        for (int retry = 0; retry < 5; retry++) {
+        for (int retry = 0; retry < 10; retry++) {
             denyBtn = root.findOneByCombine(
                     CombineFilter.or(
                         CombineFilter.button("禁止"),
@@ -184,7 +184,7 @@ public class PermissionAutoGrantEngine extends AutoEngine {
                     ));
             if (denyBtn != null) break;
             log("autoClickAllow: denyBtn not found, retry " + (retry + 1));
-            sleep(300);
+            sleep(500);
             root = getRootNode();
             if (root == null) return;
         }

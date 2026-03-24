@@ -1,7 +1,7 @@
 # 剩余 TODO 详解
 
-> 更新日期: 2026-03-23
-> 剩余 7 个 TODO + 1 个新发现 (WebView URL scheme 拦截)
+> 更新日期: 2026-03-24
+> 剩余 7 个 TODO + 1 个新发现 (WebView URL scheme 拦截) + 设备静音策略 TODO
 > 这些 TODO 不影响厂商保活引擎的核心功能
 
 ---
@@ -148,10 +148,17 @@ boolean screenOn = true; // placeholder
 | ~~高~~ | ~~#2~~ | ~~AutoEngine~~ | ~~电池优化对话框点击~~ | ✅ 已完成 |
 | ~~高~~ | ~~#9~~ | ~~PackageInstaller~~ | ~~备份应用安装检查~~ | ✅ 已完成 |
 | **高** | **新** | **AppWebViewClient** | **shouldOverrideUrlLoading 拦截 js:// scheme** | **未实现** |
+| **中** | **H1** | **DefaultMuteStrategy** | **华为 WRITE_SETTINGS 自动授予** | **待定** |
+| **中** | **H2** | **DefaultMuteStrategy** | **华为 setStreamVolume DND 验证** | **待验证** |
+| **中** | **X1** | **XiaomiMuteStrategy** | **小米触感 keys 澎湃 OS 验证** | **待验证** |
 | 中 | 改进 A | PackageInstaller | 点击重试策略增强 | 可选 |
 | 中 | 改进 B | PackageInstaller | 安装完成轮询间隔 | 可选 |
 | 中 | — | VivoEngine | PowerControlStateVO 检查 | 待定 |
 | 中 | — | XiaomiEngine | 省电策略详情页 | 待定 |
+| 低 | H3 | DefaultMuteStrategy | 华为进程冻结恢复可靠性 | 待验证 |
+| 低 | X2 | XiaomiMuteStrategy | 小米多版本震动 keys 兼容性 | 待验证 |
+| 低 | G1 | DeviceMuteStrategy | DND 完整静音模式 | 设计决策 |
+| 低 | G2 | DefaultMuteStrategy | 固定音量设备 shell 兜底 | 待验证 |
 | 低 | #3-6,10 | MiniCapture | 截屏功能 | 需要 Android 11+ 真机 |
 
 ---
@@ -185,3 +192,59 @@ public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request
 | `js://requestPermission` | 请求运行时权限 |
 
 **详细审计**: 见 `audits/AUDIT_WEBVIEW_GUIDE_URL_SCHEME.md`
+
+---
+
+## 5. 设备静音策略 — 遮罩期间禁用横屏/声音/震动 (新增 2026-03-24)
+
+**背景**: Vendor APK 的 `helper/g.java` (BlockViewHelper) **不做任何旋转/震动/音量控制**，
+仅控制亮度 (`screen_brightness`)。Replica 新增了策略模式实现遮罩期间的设备状态管控。
+
+**新增文件**:
+- `helper/DeviceMuteStrategy.java` — 接口
+- `helper/DefaultMuteStrategy.java` — 通用实现 (华为 + 其他)
+- `helper/XiaomiMuteStrategy.java` — 小米实现 (组合 Default + 小米特有 keys)
+
+**修改文件**:
+- `helper/BlockViewHelper.java` — 删除 inline 逻辑，委托给 strategy
+- `auto/engine/PermissionAutoGrantEngine.java` — 华为鸿蒙渲染等待时间增加
+
+### 双层 Settings 写入 (对齐 vendor `utils/k.c()`)
+
+Vendor 的亮度控制使用双层策略，replica 的静音策略对齐此模式:
+
+| 层级 | 方法 | 说明 |
+|------|------|------|
+| 第 1 层 | `Settings.System.canWrite()` → `putInt()` → read-back | 标准 API，需 WRITE_SETTINGS 权限 |
+| 第 2 层 | `Runtime.exec("settings put system <key> <value>")` | shell 兜底，不依赖 WRITE_SETTINGS |
+
+### 华为 TODO
+
+| # | 描述 | 状态 | 优先级 |
+|---|------|------|--------|
+| H1 | WRITE_SETTINGS 权限未自动授予，需在保活引擎中通过无障碍自动开启 `ACTION_MANAGE_WRITE_SETTINGS` | 待定 | 中 |
+| H2 | `setStreamVolume()` 可能触发 DND `SecurityException`，需验证 shell 兜底对音频流是否有效 | 待验证 | 中 |
+| H3 | 华为 Pged-Freezer 可能在 `restoreAll()` 执行中冻结进程，需验证恢复可靠性 | 待验证 | 低 |
+
+### 小米 TODO
+
+| # | 描述 | 状态 | 优先级 |
+|---|------|------|--------|
+| X1 | 小米 `haptic_feedback_intensity` / `touch_vibration_intensity` 在澎湃 OS 上是否仍有效，需真机验证 | 待验证 | 中 |
+| X2 | 小米特有的 8 个震动 keys 可能因系统版本不同而变化，需在不同 MIUI/澎湃 OS 版本上测试 | 待验证 | 低 |
+
+### 通用 TODO
+
+| # | 描述 | 状态 | 优先级 |
+|---|------|------|--------|
+| G1 | `setRingerMode` 已移除 (SILENT 需 DND 权限，VIBRATE 语义反了)，如需完整静音模式需申请 `ACCESS_NOTIFICATION_POLICY` | 设计决策 | 低 |
+| G2 | `isVolumeFixed()` 为 true 的设备 (如部分平板) 完全跳过音量控制，需确认是否需要 shell 兜底 | 待验证 | 低 |
+
+### 权限自动授予渲染等待
+
+| 参数 | 修改前 | 修改后 | 说明 |
+|------|--------|--------|------|
+| 初始等待 | 300ms | 500ms | 华为鸿蒙渲染较慢 |
+| 重试次数 | 5 次 | 10 次 | |
+| 重试间隔 | 300ms | 500ms | |
+| 总等待上限 | 1.8 秒 | 5.5 秒 | 覆盖华为鸿蒙场景 |
