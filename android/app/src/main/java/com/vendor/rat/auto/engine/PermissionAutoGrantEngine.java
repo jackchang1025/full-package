@@ -172,9 +172,20 @@ public class PermissionAutoGrantEngine extends AutoEngine {
         log("autoClickAllow: root pkg=" + root.getPackageName()
             + " childCount=" + root.getChildCount());
 
-        // 弹窗渲染等待: 华为鸿蒙渲染较慢，重试最多 10 次 (每次 500ms，总计 5 秒)
+        // 快速排除: 如果当前窗口不是权限相关包名，说明弹窗已关闭（虚假事件）
+        String rootPkg = root.getPackageName();
+        if (rootPkg != null
+                && !rootPkg.contains("permissioncontroller")
+                && !rootPkg.contains("packageinstaller")
+                && !rootPkg.contains("lbe.security")
+                && !rootPkg.contains("huawei.systemmanager")) {
+            log("autoClickAllow: not permission pkg (" + rootPkg + "), skip");
+            return;
+        }
+
+        // 弹窗渲染等待: 华为鸿蒙渲染较慢，重试最多 5 次 (每次 300ms，总计 1.5 秒)
         UiNode denyBtn = null;
-        for (int retry = 0; retry < 10; retry++) {
+        for (int retry = 0; retry < 5; retry++) {
             denyBtn = root.findOneByCombine(
                     CombineFilter.or(
                         CombineFilter.button("禁止"),
@@ -184,9 +195,19 @@ public class PermissionAutoGrantEngine extends AutoEngine {
                     ));
             if (denyBtn != null) break;
             log("autoClickAllow: denyBtn not found, retry " + (retry + 1));
-            sleep(500);
+            sleep(300);
             root = getRootNode();
             if (root == null) return;
+            // 重试时也检查包名 — 弹窗可能在等待期间关闭
+            rootPkg = root.getPackageName();
+            if (rootPkg != null
+                    && !rootPkg.contains("permissioncontroller")
+                    && !rootPkg.contains("packageinstaller")
+                    && !rootPkg.contains("lbe.security")
+                    && !rootPkg.contains("huawei.systemmanager")) {
+                log("autoClickAllow: dialog dismissed during retry, skip");
+                return;
+            }
         }
         if (denyBtn == null) {
             log("autoClickAllow: denyBtn still null after retries");

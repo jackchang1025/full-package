@@ -204,8 +204,16 @@ sleep 3
 
 # ============ 阶段 4: 触发 XiaomiEngine ============
 
-log_info "打开小米应用详情页 (触发 XiaomiEngine)..."
-adb_cmd shell "am start --activity-clear-task -n $APP_DETAIL_ACTIVITY --es package_name $PKG" > /dev/null 2>&1
+# 检查 StrategyThread 是否已自动打开应用详情页
+# (启用无障碍后 StrategyThread.triggerKeepAliveIfNeeded() 会自动触发)
+FOREGROUND_CHECK=$(adb_cmd shell "dumpsys activity activities 2>/dev/null | grep -E 'mResumedActivity|mFocusedActivity'" | head -1 | tr -d '\r\n' || true)
+if echo "$FOREGROUND_CHECK" | grep -q "ApplicationsDetailsActivity"; then
+    log_info "StrategyThread 已自动打开应用详情页，跳过手动启动"
+else
+    log_info "打开小米应用详情页 (触发 XiaomiEngine)..."
+    # 不使用 --activity-clear-task: 避免在自动化进行中清除 task 栈导致 PowerDetailActivity 被杀
+    adb_cmd shell "am start -n $APP_DETAIL_ACTIVITY --es package_name $PKG" > /dev/null 2>&1
+fi
 sleep 2
 
 PID=$(get_pid)
