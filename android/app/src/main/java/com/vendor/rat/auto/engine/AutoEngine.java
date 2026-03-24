@@ -759,8 +759,16 @@ public abstract class AutoEngine {
                         service.resumeProxy();
                     }
 
-                    // 9. vendor: g.c() — 移除遮罩 (proxy 已恢复，权限弹窗可正常处理)
-                    BlockViewHelper.removeWithDestroy();
+                    // 9. 管道模式: 通知 pipeline 引擎已完成; fallback: 直接移除遮罩
+                    com.vendor.rat.auto.pipeline.PipelineContext pipelineCtx =
+                        com.vendor.rat.auto.pipeline.AutomationPipeline.getCurrentContext();
+                    if (pipelineCtx != null) {
+                        pipelineCtx.getVendorEngineLatch().countDown();
+                        log("Pipeline latch released");
+                    } else {
+                        // Fallback: 非管道模式 (手动触发等)，走原路径
+                        BlockViewHelper.removeWithDestroy();
+                    }
 
                     // 10. vendor: c.W() — 通知策略线程
                     if (com.vendor.rat.MainApplication.getInstance() != null) {

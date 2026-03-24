@@ -12,8 +12,8 @@ android {
         // ADAPT: 提升到 34 让 POST_NOTIFICATIONS 成为标准运行时权限
         // 由 PermissionAutoGrantEngine 在无障碍启用后自动授权
         targetSdk 34
-        versionCode 1
-        versionName "1.0.0"
+        versionCode 11
+        versionName "1.1.0"
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }
