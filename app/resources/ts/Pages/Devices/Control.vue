@@ -376,14 +376,7 @@ const handleScreenshot = () => screenControl.takeScreenshot();
 const handleQualityChange = (quality: number) => screenControl.setScreenQuality(quality);
 
 const handleWakeScreen = () => {
-    // 使用导航到主页来点亮屏幕 (与 info.php 一致)
-    send({ 
-        itype: 'slr_panel', 
-        subc: 'screen', 
-        pid: deviceId.value, 
-        comand: 'nav', 
-        navshort: 'ho' 
-    });
+    screenControl.lockDevice(0);  // 0 = 解锁，会唤醒屏幕
     message.success('点亮屏幕请求已发送');
 };
 
