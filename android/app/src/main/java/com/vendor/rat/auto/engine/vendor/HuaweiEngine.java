@@ -162,9 +162,9 @@ public class HuaweiEngine extends AutoEngine {
     @Override
     protected void onEventSafe(AccessibilityEvent event, String packageName,
                                 String className) {
-        // 对应逆向: super.u(event, str, str2)
-        if (event != null) {
-            // base class event processing
+        // 遮罩守卫: 仅在遮罩显示期间执行自动化
+        if (!com.vendor.rat.helper.BlockViewHelper.isShowing()) {
+            return;
         }
 
         boolean inHwSettings = j0();
