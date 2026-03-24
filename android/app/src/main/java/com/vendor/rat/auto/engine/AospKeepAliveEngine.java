@@ -149,42 +149,20 @@ public class AospKeepAliveEngine extends AutoEngine {
     // ====== 事件处理 — 对应 vendor u() 行 285-316 ======
 
     @Override
-    public void onAccessibilityEvent(AccessibilityEvent event, String packageName,
-                                     String className) {
-        try {
-            if (T()) return;
-            currentPackage = packageName;
-            currentClassName = className;
+    protected void onEventSafe(AccessibilityEvent event, String packageName,
+                                String className) {
+        // vendor u():291-292 — super.u() 电池优化对话框
+        if (event != null) {
+            checkBatteryOptimizationDialog();
+        }
 
-            // vendor u():291-292 — super.u() 电池优化对话框
-            if (event != null) {
-                checkBatteryOptimizationDialog();
-            }
-
-            // [1] i0() → App详情
-            // vendor u():297-302
-            if (i0()) {
-                stateQueue.remove(ST_APP_BATTERY);
-                if (!stateQueue.contains(ST_APP_DETAIL)) {
-                    stateQueue.add(ST_APP_DETAIL);
-                    scheduler.execute(new Runnable() {
-                        @Override public void run() { handleAppDetail(); }
-                    });
-                }
-            }
-            // [2] h0() → 耗电管理
-            // vendor u():304-311
-            if (h0()) {
-                stateQueue.remove(ST_APP_DETAIL);
-                if (!stateQueue.contains(ST_APP_BATTERY)) {
-                    stateQueue.add(ST_APP_BATTERY);
-                    scheduler.execute(new Runnable() {
-                        @Override public void run() { handleAppBattery(); }
-                    });
-                }
-            }
-        } catch (Exception e) {
-            logError("事件处理异常", e);
+        // [1] i0() → App详情
+        if (i0()) {
+            dispatchState(ST_APP_DETAIL, this::handleAppDetail, ST_APP_BATTERY);
+        }
+        // [2] h0() → 耗电管理
+        if (h0()) {
+            dispatchState(ST_APP_BATTERY, this::handleAppBattery, ST_APP_DETAIL);
         }
     }
 
@@ -195,36 +173,32 @@ public class AospKeepAliveEngine extends AutoEngine {
      * vendor: f(this, 0) — 使用 c0()/f0()/g0() 3个 filter 依次查找
      */
     private void handleAppDetail() {
-        try {
-            if (!i0()) return;
-            updateProgress(10);
-            activateRoot();
-            UiNode root = k();
-            if (root == null) return;
+        if (!i0()) return;
+        updateProgress(10);
+        activateRoot();
+        UiNode root = k();
+        if (root == null) return;
 
-            // vendor c0(): COMMON_SETTINGS_BATTERY_TEXT — "电池"
-            UiNode target = root.findOneByCombine(buildBatteryFilter());
-            // vendor f0(): COMMON_SETTINGS_POWER_TEXT — "电源"
-            if (target == null) {
-                target = root.findOneByCombine(buildPowerFilter());
-            }
-            // vendor g0(): COMMON_SETTINGS_USE_POWER_TEXT — "耗电"
-            if (target == null) {
-                target = root.findOneByCombine(buildUsePowerFilter());
-            }
+        // vendor c0(): COMMON_SETTINGS_BATTERY_TEXT — "电池"
+        UiNode target = root.findOneByCombine(buildBatteryFilter());
+        // vendor f0(): COMMON_SETTINGS_POWER_TEXT — "电源"
+        if (target == null) {
+            target = root.findOneByCombine(buildPowerFilter());
+        }
+        // vendor g0(): COMMON_SETTINGS_USE_POWER_TEXT — "耗电"
+        if (target == null) {
+            target = root.findOneByCombine(buildUsePowerFilter());
+        }
 
-            if (target != null) {
-                Log.d(TAG, "电池/电源/耗电栏目查找成功");
-                UiNode clickable = target.findClickableParent();
-                if (clickable != null && clickable.click()) {
-                    Log.d(TAG, "已点击电池栏目");
-                    updateProgress(30);
-                }
-            } else {
-                Log.e(TAG, "电池/电源/耗电栏目查找失败");
+        if (target != null) {
+            Log.d(TAG, "电池/电源/耗电栏目查找成功");
+            UiNode clickable = target.findClickableParent();
+            if (clickable != null && clickable.click()) {
+                Log.d(TAG, "已点击电池栏目");
+                updateProgress(30);
             }
-        } catch (Exception e) {
-            logError("handleAppDetail", e);
+        } else {
+            Log.e(TAG, "电池/电源/耗电栏目查找失败");
         }
     }
 
@@ -236,23 +210,19 @@ public class AospKeepAliveEngine extends AutoEngine {
      * 与传音 o0() (254 条) 几乎相同, 共享 COMMON_* Key
      */
     private void handleAppBattery() {
-        try {
-            if (!h0()) return;
-            updateProgress(40);
-            activateRoot();
-            UiNode root = k();
-            if (root == null) return;
+        if (!h0()) return;
+        updateProgress(40);
+        activateRoot();
+        UiNode root = k();
+        if (root == null) return;
 
-            UiNode target = performBatteryOptimization(root);
-            if (target != null) {
-                allowFullBackground.set(true);
-                Log.d(TAG, "电池优化操作完成");
-                updateProgress(60);
-            } else {
-                Log.e(TAG, "不受限选项查找失败");
-            }
-        } catch (Exception e) {
-            logError("handleAppBattery", e);
+        UiNode target = performBatteryOptimization(root);
+        if (target != null) {
+            allowFullBackground.set(true);
+            Log.d(TAG, "电池优化操作完成");
+            updateProgress(60);
+        } else {
+            Log.e(TAG, "不受限选项查找失败");
         }
     }
 

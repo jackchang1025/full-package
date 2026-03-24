@@ -205,75 +205,34 @@ public class OppoEngine extends AutoEngine {
      * ConcurrentLinkedQueue 状态机 + Runnable 分发
      */
     @Override
-    public void onAccessibilityEvent(AccessibilityEvent event, String packageName,
-                                     String className) {
-        try {
-            if (T()) return;
+    protected void onEventSafe(AccessibilityEvent event, String packageName,
+                                String className) {
+        // vendor u():445-446 — super.u() 电池优化对话框
+        if (event != null) {
+            checkBatteryOptimizationDialog();
+        }
 
-            currentPackage = packageName;
-            currentClassName = className;
+        boolean inAppDetail = k0();
 
-            // vendor u():445-446 — super.u() 电池优化对话框
-            if (event != null) {
-                checkBatteryOptimizationDialog();
-            }
-
-            boolean inAppDetail = k0();
-
-            if (inAppDetail) {
-                stateQueue.remove(ST_POWER_CONTROL);
-                stateQueue.remove(ST_DIALOG);
-                stateQueue.remove(ST_STARTUP);
-                if (!stateQueue.contains(ST_APP_DETAIL)) {
-                    stateQueue.add(ST_APP_DETAIL);
-                    // case 0: 查找并点击耗电管理栏目
-                    runInBackground(new Runnable() {
-                        @Override
-                        public void run() { handleAppDetailState(); }
-                    });
-                }
-            }
-            if (l0()) {
-                stateQueue.remove(ST_APP_DETAIL);
-                stateQueue.remove(ST_DIALOG);
-                stateQueue.remove(ST_STARTUP);
-                if (!stateQueue.contains(ST_POWER_CONTROL)) {
-                    stateQueue.add(ST_POWER_CONTROL);
-                    // case 1: 耗电管理 — 自启动/关联启动/完全后台
-                    runInBackground(new Runnable() {
-                        @Override
-                        public void run() { handlePowerControlState(); }
-                    });
-                }
-            }
-            if (j0()) {
-                stateQueue.remove(ST_APP_DETAIL);
-                stateQueue.remove(ST_POWER_CONTROL);
-                stateQueue.remove(ST_STARTUP);
-                if (!stateQueue.contains(ST_DIALOG)) {
-                    stateQueue.add(ST_DIALOG);
-                    // case 2: 对话框 — 点击允许按钮
-                    runInBackground(new Runnable() {
-                        @Override
-                        public void run() { handleDialogState(); }
-                    });
-                }
-            }
-            if (m0()) {
-                stateQueue.remove(ST_APP_DETAIL);
-                stateQueue.remove(ST_POWER_CONTROL);
-                stateQueue.remove(ST_DIALOG);
-                if (!stateQueue.contains(ST_STARTUP)) {
-                    stateQueue.add(ST_STARTUP);
-                    // case 3: 自启动管理
-                    runInBackground(new Runnable() {
-                        @Override
-                        public void run() { handleStartupState(); }
-                    });
-                }
-            }
-        } catch (Exception e) {
-            logError("事件处理异常", e);
+        if (inAppDetail) {
+            // case 0: 查找并点击耗电管理栏目
+            dispatchState(ST_APP_DETAIL, this::handleAppDetailState,
+                ST_POWER_CONTROL, ST_DIALOG, ST_STARTUP);
+        }
+        if (l0()) {
+            // case 1: 耗电管理 — 自启动/关联启动/完全后台
+            dispatchState(ST_POWER_CONTROL, this::handlePowerControlState,
+                ST_APP_DETAIL, ST_DIALOG, ST_STARTUP);
+        }
+        if (j0()) {
+            // case 2: 对话框 — 点击允许按钮
+            dispatchState(ST_DIALOG, this::handleDialogState,
+                ST_APP_DETAIL, ST_POWER_CONTROL, ST_STARTUP);
+        }
+        if (m0()) {
+            // case 3: 自启动管理
+            dispatchState(ST_STARTUP, this::handleStartupState,
+                ST_APP_DETAIL, ST_POWER_CONTROL, ST_DIALOG);
         }
     }
 
@@ -287,11 +246,6 @@ public class OppoEngine extends AutoEngine {
     public void execute() {
         // ADAPT: vendor 通过外部启动 App 详情页触发
         // 对应逆向: 由 EngineManager 启动应用详情
-    }
-
-    /** ADAPT: vendor 使用 thread.l.c(Runnable, threadId) */
-    private void runInBackground(final Runnable task) {
-        scheduler.execute(task);
     }
 
     // ============ 过滤器构建 — 对应逆向 B0/C0/b0/c0/d0/e0/f0/i0 ============
@@ -352,51 +306,47 @@ public class OppoEngine extends AutoEngine {
      * 对应逆向: u.run() case 0
      */
     private void handleAppDetailState() {
-        try {
-            if (!k0()) return;
-            Log.d(TAG, "keepAliveInAppDetail 窗口匹配");
-            updateProgress(10);
-            activateRoot();
-            Log.d(TAG, "active root complete");
+        if (!k0()) return;
+        Log.d(TAG, "keepAliveInAppDetail 窗口匹配");
+        updateProgress(10);
+        activateRoot();
+        Log.d(TAG, "active root complete");
 
-            UiNode scrollView = getScrollableNode();
-            CombineFilter powerFilter1 = buildPowerManageFilter();
-            CombineFilter powerFilter2 = buildPowerManage2Filter();
-            UiNode target = null;
+        UiNode scrollView = getScrollableNode();
+        CombineFilter powerFilter1 = buildPowerManageFilter();
+        CombineFilter powerFilter2 = buildPowerManage2Filter();
+        UiNode target = null;
 
-            if (scrollView != null) {
-                Log.d(TAG, "应用详情窗口滚动视图查找成功");
-                updateProgress(15);
-                if (powerFilter1 != null) {
-                    target = scrollView.scrollForwardUntil(powerFilter1);
-                    if (target == null) {
-                        target = scrollView.scrollBackwardUntil(powerFilter1);
-                    }
-                }
-                if (target == null && powerFilter2 != null) {
-                    target = scrollView.scrollBackwardUntil(powerFilter2);
-                    if (target == null) {
-                        target = scrollView.scrollForwardUntil(powerFilter2);
-                    }
+        if (scrollView != null) {
+            Log.d(TAG, "应用详情窗口滚动视图查找成功");
+            updateProgress(15);
+            if (powerFilter1 != null) {
+                target = scrollView.scrollForwardUntil(powerFilter1);
+                if (target == null) {
+                    target = scrollView.scrollBackwardUntil(powerFilter1);
                 }
             }
-            if (target == null && k() != null) {
-                Log.e(TAG, "应用详情窗口滚动视图查找失败");
-                if (powerFilter1 != null) {
-                    target = k().findOneByCombine(powerFilter1);
-                }
-                if (target == null && powerFilter2 != null) {
-                    target = k().findOneByCombine(powerFilter2);
+            if (target == null && powerFilter2 != null) {
+                target = scrollView.scrollBackwardUntil(powerFilter2);
+                if (target == null) {
+                    target = scrollView.scrollForwardUntil(powerFilter2);
                 }
             }
-            if (target != null && target.click()) {
-                Log.d(TAG, "查找并点击耗电管理栏目成功");
-                updateProgress(30);
-            } else {
-                Log.e(TAG, "查找并点击耗电管理栏目失败");
+        }
+        if (target == null && k() != null) {
+            Log.e(TAG, "应用详情窗口滚动视图查找失败");
+            if (powerFilter1 != null) {
+                target = k().findOneByCombine(powerFilter1);
             }
-        } catch (Exception e) {
-            logError("handleAppDetailState", e);
+            if (target == null && powerFilter2 != null) {
+                target = k().findOneByCombine(powerFilter2);
+            }
+        }
+        if (target != null && target.click()) {
+            Log.d(TAG, "查找并点击耗电管理栏目成功");
+            updateProgress(30);
+        } else {
+            Log.e(TAG, "查找并点击耗电管理栏目失败");
         }
     }
 
@@ -405,34 +355,30 @@ public class OppoEngine extends AutoEngine {
      * 对应逆向: u.run() case 1
      */
     private void handlePowerControlState() {
-        try {
-            if (!l0()) return;
-            Log.d(TAG, "keepAliveInPowerControl 窗口匹配");
-            updateProgress(40);
-            activateRoot();
-            Log.d(TAG, "active root complete");
+        if (!l0()) return;
+        Log.d(TAG, "keepAliveInPowerControl 窗口匹配");
+        updateProgress(40);
+        activateRoot();
+        Log.d(TAG, "active root complete");
 
-            // s0(): 允许自启动
-            if (!handleAutoStartSwitch()) {
-                Log.e(TAG, "允许自启动行为失败");
-            }
-            updateProgress(50);
+        // s0(): 允许自启动
+        if (!handleAutoStartSwitch()) {
+            Log.e(TAG, "允许自启动行为失败");
+        }
+        updateProgress(50);
 
-            // t0(): 允许关联启动
-            if (!handleRelateStartSwitch()) {
-                Log.e(TAG, "允许关联启动行为失败");
-            }
-            updateProgress(60);
+        // t0(): 允许关联启动
+        if (!handleRelateStartSwitch()) {
+            Log.e(TAG, "允许关联启动行为失败");
+        }
+        updateProgress(60);
 
-            // r0(): 完全允许后台
-            if (!handleFullBackgroundSwitch()) {
-                Log.e(TAG, "允许完全后台行为失败");
-            } else {
-                updateProgress(70);
-                handleCompletion();
-            }
-        } catch (Exception e) {
-            logError("handlePowerControlState", e);
+        // r0(): 完全允许后台
+        if (!handleFullBackgroundSwitch()) {
+            Log.e(TAG, "允许完全后台行为失败");
+        } else {
+            updateProgress(70);
+            handleCompletion();
         }
     }
 
@@ -441,24 +387,20 @@ public class OppoEngine extends AutoEngine {
      * 对应逆向: u.run() case 2
      */
     private void handleDialogState() {
-        try {
-            if (!j0()) return;
-            Log.d(TAG, "checkInAndroidXDialog 窗口匹配");
-            updateProgress(80);
-            activateRoot();
-            Log.d(TAG, "active root complete");
+        if (!j0()) return;
+        Log.d(TAG, "checkInAndroidXDialog 窗口匹配");
+        updateProgress(80);
+        activateRoot();
+        Log.d(TAG, "active root complete");
 
-            CombineFilter allowBtnFilter = buildAllowButtonFilter();
-            // ADAPT: vendor uses findOneByCombineLoop
-            UiNode btn = k() != null ? k().findOneByCombine(allowBtnFilter) : null;
-            if (btn != null && btn.click()) {
-                Log.d(TAG, "查找并点击允许确认按钮完成");
-                updateProgress(90);
-            } else {
-                Log.e(TAG, "查找并点击允许确认按钮失败");
-            }
-        } catch (Exception e) {
-            logError("handleDialogState", e);
+        CombineFilter allowBtnFilter = buildAllowButtonFilter();
+        // ADAPT: vendor uses findOneByCombineLoop
+        UiNode btn = k() != null ? k().findOneByCombine(allowBtnFilter) : null;
+        if (btn != null && btn.click()) {
+            Log.d(TAG, "查找并点击允许确认按钮完成");
+            updateProgress(90);
+        } else {
+            Log.e(TAG, "查找并点击允许确认按钮失败");
         }
     }
 
@@ -467,46 +409,42 @@ public class OppoEngine extends AutoEngine {
      * 对应逆向: u.run() case 3
      */
     private void handleStartupState() {
-        try {
-            if (!m0()) return;
-            activateRoot();
-            Log.d(TAG, "active root complete");
+        if (!m0()) return;
+        activateRoot();
+        Log.d(TAG, "active root complete");
 
-            // ADAPT: vendor 根据 keepAliveType 选择 appName/backupAppName
-            String targetName = Objects.equals(keepAliveType.get(), KA_MAIN)
-                ? getAppName() : getBackupAppName();
-            Log.d(TAG, "keepAliveInStartup 窗口匹配");
+        // ADAPT: vendor 根据 keepAliveType 选择 appName/backupAppName
+        String targetName = Objects.equals(keepAliveType.get(), KA_MAIN)
+            ? getAppName() : getBackupAppName();
+        Log.d(TAG, "keepAliveInStartup 窗口匹配");
 
-            UiNode scrollView = getScrollableNode();
-            CombineFilter textFilter = CombineFilter.textView(targetName);
-            // ADAPT: vendor uses CombineFilterWithChild(K(), H(name))
-            UiNode target;
-            if (scrollView != null) {
-                target = scrollView.scrollForwardUntil(textFilter);
-            } else {
-                target = k() != null ? k().findOneByCombine(textFilter) : null;
-            }
+        UiNode scrollView = getScrollableNode();
+        CombineFilter textFilter = CombineFilter.textView(targetName);
+        // ADAPT: vendor uses CombineFilterWithChild(K(), H(name))
+        UiNode target;
+        if (scrollView != null) {
+            target = scrollView.scrollForwardUntil(textFilter);
+        } else {
+            target = k() != null ? k().findOneByCombine(textFilter) : null;
+        }
 
-            if (target != null) {
-                // ADAPT: vendor uses R(target, 5) → CheckedResult
-                UiNode parent = target.findClickableParent();
-                if (parent != null) {
-                    UiNode checkBox = parent.findOneByCombine(
-                        CombineFilter.or(CombineFilter.checkBox(), CombineFilter.switchWidget()));
-                    if (checkBox != null) {
-                        if (!checkBox.isChecked()) {
-                            checkBox.click();
-                            Log.d(TAG, "已点击自启动");
-                        }
-                        Log.d(TAG, "已勾选自启动");
-                        allowAutoStart.set(true);
-                    } else {
-                        Log.e(TAG, "未勾选自启动");
+        if (target != null) {
+            // ADAPT: vendor uses R(target, 5) → CheckedResult
+            UiNode parent = target.findClickableParent();
+            if (parent != null) {
+                UiNode checkBox = parent.findOneByCombine(
+                    CombineFilter.or(CombineFilter.checkBox(), CombineFilter.switchWidget()));
+                if (checkBox != null) {
+                    if (!checkBox.isChecked()) {
+                        checkBox.click();
+                        Log.d(TAG, "已点击自启动");
                     }
+                    Log.d(TAG, "已勾选自启动");
+                    allowAutoStart.set(true);
+                } else {
+                    Log.e(TAG, "未勾选自启动");
                 }
             }
-        } catch (Exception e) {
-            logError("handleStartupState", e);
         }
     }
 

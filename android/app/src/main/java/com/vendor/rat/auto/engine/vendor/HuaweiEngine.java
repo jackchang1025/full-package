@@ -160,77 +160,38 @@ public class HuaweiEngine extends AutoEngine {
      * 注意: vendor 使用独立 if (非 else-if), 所有状态都检查
      */
     @Override
-    public void onAccessibilityEvent(AccessibilityEvent event, String packageName,
-                                     String className) {
-        try {
-            if (isCompleted()) return;
+    protected void onEventSafe(AccessibilityEvent event, String packageName,
+                                String className) {
+        // 对应逆向: super.u(event, str, str2)
+        if (event != null) {
+            // base class event processing
+        }
 
-            currentPackage = packageName;
-            currentClassName = className;
+        boolean inHwSettings = j0();
 
-            // 对应逆向: super.u(event, str, str2)
-            if (event != null) {
-                // base class event processing
-            }
-
-            boolean inHwSettings = j0();
-
-            if (inHwSettings) {
-                stateQueue.remove(ST_APP_NOTIF);
-                stateQueue.remove(ST_STARTUP);
-                stateQueue.remove(ST_DIALOG);
-                if (!stateQueue.contains(ST_HW_SETTINGS)) {
-                    stateQueue.add(ST_HW_SETTINGS);
-                    // case 0: handleHwSettings — 搜索直达，优先级最高
-                    scheduler.execute(new Runnable() {
-                        @Override
-                        public void run() { handleHwSettings(); }
-                    });
-                }
+        if (inHwSettings) {
+            // case 0: handleHwSettings — 搜索直达，优先级最高
+            if (dispatchState(ST_HW_SETTINGS, this::handleHwSettings,
+                    ST_APP_NOTIF, ST_STARTUP, ST_DIALOG)) {
                 // 搜索方式已提交，跳过 i0() 导航避免并发冲突
                 return;
             }
-            if (i0()) {
-                stateQueue.remove(ST_HW_SETTINGS);
-                stateQueue.remove(ST_STARTUP);
-                stateQueue.remove(ST_DIALOG);
-                if (!stateQueue.contains(ST_APP_NOTIF)) {
-                    stateQueue.add(ST_APP_NOTIF);
-                    // case 1: handleAppAndNotification
-                    scheduler.execute(new Runnable() {
-                        @Override
-                        public void run() { handleAppAndNotification(); }
-                    });
-                }
-            }
-            if (k0()) {
-                stateQueue.remove(ST_HW_SETTINGS);
-                stateQueue.remove(ST_APP_NOTIF);
-                stateQueue.remove(ST_DIALOG);
-                if (!stateQueue.contains(ST_STARTUP)) {
-                    stateQueue.add(ST_STARTUP);
-                    // case 2: handleStartupControl
-                    scheduler.execute(new Runnable() {
-                        @Override
-                        public void run() { handleStartupControl(); }
-                    });
-                }
-            }
-            if (h0()) {
-                stateQueue.remove(ST_HW_SETTINGS);
-                stateQueue.remove(ST_APP_NOTIF);
-                stateQueue.remove(ST_STARTUP);
-                if (!stateQueue.contains(ST_DIALOG)) {
-                    stateQueue.add(ST_DIALOG);
-                    // case 3: handleAlertDialog
-                    scheduler.execute(new Runnable() {
-                        @Override
-                        public void run() { handleAlertDialog(); }
-                    });
-                }
-            }
-        } catch (Exception e) {
-            logError("事件处理异常", e);
+            return;
+        }
+        if (i0()) {
+            // case 1: handleAppAndNotification
+            dispatchState(ST_APP_NOTIF, this::handleAppAndNotification,
+                ST_HW_SETTINGS, ST_STARTUP, ST_DIALOG);
+        }
+        if (k0()) {
+            // case 2: handleStartupControl
+            dispatchState(ST_STARTUP, this::handleStartupControl,
+                ST_HW_SETTINGS, ST_APP_NOTIF, ST_DIALOG);
+        }
+        if (h0()) {
+            // case 3: handleAlertDialog
+            dispatchState(ST_DIALOG, this::handleAlertDialog,
+                ST_HW_SETTINGS, ST_APP_NOTIF, ST_STARTUP);
         }
     }
 
@@ -300,96 +261,92 @@ public class HuaweiEngine extends AutoEngine {
      *   6. Switch unchecked → 已手动管理 → 处理下一个进程
      */
     private void handleStartupControl() {
-        try {
-            updateProgress(50);
+        updateProgress(50);
 
-            // vendor o/n.java:254-258: 首次进入设置目标为 MAIN_APP
-            if (keepAliveTarget.get() == KeepAliveTarget.UNKNOWN) {
-                keepAliveTarget.set(KeepAliveTarget.MAIN_APP);
-            }
+        // vendor o/n.java:254-258: 首次进入设置目标为 MAIN_APP
+        if (keepAliveTarget.get() == KeepAliveTarget.UNKNOWN) {
+            keepAliveTarget.set(KeepAliveTarget.MAIN_APP);
+        }
 
-            String target = getAppName();
-            if (keepAliveTarget.get() == KeepAliveTarget.BACKUP_APP) {
-                target = getBackupAppName();
-            }
+        String target = getAppName();
+        if (keepAliveTarget.get() == KeepAliveTarget.BACKUP_APP) {
+            target = getBackupAppName();
+        }
 
-            // 使用搜索查找应用 (不依赖滚动视图)
-            UiNode appNode = searchAppInStartupControl(target);
+        // 使用搜索查找应用 (不依赖滚动视图)
+        UiNode appNode = searchAppInStartupControl(target);
 
-            if (appNode == null) {
-                logError(keepAliveTarget.get() + " App查找失败: " + target);
-                saveState();
-                handleAppSwitchOrFinish();
-                return;
-            }
+        if (appNode == null) {
+            logError(keepAliveTarget.get() + " App查找失败: " + target);
+            saveState();
+            handleAppSwitchOrFinish();
+            return;
+        }
 
-            log(keepAliveTarget.get() + " App查找成功: " + target);
-            updateProgress(55);
+        log(keepAliveTarget.get() + " App查找成功: " + target);
+        updateProgress(55);
 
-            // 华为启动管理: 查找同行的 Switch
-            UiNode parent = appNode.getParent();
-            if (parent != null) parent = parent.getParent();
-            UiNode switchNode = null;
+        // 华为启动管理: 查找同行的 Switch
+        UiNode parent = appNode.getParent();
+        if (parent != null) parent = parent.getParent();
+        UiNode switchNode = null;
 
-            if (parent != null) {
-                switchNode = parent.findOneByCombine(CombineFilter.switchWidget());
-                if (switchNode == null) {
-                    switchNode = parent.findOneByClassName("android.widget.Switch");
-                }
-            }
-
+        if (parent != null) {
+            switchNode = parent.findOneByCombine(CombineFilter.switchWidget());
             if (switchNode == null) {
-                UiNode clickableParent = appNode.findClickableParent();
-                if (clickableParent != null) {
-                    switchNode = clickableParent.findOneByCombine(
-                        CombineFilter.or(CombineFilter.checkBox(), CombineFilter.switchWidget()));
-                }
+                switchNode = parent.findOneByClassName("android.widget.Switch");
             }
+        }
 
-            if (switchNode != null) {
-                updateProgress(60);
-                log("Switch 查找成功, checked=" + switchNode.isChecked());
+        if (switchNode == null) {
+            UiNode clickableParent = appNode.findClickableParent();
+            if (clickableParent != null) {
+                switchNode = clickableParent.findOneByCombine(
+                    CombineFilter.or(CombineFilter.checkBox(), CombineFilter.switchWidget()));
+            }
+        }
 
-                if (switchNode.isChecked()) {
-                    log("自动管理已开启，点击关闭");
-                    switchNode.click();
-                    updateProgress(65);
-                    T0(5);
-                    return;
-                } else {
-                    // vendor o/n.java:296-301 / 337-343: 标记当前目标完成
-                    if (keepAliveTarget.get() == KeepAliveTarget.MAIN_APP
-                            || keepAliveTarget.get() == KeepAliveTarget.UNKNOWN) {
-                        mainAutoStart.set(true);
-                        mainRelateStart.set(true);
-                        mainBackground.set(true);
-                        log("主进程已选择手动管理");
-                    } else {
-                        backupAutoStart.set(true);
-                        backupRelateStart.set(true);
-                        backupBackground.set(true);
-                        log("备用进程已选择手动管理");
-                    }
-                    updateProgress(80);
-                    // vendor o/n.java:300-301 / 341-343: 切换到下一个目标或结束
-                    handleAppSwitchOrFinish();
-                }
+        if (switchNode != null) {
+            updateProgress(60);
+            log("Switch 查找成功, checked=" + switchNode.isChecked());
+
+            if (switchNode.isChecked()) {
+                log("自动管理已开启，点击关闭");
+                switchNode.click();
+                updateProgress(65);
+                T0(5);
+                // 原地处理对话框 — 不 return 等事件重入，避免重新搜索
+                handleAlertDialog();
+                T0(3);
+            }
+            // 统一标记完成（checked=true 时对话框已处理，checked=false 时直接标记）
+            if (keepAliveTarget.get() == KeepAliveTarget.MAIN_APP
+                    || keepAliveTarget.get() == KeepAliveTarget.UNKNOWN) {
+                mainAutoStart.set(true);
+                mainRelateStart.set(true);
+                mainBackground.set(true);
+                log("主进程已选择手动管理");
             } else {
-                logError("Switch 未找到");
-                UiNode clickable = appNode.findClickableParent();
-                if (clickable == null) clickable = appNode.getParent();
-                if (clickable != null) {
-                    clickable.click();
-                    log("点击进入应用详情");
-                    T0(5);
-                    handleAppDetail();
-                } else {
-                    saveState();
-                    finishAsync();
-                }
+                backupAutoStart.set(true);
+                backupRelateStart.set(true);
+                backupBackground.set(true);
+                log("备用进程已选择手动管理");
             }
-        } catch (Exception e) {
-            logError("启动管理操作异常", e);
+            updateProgress(80);
+            handleAppSwitchOrFinish();
+        } else {
+            logError("Switch 未找到");
+            UiNode clickable = appNode.findClickableParent();
+            if (clickable == null) clickable = appNode.getParent();
+            if (clickable != null) {
+                clickable.click();
+                log("点击进入应用详情");
+                T0(5);
+                handleAppDetail();
+            } else {
+                saveState();
+                finishAsync();
+            }
         }
     }
 
@@ -490,33 +447,68 @@ public class HuaweiEngine extends AutoEngine {
         saveState();
         finishAsync();
     }    private void toggleSwitch(UiNode root, String configKey, AtomicBoolean flag) {
+        toggleSwitchCore(root, configKey, flag, 1);
+    }
+
+    /**
+     * 核心 Switch 操作 — toggleSwitch 和 toggleSwitchInDialog 统一实现
+     *
+     * @param parentDepth 从标签向上查找 parent 的层数:
+     *   1 = toggleSwitch (findClickableParent 或 1 层 getParent)
+     *   2 = toggleSwitchInDialog (上 2 层: TextView→LinearLayout→RelativeLayout)
+     */
+    private void toggleSwitchCore(UiNode root, String configKey, AtomicBoolean flag, int parentDepth) {
         CombineFilter filter = buildTextViewFilter(configKey);
         if (filter == null) return;
 
         UiNode label = root.findOneByCombine(filter);
+        // fallback: 对话框中可能需要 textContains 匹配
+        if (label == null && parentDepth > 1) {
+            List<String> texts = getConfigTexts(configKey);
+            if (texts != null) {
+                for (String text : texts) {
+                    label = root.findOneByTextContains(text);
+                    if (label != null) break;
+                }
+            }
+        }
         if (label == null) {
-            logError("开关标签未找到: " + configKey);
+            logError((parentDepth > 1 ? "对话框中" : "") + "开关标签未找到: " + configKey);
             return;
         }
 
-        UiNode parent = label.findClickableParent();
-        if (parent == null) parent = label.getParent();
-        if (parent == null) return;
+        UiNode parent;
+        if (parentDepth <= 1) {
+            parent = label.findClickableParent();
+            if (parent == null) parent = label.getParent();
+        } else {
+            // 上 N 层
+            parent = label.getParent();
+            for (int i = 1; i < parentDepth && parent != null; i++) {
+                parent = parent.getParent();
+            }
+        }
+        if (parent == null) {
+            logError((parentDepth > 1 ? "对话框中" : "") + "父节点未找到: " + configKey);
+            return;
+        }
 
         UiNode sw = parent.findOneByClassName("android.widget.Switch");
         if (sw == null) sw = parent.findOneByCombine(CombineFilter.switchWidget());
 
-        if (sw != null) {
-            if (!sw.isChecked()) {
-                sw.click();
-                log("已开启: " + configKey);
-            } else {
-                log("已经开启: " + configKey);
-            }
-            flag.set(true);
-        } else {
-            logError("Switch 未找到: " + configKey);
+        if (sw == null) {
+            logError((parentDepth > 1 ? "对话框中 " : "") + "Switch 未找到: " + configKey);
+            return;
         }
+
+        String prefix = parentDepth > 1 ? "对话框中" : "";
+        if (!sw.isChecked()) {
+            sw.click();
+            log(prefix + "已开启: " + configKey);
+        } else {
+            log(prefix + "已经开启: " + configKey);
+        }
+        flag.set(true);
     }
 
     // ============ 对话框 ============
@@ -580,46 +572,7 @@ public class HuaweiEngine extends AutoEngine {
      * label.getParent() = LinearLayout, 需要再上一层到 RelativeLayout 才能找到 Switch
      */
     private void toggleSwitchInDialog(UiNode root, String configKey, AtomicBoolean flag) {
-        CombineFilter filter = buildTextViewFilter(configKey);
-        if (filter == null) return;
-
-        UiNode label = root.findOneByCombine(filter);
-        if (label == null) {
-            List<String> texts = getConfigTexts(configKey);
-            if (texts != null) {
-                for (String text : texts) {
-                    label = root.findOneByTextContains(text);
-                    if (label != null) break;
-                }
-            }
-        }
-        if (label == null) {
-            logError("对话框中标签未找到: " + configKey);
-            return;
-        }
-
-        // 上两层: TextView → LinearLayout → RelativeLayout
-        UiNode parent = label.getParent();
-        if (parent != null) parent = parent.getParent();
-        if (parent == null) {
-            logError("对话框中父节点未找到: " + configKey);
-            return;
-        }
-
-        UiNode sw = parent.findOneByClassName("android.widget.Switch");
-        if (sw == null) sw = parent.findOneByCombine(CombineFilter.switchWidget());
-
-        if (sw != null) {
-            if (!sw.isChecked()) {
-                sw.click();
-                log("对话框中已开启: " + configKey);
-            } else {
-                log("对话框中已经开启: " + configKey);
-            }
-            flag.set(true);
-        } else {
-            logError("对话框中 Switch 未找到: " + configKey);
-        }
+        toggleSwitchCore(root, configKey, flag, 2);
     }
 
     // ============ 华为设置 / 应用和服务 ============
@@ -644,6 +597,14 @@ public class HuaweiEngine extends AutoEngine {
      * 必须点击 title 才能跳转
      */
     private boolean searchAndClickInSettings(String keyword) {
+        return searchAndClickInSettings(keyword, keyword);
+    }
+
+    /**
+     * @param keyword    输入搜索框的关键词
+     * @param matchText  搜索结果中用于匹配的文本 (可与 keyword 不同)
+     */
+    private boolean searchAndClickInSettings(String keyword, String matchText) {
         try {
             UiNode root = getRootNode();
             if (root == null) return false;
@@ -666,6 +627,23 @@ public class HuaweiEngine extends AutoEngine {
             searchBox.click();
             T0(3);
 
+            // 点击后页面可能重绘（华为设置进入搜索页面），重新获取搜索框节点
+            G();
+            root = getRootNode();
+            if (root != null) {
+                UiNode newSearchBox = root.findOneByCombine(
+                        StringCondition.viewId("android:id/search_src_text"));
+                if (newSearchBox == null) {
+                    newSearchBox = root.findOneByClassName("android.widget.EditText");
+                }
+                if (newSearchBox == null) {
+                    newSearchBox = root.findOneByClassName("android.widget.AutoCompleteTextView");
+                }
+                if (newSearchBox != null) {
+                    searchBox = newSearchBox;
+                }
+            }
+
             // 输入关键词
             Bundle args = new Bundle();
             args.putCharSequence(
@@ -673,7 +651,7 @@ public class HuaweiEngine extends AutoEngine {
                     keyword);
             searchBox.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, args);
             log("搜索框输入: " + keyword);
-            T0(10); // 等待搜索结果
+            T0(15); // 等待搜索结果 (EMUI 14 搜索索引较慢)
 
             // 刷新并查找搜索结果
             G();
@@ -683,7 +661,7 @@ public class HuaweiEngine extends AutoEngine {
             // 优先: 通过 title ID 查找搜索结果 (不是搜索历史 flow_textview)
             UiNode result = root.findOneByCombine(CombineFilter.and(
                     StringCondition.viewId("com.android.settings:id/title"),
-                    StringCondition.textContains(keyword)));
+                    StringCondition.textContains(matchText)));
             if (result != null) {
                 result.click();
                 log("点击搜索结果 (title): " + keyword);
@@ -700,7 +678,7 @@ public class HuaweiEngine extends AutoEngine {
                 if (parent != null) {
                     result = parent.findOneByCombine(CombineFilter.and(
                             StringCondition.viewId("com.android.settings:id/title"),
-                            StringCondition.textContains(keyword)));
+                            StringCondition.textContains(matchText)));
                     if (result == null) {
                         // 点击整个父容器
                         parent.click();
@@ -847,54 +825,40 @@ public class HuaweiEngine extends AutoEngine {
      *   5. 执行 handleStartupControl
      */
     private void searchAndEnterStartupManagement(String fromState) {
-        try {
-            T0(3);
-            log(fromState + " → 搜索直达应用启动管理");
+        T0(3);
+        log(fromState + " → 搜索直达应用启动管理");
 
-            // 打开设置主页 — 子页面没有搜索框
-            launchSettings(SETTINGS, HW_SETTINGS);
-            T0(10);
-            G();
+        // 打开设置主页 — 子页面没有搜索框
+        launchSettings(SETTINGS, HW_SETTINGS);
+        T0(10);
+        G();
 
-            boolean entered = false;
+        boolean entered = false;
 
-            // 搜索 "应用启动管理"
-            if (searchAndClickInSettings("应用启动管理")) {
-                log("搜索直达应用启动管理成功");
-                entered = true;
+        // 搜索 "应用启动管理"，结果匹配 "启动管理" (兼容两台华为设备不同菜单名)
+        // 162(EMUI14): 搜索结果 title="应用启动管理" → textContains("启动管理") ✓
+        // 211(EMUI12): 搜索结果 title="启动管理" → textContains("启动管理") ✓
+        if (searchAndClickInSettings("应用启动管理", "启动管理")) {
+            log("搜索直达应用启动管理成功");
+            entered = true;
+        }
+
+        // fallback: 导航方式
+        if (!entered) {
+            log("搜索方式失败，回退到导航方式");
+            navigateToStartupManagement();
+            entered = true;
+        }
+
+        // 轮询确认进入启动管理 + 执行操作
+        if (entered) {
+            if (!waitForStartupManagementPage()) {
+                logError("未能进入启动管理页面");
+                return;
             }
-
-            // fallback: 搜索 "启动管理"
-            if (!entered) {
-                log("搜索'应用启动管理'未果，尝试'启动管理'");
-                launchSettings(SETTINGS, HW_SETTINGS);
-                T0(10);
-                G();
-                if (searchAndClickInSettings("启动管理")) {
-                    log("搜索直达启动管理成功");
-                    entered = true;
-                }
-            }
-
-            // fallback: 导航方式
-            if (!entered) {
-                log("搜索方式失败，回退到导航方式");
-                navigateToStartupManagement();
-                entered = true;
-            }
-
-            // 轮询确认进入启动管理 + 执行操作
-            if (entered) {
-                if (!waitForStartupManagementPage()) {
-                    logError("未能进入启动管理页面");
-                    return;
-                }
-                stateQueue.remove(fromState);
-                stateQueue.add(ST_STARTUP);
-                handleStartupControl();
-            }
-        } catch (Exception e) {
-            logError("searchAndEnterStartupManagement error (" + fromState + ")", e);
+            stateQueue.remove(fromState);
+            stateQueue.add(ST_STARTUP);
+            handleStartupControl();
         }
     }
 
@@ -929,10 +893,12 @@ public class HuaweiEngine extends AutoEngine {
                 log("切换到备用进程: " + backupPkg);
                 // 不调用 finishAsync，等待下一次事件触发
             } else {
+                com.vendor.rat.keepalive.thread.StrategyThread.markKeepAliveCompleted();
                 finishAsync();
             }
         } else {
             // BACKUP_APP 或 UNKNOWN 完成
+            com.vendor.rat.keepalive.thread.StrategyThread.markKeepAliveCompleted();
             finishAsync();
         }
     }
@@ -972,6 +938,7 @@ public class HuaweiEngine extends AutoEngine {
         if (isCompleted()) return;
         if (mainAutoStart.get() && mainBackground.get()) {
             log("所有华为权限已授予");
+            com.vendor.rat.keepalive.thread.StrategyThread.markKeepAliveCompleted();
             finishAsync();
         }
     }
@@ -1000,9 +967,13 @@ public class HuaweiEngine extends AutoEngine {
 
     /**
      * 异步完成引擎 — 脱离 onAccessibilityEvent 的 f227l 锁
-     * 使 Z() 中的遮罩移除和权限请求不阻塞事件分发
+     *
+     * shutdownNow 取消已入队 handler + dispatchState 的 isShutdown 守卫
+     * 双重保障: 提交前检查 + 执行前检查，一行代码覆盖所有竞态场景
      */
     private void finishAsync() {
+        stateQueue.clear();
+        scheduler.shutdownNow();
         new Thread(() -> finish(), "huawei-finish").start();
     }
 }

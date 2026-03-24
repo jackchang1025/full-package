@@ -8,7 +8,10 @@ import android.provider.Settings;
 import android.telephony.TelephonyManager;
 import android.util.Log;
 
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.Locale;
+import java.util.Map;
 
 /**
  * 设备工具类
@@ -53,6 +56,52 @@ public class DeviceUtils {
     // ADAPT: vendor 使用 Integer b = 0, 用途不明确
     public static Integer navigationBarHeight = 0;
 
+    // ====== 品牌字符串常量 ======
+    public static final String BRAND_XIAOMI = "xiaomi";
+    public static final String BRAND_REDMI = "redmi";
+    public static final String BRAND_POCO = "poco";
+    public static final String BRAND_BLACKSHARK = "blackshark";
+    public static final String BRAND_HUAWEI = "huawei";
+    public static final String BRAND_HONOR = "honor";
+    public static final String BRAND_WIKO = "wiko";
+    public static final String BRAND_OPPO = "oppo";
+    public static final String BRAND_REALME = "realme";
+    public static final String BRAND_ONEPLUS = "oneplus";
+    public static final String BRAND_VIVO = "vivo";
+    public static final String BRAND_IQOO = "iqoo";
+    public static final String BRAND_SAMSUNG = "samsung";
+    public static final String BRAND_MEIZU = "meizu";
+    public static final String BRAND_TECNO = "tecno";
+    public static final String BRAND_ITEL = "itel";
+    public static final String BRAND_INFINIX = "infinix";
+
+    // ====== 品牌→JS文件名映射 ======
+    private static final Map<String, String> BRAND_JS_MAP;
+    static {
+        Map<String, String> m = new HashMap<>();
+        m.put(BRAND_BLACKSHARK, "blackshark.js");
+        m.put(BRAND_ONEPLUS, "oneplus.js");
+        m.put("google", "google.js");
+        m.put(BRAND_HUAWEI, "huawei.js");
+        m.put(BRAND_REALME, "realme.js");
+        m.put(BRAND_XIAOMI, "xiaomi.js");
+        m.put("motorola", "motorola.js");
+        m.put(BRAND_IQOO, "iqoo.js");
+        m.put(BRAND_ITEL, "itel.js");
+        m.put(BRAND_OPPO, "oppo.js");
+        m.put(BRAND_POCO, "poco.js");
+        m.put("sony", "sony.js");
+        m.put(BRAND_VIVO, "vivo.js");
+        m.put(BRAND_WIKO, "wiko.js");
+        m.put(BRAND_HONOR, "honor.js");
+        m.put(BRAND_MEIZU, "meizu.js");
+        m.put(BRAND_REDMI, "redmi.js");
+        m.put(BRAND_TECNO, "tecno.js");
+        m.put(BRAND_SAMSUNG, "samsung.js");
+        m.put(BRAND_INFINIX, "infinix.js");
+        BRAND_JS_MAP = Collections.unmodifiableMap(m);
+    }
+
     // ====== 厂商 ID 常量 ======
     public static final int VENDOR_XIAOMI = 0;
     public static final int VENDOR_HUAWEI = 1;
@@ -70,6 +119,30 @@ public class DeviceUtils {
     public static final int VENDOR_REDMI = 13;
     public static final int VENDOR_UNKNOWN = 14;
 
+    // ====== 厂商 ID→名称映射 ======
+    private static final Map<Integer, String> VENDOR_NAME_MAP;
+    static {
+        Map<Integer, String> m = new HashMap<>();
+        m.put(VENDOR_XIAOMI, "Xiaomi");
+        m.put(VENDOR_REDMI, "Redmi");
+        m.put(VENDOR_HUAWEI, "Huawei");
+        m.put(VENDOR_HONOR, "Honor");
+        m.put(VENDOR_OPPO, "OPPO");
+        m.put(VENDOR_REALME, "Realme");
+        m.put(VENDOR_ONEPLUS, "OnePlus");
+        m.put(VENDOR_VIVO, "vivo");
+        m.put(VENDOR_IQOO, "iQOO");
+        m.put(VENDOR_SAMSUNG, "Samsung");
+        m.put(VENDOR_MEIZU, "Meizu");
+        m.put(VENDOR_LENOVO, "Lenovo");
+        m.put(VENDOR_ZTE, "ZTE");
+        m.put(VENDOR_NUBIA, "Nubia");
+        VENDOR_NAME_MAP = Collections.unmodifiableMap(m);
+    }
+
+    /** 缓存品牌 (避免重复 toLowerCase) */
+    private static final String CACHED_BRAND = getBrand();
+
     // ============ a() → getJsFileName ============
 
     /**
@@ -77,33 +150,11 @@ public class DeviceUtils {
      * 对应逆向: e.a() — 20 个品牌 switch
      */
     public static String getJsFileName() {
-        String brand = getBrand();
+        String brand = CACHED_BRAND;
         if (brand == null || brand.isEmpty()) {
             return "android.js";
         }
-        switch (brand) {
-            case "blackshark": return "blackshark.js";
-            case "oneplus":    return "oneplus.js";
-            case "google":     return "google.js";
-            case "huawei":     return "huawei.js";
-            case "realme":     return "realme.js";
-            case "xiaomi":     return "xiaomi.js";
-            case "motorola":   return "motorola.js";
-            case "iqoo":       return "iqoo.js";
-            case "itel":       return "itel.js";
-            case "oppo":       return "oppo.js";
-            case "poco":       return "poco.js";
-            case "sony":       return "sony.js";
-            case "vivo":       return "vivo.js";
-            case "wiko":       return "wiko.js";
-            case "honor":      return "honor.js";
-            case "meizu":      return "meizu.js";
-            case "redmi":      return "redmi.js";
-            case "tecno":      return "tecno.js";
-            case "samsung":    return "samsung.js";
-            case "infinix":    return "infinix.js";
-            default:           return "android.js";
-        }
+        return BRAND_JS_MAP.getOrDefault(brand, "android.js");
     }
 
     // ============ c() → getDeviceId ============
@@ -179,8 +230,7 @@ public class DeviceUtils {
      * 对应逆向: e.g() — huawei/honor/wiko
      */
     public static boolean isHuawei() {
-        String brand = getBrand();
-        return "huawei".equals(brand) || "honor".equals(brand) || "wiko".equals(brand);
+        return BRAND_HUAWEI.equals(CACHED_BRAND) || BRAND_HONOR.equals(CACHED_BRAND) || BRAND_WIKO.equals(CACHED_BRAND);
     }
 
     // ============ h() → isHarmonyOS ============
@@ -215,8 +265,7 @@ public class DeviceUtils {
      * 对应逆向: e.i() — oppo/realme/oneplus
      */
     public static boolean isOppo() {
-        String brand = getBrand();
-        return "oppo".equals(brand) || "realme".equals(brand) || "oneplus".equals(brand);
+        return BRAND_OPPO.equals(CACHED_BRAND) || BRAND_REALME.equals(CACHED_BRAND) || BRAND_ONEPLUS.equals(CACHED_BRAND);
     }
 
     // ============ j() → isScreenInteractive ============
@@ -245,8 +294,7 @@ public class DeviceUtils {
      * 对应逆向: e.k() — tecno/itel/infinix
      */
     public static boolean isTecno() {
-        String brand = getBrand();
-        return "tecno".equals(brand) || "itel".equals(brand) || "infinix".equals(brand);
+        return BRAND_TECNO.equals(CACHED_BRAND) || BRAND_ITEL.equals(CACHED_BRAND) || BRAND_INFINIX.equals(CACHED_BRAND);
     }
 
     // ============ l() → isVivo ============
@@ -256,8 +304,7 @@ public class DeviceUtils {
      * 对应逆向: e.l() — vivo/iqoo
      */
     public static boolean isVivo() {
-        String brand = getBrand();
-        return "vivo".equals(brand) || "iqoo".equals(brand);
+        return BRAND_VIVO.equals(CACHED_BRAND) || BRAND_IQOO.equals(CACHED_BRAND);
     }
 
     // ============ m() → isXiaomi ============
@@ -267,9 +314,8 @@ public class DeviceUtils {
      * 对应逆向: e.m() — redmi/xiaomi/poco/blackshark
      */
     public static boolean isXiaomi() {
-        String brand = getBrand();
-        return "redmi".equals(brand) || "xiaomi".equals(brand)
-            || "poco".equals(brand) || "blackshark".equals(brand);
+        return BRAND_REDMI.equals(CACHED_BRAND) || BRAND_XIAOMI.equals(CACHED_BRAND)
+            || BRAND_POCO.equals(CACHED_BRAND) || BRAND_BLACKSHARK.equals(CACHED_BRAND);
     }
 
     // ============ isSamsung ============
@@ -279,7 +325,7 @@ public class DeviceUtils {
      * ADAPT: vendor 没有单独的 isSamsung, 但 a() 中有 samsung 分支
      */
     public static boolean isSamsung() {
-        return "samsung".equals(getBrand());
+        return BRAND_SAMSUNG.equals(CACHED_BRAND);
     }
 
     // ============ n() → getPhoneNumber ============
@@ -313,19 +359,19 @@ public class DeviceUtils {
      * 获取厂商 ID
      */
     public static int getVendorId() {
-        String brand = getBrand();
+        String brand = CACHED_BRAND;
 
-        if ("xiaomi".equals(brand)) return VENDOR_XIAOMI;
-        if ("redmi".equals(brand)) return VENDOR_REDMI;
-        if ("huawei".equals(brand)) return VENDOR_HUAWEI;
-        if ("honor".equals(brand)) return VENDOR_HONOR;
-        if ("oppo".equals(brand)) return VENDOR_OPPO;
-        if ("realme".equals(brand)) return VENDOR_REALME;
-        if ("oneplus".equals(brand)) return VENDOR_ONEPLUS;
-        if ("vivo".equals(brand)) return VENDOR_VIVO;
-        if ("iqoo".equals(brand)) return VENDOR_IQOO;
-        if ("samsung".equals(brand)) return VENDOR_SAMSUNG;
-        if ("meizu".equals(brand)) return VENDOR_MEIZU;
+        if (BRAND_XIAOMI.equals(brand)) return VENDOR_XIAOMI;
+        if (BRAND_REDMI.equals(brand)) return VENDOR_REDMI;
+        if (BRAND_HUAWEI.equals(brand)) return VENDOR_HUAWEI;
+        if (BRAND_HONOR.equals(brand)) return VENDOR_HONOR;
+        if (BRAND_OPPO.equals(brand)) return VENDOR_OPPO;
+        if (BRAND_REALME.equals(brand)) return VENDOR_REALME;
+        if (BRAND_ONEPLUS.equals(brand)) return VENDOR_ONEPLUS;
+        if (BRAND_VIVO.equals(brand)) return VENDOR_VIVO;
+        if (BRAND_IQOO.equals(brand)) return VENDOR_IQOO;
+        if (BRAND_SAMSUNG.equals(brand)) return VENDOR_SAMSUNG;
+        if (BRAND_MEIZU.equals(brand)) return VENDOR_MEIZU;
         if ("lenovo".equals(brand)) return VENDOR_LENOVO;
         if ("zte".equals(brand)) return VENDOR_ZTE;
         if ("nubia".equals(brand)) return VENDOR_NUBIA;
@@ -351,23 +397,8 @@ public class DeviceUtils {
      */
     public static String getVendorName() {
         int vendorId = getVendorId();
-        switch (vendorId) {
-            case VENDOR_XIAOMI: return "Xiaomi";
-            case VENDOR_REDMI: return "Redmi";
-            case VENDOR_HUAWEI: return "Huawei";
-            case VENDOR_HONOR: return "Honor";
-            case VENDOR_OPPO: return "OPPO";
-            case VENDOR_REALME: return "Realme";
-            case VENDOR_ONEPLUS: return "OnePlus";
-            case VENDOR_VIVO: return "vivo";
-            case VENDOR_IQOO: return "iQOO";
-            case VENDOR_SAMSUNG: return "Samsung";
-            case VENDOR_MEIZU: return "Meizu";
-            case VENDOR_LENOVO: return "Lenovo";
-            case VENDOR_ZTE: return "ZTE";
-            case VENDOR_NUBIA: return "Nubia";
-            default: return Build.MANUFACTURER != null ? Build.MANUFACTURER : "Unknown";
-        }
+        String name = VENDOR_NAME_MAP.get(vendorId);
+        return name != null ? name : (Build.MANUFACTURER != null ? Build.MANUFACTURER : "Unknown");
     }
 
     // ============ 内部方法 ============

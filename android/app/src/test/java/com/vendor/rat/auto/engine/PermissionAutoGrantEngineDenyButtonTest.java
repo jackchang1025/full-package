@@ -160,11 +160,18 @@ public class PermissionAutoGrantEngineDenyButtonTest {
 
     @Test
     public void notificationDialog_matchedByEngine() {
-        // 验证: 通知权限弹窗的包名 com.android.permissioncontroller 已在 matchWindow 中
-        PermissionAutoGrantEngine engine = new PermissionAutoGrantEngine();
-        assertTrue(engine.matchWindow("com.android.permissioncontroller",
-                "com.android.permissioncontroller.permission.ui.GrantPermissionsActivity", 32));
-        engine.destroy();
+        // 模拟遮罩显示状态
+        com.vendor.rat.helper.BlockViewHelper.viewRef.set(mock(android.view.View.class));
+        com.vendor.rat.helper.BlockViewHelper.windowManager = mock(android.view.WindowManager.class);
+        try {
+            PermissionAutoGrantEngine engine = new PermissionAutoGrantEngine();
+            assertTrue(engine.matchWindow("com.android.permissioncontroller",
+                    "com.android.permissioncontroller.permission.ui.GrantPermissionsActivity", 32));
+            engine.destroy();
+        } finally {
+            com.vendor.rat.helper.BlockViewHelper.viewRef.set(null);
+            com.vendor.rat.helper.BlockViewHelper.windowManager = null;
+        }
     }
 
     @Test

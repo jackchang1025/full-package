@@ -20,18 +20,17 @@ import java.util.concurrent.atomic.AtomicReference;
  *
  * 基于逆向分析: o/q.java (498 行)
  *
- * 适配:
- *   - 自启动管理 (com.miui.securitycenter)
- *   - 电池优化 (com.miui.powerkeeper)
- *   - 后台运行
- *   - 关联启动
+ * 真机验证 (小米13, HyperOS 2.0, API 35):
+ *   MIUI 应用详情页包含"自启动" Switch 和"电量消耗"栏目，
+ *   在详情页开启自启动后，自启动管理页面自动同步 (同一数据源)。
+ *   因此所有操作在应用详情页 (ApplicationsDetailsActivity) 一站完成:
+ *     1. 滚动查找"自启动" Switch → 点击开启 → 处理确认对话框
+ *     2. 滚动查找"电量消耗" → 点击 → 选择"无限制"
+ *     3. 完成 → finish()
  *
- * 监听的界面:
- *   - AutoStartManagementActivity (自启动管理)
- *   - HiddenAppsContainerManagementActivity (后台应用管理)
- *   - PermissionsEditorActivity (权限编辑)
- *   - OtherPermissionsActivity (其他权限)
- *   - AlertDialog (确认对话框)
+ * 适配:
+ *   - 自启动 (在应用详情页直接开启)
+ *   - 电池优化 (com.miui.powerkeeper)
  *
  * 市场份额: ~30%
  */
@@ -44,78 +43,53 @@ public class XiaomiEngine extends AutoEngine {
     private static final String POWER_KEEPER = "com.miui.powerkeeper";
 
     // 小米 Activity
-    private static final String AUTO_START_ACTIVITY =
-        "com.miui.permcenter.autostart.AutoStartManagementActivity";
-    private static final String HIDDEN_APPS_ACTIVITY =
-        "com.miui.powerkeeper.ui.HiddenAppsContainerManagementActivity";
-    private static final String HIDDEN_APPS_CONFIG_ACTIVITY =
-        "com.miui.powerkeeper.ui.HiddenAppsConfigActivity";
-    private static final String PERMISSIONS_EDITOR_ACTIVITY =
-        "com.miui.permcenter.permissions.PermissionsEditorActivity";
-    private static final String OTHER_PERMISSIONS_ACTIVITY =
-        "com.miui.permcenter.settings.OtherPermissionsActivity";
-    private static final String PERMISSION_APPS_MODIFY_ACTIVITY =
-        "com.miui.permcenter.permissions.PermissionAppsModifyActivity";
     private static final String APP_DETAILS_ACTIVITY =
         "com.miui.appmanager.ApplicationsDetailsActivity";
     private static final String APP_MANAGER_MAIN_ACTIVITY =
         "com.miui.appmanager.AppManagerMainActivity";
+    private static final String HIDDEN_APPS_CONFIG_ACTIVITY =
+        "com.miui.powerkeeper.ui.HiddenAppsConfigActivity";
     private static final String POWER_DETAIL_ACTIVITY =
         "com.miui.powercenter.legacypowerrank.PowerDetailActivity";
     private static final String ALERT_DIALOG = "miuix.appcompat.app.AlertDialog";
     private static final String SETTINGS = "com.android.settings";
 
-    // ====== 状态常量 — 对应逆向 ConcurrentLinkedQueue ======
+    // 状态常量
     private static final String ST_APP_DETAIL = "keepAliveInAppDetail";
-    private static final String ST_AUTO_START = "keepAliveInAutoStartManage";
-    private static final String ST_APP_PERMS = "keepAliveInAppPermissions";
-    private static final String ST_OTHER_PERMS = "keepAliveInOtherPermissions";
-    private static final String ST_PERM_MODIFY = "keepAliveInPermissionModify";
 
-    // ====== 保活类型 — 对应逆向 r.e ======
+    // 保活类型
     private static final String KA_UNKNOWN = "KEEP_ALIVE_UNKNOWN";
     private static final String KA_MAIN = "KEEP_ALIVE_MAIN_APP";
-    private static final String KA_BACKUP = "KEEP_ALIVE_BACKUP_APP";
 
-    // ====== 状态字段 — 对应逆向 f685r ~ f692y ======
+    // 延迟常量 (T0 单位: 1=200ms)
+    private static final int DELAY_PAGE_RENDER = 2;
+    private static final int DELAY_DIALOG_CLOSE = 3;
+
+    // 状态字段
     private final AtomicReference<String> keepAliveType = new AtomicReference<>(KA_UNKNOWN);
+    private final AtomicBoolean mainAutoStart = new AtomicBoolean(false);
+    private final AtomicBoolean mainBackground = new AtomicBoolean(false);
 
-    // 主进程 — f686s/f688u/f690w
-    private final AtomicBoolean mainAutoStart = new AtomicBoolean(false);     // f686s
-    private final AtomicBoolean mainRelateStart = new AtomicBoolean(true);    // f688u
-    private final AtomicBoolean mainBackground = new AtomicBoolean(false);    // f690w
-
-    // 备用进程 — f687t/f689v/f691x
-    private final AtomicBoolean backupAutoStart = new AtomicBoolean(false);   // f687t
-    private final AtomicBoolean backupRelateStart = new AtomicBoolean(true);  // f689v
-    private final AtomicBoolean backupBackground = new AtomicBoolean(false);  // f691x
-
-    // 处理中标志 — f692y
+    // 处理中标志
     private final AtomicBoolean processing = new AtomicBoolean(false);
 
-    // 完成状态
-    private final AtomicBoolean autoStartDone = new AtomicBoolean(false);
-    private final AtomicBoolean batteryDone = new AtomicBoolean(false);
-    private final AtomicBoolean backgroundDone = new AtomicBoolean(false);
-
-    // 应用名称
+    // 应用名称 (缓存, 从 PackageManager 解析)
     private String appName;
 
     // 窗口检测分组
     private final List<WindowMatcher> appDetailWins = new ArrayList<>();
-    private final List<WindowMatcher> autoStartWins = new ArrayList<>();
     private final List<WindowMatcher> powerDetailWins = new ArrayList<>();
 
     public XiaomiEngine() {
         super(buildWindowMatchers(), SECURITY_CENTER);
         buildDetectionGroups();
 
-        // 定时检查任务: 每 100 秒 — 对应逆向: schedule(new p(this, 0), 100L, SECONDS)
+        // 安全超时: 100 秒后检查 — 如果都已完成则结束引擎
         try {
             scheduler.schedule(new Runnable() {
                 @Override
                 public void run() {
-                    checkPermissionStatus();
+                    checkAndFinish();
                 }
             }, 100L, TimeUnit.SECONDS);
         } catch (Exception e) {
@@ -124,77 +98,38 @@ public class XiaomiEngine extends AutoEngine {
     }
 
     private void buildDetectionGroups() {
-        // f0() — App详情: ApplicationsDetailsActivity / AppManagerMainActivity / FrameLayout
-        appDetailWins.add(new WindowMatcher(SECURITY_CENTER,
-            "com.miui.appmanager.ApplicationsDetailsActivity"));
-        appDetailWins.add(new WindowMatcher(SECURITY_CENTER,
-            "com.miui.appmanager.AppManagerMainActivity"));
-        appDetailWins.add(new WindowMatcher(SECURITY_CENTER,
-            "android.widget.FrameLayout"));
+        // App详情: ApplicationsDetailsActivity / AppManagerMainActivity / FrameLayout
+        appDetailWins.add(new WindowMatcher(SECURITY_CENTER, APP_DETAILS_ACTIVITY));
+        appDetailWins.add(new WindowMatcher(SECURITY_CENTER, APP_MANAGER_MAIN_ACTIVITY));
+        appDetailWins.add(new WindowMatcher(SECURITY_CENTER, "android.widget.FrameLayout"));
 
-        // h0() — 自启动管理
-        autoStartWins.add(new WindowMatcher(SECURITY_CENTER, AUTO_START_ACTIVITY));
-
-        // g0() — 省电策略
+        // 省电策略详情
         powerDetailWins.add(new WindowMatcher(POWER_KEEPER, HIDDEN_APPS_CONFIG_ACTIVITY));
-        powerDetailWins.add(new WindowMatcher(SECURITY_CENTER,
-            "com.miui.powercenter.legacypowerrank.PowerDetailActivity"));
+        powerDetailWins.add(new WindowMatcher(SECURITY_CENTER, POWER_DETAIL_ACTIVITY));
     }
 
-    /**
-     * 构建窗口匹配列表
-     * 基于逆向: q.l0()
-     */
     private static List<WindowMatcher> buildWindowMatchers() {
         List<WindowMatcher> list = new ArrayList<>();
 
-        // vendor l0():97 — 电池优化对话框 (共享 c.J())
+        // 电池优化对话框
         list.add(new WindowMatcher(SETTINGS, "android.app.Dialog")
             .addEventType(32).addEventType(16384));
 
-        // vendor l0():98 — 自启动管理
-        list.add(new WindowMatcher(SECURITY_CENTER, AUTO_START_ACTIVITY)
-            .addEventType(32).addEventType(16384));
-
-        // vendor l0():99-102 — 后台应用管理
-        list.add(new WindowMatcher(POWER_KEEPER, HIDDEN_APPS_ACTIVITY)
-            .addEventType(32).addEventType(16384));
-
-        // vendor l0():103-104 — App详情 (主/备份包名)
+        // App详情
         list.add(new WindowMatcher(SECURITY_CENTER, APP_DETAILS_ACTIVITY)
             .addEventType(32).addEventType(16384));
-        list.add(new WindowMatcher(SECURITY_CENTER, APP_DETAILS_ACTIVITY)
-            .addEventType(32).addEventType(16384));
-
-        // vendor l0():105-106 — AppManager (主/备份包名)
         list.add(new WindowMatcher(SECURITY_CENTER, APP_MANAGER_MAIN_ACTIVITY)
-            .addEventType(32).addEventType(16384));
-        list.add(new WindowMatcher(SECURITY_CENTER, APP_MANAGER_MAIN_ACTIVITY)
-            .addEventType(32).addEventType(16384));
-
-        // vendor l0():107-108 — FrameLayout (主/备份包名)
-        list.add(new WindowMatcher(SECURITY_CENTER, "android.widget.FrameLayout")
             .addEventType(32).addEventType(16384));
         list.add(new WindowMatcher(SECURITY_CENTER, "android.widget.FrameLayout")
             .addEventType(32).addEventType(16384));
 
-        // vendor l0():109 — 省电策略配置
+        // 省电策略配置
         list.add(new WindowMatcher(POWER_KEEPER, HIDDEN_APPS_CONFIG_ACTIVITY)
             .addEventType(32).addEventType(16384));
-
-        // vendor l0():110 — 电量详情
         list.add(new WindowMatcher(SECURITY_CENTER, POWER_DETAIL_ACTIVITY)
             .addEventType(32).addEventType(16384));
 
-        // vendor l0():111-114 — 权限编辑/其他权限/权限修改
-        list.add(new WindowMatcher(SECURITY_CENTER, PERMISSIONS_EDITOR_ACTIVITY)
-            .addEventType(32).addEventType(16384));
-        list.add(new WindowMatcher(SECURITY_CENTER, OTHER_PERMISSIONS_ACTIVITY)
-            .addEventType(32).addEventType(16384));
-        list.add(new WindowMatcher(SECURITY_CENTER, PERMISSION_APPS_MODIFY_ACTIVITY)
-            .addEventType(32).addEventType(16384));
-
-        // vendor l0():126-135 — MIUI AlertDialog
+        // MIUI AlertDialog (自启动确认 / 电池优化确认)
         list.add(new WindowMatcher(POWER_KEEPER, ALERT_DIALOG)
             .addEventType(32).addEventType(16384));
         list.add(new WindowMatcher(SECURITY_CENTER, ALERT_DIALOG)
@@ -203,72 +138,33 @@ public class XiaomiEngine extends AutoEngine {
         return list;
     }
 
-    // ============ 窗口检测 — 对应逆向 f0/g0/h0 ============
+    // ============ 窗口检测 ============
 
-    /** 对应逆向: q.f0() — App详情窗口 */
-    private boolean f0() { return matchesAny(appDetailWins); }
+    /** App详情窗口 */
+    private boolean isAppDetailPage() { return matchesAny(appDetailWins); }
 
-    /** 对应逆向: q.g0() — 省电策略窗口 */
-    private boolean g0() { return matchesAny(powerDetailWins); }
+    /** 省电策略窗口 */
+    private boolean isPowerDetailPage() { return matchesAny(powerDetailWins); }
 
-    /** 对应逆向: q.h0() — 自启动管理窗口 */
-    private boolean h0() { return matchesAny(autoStartWins); }
+    // ============ 事件处理 ============
 
-    // ============ 事件处理 — 对齐逆向 u() ============
-
-    /**
-     * 对应逆向: q.u(AccessibilityEvent, String, String)
-     * 注意: vendor 先检查 f692y (processing), 然后只有 2 个状态分支
-     */
     @Override
-    public void onAccessibilityEvent(AccessibilityEvent event, String packageName,
-                                     String className) {
-        try {
-            if (isCompleted()) return;
+    protected void onEventSafe(AccessibilityEvent event, String packageName,
+                                String className) {
+        // 处理电池优化系统对话框
+        if (event != null) {
+            checkBatteryOptimizationDialog();
+        }
 
-            currentPackage = packageName;
-            currentClassName = className;
+        if (processing.get()) return;
 
-            // vendor o/q.java u():464-465 — super.u() 处理电池优化对话框
-            if (event != null) {
-                checkBatteryOptimizationDialog();
-            }
-
-            // 对应逆向: if (this.f692y.get()) return;
-            if (processing.get()) return;
-
-            boolean inAppDetail = f0();
-
-            if (inAppDetail) {
-                stateQueue.remove(ST_AUTO_START);
-                stateQueue.remove(ST_APP_PERMS);
-                stateQueue.remove(ST_OTHER_PERMS);
-                stateQueue.remove(ST_PERM_MODIFY);
-                if (!stateQueue.contains(ST_APP_DETAIL)) {
-                    stateQueue.add(ST_APP_DETAIL);
-                    // case 1: 处理 App 详情 → 电池优化
-                    scheduler.execute(new Runnable() {
-                        @Override
-                        public void run() { handleAppDetailState(); }
-                    });
-                }
-            }
-            if (h0()) {
-                stateQueue.remove(ST_APP_DETAIL);
-                stateQueue.remove(ST_APP_PERMS);
-                stateQueue.remove(ST_OTHER_PERMS);
-                stateQueue.remove(ST_PERM_MODIFY);
-                if (!stateQueue.contains(ST_AUTO_START)) {
-                    stateQueue.add(ST_AUTO_START);
-                    // case 2: 处理自启动管理
-                    scheduler.execute(new Runnable() {
-                        @Override
-                        public void run() { handleAutoStartState(); }
-                    });
-                }
-            }
-        } catch (Exception e) {
-            logError("事件处理异常", e);
+        // 匹配小米安全中心页面 (ApplicationsDetailsActivity 或 FrameLayout)
+        // FrameLayout 是 MIUI 容器，Activity 已在前台时只触发 FrameLayout 事件
+        if (SECURITY_CENTER.equals(packageName) && className != null
+                && (className.contains("ApplicationsDetailsActivity")
+                    || className.contains("FrameLayout")
+                    || className.contains("AppManager"))) {
+            dispatchState(ST_APP_DETAIL, this::handleAppDetailPage);
         }
     }
 
@@ -280,30 +176,171 @@ public class XiaomiEngine extends AutoEngine {
 
     @Override
     public void execute() {
-        // ADAPT: vendor 通过外部启动应用详情页触发
+        // 由外部打开应用详情页触发
     }
 
-    // ============ 过滤器构建 — 对应逆向 b0/d0 ============
-
-    /** 对应逆向: q.d0() — 省电策略文本 */
-    private CombineFilter buildPowerSavingFilter() {
-        return buildTextViewFilter("MIUI_SETTINGS_POWER_SAVING_STRATEGY_TEXT");
-    }
-
-    /** 对应逆向: q.b0() — 电量消耗文本 */
-    private CombineFilter buildPowerConsumeFilter() {
-        return buildTextViewFilter("MIUI_APP_POWER_CONSUME_TEXT");
-    }
-
-    // ============ 状态处理 — 对应逆向 p(Runnable) case 1/2 ============
+    // ============ 应用详情页处理 (一站完成) ============
 
     /**
-     * case 1: App详情 → 电池优化
-     * 对应逆向: p.run() case 1 → q.c0()
+     * 在应用详情页完成所有操作:
+     *   Step 1: 自启动 Switch
+     *   Step 2: 电量消耗 → 无限制
+     *   Step 3: finish
      */
-    private void handleAppDetailState() {
+    private void handleAppDetailPage() {
+        processing.set(true);
+        keepAliveType.set(KA_MAIN);
+
+        // 验证确实在应用详情页 (避免 FrameLayout 误触发其他 securitycenter 页面)
+        T0(DELAY_PAGE_RENDER);  // 等待页面渲染
+        UiNode root = getRootNode();
+        if (root == null) {
+            Log.d(TAG, "root 为空，等待重试");
+            processing.set(false);
+            stateQueue.remove(ST_APP_DETAIL);
+            return;
+        }
+        // 应用详情页应含有 "自启动" 或 "电量消耗" 或 "应用信息"
+        boolean isDetailPage = root.findOneByTextContains("应用信息") != null
+                || root.findOneByDescContains("自启动") != null
+                || root.findOneByTextContains("电量消耗") != null
+                || root.findOneByTextContains("存储占用") != null;
+        if (!isDetailPage) {
+            Log.d(TAG, "当前页面不是应用详情页，跳过");
+            processing.set(false);
+            stateQueue.remove(ST_APP_DETAIL);
+            return;
+        }
+        Log.d(TAG, "确认在应用详情页，开始处理");
+
+        updateProgress(5);
+
+        // Step 1: 处理自启动
+        if (!mainAutoStart.get()) {
+            handleAutoStartInDetail();
+            // 对话框关闭后等待页面恢复
+            T0(DELAY_DIALOG_CLOSE);
+        }
+
+        // Step 2: 处理电池优化
+        if (!mainBackground.get()) {
+            handleBatteryInDetail();
+        }
+
+        // Step 3: 完成
+        processing.set(false);
+        checkAndFinish();
+    }
+
+    /**
+     * Step 1: 在应用详情页找到"自启动" Switch 并开启
+     *
+     * MIUI UI 结构 (真机验证):
+     *   Switch[content-desc="自启动", checkable=true, checked=false/true]
+     *     ├── ImageView (icon)
+     *     ├── TextView[text="自启动"]
+     *     └── Switch[id=android:id/checkbox] (实际开关)
+     */
+    private void handleAutoStartInDetail() {
         try {
             updateProgress(10);
+            UiNode root = getRootNode();
+            if (root == null) return;
+
+            // 查找 content-desc="自启动" 的 Switch
+            UiNode autoStartSwitch = root.findOneByDescContains("自启动");
+
+            if (autoStartSwitch == null) {
+                // 可能需要滚动
+                UiNode scrollView = getScrollableNode();
+                if (scrollView != null) {
+                    autoStartSwitch = scrollView.scrollForwardUntil(
+                        n -> n.desc() != null && n.desc().contains("自启动"));
+                    if (autoStartSwitch == null) {
+                        autoStartSwitch = scrollView.scrollBackwardUntil(
+                            n -> n.desc() != null && n.desc().contains("自启动"));
+                    }
+                }
+            }
+
+            if (autoStartSwitch == null) {
+                // fallback: 通过 title text 查找
+                UiNode textNode = root.findOneByText("自启动");
+                if (textNode != null) {
+                    autoStartSwitch = textNode.findClickableParent();
+                }
+            }
+
+            if (autoStartSwitch == null) {
+                Log.e(TAG, "自启动 Switch 未找到");
+                return;
+            }
+
+            // 检查是否已开启
+            if (autoStartSwitch.isChecked()) {
+                Log.d(TAG, "自启动已开启，跳过");
+                mainAutoStart.set(true);
+                updateProgress(30);
+                return;
+            }
+
+            // 点击开启
+            autoStartSwitch.click();
+            Log.d(TAG, "已点击自启动 Switch");
+            updateProgress(20);
+
+            // 等待并处理确认对话框 ("知道了" 按钮)
+            T0(2);
+            handleAutoStartDialog();
+
+            mainAutoStart.set(true);
+            updateProgress(30);
+            Log.d(TAG, "自启动已开启");
+        } catch (Exception e) {
+            logError("handleAutoStartInDetail", e);
+        }
+    }
+
+    /**
+     * 处理自启动确认对话框
+     * MIUI 弹窗: "开启自启动可能增加应用内存占用和耗电..." → "知道了"
+     */
+    private void handleAutoStartDialog() {
+        try {
+            UiNode root = getRootNode();
+            if (root == null) return;
+
+            // 查找"知道了"按钮
+            UiNode btn = root.findOneByText("知道了");
+            if (btn == null) {
+                btn = root.findOneByTextContains("知道");
+            }
+            if (btn == null) {
+                // 可能是"确定"或"OK"
+                btn = root.findOneByText("确定");
+            }
+
+            if (btn != null && btn.isClickable()) {
+                btn.click();
+                Log.d(TAG, "已点击自启动确认对话框");
+                T0(1);
+            } else {
+                // 没有对话框 (可能 MIUI 版本不同) — 不影响
+                Log.d(TAG, "未检测到自启动确认对话框");
+            }
+        } catch (Exception e) {
+            logError("handleAutoStartDialog", e);
+        }
+    }
+
+    /**
+     * Step 2: 在应用详情页找到"电量消耗"并设为"无限制"
+     */
+    private void handleBatteryInDetail() {
+        try {
+            updateProgress(40);
+
+            // 刷新获取最新页面 (对话框关闭后可能需要)
             UiNode scrollView = getScrollableNode();
             UiNode target = null;
 
@@ -311,300 +348,140 @@ public class XiaomiEngine extends AutoEngine {
             CombineFilter powerConsume = buildPowerConsumeFilter();
 
             if (scrollView != null) {
-                // 对应逆向: q.c0() — 先滚到底部，再向上找
+                // 先滚到底部再向上找 — 电量消耗通常在中下位置
                 scrollView.scrollForwardEnd();
                 scrollView.refresh();
-                if (powerSaving != null) {
-                    target = scrollView.scrollBackwardUntil(powerSaving);
+                if (powerConsume != null) {
+                    target = scrollView.scrollBackwardUntil(powerConsume);
                 }
-                if (target == null && powerConsume != null) {
-                    target = scrollView.scrollForwardUntil(powerConsume);
+                if (target == null && powerSaving != null) {
+                    target = scrollView.scrollForwardUntil(powerSaving);
                 }
             } else {
                 // 直接在根节点查找
-                if (powerSaving != null) {
-                    target = k() != null ? k().findOneByCombine(powerSaving) : null;
+                UiNode root = getRootNode();
+                if (root == null) return;
+                if (powerConsume != null) {
+                    target = root.findOneByCombine(powerConsume);
                 }
-                if (target == null && powerConsume != null) {
-                    target = k() != null ? k().findOneByCombine(powerConsume) : null;
+                if (target == null && powerSaving != null) {
+                    target = root.findOneByCombine(powerSaving);
                 }
             }
 
             if (target != null) {
                 Log.d(TAG, "耗电策略查找成功:" + target);
-                updateProgress(20);
+                updateProgress(50);
                 UiNode clickableParent = target.findClickableParent();
                 if (clickableParent != null && clickableParent.click()) {
-                    Log.d(TAG, "已点击电量消耗、耗电策略栏目:" + clickableParent);
-                    updateProgress(30);
-                    // 等待省电策略窗口出现 — 对应逆向: 最多 20 次 * 2秒
-                    for (int i = 0; !g0() && i < 20; i++) {
-                        Log.d(TAG, "正在查找电量消耗、耗电策略窗口");
-                        T0(2);
-                    }
-                    // k0(): 选择无限制
+                    Log.d(TAG, "已点击电量消耗栏目");
+                    updateProgress(60);
+                    // 等待省电策略页面出现 — 轮询查找"无限制"文本
+                    // (不依赖 isPowerDetailPage() 窗口检测，因为事件时序不可靠)
+                    T0(3);  // 等待页面切换动画
                     handlePowerDetailPage();
                 } else {
-                    Log.e(TAG, "查找并点击耗电策略栏目失败");
+                    Log.e(TAG, "电量消耗栏目点击失败");
                 }
             } else {
-                Log.e(TAG, "耗电策略、电量栏目查找失败");
+                Log.e(TAG, "电量消耗栏目未找到");
             }
         } catch (Exception e) {
-            logError("handleAppDetailState", e);
+            logError("handleBatteryInDetail", e);
         }
     }
 
+    // ============ 过滤器 ============
+
+    private CombineFilter buildPowerSavingFilter() {
+        return buildTextViewFilter("MIUI_SETTINGS_POWER_SAVING_STRATEGY_TEXT");
+    }
+
+    private CombineFilter buildPowerConsumeFilter() {
+        return buildTextViewFilter("MIUI_APP_POWER_CONSUME_TEXT");
+    }
+
+    // ============ 省电策略详情页 ============
+
     /**
-     * 处理省电策略详情页 — 选择"无限制"
-     * 对应逆向: q.k0() (method dump skipped, reconstructed from context)
+     * 选择"无限制"
      */
     private void handlePowerDetailPage() {
-        // TODO: VENDOR_VERIFY — q.k0() 反编译失败，根据上下文重建
         try {
-            UiNode root = getRootNode();
-            if (root == null) return;
+            // 轮询查找"无限制"(最多 10 次 * 1秒)
+            for (int i = 0; i < 10; i++) {
+                UiNode root = getRootNode();
+                if (root == null) { T0(2); continue; }
 
-            UiNode unlimited = root.findOneByTextContains("无限制");
-            if (unlimited != null) {
-                unlimited.click();
-                Log.d(TAG, "已选择无限制");
-                mainBackground.set(true);
-                T0(5);
-                performBack();
-            } else {
-                Log.e(TAG, "无限制选项未找到");
+                UiNode unlimited = root.findOneByTextContains("无限制");
+                if (unlimited != null) {
+                    unlimited.click();
+                    Log.d(TAG, "已选择无限制");
+                    mainBackground.set(true);
+                    updateProgress(80);
+                    T0(2);
+                    performBack();
+                    return;
+                }
+                Log.d(TAG, "等待无限制选项出现... (" + (i + 1) + "/10)");
+                T0(2);
             }
+            Log.e(TAG, "无限制选项未找到");
         } catch (Exception e) {
             logError("handlePowerDetailPage", e);
         }
     }
 
-    /**
-     * case 2: 自启动管理
-     * 对应逆向: p.run() case 2 → q.i0(appName)
-     */
-    private void handleAutoStartState() {
-        try {
-            boolean isMain = Objects.equals(keepAliveType.get(), KA_MAIN);
-            String targetName = isMain ? getAppName() : getBackupAppName();
+    // ============ 完成检查 ============
 
-            UiNode scrollView = getScrollableNode();
-            if (scrollView == null) {
-                // 对应逆向: q.r0() — 手动滑动刷新
-                Log.e(TAG, "自启动管理滚动视图查找失败");
-                // 直接在根节点查找
-                UiNode target = k() != null ? k().findOneByCombine(
-                    CombineFilter.textView(targetName)) : null;
-                if (target != null) {
-                    handleAutoStartItem(target);
-                }
-                return;
-            }
-
-            Log.d(TAG, "自启动管理滚动视图查找成功");
-            CombineFilter textFilter = CombineFilter.textView(targetName);
-            UiNode target = scrollView.scrollForwardUntil(textFilter);
-            if (target == null) {
-                target = scrollView.scrollBackwardUntil(textFilter);
-            }
-
-            if (target != null) {
-                handleAutoStartItem(target);
-            } else {
-                Log.e(TAG, "自启动栏目查找失败");
-            }
-        } catch (Exception e) {
-            logError("handleAutoStartState", e);
+    private void checkAndFinish() {
+        if (mainAutoStart.get() && mainBackground.get()) {
+            Log.d(TAG, "自启动+电池优化均已完成");
+            // 持久化完成状态，防止进程重启后重复触发
+            com.vendor.rat.keepalive.thread.StrategyThread.markKeepAliveCompleted();
+            finish();
+        } else if (mainAutoStart.get()) {
+            Log.d(TAG, "自启动已完成, 电池优化待处理");
+        } else if (mainBackground.get()) {
+            Log.d(TAG, "电池优化已完成, 自启动待处理");
         }
     }
 
-    /**
-     * 处理自启动项 — 查找可点击父节点 → 检查/点击
-     * 对应逆向: q.i0() 中的 CheckedResult 逻辑
-     */
-    private void handleAutoStartItem(UiNode target) {
-        UiNode clickableParent = target.findClickableParent();
-        if (clickableParent == null) {
-            clickableParent = target.findParentUtilCombine(
-                    com.vendor.rat.auto.condition.CombineFilter.clickable());
-        }
-        if (clickableParent == null) {
-            Log.e(TAG, "自启动栏目查找失败");
-            return;
-        }
-        Log.d(TAG, "自启动栏目查找成功");
+    // ============ 状态保存 ============
 
-        // vendor o/q.java i0():326 — 使用基类 O(parent) 操作 Switch/CheckBox
-        com.vendor.rat.auto.entity.CheckedResult result = O(clickableParent);
-        if (result.isClicked() || result.isChecked()) {
-            Log.d(TAG, "已点击，已勾选App自启动");
-            boolean isMain = Objects.equals(keepAliveType.get(), KA_MAIN);
-            if (isMain) {
-                mainAutoStart.set(true);
-            } else {
-                backupAutoStart.set(true);
-            }
-        } else {
-            Log.e(TAG, "未勾选App自启动");
-        }
+    private void saveState() {
+        Log.d(TAG, "保活策略: autoStart=" + mainAutoStart.get()
+            + " background=" + mainBackground.get());
     }
 
-    // ============ 完成处理 — 对应逆向 j0() ============
-
-    /**
-     * 对应逆向: q.j0()
-     * 主进程完成后切换到备用进程，或结束引擎
-     */
-    private void handleCompletion() {
-        try {
-            processing.set(true);
-            // ADAPT: vendor calls a1.q.b()
-
-            boolean isMain = Objects.equals(keepAliveType.get(), KA_MAIN);
-            if (isMain) {
-                if (!mainAutoStart.get()) {
-                    processing.set(false);
-                    // 重新启动自启动管理
-                    startSilent(SECURITY_CENTER, AUTO_START_ACTIVITY);
-                    Log.d(TAG, "启动MIUI自启动管理");
-                    return;
-                }
-                saveState(getAppName());
-                stateQueue.clear();
-
-                // vendor o/q.java j0():372 — 检查备份应用是否已安装
-                if (isBackupAppInstalled("com.google.guard")) {
-                    keepAliveType.set(KA_BACKUP);
-                    processing.set(false);
-                    // vendor: g.Z0("com.google.guard") 启动备用进程详情
-                    startSilent(SECURITY_CENTER, AUTO_START_ACTIVITY);
-                    Log.d(TAG, "已启动 com.google.guard 应用详情");
-                } else {
-                    finish();
-                }
-            } else if (Objects.equals(keepAliveType.get(), KA_BACKUP)) {
-                if (!backupAutoStart.get()) {
-                    processing.set(false);
-                    startSilent(SECURITY_CENTER, AUTO_START_ACTIVITY);
-                    Log.d(TAG, "启动MIUI自启动管理");
-                    return;
-                }
-                saveState("com.google.guard");
-                stateQueue.clear();
-                finish();
-            }
-        } catch (Exception e) {
-            logError("handleCompletion", e);
-        }
-    }
-
-    // ============ 状态保存 — 对应逆向 s0() ============
-
-    /**
-     * 对应逆向: q.s0(String packageName)
-     */
-    private void saveState(String packageName) {
-        try {
-            if (Objects.equals(packageName, "com.google.guard")) {
-                // 备用进程
-                Log.d(TAG, "已保存备用进程保活策略"
-                    + " bg=" + backupBackground.get()
-                    + " auto=" + backupAutoStart.get()
-                    + " relate=" + backupRelateStart.get());
-            } else {
-                // 主进程
-                Log.d(TAG, "已保存主进程保活策略"
-                    + " bg=" + mainBackground.get()
-                    + " auto=" + mainAutoStart.get()
-                    + " relate=" + mainRelateStart.get());
-            }
-        } catch (Exception e) {
-            logError("saveState", e);
-        }
-    }
-
-    // ============ 结束引擎 — 对应逆向 Z() ============
+    // ============ 结束引擎 ============
 
     @Override
     public void finish() {
-        if (lock.tryLock()) {
-            try {
-                if (!isCompleted()) {
-                    Log.d(TAG, "准备结束本地保活自动化引擎");
-                    // vendor o/q.java Z():182 — g.h(100)
-                    updateProgress(100);
-                    // vendor o/q.java Z():183 — X() 暂停事件处理
-                    X();
-
-                    if (MyAccessibilityService.getInstance() != null) {
-                        // vendor o/q.java Z():184-185 — P().x() 清理无障碍缓存
-                        MyAccessibilityService.getInstance().H(true, true);
-                    }
-
-                    // vendor o/q.java Z():187-193 — 保存状态
-                    if (Objects.equals(keepAliveType.get(), KA_MAIN)) {
-                        saveState(getAppName());
-                    }
-                    if (Objects.equals(keepAliveType.get(), KA_BACKUP)) {
-                        saveState("com.google.guard");
-                    }
-
-                    // vendor o/q.java Z():194-196
-                    scheduler.shutdownNow();
-                    stateQueue.clear();
-
-                    // vendor o/q.java Z():197-199 — 等待+移除遮罩
-                    T0(5);
-                    removeBlackScreen();
-
-                    Log.d(TAG, "已结束本地保活自动化引擎");
-
-                    // vendor o/q.java Z():202 — c.W() 通知策略线程
-                    if (com.vendor.rat.MainApplication.getInstance() != null) {
-                        com.vendor.rat.MainApplication.getInstance()
-                            .offerStrategyEvent("PREPARE_FOR_APP_CONFIRM_LOCK");
-                    }
-                }
-            } catch (Exception e) {
-                logError("finish", e);
-            } finally {
-                lock.unlock();
-            }
-        }
+        // 保存状态后委托给基类 (基类负责 removeWithDestroy → 触发权限请求)
+        saveState();
+        Log.d(TAG, "准备结束本地保活自动化引擎");
         super.finish();
+        Log.d(TAG, "已结束本地保活自动化引擎");
     }
 
     // ============ 工具方法 ============
 
     private String getAppName() {
-        return appName != null ? appName : "com.vendor.rat";
-    }
-
-    private String getBackupAppName() {
-        return "com.google.guard";
-    }
-
-    /**
-     * 检查备份应用是否已安装
-     * 对应 vendor: g.d0("com.google.guard") != null
-     */
-    private boolean isBackupAppInstalled(String packageName) {
+        if (appName != null) return appName;
         try {
             android.content.Context ctx = getContext();
-            if (ctx == null) return false;
-            ctx.getPackageManager().getPackageInfo(packageName, 0);
-            return true;
+            if (ctx != null) {
+                android.content.pm.ApplicationInfo info = ctx.getPackageManager()
+                    .getApplicationInfo(ctx.getPackageName(), 0);
+                appName = ctx.getPackageManager().getApplicationLabel(info).toString();
+                Log.d(TAG, "Resolved app name: " + appName);
+                return appName;
+            }
         } catch (Exception e) {
-            return false;
+            Log.e(TAG, "Failed to resolve app name", e);
         }
-    }
-
-    private void checkPermissionStatus() {
-        if (mainAutoStart.get() && mainBackground.get()) {
-            log("All Xiaomi permissions granted");
-            finish();
-        }
+        return "com.vendor.rat";
     }
 
     public void setAppName(String appName) {

@@ -163,56 +163,27 @@ public class TranssionEngine extends AutoEngine {
     // ====== 事件处理 — 对应 vendor u() 行 332-372 ======
 
     @Override
-    public void onAccessibilityEvent(AccessibilityEvent event, String packageName,
-                                     String className) {
-        try {
-            if (T()) return;
-            currentPackage = packageName;
-            currentClassName = className;
+    protected void onEventSafe(AccessibilityEvent event, String packageName,
+                                String className) {
+        // vendor u():338-340 — super.u() 电池优化对话框
+        if (event != null) {
+            checkBatteryOptimizationDialog();
+        }
 
-            // vendor u():338-340 — super.u() 电池优化对话框
-            if (event != null) {
-                checkBatteryOptimizationDialog();
-            }
-
-            // [1] k0() → App详情
-            // vendor u():341-350 — 注意: 3 个 if 是顺序执行,非 if-else
-            if (k0()) {
-                stateQueue.remove(ST_APP_BATTERY);
-                stateQueue.remove(ST_AUTO_START);
-                if (!stateQueue.contains(ST_APP_DETAIL)) {
-                    stateQueue.add(ST_APP_DETAIL);
-                    scheduler.execute(new Runnable() {
-                        @Override public void run() { handleAppDetail(); }
-                    });
-                }
-            }
-            // [2] j0() → 耗电管理
-            // vendor u():352-358
-            if (j0()) {
-                stateQueue.remove(ST_APP_DETAIL);
-                stateQueue.remove(ST_AUTO_START);
-                if (!stateQueue.contains(ST_APP_BATTERY)) {
-                    stateQueue.add(ST_APP_BATTERY);
-                    scheduler.execute(new Runnable() {
-                        @Override public void run() { handleAppBattery(); }
-                    });
-                }
-            }
-            // [3] l0() → 自启动管理
-            // vendor u():360-368
-            if (l0()) {
-                stateQueue.remove(ST_APP_DETAIL);
-                stateQueue.remove(ST_APP_BATTERY);
-                if (!stateQueue.contains(ST_AUTO_START)) {
-                    stateQueue.add(ST_AUTO_START);
-                    scheduler.execute(new Runnable() {
-                        @Override public void run() { handleAutoStart(); }
-                    });
-                }
-            }
-        } catch (Exception e) {
-            logError("事件处理异常", e);
+        // [1] k0() → App详情
+        if (k0()) {
+            dispatchState(ST_APP_DETAIL, this::handleAppDetail,
+                ST_APP_BATTERY, ST_AUTO_START);
+        }
+        // [2] j0() → 耗电管理
+        if (j0()) {
+            dispatchState(ST_APP_BATTERY, this::handleAppBattery,
+                ST_APP_DETAIL, ST_AUTO_START);
+        }
+        // [3] l0() → 自启动管理
+        if (l0()) {
+            dispatchState(ST_AUTO_START, this::handleAutoStart,
+                ST_APP_DETAIL, ST_APP_BATTERY);
         }
     }
 
@@ -223,36 +194,32 @@ public class TranssionEngine extends AutoEngine {
      * vendor: d0(this, 0) — 使用 b0()/f0()/g0() 3 个 filter 依次查找
      */
     private void handleAppDetail() {
-        try {
-            if (!k0()) return;
-            updateProgress(10);
-            activateRoot();
-            UiNode root = k();
-            if (root == null) return;
+        if (!k0()) return;
+        updateProgress(10);
+        activateRoot();
+        UiNode root = k();
+        if (root == null) return;
 
-            // vendor b0(): COMMON_SETTINGS_BATTERY_TEXT — "电池"
-            UiNode target = root.findOneByCombine(buildBatteryFilter());
-            // vendor f0(): COMMON_SETTINGS_POWER_TEXT — "电源"
-            if (target == null) {
-                target = root.findOneByCombine(buildPowerFilter());
-            }
-            // vendor g0(): COMMON_SETTINGS_USE_POWER_TEXT — "耗电"
-            if (target == null) {
-                target = root.findOneByCombine(buildUsePowerFilter());
-            }
+        // vendor b0(): COMMON_SETTINGS_BATTERY_TEXT — "电池"
+        UiNode target = root.findOneByCombine(buildBatteryFilter());
+        // vendor f0(): COMMON_SETTINGS_POWER_TEXT — "电源"
+        if (target == null) {
+            target = root.findOneByCombine(buildPowerFilter());
+        }
+        // vendor g0(): COMMON_SETTINGS_USE_POWER_TEXT — "耗电"
+        if (target == null) {
+            target = root.findOneByCombine(buildUsePowerFilter());
+        }
 
-            if (target != null) {
-                Log.d(TAG, "电池/电源/耗电栏目查找成功");
-                UiNode clickable = target.findClickableParent();
-                if (clickable != null && clickable.click()) {
-                    Log.d(TAG, "已点击电池栏目");
-                    updateProgress(30);
-                }
-            } else {
-                Log.e(TAG, "电池/电源/耗电栏目查找失败");
+        if (target != null) {
+            Log.d(TAG, "电池/电源/耗电栏目查找成功");
+            UiNode clickable = target.findClickableParent();
+            if (clickable != null && clickable.click()) {
+                Log.d(TAG, "已点击电池栏目");
+                updateProgress(30);
             }
-        } catch (Exception e) {
-            logError("handleAppDetail", e);
+        } else {
+            Log.e(TAG, "电池/电源/耗电栏目查找失败");
         }
     }
 
@@ -268,29 +235,25 @@ public class TranssionEngine extends AutoEngine {
      * - 返回操作后的 UiObject
      */
     private void handleAppBattery() {
-        try {
-            if (!j0()) return;
-            updateProgress(40);
-            activateRoot();
-            UiNode root = k();
-            if (root == null) return;
+        if (!j0()) return;
+        updateProgress(40);
+        activateRoot();
+        UiNode root = k();
+        if (root == null) return;
 
-            // o0(root) 重建: 查找不受限选项
-            UiNode target = performBatteryOptimization(root);
-            if (target != null) {
-                boolean isMain = KA_MAIN.equals(keepAliveType.get());
-                if (isMain) {
-                    mainBackground.set(true);
-                } else {
-                    backupBackground.set(true);
-                }
-                Log.d(TAG, "电池优化操作完成");
-                updateProgress(60);
+        // o0(root) 重建: 查找不受限选项
+        UiNode target = performBatteryOptimization(root);
+        if (target != null) {
+            boolean isMain = KA_MAIN.equals(keepAliveType.get());
+            if (isMain) {
+                mainBackground.set(true);
             } else {
-                Log.e(TAG, "不受限选项查找失败");
+                backupBackground.set(true);
             }
-        } catch (Exception e) {
-            logError("handleAppBattery", e);
+            Log.d(TAG, "电池优化操作完成");
+            updateProgress(60);
+        } else {
+            Log.e(TAG, "不受限选项查找失败");
         }
     }
 
@@ -354,47 +317,43 @@ public class TranssionEngine extends AutoEngine {
      * vendor: d0(this, 2) — 使用 H(appName) 查找 + O() 操作 Switch
      */
     private void handleAutoStart() {
-        try {
-            if (!l0()) return;
-            updateProgress(70);
-            activateRoot();
-            UiNode scrollView = getScrollableNode();
-            UiNode target = null;
+        if (!l0()) return;
+        updateProgress(70);
+        activateRoot();
+        UiNode scrollView = getScrollableNode();
+        UiNode target = null;
 
-            CombineFilter appFilter = buildAppNameFilter();
+        CombineFilter appFilter = buildAppNameFilter();
 
-            if (scrollView != null) {
-                target = scrollView.scrollForwardUntil(appFilter);
+        if (scrollView != null) {
+            target = scrollView.scrollForwardUntil(appFilter);
+        }
+        if (target == null && k() != null) {
+            target = k().findOneByCombine(appFilter);
+        }
+
+        if (target != null) {
+            Log.d(TAG, "自启动应用查找成功");
+            UiNode clickable = target.findClickableParent();
+            if (clickable == null) {
+                clickable = target.findParentUtilCombine(
+                    com.vendor.rat.auto.condition.CombineFilter.clickable());
             }
-            if (target == null && k() != null) {
-                target = k().findOneByCombine(appFilter);
-            }
-
-            if (target != null) {
-                Log.d(TAG, "自启动应用查找成功");
-                UiNode clickable = target.findClickableParent();
-                if (clickable == null) {
-                    clickable = target.findParentUtilCombine(
-                        com.vendor.rat.auto.condition.CombineFilter.clickable());
-                }
-                if (clickable != null) {
-                    CheckedResult result = O(clickable);
-                    if (result.isClicked() || result.isChecked()) {
-                        boolean isMain = KA_MAIN.equals(keepAliveType.get());
-                        if (isMain) {
-                            mainAutoStart.set(true);
-                        } else {
-                            backupAutoStart.set(true);
-                        }
-                        Log.d(TAG, "自启动开关操作完成");
-                        updateProgress(90);
+            if (clickable != null) {
+                CheckedResult result = O(clickable);
+                if (result.isClicked() || result.isChecked()) {
+                    boolean isMain = KA_MAIN.equals(keepAliveType.get());
+                    if (isMain) {
+                        mainAutoStart.set(true);
+                    } else {
+                        backupAutoStart.set(true);
                     }
+                    Log.d(TAG, "自启动开关操作完成");
+                    updateProgress(90);
                 }
-            } else {
-                Log.e(TAG, "自启动应用查找失败");
             }
-        } catch (Exception e) {
-            logError("handleAutoStart", e);
+        } else {
+            Log.e(TAG, "自启动应用查找失败");
         }
     }
 

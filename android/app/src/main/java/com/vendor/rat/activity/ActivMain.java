@@ -74,6 +74,10 @@ public class ActivMain extends Activity {
     // vendor: utils/b.f275d → guidePageIndex
     private static final AtomicInteger guidePageIndex = new AtomicInteger(0);
 
+    /** 权限拒绝计数 — 防止对不可授予的权限无限循环请求 */
+    private static final int MAX_PERMISSION_RETRIES = 2;
+    private final java.util.HashMap<String, Integer> permissionDeniedCount = new java.util.HashMap<>();
+
     // ============ onCreate (vendor 行 156-178) ============
 
     @Override
@@ -160,6 +164,11 @@ public class ActivMain extends Activity {
         Activity activity = ref.get();
         for (String[] group : PERMISSION_GROUPS) {
             for (String perm : group) {
+                // POST_NOTIFICATIONS 需要 API 33+，低版本视为已授予
+                if ("android.permission.POST_NOTIFICATIONS".equals(perm)
+                        && android.os.Build.VERSION.SDK_INT < 33) {
+                    continue;
+                }
                 if (activity.checkSelfPermission(perm) != PackageManager.PERMISSION_GRANTED) {
                     return false;
                 }
@@ -190,7 +199,19 @@ public class ActivMain extends Activity {
         for (String[] group : PERMISSION_GROUPS) {
             java.util.List<String> needed = new java.util.ArrayList<>();
             for (String perm : group) {
+                // POST_NOTIFICATIONS 需要 API 33+，低版本跳过（无法授予也无需请求）
+                if ("android.permission.POST_NOTIFICATIONS".equals(perm)
+                        && android.os.Build.VERSION.SDK_INT < 33) {
+                    continue;
+                }
                 if (checkSelfPermission(perm) != PackageManager.PERMISSION_GRANTED) {
+                    // 检查是否被永久拒绝 (shouldShowRequestPermissionRationale=false 且已请求过)
+                    // 避免对永久拒绝的权限无限循环请求
+                    if (permissionDeniedCount.containsKey(perm)
+                            && permissionDeniedCount.get(perm) >= MAX_PERMISSION_RETRIES) {
+                        Log.w(TAG, "权限已达最大重试次数,跳过: " + perm);
+                        continue;
+                    }
                     needed.add(perm);
                 }
             }
@@ -487,6 +508,12 @@ public class ActivMain extends Activity {
                 } else {
                     logMsg = "REQUEST_PERMISSION_BY_CODE 申请失败";
                     Log.e(TAG, logMsg);
+                    // 记录拒绝次数，防止无限循环
+                    for (String perm : permissions) {
+                        int count = permissionDeniedCount.containsKey(perm)
+                                ? permissionDeniedCount.get(perm) : 0;
+                        permissionDeniedCount.put(perm, count + 1);
+                    }
                 }
                 // 延迟请求下一组权限，等待无障碍服务稳定
                 new android.os.Handler(getMainLooper()).postDelayed(() -> {

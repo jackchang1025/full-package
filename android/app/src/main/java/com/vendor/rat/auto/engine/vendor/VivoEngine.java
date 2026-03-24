@@ -267,100 +267,35 @@ public class VivoEngine extends AutoEngine {
     // ====== 事件处理 — 对应 vendor u() 行 484-593 ======
 
     @Override
-    public void onAccessibilityEvent(AccessibilityEvent event, String packageName,
-                                     String className) {
-        try {
-            if (T()) return;
-            currentPackage = packageName;
-            currentClassName = className;
-
-            // vendor u():490-491 — super.u() 电池优化对话框
-            if (event != null) {
-                checkBatteryOptimizationDialog();
-            }
-
-            String currentPhase = phase.get();
-
-            // [1] prepareInAppPowerRank + p0()
-            if (PH_POWER_RANK.equals(currentPhase) && p0()) {
-                T0(5);
-                clearOtherStates(ST_POWER_RANK);
-                if (!stateQueue.contains(ST_POWER_RANK)) {
-                    stateQueue.add(ST_POWER_RANK);
-                    scheduler.execute(new Runnable() {
-                        @Override public void run() { handlePowerRank(); }
-                    });
-                }
-            }
-            // [2] prepareInExcessivePowerManager + n0()
-            if (PH_EXCESSIVE_POWER.equals(currentPhase) && n0()) {
-                T0(5);
-                clearOtherStates(ST_EXCESSIVE_POWER);
-                if (!stateQueue.contains(ST_EXCESSIVE_POWER)) {
-                    stateQueue.add(ST_EXCESSIVE_POWER);
-                    scheduler.execute(new Runnable() {
-                        @Override public void run() { handleExcessivePowerManager(); }
-                    });
-                }
-            }
-            // [3] prepareInExcessivePowerDescription + m0()
-            if (PH_EXCESSIVE_DESC.equals(currentPhase) && m0()) {
-                T0(5);
-                clearOtherStates(ST_EXCESSIVE_DESC);
-                if (!stateQueue.contains(ST_EXCESSIVE_DESC)) {
-                    stateQueue.add(ST_EXCESSIVE_DESC);
-                    scheduler.execute(new Runnable() {
-                        @Override public void run() { handleExcessivePowerDescription(); }
-                    });
-                }
-            }
-            // [4] prepareInAppDetailSetting + j0()
-            if (PH_APP_DETAIL.equals(currentPhase) && j0()) {
-                T0(5);
-                clearOtherStates(ST_APP_DETAIL);
-                if (!stateQueue.contains(ST_APP_DETAIL)) {
-                    stateQueue.add(ST_APP_DETAIL);
-                    scheduler.execute(new Runnable() {
-                        @Override public void run() { handleAppDetail(); }
-                    });
-                }
-            }
-            // [5] prepareInAppPermissionManage + l0()
-            if (PH_PERM_MANAGE.equals(currentPhase) && l0()) {
-                T0(5);
-                clearOtherStates(ST_PERM_MANAGE);
-                if (!stateQueue.contains(ST_PERM_MANAGE)) {
-                    stateQueue.add(ST_PERM_MANAGE);
-                    scheduler.execute(new Runnable() {
-                        @Override public void run() { handlePermissionManage(); }
-                    });
-                }
-            }
-            // [6] prepareInAppPermissionDetail + k0()
-            if (PH_PERM_DETAIL.equals(currentPhase) && k0()) {
-                T0(5);
-                clearOtherStates(ST_PERM_DETAIL);
-                if (!stateQueue.contains(ST_PERM_DETAIL)) {
-                    stateQueue.add(ST_PERM_DETAIL);
-                    scheduler.execute(new Runnable() {
-                        @Override public void run() { handlePermissionDetail(); }
-                    });
-                }
-            }
-            // [7] prepareInPermissionAllowDialog + o0()
-            if (PH_PERM_DIALOG.equals(currentPhase) && o0()) {
-                T0(5);
-                clearOtherStates(ST_PERM_DIALOG);
-                if (!stateQueue.contains(ST_PERM_DIALOG)) {
-                    stateQueue.add(ST_PERM_DIALOG);
-                    scheduler.execute(new Runnable() {
-                        @Override public void run() { handlePermissionAllowDialog(); }
-                    });
-                }
-            }
-        } catch (Exception e) {
-            logError("事件处理异常", e);
+    protected void onEventSafe(AccessibilityEvent event, String packageName,
+                                String className) {
+        // vendor u():490-491 — super.u() 电池优化对话框
+        if (event != null) {
+            checkBatteryOptimizationDialog();
         }
+
+        String currentPhase = phase.get();
+
+        // 7-phase 分发 — 统一使用 dispatchIfPhaseMatches
+        dispatchIfPhaseMatches(currentPhase, PH_POWER_RANK, p0(), ST_POWER_RANK, this::handlePowerRank);
+        dispatchIfPhaseMatches(currentPhase, PH_EXCESSIVE_POWER, n0(), ST_EXCESSIVE_POWER, this::handleExcessivePowerManager);
+        dispatchIfPhaseMatches(currentPhase, PH_EXCESSIVE_DESC, m0(), ST_EXCESSIVE_DESC, this::handleExcessivePowerDescription);
+        dispatchIfPhaseMatches(currentPhase, PH_APP_DETAIL, j0(), ST_APP_DETAIL, this::handleAppDetail);
+        dispatchIfPhaseMatches(currentPhase, PH_PERM_MANAGE, l0(), ST_PERM_MANAGE, this::handlePermissionManage);
+        dispatchIfPhaseMatches(currentPhase, PH_PERM_DETAIL, k0(), ST_PERM_DETAIL, this::handlePermissionDetail);
+        dispatchIfPhaseMatches(currentPhase, PH_PERM_DIALOG, o0(), ST_PERM_DIALOG, this::handlePermissionAllowDialog);
+    }
+
+    /**
+     * Phase-dispatch 便捷方法 — 消除 7 个重复 if 块
+     * 检查 phase 匹配 + 窗口匹配 → T0(5) + clearOtherStates + dispatchState
+     */
+    private void dispatchIfPhaseMatches(String currentPhase, String expectedPhase,
+                                         boolean windowMatch, String stateKey, Runnable handler) {
+        if (!expectedPhase.equals(currentPhase) || !windowMatch) return;
+        T0(5);
+        clearOtherStates(stateKey);
+        dispatchState(stateKey, handler);
     }
 
     private void clearOtherStates(String keep) {
@@ -374,146 +309,126 @@ public class VivoEngine extends AutoEngine {
 
     /** case 1: 电池排行页 — 查找应用→点击→进入耗电管理 */
     private void handlePowerRank() {
-        try {
-            if (!p0()) return;
-            updateProgress(10);
-            activateRoot();
-            UiNode scrollView = getScrollableNode();
-            UiNode target = null;
-            if (scrollView != null) {
-                target = scrollView.scrollForwardUntil(buildAppNameFilter());
+        if (!p0()) return;
+        updateProgress(10);
+        activateRoot();
+        UiNode scrollView = getScrollableNode();
+        UiNode target = null;
+        if (scrollView != null) {
+            target = scrollView.scrollForwardUntil(buildAppNameFilter());
+        }
+        if (target == null && k() != null) {
+            target = k().findOneByCombine(buildAppNameFilter());
+        }
+        if (target != null) {
+            Log.d(TAG, "电池排行应用查找成功");
+            UiNode clickable = target.findClickableParent();
+            if (clickable != null && clickable.click()) {
+                updateProgress(20);
+                phase.set(PH_EXCESSIVE_POWER);
             }
-            if (target == null && k() != null) {
-                target = k().findOneByCombine(buildAppNameFilter());
-            }
-            if (target != null) {
-                Log.d(TAG, "电池排行应用查找成功");
-                UiNode clickable = target.findClickableParent();
-                if (clickable != null && clickable.click()) {
-                    updateProgress(20);
-                    phase.set(PH_EXCESSIVE_POWER);
-                }
-            } else {
-                Log.e(TAG, "电池排行应用查找失败");
-            }
-        } catch (Exception e) {
-            logError("handlePowerRank", e);
+        } else {
+            Log.e(TAG, "电池排行应用查找失败");
         }
     }
 
     /** case 2: 耗电管理页 — 操作后台耗电开关 */
     private void handleExcessivePowerManager() {
-        try {
-            if (!n0()) return;
-            updateProgress(30);
-            activateRoot();
-            UiNode root = k();
-            if (root == null) return;
-            UiNode target = root.findOneByCombine(buildBackgroundPowerFilter());
-            if (target != null) {
-                Log.d(TAG, "后台耗电管理栏目查找成功");
-                UiNode clickable = target.findClickableParent();
-                if (clickable != null && clickable.click()) {
-                    updateProgress(40);
-                    phase.set(PH_EXCESSIVE_DESC);
-                }
-            } else {
-                Log.e(TAG, "后台耗电管理栏目查找失败");
+        if (!n0()) return;
+        updateProgress(30);
+        activateRoot();
+        UiNode root = k();
+        if (root == null) return;
+        UiNode target = root.findOneByCombine(buildBackgroundPowerFilter());
+        if (target != null) {
+            Log.d(TAG, "后台耗电管理栏目查找成功");
+            UiNode clickable = target.findClickableParent();
+            if (clickable != null && clickable.click()) {
+                updateProgress(40);
+                phase.set(PH_EXCESSIVE_DESC);
             }
-        } catch (Exception e) {
-            logError("handleExcessivePowerManager", e);
+        } else {
+            Log.e(TAG, "后台耗电管理栏目查找失败");
         }
     }
 
     /** case 3: 耗电详情页 — 操作详细设置 → 完成流程 */
     private void handleExcessivePowerDescription() {
-        try {
-            if (!m0()) return;
-            updateProgress(50);
-            activateRoot();
-            UiNode root = k();
-            if (root == null) return;
-            // 操作后台耗电开关
-            boolean isMain = KA_MAIN.equals(keepAliveType.get());
-            if (isMain) {
-                mainBackground.set(true);
-            } else {
-                backupBackground.set(true);
-            }
-            Log.d(TAG, "耗电详情操作完成");
-            updateProgress(60);
-            handleCompletion();
-        } catch (Exception e) {
-            logError("handleExcessivePowerDescription", e);
+        if (!m0()) return;
+        updateProgress(50);
+        activateRoot();
+        UiNode root = k();
+        if (root == null) return;
+        // 操作后台耗电开关
+        boolean isMain = KA_MAIN.equals(keepAliveType.get());
+        if (isMain) {
+            mainBackground.set(true);
+        } else {
+            backupBackground.set(true);
         }
+        Log.d(TAG, "耗电详情操作完成");
+        updateProgress(60);
+        handleCompletion();
     }
     /** case 4: 应用详情页 — 查找"应用权限"→点击 */
     private void handleAppDetail() {
-        try {
-            if (!j0()) return;
-            updateProgress(65);
-            activateRoot();
-            UiNode root = k();
-            if (root == null) return;
-            UiNode target = root.findOneByCombine(buildAppPermissionFilter());
-            if (target != null) {
-                Log.d(TAG, "应用权限栏目查找成功");
-                UiNode clickable = target.findClickableParent();
-                if (clickable != null && clickable.click()) {
-                    updateProgress(70);
-                    phase.set(PH_PERM_MANAGE);
-                }
-            } else {
-                Log.e(TAG, "应用权限栏目查找失败");
+        if (!j0()) return;
+        updateProgress(65);
+        activateRoot();
+        UiNode root = k();
+        if (root == null) return;
+        UiNode target = root.findOneByCombine(buildAppPermissionFilter());
+        if (target != null) {
+            Log.d(TAG, "应用权限栏目查找成功");
+            UiNode clickable = target.findClickableParent();
+            if (clickable != null && clickable.click()) {
+                updateProgress(70);
+                phase.set(PH_PERM_MANAGE);
             }
-        } catch (Exception e) {
-            logError("handleAppDetail", e);
+        } else {
+            Log.e(TAG, "应用权限栏目查找失败");
         }
     }
 
     /** case 5: 权限管理页 — 对应 vendor t0() 行 435-482 */
     private void handlePermissionManage() {
-        try {
-            boolean inWindow = l0();
-            if (inWindow) {
-                updateProgress(80);
-                activateRoot();
-                Log.d(TAG, "active root complete");
-                UiNode scrollView = getScrollableNode();
-                AtomicInteger retries = new AtomicInteger(0);
-                while (scrollView == null && retries.incrementAndGet() <= 5) {
-                    T0(5);
-                    scrollView = getScrollableNode();
-                }
-                UiNode target = null;
-                if (scrollView != null) {
-                    Log.d(TAG, "权限窗口滚动视图查找完成");
-                    target = scrollView.scrollForwardUntil(buildAllPermissionFilter());
-                    if (target == null) {
-                        target = scrollView.scrollBackwardUntil(buildAllPermissionFilter());
-                    }
-                }
-                if (target == null && k() != null) {
-                    target = k().findOneByCombine(buildAllPermissionFilter());
-                }
-                if (target != null) {
-                    Log.d(TAG, "所有权限栏目查找成功");
-                    UiNode clickable = target.findClickableParent();
-                    if (clickable != null && clickable.click()) {
-                        Log.d(TAG, "查找并点击所有权限栏目完成");
-                        updateProgress(85);
-                        phase.set(PH_PERM_DETAIL);
-                        return;
-                    }
+        boolean inWindow = l0();
+        if (inWindow) {
+            updateProgress(80);
+            activateRoot();
+            Log.d(TAG, "active root complete");
+            UiNode scrollView = getScrollableNode();
+            AtomicInteger retries = new AtomicInteger(0);
+            while (scrollView == null && retries.incrementAndGet() <= 5) {
+                T0(5);
+                scrollView = getScrollableNode();
+            }
+            UiNode target = null;
+            if (scrollView != null) {
+                Log.d(TAG, "权限窗口滚动视图查找完成");
+                target = scrollView.scrollForwardUntil(buildAllPermissionFilter());
+                if (target == null) {
+                    target = scrollView.scrollBackwardUntil(buildAllPermissionFilter());
                 }
             }
-            // fallback: 手势滚动 — vendor t0():475-478
-            if (PH_PERM_MANAGE.equals(phase.get())) {
-                scrollAndClick();
-                updateProgress(85);
+            if (target == null && k() != null) {
+                target = k().findOneByCombine(buildAllPermissionFilter());
             }
-        } catch (Exception e) {
-            logError("handlePermissionManage", e);
+            if (target != null) {
+                Log.d(TAG, "所有权限栏目查找成功");
+                UiNode clickable = target.findClickableParent();
+                if (clickable != null && clickable.click()) {
+                    Log.d(TAG, "查找并点击所有权限栏目完成");
+                    updateProgress(85);
+                    phase.set(PH_PERM_DETAIL);
+                    return;
+                }
+            }
+        }
+        // fallback: 手势滚动 — vendor t0():475-478
+        if (PH_PERM_MANAGE.equals(phase.get())) {
+            scrollAndClick();
+            updateProgress(85);
         }
     }
 
@@ -532,59 +447,51 @@ public class VivoEngine extends AutoEngine {
     }
     /** case 6: 权限详情页 — 操作自启动/后台弹窗开关 */
     private void handlePermissionDetail() {
-        try {
-            if (!k0()) return;
-            updateProgress(88);
-            activateRoot();
-            UiNode root = k();
-            if (root == null) return;
-            boolean isMain = KA_MAIN.equals(keepAliveType.get());
+        if (!k0()) return;
+        updateProgress(88);
+        activateRoot();
+        UiNode root = k();
+        if (root == null) return;
+        boolean isMain = KA_MAIN.equals(keepAliveType.get());
 
-            // 自启动开关 — vendor i0() filter
-            UiNode autoStart = root.findOneByCombine(buildAutoStartFilter());
-            if (autoStart != null) {
-                CheckedResult result = O(autoStart);
-                if (result.isClicked() || result.isChecked()) {
-                    if (isMain) mainAutoStart.set(true);
-                    else backupAutoStart.set(true);
-                    Log.d(TAG, "自启动开关操作完成");
-                }
+        // 自启动开关 — vendor i0() filter
+        UiNode autoStart = root.findOneByCombine(buildAutoStartFilter());
+        if (autoStart != null) {
+            CheckedResult result = O(autoStart);
+            if (result.isClicked() || result.isChecked()) {
+                if (isMain) mainAutoStart.set(true);
+                else backupAutoStart.set(true);
+                Log.d(TAG, "自启动开关操作完成");
             }
-
-            // 后台弹窗开关 — vendor w0() filter
-            UiNode popup = root.findOneByCombine(buildPopupFilter());
-            if (popup != null) {
-                CheckedResult result = O(popup);
-                if (result.isClicked() || result.isChecked()) {
-                    if (isMain) mainPopup.set(true);
-                    else backupPopup.set(true);
-                    Log.d(TAG, "后台弹窗开关操作完成");
-                }
-            }
-
-            updateProgress(90);
-            phase.set(PH_PERM_DIALOG);
-        } catch (Exception e) {
-            logError("handlePermissionDetail", e);
         }
+
+        // 后台弹窗开关 — vendor w0() filter
+        UiNode popup = root.findOneByCombine(buildPopupFilter());
+        if (popup != null) {
+            CheckedResult result = O(popup);
+            if (result.isClicked() || result.isChecked()) {
+                if (isMain) mainPopup.set(true);
+                else backupPopup.set(true);
+                Log.d(TAG, "后台弹窗开关操作完成");
+            }
+        }
+
+        updateProgress(90);
+        phase.set(PH_PERM_DIALOG);
     }
 
     /** case 7: 权限允许对话框 — 点击"允许" */
     private void handlePermissionAllowDialog() {
-        try {
-            if (!o0()) return;
-            updateProgress(92);
-            activateRoot();
-            UiNode root = k();
-            if (root == null) return;
-            UiNode allowBtn = root.findOneByCombine(buildAllowFilter());
-            if (allowBtn != null && allowBtn.click()) {
-                Log.d(TAG, "已点击允许按钮");
-                // 回到权限详情继续操作
-                phase.set(PH_PERM_DETAIL);
-            }
-        } catch (Exception e) {
-            logError("handlePermissionAllowDialog", e);
+        if (!o0()) return;
+        updateProgress(92);
+        activateRoot();
+        UiNode root = k();
+        if (root == null) return;
+        UiNode allowBtn = root.findOneByCombine(buildAllowFilter());
+        if (allowBtn != null && allowBtn.click()) {
+            Log.d(TAG, "已点击允许按钮");
+            // 回到权限详情继续操作
+            phase.set(PH_PERM_DETAIL);
         }
     }
 

@@ -254,7 +254,7 @@ public abstract class BlockViewHelper {
                                     .getLaunchIntentForPackage(ctx.getPackageName());
                                 if (launchIntent != null) {
                                     launchIntent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK
-                                        | android.content.Intent.FLAG_ACTIVITY_CLEAR_TOP);
+                                        | android.content.Intent.FLAG_ACTIVITY_SINGLE_TOP);
                                     ctx.startActivity(launchIntent);
                                     Log.d(TAG, "Launch app before removeView (遮罩遮挡中)");
                                 } else {

@@ -5,12 +5,14 @@ import org.junit.Before;
 import org.junit.Test;
 
 import static org.junit.Assert.*;
+import static org.mockito.Mockito.mock;
 
 /**
  * PermissionAutoGrantEngine.matchWindow() 重写逻辑测试
  *
  * 纯 JVM 测试，无需 Android 框架。
- * 注意: 构造函数创建 ScheduledExecutorService，@After 中调用 destroy() 清理。
+ * 注意: matchWindow 需要 BlockViewHelper.isShowing()=true，
+ * 通过设置 public static 字段模拟遮罩显示状态。
  */
 public class PermissionAutoGrantEngineMatchWindowTest {
 
@@ -19,28 +21,37 @@ public class PermissionAutoGrantEngineMatchWindowTest {
     @Before
     public void setUp() {
         engine = new PermissionAutoGrantEngine();
+        // 模拟遮罩显示状态: isShowing() = viewRef.get() != null && windowManager != null
+        com.vendor.rat.helper.BlockViewHelper.viewRef.set(mock(android.view.View.class));
+        com.vendor.rat.helper.BlockViewHelper.windowManager = mock(android.view.WindowManager.class);
     }
 
     @After
     public void tearDown() {
         engine.destroy();
+        // 清理遮罩状态
+        com.vendor.rat.helper.BlockViewHelper.viewRef.set(null);
+        com.vendor.rat.helper.BlockViewHelper.windowManager = null;
     }
 
     // ============ 权限控制器包名匹配 ============
 
     @Test
-    public void matchWindow_androidPermissionController_returnsTrue() {
-        assertTrue(engine.matchWindow("com.android.permissioncontroller", "AnyClass", 0));
+    public void matchWindow_androidPermissionController_grantActivity_returnsTrue() {
+        assertTrue(engine.matchWindow("com.android.permissioncontroller",
+                "com.android.permissioncontroller.permission.ui.GrantPermissionsActivity", 0));
     }
 
     @Test
     public void matchWindow_googlePermissionController_returnsTrue() {
-        assertTrue(engine.matchWindow("com.google.android.permissioncontroller", "AnyClass", 0));
+        assertTrue(engine.matchWindow("com.google.android.permissioncontroller",
+                "com.google.android.permissioncontroller.GrantPermissionsActivity", 0));
     }
 
     @Test
     public void matchWindow_packageInstaller_returnsTrue() {
-        assertTrue(engine.matchWindow("com.android.packageinstaller", "AnyClass", 0));
+        assertTrue(engine.matchWindow("com.android.packageinstaller",
+                "com.android.packageinstaller.GrantPermissionsActivity", 0));
     }
 
     // ============ 华为权限弹窗 ============
@@ -80,8 +91,32 @@ public class PermissionAutoGrantEngineMatchWindowTest {
 
     @Test
     public void matchWindow_permissionControllerNullClass_returnsTrue() {
-        // 权限控制器包名匹配不检查 className
+        // null className 走默认匹配
         assertTrue(engine.matchWindow("com.android.permissioncontroller", null, 0));
+    }
+
+    // ============ 遮罩关闭时不匹配 ============
+
+    @Test
+    public void matchWindow_overlayNotShowing_returnsFalse() {
+        // 模拟遮罩关闭
+        com.vendor.rat.helper.BlockViewHelper.viewRef.set(null);
+        assertFalse(engine.matchWindow("com.android.permissioncontroller",
+                "GrantPermissionsActivity", 0));
+    }
+
+    // ============ 排除权限管理页面 ============
+
+    @Test
+    public void matchWindow_managePermissions_returnsFalse() {
+        assertFalse(engine.matchWindow("com.android.permissioncontroller",
+                "com.android.permissioncontroller.permission.ui.ManagePermissionsActivity", 0));
+    }
+
+    @Test
+    public void matchWindow_recyclerView_returnsFalse() {
+        assertFalse(engine.matchWindow("com.android.permissioncontroller",
+                "androidx.recyclerview.widget.RecyclerView", 0));
     }
 
     @Test

