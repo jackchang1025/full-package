@@ -32,13 +32,18 @@ AppBuildController 的 `stream()` 方法目前使用 ApkBuilder，需要迁移�
 **后端改动：**
 - 移除 `ApkBuilder` 依赖，注入 `GradleApkBuilder`
 - 移除 `prepareBuildConfig()` 方法（Smali 字段映射逻辑）
-- `stream()` 方法直接使用 `GradleApkBuildConfig::fromArray()` 构建配置
+- `stream()` 方法中进行最小字段重命名后调用 `GradleApkBuildConfig::fromArray()`
 - 保持 SSE 流式响应接口不变
 
 **前端改动：**
 - 移除 18 个 Smali 特有字段
-- 保留 11 个用户可见字段
+- 保留 11 个用户可见字段（使用前端友好的字段名）
 - 2 个字段由后端自动填充（websocket_url, user_email）
+
+**字段命名说明：**
+- 前端使用简洁字段名（如 `name`, `client_name`）
+- 后端在调用 `GradleApkBuildConfig::fromArray()` 前重命名为 snake_case（如 `app_name`, `app_label`）
+- `GradleApkBuildConfig::fromArray()` 同时支持 snake_case 和 camelCase
 
 **数据库：**
 - `app_builds.build_config` 字段内容结构变化（JSON 字段，无需迁移脚本）
@@ -104,6 +109,8 @@ use App\Services\GradleApkBuilder\GradleApkBuildConfig;
 
 ### 5.2 BuildRequest 验证规则调整
 
+**文件路径：** `app/Http/Requests/Build/BuildRequest.php`
+
 **移除：** 18 个 Smali 字段的验证规则
 
 **保留 + 新增：**
@@ -124,7 +131,8 @@ use App\Services\GradleApkBuilder\GradleApkBuildConfig;
 ### 5.3 前端组件改动
 
 **受影响文件：**
-- `resources/js/Pages/Builds/Create.vue`
+- `resources/ts/Pages/Builds/Create.vue`（主要改动）
+- 无 Edit.vue 组件（不存在编辑页面）
 
 **改动内容：**
 1. 移除 18 个 Smali 字段的表单项
@@ -159,6 +167,9 @@ use App\Services\GradleApkBuilder\GradleApkBuildConfig;
 ### 6.1 后端测试
 - [ ] 验证 `stream()` 方法使用 GradleApkBuilder
 - [ ] 验证配置字段正确传递到 GradleApkBuildConfig
+- [ ] 验证 `websocket_url` 从 config 正确获取
+- [ ] 验证 `user_email` 从当前用户正确获取
+- [ ] 验证字段默认值处理（debug=1, mainUrl=''）
 - [ ] 验证 SSE 流式响应格式
 - [ ] 验证构建成功后 `app_builds` 记录正确保存
 - [ ] 验证构建失败后记录被删除
@@ -199,3 +210,32 @@ use App\Services\GradleApkBuilder\GradleApkBuildConfig;
 - [ ] 删除 `ApkBuilder` 相关代码（如无其他依赖）
 - [ ] 删除 Smali 构建相关配置
 - [ ] 更新文档
+
+## 10. 技术验证
+
+### 10.1 GradleApkBuildConfig 字段支持验证
+
+**已验证：** `GradleApkBuildConfig::fromArray()` 支持以下字段（snake_case 和 camelCase 双格式）：
+- ✅ `app_name` / `appName`
+- ✅ `websocket_url` / `websocketUrl`
+- ✅ `user_email` / `userEmail`
+- ✅ `application_id` / `applicationId`
+- ✅ `version_name` / `versionName`
+- ✅ `icon_path` / `iconPath`
+- ✅ `background_path` / `backgroundPath`
+- ✅ `app_label` / `appLabel`
+- ✅ `debug`（默认值 1）
+- ✅ `alert_title` / `alertTitle`（默认值 '开启 [无障碍服务]'）
+- ✅ `alert_msg` / `alertMsg`（默认值包含多行步骤说明）
+- ✅ `ok_text` / `okText`（默认值 '立即前往'）
+- ✅ `main_url` / `mainUrl`（默认值 'https://m.baidu.com/'）
+
+**注意：** `mainUrl` 在 GradleApkBuildConfig 中有默认值，但设计要求"默认为空"，需在后端传递时显式设置为空字符串。
+
+### 10.2 GradleApkBuilder 进度回调验证
+
+**已验证：** GradleApkBuilder 支持流式进度回调
+- ✅ `onProgress(\Closure $callback): self` 方法存在
+- ✅ 回调在 `reportProgress($step, $label, $status)` 中触发
+- ✅ 状态值：`running`, `done`, `failed`
+- ✅ 与 AppBuildController 的 SSE 流式响应完全兼容
