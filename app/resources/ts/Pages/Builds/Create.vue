@@ -260,7 +260,7 @@ const startBuild = () => {
     if (!validateForm()) {
         return;
     }
-    
+
     buildSteps.value = [];
     buildError.value = null;
     buildSuccess.value = false;

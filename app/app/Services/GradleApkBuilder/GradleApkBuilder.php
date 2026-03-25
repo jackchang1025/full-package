@@ -86,6 +86,12 @@ final class GradleApkBuilder
         $this->startTime = microtime(true);
         $this->stepStats = [];
 
+        Log::channel('apk')->info('GradleApkBuilder: Build started', [
+            'application_id' => $config->applicationId,
+            'version_name' => $config->versionName,
+            'app_name' => $config->appName,
+        ]);
+
         try {
             $this->runStep('check_environment', fn () => $this->checkEnvironment());
             $this->runStep('prepare_work_dir', fn () => $this->prepareWorkDir());
@@ -103,6 +109,12 @@ final class GradleApkBuilder
 
             $totalTime = (microtime(true) - $this->startTime) * 1000;
 
+            Log::channel('apk')->info('GradleApkBuilder: Build completed', [
+                'application_id' => $config->applicationId,
+                'output_path' => $result,
+                'duration_ms' => $totalTime,
+            ]);
+
             return new ApkBuildResult(
                 path: $result,
                 packageName: $config->applicationId,
@@ -110,6 +122,12 @@ final class GradleApkBuilder
                 totalTimeMs: $totalTime,
             );
         } catch (GradleApkBuildException $e) {
+            Log::channel('apk')->error('GradleApkBuilder: Build failed', [
+                'step' => $e->step,
+                'error' => $e->getMessage(),
+                'output' => $e->buildOutput,
+            ]);
+
             if ($this->cleanupOnFailure && ! empty($this->workDir)) {
                 $this->cleanup();
             }
@@ -175,7 +193,7 @@ final class GradleApkBuilder
         $localProps = "sdk.dir={$this->androidHome}\n";
         $this->fileSystem->put($this->workDir . '/local.properties', $localProps);
 
-        Log::info('GradleApkBuilder: 工作目录准备完成', ['workDir' => $this->workDir]);
+        Log::channel('apk')->info('GradleApkBuilder: 工作目录准备完成', ['workDir' => $this->workDir]);
     }
 
     private function modifyConfig(GradleApkBuildConfig $config): void
@@ -186,7 +204,7 @@ final class GradleApkBuilder
         $configPath = $this->workDir . '/app/src/main/assets/config.json';
         $this->fileSystem->put($configPath, $jsonContent . "\n");
 
-        Log::info('GradleApkBuilder: config.json 已更新');
+        Log::channel('apk')->info('GradleApkBuilder: config.json 已更新');
     }
 
     private function modifyBuildGradle(GradleApkBuildConfig $config): void
@@ -330,7 +348,7 @@ final class GradleApkBuilder
     }
 
     /**
-     * @return string APK 输出路径
+     * @return string APK 输出路径（相对路径格式：storage/app/public/...）
      */
     private function collectApk(GradleApkBuildConfig $config): string
     {
@@ -350,6 +368,12 @@ final class GradleApkBuilder
         $this->fileSystem->copy($apkSource, $outputPath);
 
         Log::info('GradleApkBuilder: APK 已输出', ['path' => $outputPath]);
+
+        // 转换为相对路径格式：storage/app/public/apk/gradle/xxx.apk
+        $basePath = storage_path('app/public/');
+        if (str_starts_with($outputPath, $basePath)) {
+            return 'storage/app/public/' . substr($outputPath, strlen($basePath));
+        }
 
         return $outputPath;
     }

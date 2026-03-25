@@ -165,7 +165,7 @@ class AppBuildController extends Controller
 
             $builder->onProgress(function ($step, $label, $status) {
                 $this->sendSSE([
-                    'type' => 'progress',
+                    'type' => 'step',
                     'step' => $step,
                     'label' => $label,
                     'status' => $status,
