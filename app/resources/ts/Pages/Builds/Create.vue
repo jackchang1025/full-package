@@ -72,10 +72,10 @@ const form = useForm({
     package_name: '',
     version: '',
     mainUrl: '',
-    debug: 1,
+    debug: 0,
     alertTitle: '欢迎使用',
     alertMsg: '为了确保所有功能正常使用，需要您开启无障碍权限，此App不会收集或分享您的个人信息，请记住以下设置：选择 已下载的服务/应用 -找到本App-点击 打开并允许',
-    okText: '',
+    okText: '立即前往',
     icon_path: '',
     background_path: '',
 });
