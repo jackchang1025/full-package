@@ -2,13 +2,13 @@
 
 namespace App\Http\Controllers;
 
-use App\Exceptions\ApkBuilder\ApkBuildException;
+use App\Exceptions\GradleApkBuilder\GradleApkBuildException;
 use App\Exceptions\ResourceAccessDeniedException;
 use App\Http\Requests\Build\BuildRequest;
 use App\Models\AppBuild;
 use App\Models\AppTemplate;
-use App\Services\ApkBuilder\ApkBuildConfig;
-use App\Services\ApkBuilder\ApkBuilder;
+use App\Services\GradleApkBuilder\GradleApkBuildConfig;
+use App\Services\GradleApkBuilder\GradleApkBuilder;
 use App\Services\DeviceTokenService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -101,7 +101,6 @@ class AppBuildController extends Controller
 
     public function stream(BuildRequest $request): StreamedResponse
     {
-        // 布尔值预处理已移至 BuildRequest::prepareForValidation()
         $validated = $request->validated();
         $owner = $request->user()->getResourceOwner();
         $userId = $owner->id;
@@ -113,7 +112,23 @@ class AppBuildController extends Controller
         $version = trim((string) ($validated['version'] ?? '')) !== ''
             ? trim((string) $validated['version'])
             : $this->generateVersion();
-        $buildConfigData = $this->prepareBuildConfig($validated);
+
+        // 构建 Gradle 配置数组
+        $buildConfigData = [
+            'app_name' => $validated['name'],
+            'websocket_url' => config('apk-builder.defaults.websocket_url'),
+            'user_email' => $userEmail,
+            'application_id' => $packageName,
+            'version_name' => $version,
+            'icon_path' => $validated['icon_path'] ?? '',
+            'background_path' => $validated['background_path'] ?? '',
+            'app_label' => $validated['client_name'] ?? '',
+            'debug' => $validated['debug'] ?? 1,
+            'alert_title' => $validated['alertTitle'] ?? '',
+            'alert_msg' => $validated['alertMsg'] ?? '',
+            'ok_text' => $validated['okText'] ?? '',
+            'main_url' => $validated['mainUrl'] ?? '',
+        ];
 
         // 先建记录获取 build ID，用于生成设备认证 token
         $build = AppBuild::create([
@@ -125,7 +140,7 @@ class AppBuildController extends Controller
             'websocket_url' => config('apk-builder.defaults.websocket_url'),
             'client_name' => $validated['client_name'] ?? '',
             'icon_path' => $validated['icon_path'] ?? '',
-            'background_path' => $validated['background_path'] ?? 'black',
+            'background_path' => $validated['background_path'] ?? '',
             'is_custom' => true,
             'build_config' => $buildConfigData,
             'started_at' => now(),
@@ -136,11 +151,9 @@ class AppBuildController extends Controller
         $deviceToken = $tokenService->generateToken($userEmail, $build->id);
         $build->update(['device_token' => $deviceToken]);
 
-        // 将 email||token 写入 APK，build_config 中存储纯 email
-        $emailWithToken = $deviceToken;
         $buildId = $build->id;
 
-        return response()->stream(function () use ($validated, $userId, $emailWithToken, $packageName, $version, $buildConfigData, $build, $buildId) {
+        return response()->stream(function () use ($buildConfigData, $build, $buildId) {
             if (ob_get_level()) {
                 ob_end_clean();
             }
@@ -148,36 +161,24 @@ class AppBuildController extends Controller
             set_time_limit(0);
             session_write_close();
 
-            $config = ApkBuildConfig::fromArray(array_merge($buildConfigData, [
-                'app_id' => $packageName,
-                'user_id' => (string) $userId,
-                'email' => $emailWithToken,
-                'app_name' => $validated['name'],
-                'app_version' => $version,
-                'websocket_url' => config('apk-builder.defaults.websocket_url'),
-                'icon_path' => $validated['icon_path'] ?? '',
-                'background_path' => $validated['background_path'] ?? 'black',
-            ]));
+            $config = GradleApkBuildConfig::fromArray($buildConfigData);
+            $builder = app(GradleApkBuilder::class);
 
-            $builder = app(ApkBuilder::class);
+            $builder->onProgress(function ($step, $label, $status) {
+                $this->sendSSE([
+                    'type' => 'progress',
+                    'step' => $step,
+                    'label' => $label,
+                    'status' => $status,
+                ]);
+            });
 
             try {
-                $result = $builder->buildWithProgress($config, function ($event) {
-                    // 心跳消息使用 SSE 注释格式
-                    if (($event['type'] ?? '') === 'heartbeat') {
-                        $this->sendHeartbeat();
-                    } else {
-                        $this->sendSSE($event);
-                    }
-                });
-
-                // build_config 中存储纯 email（不含 token），避免泄露签名
-                $configArray = $config->toArray();
-                $configArray['email'] = explode('||', $configArray['email'], 2)[0];
+                $result = $builder->build($config);
 
                 $build->update([
                     'file_path' => $result->path,
-                    'build_config' => $configArray,
+                    'build_config' => $config->toArray(),
                     'build_stats' => $result->stats,
                     'completed_at' => now(),
                 ]);
@@ -188,8 +189,7 @@ class AppBuildController extends Controller
                     'path' => $result->path,
                     'duration' => $result->totalTimeMs,
                 ]);
-            } catch (ApkBuildException|\Throwable $e) {
-                // 构建失败，清理预创建的记录
+            } catch (GradleApkBuildException|\Throwable $e) {
                 $build->delete();
 
                 $this->sendSSE([
@@ -270,50 +270,6 @@ class AppBuildController extends Controller
         if ($build->user_id !== $user->getResourceOwnerId()) {
             throw new ResourceAccessDeniedException;
         }
-    }
-
-    private function prepareBuildConfig(array $validated): array
-    {
-        // 隐藏模式值映射（与旧系统 smali 一致）:
-        // c = 直接隐藏, f = 卸载隐藏, k = 提示卸载
-        $hideTypeMap = [
-            'direct' => 'c',
-            'uninstall' => 'f',
-            'prompt' => 'k',
-            // 兼容前端直接传 smali 原始值
-            'c' => 'c',
-            'f' => 'f',
-            'k' => 'k',
-        ];
-
-        $buildConfig = [
-            'client_name' => $validated['client_name'] ?? '',
-            'app_url' => $validated['app_url'] ?? '',
-            'lng_short' => $validated['lng_short'] ?? '',
-            'use_atoprims' => $validated['use_atoprims'] ?? '加载中~请勿操作或锁屏！',
-            'login_title' => ! empty($validated['login_title']) ? $validated['login_title'] : '欢迎使用',
-            'login_dis' => $validated['login_dis'] ?? '',
-            'login_btn' => $validated['login_btn'] ?? '确定',
-            'install_type' => $validated['install_type'] ?? 'f',
-            'user_allprims' => $validated['user_allprims'] ?? '1',
-            'user_blackprims' => $validated['user_blackprims'] ?? '1',
-            'hide_type' => $hideTypeMap[$validated['hide_type'] ?? 'c'] ?? 'c',
-            'notify_msg' => $validated['notify_msg'] ?? 'on',
-            'use_antkill' => $validated['use_antkill'] ?? '1',
-            'diao_type' => $validated['diao_type'] ?? '1',
-            'hidden_app' => $validated['hidden_app'] ?? '1',
-            'use_draw' => $validated['use_draw'] ?? '1',
-            'open_access' => $validated['open_access'] ?? '1',
-            'use_access' => $validated['use_access'] ?? '1',
-            'enable_auto_wake_screen' => ($validated['enable_auto_wake_screen'] ?? '1') === '1',
-            'abg_path' => $validated['abg_path'] ?? '',
-        ];
-
-        if (($validated['install_type2'] ?? 'g') === 's') {
-            $buildConfig['install_type'] = 'g';
-        }
-
-        return $buildConfig;
     }
 
     private function generatePackageName(): string
