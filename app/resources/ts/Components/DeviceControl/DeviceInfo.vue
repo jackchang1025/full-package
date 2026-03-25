@@ -142,6 +142,14 @@ const wallpaperUrl = computed(() => {
                 <div class="info-value">{{ phoneInfo.phone_name || '-' }}</div>
             </div>
 
+            <div v-if="phoneInfo.remark" class="info-row">
+                <div class="info-label">
+                    <NIcon :component="PricetagOutline" size="14" />
+                    <span>用户备注</span>
+                </div>
+                <div class="info-value">{{ phoneInfo.remark }}</div>
+            </div>
+
             <div class="info-row">
                 <div class="info-label">
                     <NIcon :component="ModelIcon" size="14" />

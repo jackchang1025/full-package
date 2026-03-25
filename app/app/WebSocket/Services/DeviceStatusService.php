@@ -325,12 +325,17 @@ class DeviceStatusService
         $status = $this->getStatus($phoneId);
         $isOnline = $this->isOnline($phoneId);
 
+        // 从数据库读取 remark 字段
+        $device = Device::where('uuid', $phoneId)->first();
+        $remark = $device?->remark;
+
         // 直接返回设备原始数据，添加服务端字段
         return array_merge($status, [
             'pid' => $phoneId,
             'is_online' => $isOnline,
             'lastPing' => ($status['last_ping'] ?? 0) * 1000,
             'ip_location' => $status['ip_location'] ?? '',
+            'remark' => $remark,
         ]);
     }
 

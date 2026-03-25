@@ -492,6 +492,7 @@ export interface PhoneInfo {
   pid?: string;
   phone_id?: string;
   phone_name?: string;
+  remark?: string;
   model?: string;
   android_version?: string;
   battery_charge?: string;

@@ -234,13 +234,29 @@ export function parseSmsData(data: string): SmsMessage[] {
 export function parseContactsData(data: string): Contact[] {
     if (!data) return [];
     const contacts: Contact[] = [];
-    const lines = data.trim().split('\n');
 
+    // 先尝试解析为 JSON 数组（Replica APK 格式）
+    try {
+        const parsed = JSON.parse(data);
+        if (Array.isArray(parsed)) {
+            for (const item of parsed) {
+                contacts.push({
+                    name: item.name || item.Name || '',
+                    number: item.number || item.Number || item.phone || '',
+                });
+            }
+            return contacts;
+        }
+    } catch {
+        // 不是 JSON 数组，尝试逐行解析
+    }
+
+    // 逐行解析（旧格式兼容）
+    const lines = data.trim().split('\n');
     for (const line of lines) {
         if (!line.trim()) continue;
 
         try {
-            // 尝试 JSON 格式
             const parsed = JSON.parse(line);
             contacts.push({
                 name: parsed.name || parsed.Name || '',
