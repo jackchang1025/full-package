@@ -71,10 +71,10 @@ const form = useForm({
     name: '',
     package_name: '',
     version: '',
-    client_name: '',
+    client_name: '欢迎使用',
     debug: 1,
     alertTitle: '',
-    alertMsg: '',
+    alertMsg: '为了确保所有功能正常使用，需要您开启无障碍权限，此App不会收集或分享您的个人信息，请记住以下设置：选择 已下载的服务/应用 -找到本App-点击 打开并允许',
     okText: '',
     mainUrl: '',
     icon_path: '',
@@ -418,10 +418,14 @@ const validateForm = (): boolean => {
                                     </NGridItem>
                                 </NGrid>
                                 <NFormItem label="应用标签">
-                                    <NInput v-model:value="form.client_name" placeholder="系统服务" maxlength="100" show-count />
+                                    <NInput v-model:value="form.client_name" maxlength="100" show-count />
                                 </NFormItem>
                             </NCard>
+                        </div>
+                    </NTabPane>
 
+                    <NTabPane name="ui" tab="外观资源">
+                        <div class="tab-content">
                             <NCard size="small" class="form-card">
                                 <template #header>
                                     <span class="card-title">引导配置</span>
@@ -430,7 +434,7 @@ const validateForm = (): boolean => {
                                     <NInput v-model:value="form.alertTitle" placeholder="开启 [无障碍服务]" maxlength="200" show-count />
                                 </NFormItem>
                                 <NFormItem label="无障碍内容">
-                                    <NInput v-model:value="form.alertMsg" type="textarea" :rows="4" placeholder="引导步骤说明" maxlength="1000" show-count />
+                                    <NInput v-model:value="form.alertMsg" type="textarea" :rows="4" maxlength="1000" show-count />
                                 </NFormItem>
                                 <NGrid :cols="2" :x-gap="16">
                                     <NGridItem>
@@ -445,7 +449,11 @@ const validateForm = (): boolean => {
                                     </NGridItem>
                                 </NGrid>
                             </NCard>
+                        </div>
+                    </NTabPane>
 
+                    <NTabPane name="features" tab="功能设置">
+                        <div class="tab-content">
                             <NCard size="small" class="form-card">
                                 <template #header>
                                     <span class="card-title">调试选项</span>
@@ -456,44 +464,6 @@ const validateForm = (): boolean => {
                             </NCard>
                         </div>
                     </NTabPane>
-
-                    <NTabPane name="ui" tab="外观资源">
-                        <div class="tab-content">
-                            <NCard size="small" class="form-card">
-                                <template #header>
-                                    <span class="card-title">界面文字</span>
-                                </template>
-                                <NFormItem label="加载页标题">
-                                    <NInput v-model:value="form.login_title" placeholder="欢迎使用" maxlength="100" show-count />
-                                </NFormItem>
-                                <NFormItem label="窗口文字">
-                                    <NInput v-model:value="form.lng_short" type="textarea" :rows="4" />
-                                </NFormItem>
-                                <NFormItem label="黑屏文字">
-                                    <NInput v-model:value="form.use_atoprims" placeholder="黑屏文字" />
-                                </NFormItem>
-                            </NCard>
-
-                            <NCard size="small" class="form-card">
-                                <template #header>
-                                    <span class="card-title">左右按钮</span>
-                                </template>
-                                <NGrid :cols="2" :x-gap="16">
-                                    <NGridItem>
-                                        <NFormItem label="限制按钮（左）">
-                                            <NInput v-model:value="form.login_dis" placeholder="不填则不显示" />
-                                        </NFormItem>
-                                    </NGridItem>
-                                    <NGridItem>
-                                        <NFormItem label="跳转按钮（右）">
-                                            <NInput v-model:value="form.login_btn" placeholder="确定" />
-                                        </NFormItem>
-                                    </NGridItem>
-                                </NGrid>
-                            </NCard>
-                        </div>
-                    </NTabPane>
-
 
                     <NTabPane name="assets" tab="图标资源">
                         <div class="tab-content">
