@@ -120,8 +120,8 @@ class AppBuildController extends Controller
             'user_email' => $userEmail,
             'application_id' => $packageName,
             'version_name' => $version,
-            'icon_path' => $validated['icon_path'] ?? '',
-            'background_path' => $validated['background_path'] ?? '',
+            'icon_path' => $this->convertUrlToPath($validated['icon_path'] ?? ''),
+            'background_path' => $this->convertUrlToPath($validated['background_path'] ?? ''),
             'debug' => $validated['debug'] ?? 1,
             'alert_title' => $validated['alertTitle'] ?? '',
             'alert_msg' => $validated['alertMsg'] ?? '',
@@ -288,6 +288,30 @@ class AppBuildController extends Controller
         $patch = rand(0, 9);
 
         return "{$major}.{$minor}.{$patch}";
+    }
+
+    /**
+     * 将 URL 路径转换为实际文件路径
+     * /storage/icons/1/xxx.png → storage_path('app/public/icons/1/xxx.png')
+     */
+    private function convertUrlToPath(string $url): string
+    {
+        if (empty($url)) {
+            return '';
+        }
+
+        // 如果已经是绝对路径，直接返回
+        if (str_starts_with($url, '/') && file_exists($url)) {
+            return $url;
+        }
+
+        // 转换 /storage/xxx 为 storage_path('app/public/xxx')
+        if (str_starts_with($url, '/storage/')) {
+            $relativePath = substr($url, strlen('/storage/'));
+            return storage_path('app/public/' . $relativePath);
+        }
+
+        return $url;
     }
 
     private function listUserImages(string $path, string $type, int $userId): array
