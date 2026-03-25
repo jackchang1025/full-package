@@ -261,26 +261,49 @@ build_frontend() {
     print_msg "前端构建完成"
 }
 
+# 重新构建本地镜像
+build() {
+    print_msg "=== 重新构建本地镜像 ==="
+
+    if is_remote_image; then
+        print_warn "当前配置使用远程镜像: $APP_IMAGE"
+        print_msg "如需推送新镜像，请使用: $0 push-image"
+        exit 1
+    fi
+
+    local NO_CACHE=""
+    if [ "$2" = "--no-cache" ]; then
+        NO_CACHE="--no-cache"
+        print_msg "使用 --no-cache 强制完全重建..."
+    fi
+
+    print_msg "构建 Docker 镜像..."
+    $DC build $NO_CACHE
+
+    print_msg "=== 镜像构建完成 ==="
+    print_msg "使用 '$0 restart' 重启服务以应用新镜像"
+}
+
 # 修复 APK 构建目录权限
 fix_apk_permissions() {
     print_msg "修复 APK 构建目录权限..."
-    
+
     # 确保目录存在
     $DC exec -T app mkdir -p /var/www/html/storage/app/apk/{apkstub,tools,template}
     $DC exec -T app mkdir -p /var/www/html/storage/app/public/{apk,icons,backgrounds}
-    
+
     # 修复所有者为 sail 用户
     $DC exec -T app chown -R sail:sail /var/www/html/storage/app/apk
     $DC exec -T app chown -R sail:sail /var/www/html/storage/app/public/apk
     $DC exec -T app chown -R sail:sail /var/www/html/storage/app/public/icons
     $DC exec -T app chown -R sail:sail /var/www/html/storage/app/public/backgrounds
-    
+
     # 设置目录权限
     $DC exec -T app chmod -R 775 /var/www/html/storage/app/apk
     $DC exec -T app chmod -R 775 /var/www/html/storage/app/public/apk
-    
+
     print_msg "APK 目录权限修复完成"
-    
+
     # 显示当前权限状态
     print_msg "当前目录权限:"
     $DC exec -T app ls -la /var/www/html/storage/app/apk/
@@ -315,6 +338,7 @@ help() {
     echo "可用命令:"
     echo "  init            首次部署初始化"
     echo "  update          更新部署（拉取代码、迁移、清缓存）"
+    echo "  build           重新构建本地镜像（支持 --no-cache）"
     echo "  start           启动服务（容器不存在时创建）"
     echo "  restart         重启服务（强制重建容器）"
     echo "  stop            停止所有服务"
@@ -335,6 +359,9 @@ case "${1:-help}" in
         ;;
     update)
         update
+        ;;
+    build)
+        build "$@"
         ;;
     start)
         start
