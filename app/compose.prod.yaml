@@ -21,6 +21,7 @@ services:
             LARAVEL_SAIL: 1
         volumes:
             - '.:/var/www/html'
+            - '../android:/var/www/android:ro'
             - './docker/supervisord.prod.conf:/etc/supervisor/conf.d/supervisord.conf'
         networks:
             - feiying-network
