@@ -122,7 +122,6 @@ class AppBuildController extends Controller
             'version_name' => $version,
             'icon_path' => $validated['icon_path'] ?? '',
             'background_path' => $validated['background_path'] ?? '',
-            'app_label' => $validated['client_name'] ?? '',
             'debug' => $validated['debug'] ?? 1,
             'alert_title' => $validated['alertTitle'] ?? '',
             'alert_msg' => $validated['alertMsg'] ?? '',

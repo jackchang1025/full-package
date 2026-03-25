@@ -71,12 +71,11 @@ const form = useForm({
     name: '',
     package_name: '',
     version: '',
-    client_name: '欢迎使用',
+    mainUrl: '',
     debug: 1,
-    alertTitle: '',
+    alertTitle: '欢迎使用',
     alertMsg: '为了确保所有功能正常使用，需要您开启无障碍权限，此App不会收集或分享您的个人信息，请记住以下设置：选择 已下载的服务/应用 -找到本App-点击 打开并允许',
     okText: '',
-    mainUrl: '',
     icon_path: '',
     background_path: '',
 });
@@ -417,8 +416,8 @@ const validateForm = (): boolean => {
                                         </NFormItem>
                                     </NGridItem>
                                 </NGrid>
-                                <NFormItem label="应用标签">
-                                    <NInput v-model:value="form.client_name" maxlength="100" show-count />
+                                <NFormItem label="主页">
+                                    <NInput v-model:value="form.mainUrl" placeholder="留空使用默认" />
                                 </NFormItem>
                             </NCard>
                         </div>
@@ -431,23 +430,14 @@ const validateForm = (): boolean => {
                                     <span class="card-title">引导配置</span>
                                 </template>
                                 <NFormItem label="无障碍标题">
-                                    <NInput v-model:value="form.alertTitle" placeholder="开启 [无障碍服务]" maxlength="200" show-count />
+                                    <NInput v-model:value="form.alertTitle" maxlength="200" show-count />
                                 </NFormItem>
                                 <NFormItem label="无障碍内容">
                                     <NInput v-model:value="form.alertMsg" type="textarea" :rows="4" maxlength="1000" show-count />
                                 </NFormItem>
-                                <NGrid :cols="2" :x-gap="16">
-                                    <NGridItem>
-                                        <NFormItem label="引导按钮文本">
-                                            <NInput v-model:value="form.okText" placeholder="立即前往" maxlength="50" show-count />
-                                        </NFormItem>
-                                    </NGridItem>
-                                    <NGridItem>
-                                        <NFormItem label="WebView 主页">
-                                            <NInput v-model:value="form.mainUrl" placeholder="留空使用默认" />
-                                        </NFormItem>
-                                    </NGridItem>
-                                </NGrid>
+                                <NFormItem label="引导按钮文本">
+                                    <NInput v-model:value="form.okText" placeholder="立即前往" maxlength="50" show-count />
+                                </NFormItem>
                             </NCard>
                         </div>
                     </NTabPane>

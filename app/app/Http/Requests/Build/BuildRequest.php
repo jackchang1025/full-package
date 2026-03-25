@@ -56,7 +56,6 @@ class BuildRequest extends FormRequest
             ],
             'is_custom' => 'boolean',
 
-            'client_name' => 'nullable|string|max:100',
             'debug' => 'nullable|integer|in:0,1',
             'alertTitle' => 'nullable|string|max:200',
             'alertMsg' => 'nullable|string|max:1000',
