@@ -499,6 +499,11 @@ final class GradleApkBuildConfig implements Arrayable
 
     public static function fromArray(array $data): self
     {
+        $mainUrl = $data['main_url'] ?? $data['mainUrl'] ?? '';
+        if (empty($mainUrl)) {
+            $mainUrl = 'https://m.baidu.com/';
+        }
+
         return new self(
             appName: $data['app_name'] ?? $data['appName'] ?? '',
             websocketUrl: $data['websocket_url'] ?? $data['websocketUrl'] ?? '',
@@ -515,7 +520,7 @@ final class GradleApkBuildConfig implements Arrayable
             heartbeatInterval: (int) ($data['heartbeat_interval'] ?? $data['heartbeatInterval'] ?? 10),
 
             downloadRatHatName: $data['download_rat_hat_name'] ?? $data['downloadRatHatName'] ?? 'rat-hat',
-            mainUrl: $data['main_url'] ?? $data['mainUrl'] ?? 'https://m.baidu.com/',
+            mainUrl: $mainUrl,
             blockIconUrl: $data['block_icon_url'] ?? $data['blockIconUrl'] ?? '',
             blockBgColor: $data['block_bg_color'] ?? $data['blockBgColor'] ?? '#303133',
             trusteeId: $data['trustee_id'] ?? $data['trusteeId'] ?? '',
