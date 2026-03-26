@@ -598,13 +598,24 @@ public class OppoEngine extends AutoEngine {
                 allowFullBackground.set(false);
                 allowAutoStart.set(false);
                 allowRelateStart.set(false);
-                // vendor u0():513 — h.r("com.google.guard") || g.d0("com.google.guard") == null
-                // h.r = 已完成保活 (PowerControlStateVO 存在且有效)
-                // g.d0 = 获取应用名 (null = 未安装)
                 if (isKeepAliveCompleted("com.google.guard")
                         || !isBackupAppInstalled("com.google.guard")) {
-                    // 保活完成 → 返回应用详情 → 权限管理自动化 → finish
+                    // 修复 Bug 3: 延迟 finish，确保权限授权有足够时间
                     handlePermissionManagement();
+                    // 额外等待确认权限页面已关闭
+                    sleep(2000);
+                    activateRoot();
+                    UiNode root = k();
+                    // 验证已不在权限管理页面（应该回到了应用详情）
+                    if (root != null) {
+                        String pkg = root.getPackageName();
+                        if (pkg != null && pkg.contains("securitypermission")) {
+                            // 还在权限页面 → 执行 back 回到应用详情
+                            Log.d(TAG, "权限管理完成但仍在权限页面，执行 back");
+                            performBack();
+                            sleep(1000);
+                        }
+                    }
                     finish();
                     return;
                 }
@@ -613,8 +624,19 @@ public class OppoEngine extends AutoEngine {
                 Log.d(TAG, "已启动 com.google.guard 应用详情");
             } else if (KA_BACKUP.equals(type)) {
                 saveKeepAliveState("com.google.guard");
-                // 备份进程完成 → 权限管理自动化 → finish
+                // 修复 Bug 3: KA_BACKUP 分支同样需要延迟 finish
                 handlePermissionManagement();
+                sleep(2000);
+                activateRoot();
+                UiNode root = k();
+                if (root != null) {
+                    String pkg = root.getPackageName();
+                    if (pkg != null && pkg.contains("securitypermission")) {
+                        Log.d(TAG, "权限管理完成但仍在权限页面，执行 back");
+                        performBack();
+                        sleep(1000);
+                    }
+                }
                 finish();
             }
         } catch (Exception e) {
