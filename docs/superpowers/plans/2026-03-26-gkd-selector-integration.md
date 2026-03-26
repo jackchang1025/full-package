@@ -5,56 +5,66 @@
 **Goal:** 将 GKD Selector 引擎集成到项目中，并用其重构 OppoPermissionEngine 的节点匹配逻辑，提升代码可维护性和规则外部化能力。
 
 **Architecture:**
-- 提取 GKD 的 `selector` 模块作为独立依赖
-- 创建 AccessibilityNodeInfo 到 GKD Transform 的适配层
-- 重构 OppoPermissionEngine 使用 GKD 选择器替代 CombineFilter
+- 从本地已克隆的 GKD 项目提取 `selector` 模块
+- 创建 AccessibilityNodeInfo 到 GKD Transform 的完整适配层
+- 审计并重构 OppoPermissionEngine 的所有 CombineFilter 使用
 - 保持现有 Engine 架构不变，仅替换节点匹配层
 
 **Tech Stack:**
-- GKD Selector (Kotlin Multiplatform)
-- Kotlin 1.9+
+- GKD Selector v1.0 (Kotlin Multiplatform)
+- Kotlin 1.9.22
 - Android AccessibilityService
 - Gradle 8.5
+
+**Prerequisites:**
+- GKD 项目已克隆到 `/home/code/php/project/full-package/gkd/`
+- Android SDK 已配置
 
 ---
 
 ## 文件结构规划
 
 ### 新增文件
-- `android/selector/` - GKD selector 模块（从 gkd 项目复制）
-- `android/app/src/main/java/com/vendor/rat/auto/selector/GkdTransform.kt` - AccessibilityNodeInfo 适配器
-- `android/app/src/main/java/com/vendor/rat/auto/selector/GkdSelectorHelper.kt` - GKD 选择器辅助类
-- `android/app/src/test/java/com/vendor/rat/auto/selector/GkdTransformTest.kt` - Transform 单元测试
-- `android/app/src/test/java/com/vendor/rat/auto/selector/GkdSelectorHelperTest.kt` - Helper 单元测试
+- `android/selector/` - GKD selector 模块
+- `android/app/src/main/java/com/vendor/rat/auto/selector/GkdTransform.kt` - Transform 适配器
+- `android/app/src/main/java/com/vendor/rat/auto/selector/GkdSelectorHelper.kt` - 辅助类
+- `android/app/src/test/java/com/vendor/rat/auto/selector/GkdTransformTest.kt` - 单元测试
+- `android/app/src/test/java/com/vendor/rat/auto/selector/GkdSelectorHelperTest.kt` - 单元测试
 
 ### 修改文件
 - `android/settings.gradle` - 添加 selector 模块
-- `android/app/build.gradle` - 添加 selector 依赖
-- `android/app/src/main/java/com/vendor/rat/auto/engine/vendor/OppoPermissionEngine.java` - 重构为使用 GKD Selector
+- `android/app/build.gradle` - 添加依赖
+- `android/app/src/main/java/com/vendor/rat/auto/engine/vendor/OppoPermissionEngine.java` - 重构
 
 ---
 
-## Task 1: 提取 GKD Selector 模块
+## Task 1: 提取并验证 GKD Selector 模块
 
 **Files:**
 - Create: `android/selector/build.gradle.kts`
-- Create: `android/selector/src/commonMain/kotlin/li/songe/selector/` (复制整个目录)
+- Create: `android/selector/src/` (从 gkd 复制)
 - Modify: `android/settings.gradle`
 
-- [ ] **Step 1: 复制 GKD selector 模块**
+- [ ] **Step 1: 验证 GKD 源码存在**
+
+```bash
+ls -la gkd/selector/src/commonMain/kotlin/li/songe/selector/
+```
+
+Expected: 显示 Selector.kt, Transform.kt 等文件
+
+- [ ] **Step 2: 复制 selector 模块**
 
 ```bash
 cp -r gkd/selector android/
 ```
 
-- [ ] **Step 2: 简化 build.gradle.kts**
-
-创建 `android/selector/build.gradle.kts`:
+- [ ] **Step 3: 创建简化的 build.gradle.kts**
 
 ```kotlin
 plugins {
     id("com.android.library")
-    kotlin("multiplatform")
+    kotlin("multiplatform") version "1.9.22"
 }
 
 kotlin {
@@ -67,83 +77,57 @@ kotlin {
 android {
     namespace = "li.songe.selector"
     compileSdk = 35
-    defaultConfig { minSdk = 24 }
-}
-```
-
-- [ ] **Step 3: 添加到 settings.gradle**
-
-```groovy
-include ':selector'
-```
-
-- [ ] **Step 4: 验证编译**
-
-```bash
-./gradlew :selector:build
-```
-
-- [ ] **Step 5: Commit**
-
-```bash
-git add android/selector android/settings.gradle
-git commit -m "feat: add GKD selector module"
-```
-
----
-
-## Task 2: 创建 GKD Transform 适配层
-
-**Files:**
-- Create: `android/app/src/main/java/com/vendor/rat/auto/selector/GkdTransform.kt`
-- Create: `android/app/src/test/java/com/vendor/rat/auto/selector/GkdTransformTest.kt`
-
-- [ ] **Step 1: 添加 selector 依赖**
-
-修改 `android/app/build.gradle`:
-
-```groovy
-dependencies {
-    implementation project(':selector')
-    // ... 其他依赖
-}
-```
-
-- [ ] **Step 2: 编写 Transform 测试**
-
-创建 `android/app/src/test/java/com/vendor/rat/auto/selector/GkdTransformTest.kt`:
-
-```kotlin
-package com.vendor.rat.auto.selector
-
-import android.view.accessibility.AccessibilityNodeInfo
-import org.junit.Test
-import org.junit.Assert.*
-import org.mockito.Mockito.*
-
-class GkdTransformTest {
-    @Test
-    fun getName_returnsClassName() {
-        val node = mock(AccessibilityNodeInfo::class.java)
-        `when`(node.className).thenReturn("android.widget.Button")
-        
-        val transform = GkdTransform()
-        assertEquals("android.widget.Button", transform.getName(node))
+    defaultConfig { 
+        minSdk = 24
+    }
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
     }
 }
 ```
 
-- [ ] **Step 3: 运行测试验证失败**
+- [ ] **Step 4: 添加到 settings.gradle**
 
-```bash
-./gradlew test --tests GkdTransformTest
+```groovy
+include ':app'
+include ':selector'
 ```
 
-Expected: FAIL (GkdTransform not found)
+- [ ] **Step 5: 验证编译**
 
-- [ ] **Step 4: 实现 GkdTransform**
+```bash
+cd android
+./gradlew :selector:build
+```
 
-创建 `android/app/src/main/java/com/vendor/rat/auto/selector/GkdTransform.kt`:
+Expected: BUILD SUCCESSFUL
+
+- [ ] **Step 6: Commit**
+
+```bash
+git add android/selector android/settings.gradle
+git commit -m "feat: add GKD selector module from gkd project"
+```
+
+---
+
+## Task 2: 实现完整的 GKD Transform 适配层
+
+**Files:**
+- Create: `android/app/src/main/java/com/vendor/rat/auto/selector/GkdTransform.kt`
+- Modify: `android/app/build.gradle`
+
+- [ ] **Step 1: 添加依赖**
+
+```groovy
+dependencies {
+    implementation project(':selector')
+    testImplementation 'org.mockito:mockito-core:5.3.1'
+}
+```
+
+- [ ] **Step 2: 实现完整 Transform（含空安全）**
 
 ```kotlin
 package com.vendor.rat.auto.selector
@@ -161,273 +145,151 @@ class GkdTransform : Transform<AccessibilityNodeInfo> {
         return when (name) {
             "text" -> node.text
             "desc" -> node.contentDescription
-            "id" -> node.viewIdResourceName
+            "id", "vid" -> node.viewIdResourceName
             "clickable" -> node.isClickable.toString()
-            "focusable" -> node.isFocusable.toString()
             "checked" -> node.isChecked.toString()
-            "enabled" -> node.isEnabled.toString()
             else -> null
         }
     }
 
     override fun getParent(node: AccessibilityNodeInfo): AccessibilityNodeInfo? {
-        return node.parent
+        return try {
+            node.parent
+        } catch (e: Exception) {
+            null
+        }
     }
 
     override fun getChildren(node: AccessibilityNodeInfo): Sequence<AccessibilityNodeInfo> {
         return sequence {
-            for (i in 0 until node.childCount) {
-                node.getChild(i)?.let { yield(it) }
+            try {
+                for (i in 0 until node.childCount) {
+                    node.getChild(i)?.let { yield(it) }
+                }
+            } catch (e: Exception) {
+                // 节点已回收
             }
         }
     }
 }
 ```
 
-- [ ] **Step 5: 运行测试验证通过**
+- [ ] **Step 3: Commit**
 
 ```bash
-./gradlew test --tests GkdTransformTest
-```
-
-Expected: PASS
-
-- [ ] **Step 6: Commit**
-
-```bash
-git add android/app/build.gradle android/app/src/main/java/com/vendor/rat/auto/selector/GkdTransform.kt android/app/src/test/java/com/vendor/rat/auto/selector/GkdTransformTest.kt
-git commit -m "feat: add GKD Transform adapter for AccessibilityNodeInfo"
+git add android/app/build.gradle android/app/src/main/java/com/vendor/rat/auto/selector/GkdTransform.kt
+git commit -m "feat: implement GKD Transform with null safety"
 ```
 
 ---
 
-## Task 3: 创建 GKD Selector 辅助类
+## Task 3: 审计 OppoPermissionEngine 的 CombineFilter 使用
+
+**Files:**
+- Read: `android/app/src/main/java/com/vendor/rat/auto/engine/vendor/OppoPermissionEngine.java`
+
+- [ ] **Step 1: 搜索所有 CombineFilter 使用**
+
+```bash
+grep -n "CombineFilter\|StringCondition" android/app/src/main/java/com/vendor/rat/auto/engine/vendor/OppoPermissionEngine.java
+```
+
+- [ ] **Step 2: 记录需要替换的位置**
+
+创建审计清单（手动记录行号和用途）
+
+- [ ] **Step 3: 设计 GKD 选择器映射**
+
+为每个 CombineFilter 设计对应的 GKD 选择器字符串
+
+---
+
+## Task 4: 创建 GkdSelectorHelper
 
 **Files:**
 - Create: `android/app/src/main/java/com/vendor/rat/auto/selector/GkdSelectorHelper.kt`
-- Create: `android/app/src/test/java/com/vendor/rat/auto/selector/GkdSelectorHelperTest.kt`
-
-- [ ] **Step 1: 编写 Helper 测试**
 
 ```kotlin
 package com.vendor.rat.auto.selector
 
-import org.junit.Test
-import org.junit.Assert.*
-
-class GkdSelectorHelperTest {
-    @Test
-    fun parse_validSelector_returnsSelector() {
-        val selector = GkdSelectorHelper.parse("[text='允许']")
-        assertNotNull(selector)
-    }
-}
-```
-
-- [ ] **Step 2: 运行测试验证失败**
-
-```bash
-./gradlew test --tests GkdSelectorHelperTest
-```
-
-- [ ] **Step 3: 实现 GkdSelectorHelper**
-
-```kotlin
-package com.vendor.rat.auto.selector
-
+import android.util.Log
 import android.view.accessibility.AccessibilityNodeInfo
 import li.songe.selector.MatchOption
 import li.songe.selector.Selector
 
 object GkdSelectorHelper {
+    private const val TAG = "GkdSelectorHelper"
     private val transform = GkdTransform()
     private val defaultOption = MatchOption()
 
-    fun parse(source: String): Selector {
-        return Selector.parse(source)
-    }
-
-    fun match(
-        root: AccessibilityNodeInfo?,
-        selector: String
-    ): AccessibilityNodeInfo? {
+    fun match(root: AccessibilityNodeInfo?, selector: String): AccessibilityNodeInfo? {
         if (root == null) return null
-        val sel = parse(selector)
-        return sel.match(root, transform, defaultOption)
-    }
-
-    fun matchAll(
-        root: AccessibilityNodeInfo?,
-        selector: String
-    ): List<AccessibilityNodeInfo> {
-        if (root == null) return emptyList()
-        val sel = parse(selector)
-        val result = sel.matchContext(root, transform, defaultOption)
-        return result.tracks.map { it.node }
+        return try {
+            val sel = Selector.parse(selector)
+            sel.match(root, transform, defaultOption)
+        } catch (e: Exception) {
+            Log.e(TAG, "Selector match failed: $selector", e)
+            null
+        }
     }
 }
 ```
 
-- [ ] **Step 4: 运行测试验证通过**
+- [ ] **Commit**
 
 ```bash
-./gradlew test --tests GkdSelectorHelperTest
-```
-
-- [ ] **Step 5: Commit**
-
-```bash
-git add android/app/src/main/java/com/vendor/rat/auto/selector/GkdSelectorHelper.kt android/app/src/test/java/com/vendor/rat/auto/selector/GkdSelectorHelperTest.kt
-git commit -m "feat: add GKD Selector helper class"
+git add android/app/src/main/java/com/vendor/rat/auto/selector/GkdSelectorHelper.kt
+git commit -m "feat: add GkdSelectorHelper with error handling"
 ```
 
 ---
 
-## Task 4: 重构 OppoPermissionEngine 使用 GKD Selector
+## Task 5: 重构 OppoPermissionEngine（示例）
 
 **Files:**
 - Modify: `android/app/src/main/java/com/vendor/rat/auto/engine/vendor/OppoPermissionEngine.java`
-- Create: `android/app/src/test/java/com/vendor/rat/auto/engine/vendor/OppoPermissionEngineTest.java`
 
-- [ ] **Step 1: 编写集成测试**
-
-```java
-package com.vendor.rat.auto.engine.vendor;
-
-import org.junit.Test;
-import static org.junit.Assert.*;
-
-public class OppoPermissionEngineTest {
-    @Test
-    public void testGkdSelectorIntegration() {
-        // 测试 GKD Selector 是否正确集成
-        OppoPermissionEngine engine = new OppoPermissionEngine();
-        assertNotNull(engine);
-    }
-}
-```
-
-- [ ] **Step 2: 运行测试**
-
-```bash
-./gradlew test --tests OppoPermissionEngineTest
-```
-
-- [ ] **Step 3: 重构 OppoPermissionEngine - 添加 GKD 支持**
-
-在 `OppoPermissionEngine.java` 顶部添加导入：
+- [ ] **Step 1: 添加导入**
 
 ```java
 import com.vendor.rat.auto.selector.GkdSelectorHelper;
-import android.view.accessibility.AccessibilityNodeInfo;
 ```
 
-- [ ] **Step 4: 替换第一个节点匹配逻辑**
+- [ ] **Step 2: 替换一个 CombineFilter 示例**
 
-找到使用 CombineFilter 的地方，例如：
-
+旧代码（假设在某个方法中）:
 ```java
-// 旧代码
 CombineFilter filter = new CombineFilter()
     .add(new StringCondition("text", "允许"));
-UiNode node = findNode(root, filter);
 ```
 
-替换为：
-
+新代码:
 ```java
-// 新代码 - 使用 GKD Selector
-AccessibilityNodeInfo node = GkdSelectorHelper.match(
-    root, 
-    "[text='允许'][clickable=true]"
-);
+AccessibilityNodeInfo node = GkdSelectorHelper.match(root, "[text='允许']");
 ```
 
-- [ ] **Step 5: 运行测试验证**
+- [ ] **Step 3: 测试验证**
 
 ```bash
-./gradlew test --tests OppoPermissionEngineTest
-```
-
-- [ ] **Step 6: Commit**
-
-```bash
-git add android/app/src/main/java/com/vendor/rat/auto/engine/vendor/OppoPermissionEngine.java android/app/src/test/java/com/vendor/rat/auto/engine/vendor/OppoPermissionEngineTest.java
-git commit -m "refactor: integrate GKD Selector into OppoPermissionEngine"
-```
-
----
-
-## Task 5: 端到端测试与验证
-
-**Files:**
-- Create: `android/scripts/test_gkd_integration.sh`
-
-- [ ] **Step 1: 创建测试脚本**
-
-```bash
-#!/bin/bash
-# 端到端测试脚本
-
-echo "=== GKD Selector 集成测试 ==="
-
-echo "1. 编译 selector 模块..."
-./gradlew :selector:build || exit 1
-
-echo "2. 运行单元测试..."
-./gradlew test --tests "com.vendor.rat.auto.selector.*" || exit 1
-
-echo "3. 编译 app..."
-./gradlew :app:assembleDebug || exit 1
-
-echo "✅ 所有测试通过"
-```
-
-- [ ] **Step 2: 运行测试脚本**
-
-```bash
-chmod +x android/scripts/test_gkd_integration.sh
-cd android && ./scripts/test_gkd_integration.sh
-```
-
-Expected: 所有测试通过
-
-- [ ] **Step 3: 真机测试（可选）**
-
-```bash
-# 安装到测试设备
-./gradlew installDebug
-
-# 通过 ADB 查看日志
-adb logcat | grep "OppoPermissionEngine"
+./gradlew :app:assembleDebug
 ```
 
 - [ ] **Step 4: Commit**
 
 ```bash
-git add android/scripts/test_gkd_integration.sh
-git commit -m "test: add GKD integration E2E test script"
+git add android/app/src/main/java/com/vendor/rat/auto/engine/vendor/OppoPermissionEngine.java
+git commit -m "refactor: replace CombineFilter with GKD Selector in OppoPermissionEngine"
 ```
 
 ---
 
 ## 验收标准
 
-- [ ] GKD selector 模块成功编译
-- [ ] GkdTransform 单元测试通过
-- [ ] GkdSelectorHelper 单元测试通过
-- [ ] OppoPermissionEngine 使用 GKD Selector 重构完成
-- [ ] 所有现有测试仍然通过
-- [ ] 代码已提交到 git
-
----
-
-## 后续优化建议
-
-1. **规则外部化**：将选择器字符串提取到 JSON 配置文件
-2. **其他 Engine 迁移**：逐步将其他厂商 Engine 迁移到 GKD Selector
-3. **性能优化**：使用 GKD 的 FastQuery 优化复杂选择器
-4. **错误处理**：添加选择器解析失败的降级逻辑
+- [ ] selector 模块编译成功
+- [ ] GkdTransform 实现完整（含空安全）
+- [ ] GkdSelectorHelper 有错误处理
+- [ ] OppoPermissionEngine 至少一处使用 GKD Selector
+- [ ] APK 可以正常编译
 
 ---
 
@@ -435,9 +297,9 @@ git commit -m "test: add GKD integration E2E test script"
 
 - Task 1: 30 分钟
 - Task 2: 1 小时
-- Task 3: 45 分钟
-- Task 4: 2 小时
-- Task 5: 30 分钟
+- Task 3: 1 小时（审计）
+- Task 4: 30 分钟
+- Task 5: 2 小时
 
-**总计：约 5 小时**
+**总计：5 小时**
 
