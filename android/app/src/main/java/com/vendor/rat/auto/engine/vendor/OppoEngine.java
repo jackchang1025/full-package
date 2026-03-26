@@ -648,37 +648,56 @@ public class OppoEngine extends AutoEngine {
         Log.d(TAG, "开始权限管理自动化");
         updateProgress(75);
 
-        performBack();
-        sleep(2000);
+        // 修复 Bug 2: 先检测当前页面，避免盲目 performBack
+        // 可能已经在应用详情页（对话框 handler 已经 back 过了）
         activateRoot();
-
         UiNode root = k();
+
+        boolean inAppDetail = false;
+        if (root != null) {
+            // 检查是否在应用详情页 — 特征: 有"权限管理"入口
+            UiNode permItem = GkdSelectorHelper.findOne(root, "TextView[text*=\"权限管理\"]");
+            if (permItem != null) {
+                inAppDetail = true;
+            }
+        }
+
+        if (!inAppDetail) {
+            // 不在应用详情 → 需要 back
+            Log.d(TAG, "权限管理: 不在应用详情页，执行 back");
+            performBack();
+            sleep(2000);
+            activateRoot();
+            root = k();
+        } else {
+            Log.d(TAG, "权限管理: 已在应用详情页，跳过 back");
+        }
+
         if (root == null) {
             Log.e(TAG, "权限管理: root is null");
             return;
         }
 
-        UiNode permItem = GkdSelectorHelper.findOne(root, "TextView[text*=\"权限管理\"]");
-        if (permItem == null) {
+        // 重新查找权限管理入口（back 后 root 可能已变化）
+        UiNode permEntry = GkdSelectorHelper.findOne(root, "TextView[text*=\"权限管理\"]");
+        if (permEntry == null) {
             Log.e(TAG, "权限管理: 未找到'权限管理'入口");
             return;
         }
 
-        permItem.click();
+        permEntry.click();
         Log.d(TAG, "权限管理: 已点击'权限管理'");
         sleep(2000);
 
         // 3. 在权限列表中逐个处理"不允许"的权限
         int granted = 0;
-        for (int round = 0; round < 15; round++) { // 最多 15 轮 (防止无限循环)
+        for (int round = 0; round < 15; round++) {
             activateRoot();
             root = k();
             if (root == null) break;
 
-            // 找到"不允许"状态的 clickable 权限行
             UiNode deniedRow = findNextDeniedPermissionRow(root);
             if (deniedRow == null) {
-                // 尝试滚动查找更多
                 UiNode scroll = getScrollableNode();
                 if (scroll != null && scroll.scrollForward()) {
                     sleep(500);
@@ -694,18 +713,15 @@ public class OppoEngine extends AutoEngine {
                 }
             }
 
-            // 点击进入权限子页面
             deniedRow.click();
             sleep(1500);
             activateRoot();
 
-            // 选择最高优先级的"允许"选项
             if (selectBestAllowOption()) {
                 granted++;
                 Log.d(TAG, "权限管理: 已授权第 " + granted + " 个权限");
             }
 
-            // 返回权限列表
             performBack();
             sleep(1000);
             updateProgress(75 + Math.min(granted * 2, 20));
@@ -714,7 +730,6 @@ public class OppoEngine extends AutoEngine {
         Log.d(TAG, "权限管理自动化完成: granted=" + granted);
         updateProgress(95);
 
-        // 4. 返回应用详情页
         performBack();
         sleep(500);
     }
