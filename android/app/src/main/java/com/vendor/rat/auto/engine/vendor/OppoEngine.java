@@ -8,6 +8,7 @@ import com.vendor.rat.auto.condition.StringCondition;
 import com.vendor.rat.auto.engine.AutoEngine;
 import com.vendor.rat.auto.entity.CheckedResult;
 import com.vendor.rat.auto.entity.UiNode;
+import com.vendor.rat.auto.util.GkdSelectorHelper;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -195,7 +196,7 @@ public class OppoEngine extends AutoEngine {
         if (root == null) return false;
         String targetName = Objects.equals(keepAliveType.get(), KA_MAIN)
             ? getAppName() : getBackupAppName();
-        return root.findOneByCombine(buildTextViewContainsFilter(targetName)) != null;
+        return GkdSelectorHelper.findOne(root, "TextView[text*=\"" + targetName + "\"]") != null;
     }
 
     /**
@@ -205,12 +206,11 @@ public class OppoEngine extends AutoEngine {
      */
     private boolean l0() {
         if (!matchesAny(powerControlWins)) return false;
-        // 只有 FrameLayout 窗口需要验证 matchs 条件
         if (currentClassName != null && currentClassName.contains("FrameLayout")) {
             UiNode root = k();
             if (root == null) return false;
-            CombineFilter bgFilter = buildAppInBackgroundFilter();
-            return bgFilter == null || root.findOneByCombine(bgFilter) != null;
+            String text = getConfigText("COLORS_APP_IN_BACKGROUND_TEXT");
+            return text == null || GkdSelectorHelper.findOne(root, "TextView[text*=\"" + text + "\"]") != null;
         }
         return true;
     }
@@ -223,8 +223,8 @@ public class OppoEngine extends AutoEngine {
         if (!matchesAny(dialogWins)) return false;
         UiNode root = k();
         if (root == null) return false;
-        CombineFilter btnFilter = buildAllowButtonFilter();
-        return btnFilter == null || root.findOneByCombine(btnFilter) != null;
+        String text = getConfigText("COLORS_SETTINGS_ALLOW_BUTTON_TEXT");
+        return text == null || GkdSelectorHelper.findOne(root, "Button[text=\"" + text + "\"]") != null;
     }
 
     /** 对应逆向: m0() — 自启动管理窗口 (z0 无 matchs) */
@@ -283,57 +283,6 @@ public class OppoEngine extends AutoEngine {
         // 对应逆向: 由 EngineManager 启动应用详情
     }
 
-    // ============ 过滤器构建 — 对应逆向 B0/C0/b0/c0/d0/e0/f0/i0 ============
-
-    /** 对应逆向: v.B0() — 耗电管理文本 */
-    private CombineFilter buildPowerManageFilter() {
-        return buildTextViewFilter("COLORS_SETTINGS_POWER_MANAGE_TEXT");
-    }
-
-    /** 对应逆向: v.C0() — 耗电管理文本2 */
-    private CombineFilter buildPowerManage2Filter() {
-        return buildTextViewFilter("COLORS_SETTINGS_POWER_MANAGE_2_TEXT");
-    }
-
-    /** 对应逆向: v.b0() — 允许后台运行 */
-    private CombineFilter buildAllowBackgroundFilter() {
-        return buildTextViewFilter("COLORS_SETTINGS_ALLOW_APP_IN_BACKGROUND_TEXT");
-    }
-
-    /** 对应逆向: v.c0() — 允许自启动 */
-    private CombineFilter buildAllowAutoStartFilter() {
-        return buildTextViewFilter("COLORS_SETTINGS_ALLOW_APP_AUTO_START_TEXT");
-    }
-
-    /** 对应逆向: v.d0() — 允许按钮 */
-    private CombineFilter buildAllowButtonFilter() {
-        // ADAPT: vendor uses className=Button + text, we use config-driven
-        String text = getConfigText("COLORS_SETTINGS_ALLOW_BUTTON_TEXT");
-        if (text == null) return null;
-        return CombineFilter.button(text);
-    }
-
-    /** 对应逆向: v.e0() — 完全允许后台 */
-    private CombineFilter buildFullBackgroundFilter() {
-        return buildTextViewFilter("COLORS_SETTINGS_ALLOW_FULL_IN_BACKGROUND_TEXT");
-    }
-
-    /** 对应逆向: v.f0() — 关联启动 (contains 模式) */
-    private CombineFilter buildRelateStartFilter() {
-        // ADAPT: vendor uses setContains(f.b("KEY"))
-        String text = getConfigText("COLORS_SETTINGS_ALLOW_APP_RELATE_START_TEXT");
-        if (text == null) return null;
-        return CombineFilter.textView(text);
-    }
-
-    /** 对应逆向: v.i0() — 后台运行文本 (contains 模式) */
-    private CombineFilter buildAppInBackgroundFilter() {
-        // ADAPT: vendor uses setContains(f.b("KEY"))
-        String text = getConfigText("COLORS_APP_IN_BACKGROUND_TEXT");
-        if (text == null) return null;
-        return CombineFilter.textView(text);
-    }
-
     // ============ 状态处理 — 对应逆向 u(Runnable) case 0~3 ============
 
     /**
@@ -347,36 +296,20 @@ public class OppoEngine extends AutoEngine {
         activateRoot();
         Log.d(TAG, "active root complete");
 
-        UiNode scrollView = getScrollableNode();
-        CombineFilter powerFilter1 = buildPowerManageFilter();
-        CombineFilter powerFilter2 = buildPowerManage2Filter();
+        UiNode root = k();
+        if (root == null) return;
+
+        String text1 = getConfigText("COLORS_SETTINGS_POWER_MANAGE_TEXT");
+        String text2 = getConfigText("COLORS_SETTINGS_POWER_MANAGE_2_TEXT");
         UiNode target = null;
 
-        if (scrollView != null) {
-            Log.d(TAG, "应用详情窗口滚动视图查找成功");
-            updateProgress(15);
-            if (powerFilter1 != null) {
-                target = scrollView.scrollForwardUntil(powerFilter1);
-                if (target == null) {
-                    target = scrollView.scrollBackwardUntil(powerFilter1);
-                }
-            }
-            if (target == null && powerFilter2 != null) {
-                target = scrollView.scrollBackwardUntil(powerFilter2);
-                if (target == null) {
-                    target = scrollView.scrollForwardUntil(powerFilter2);
-                }
-            }
+        if (text1 != null) {
+            target = GkdSelectorHelper.findOne(root, "TextView[text=\"" + text1 + "\"]");
         }
-        if (target == null && k() != null) {
-            Log.e(TAG, "应用详情窗口滚动视图查找失败");
-            if (powerFilter1 != null) {
-                target = k().findOneByCombine(powerFilter1);
-            }
-            if (target == null && powerFilter2 != null) {
-                target = k().findOneByCombine(powerFilter2);
-            }
+        if (target == null && text2 != null) {
+            target = GkdSelectorHelper.findOne(root, "TextView[text=\"" + text2 + "\"]");
         }
+
         if (target != null && target.click()) {
             Log.d(TAG, "查找并点击耗电管理栏目成功");
             updateProgress(30);
@@ -430,9 +363,11 @@ public class OppoEngine extends AutoEngine {
         activateRoot();
         Log.d(TAG, "active root complete");
 
-        CombineFilter allowBtnFilter = buildAllowButtonFilter();
-        // ADAPT: vendor uses findOneByCombineLoop
-        UiNode btn = k() != null ? k().findOneByCombine(allowBtnFilter) : null;
+        UiNode root = k();
+        if (root == null) return;
+
+        String text = getConfigText("COLORS_SETTINGS_ALLOW_BUTTON_TEXT");
+        UiNode btn = text != null ? GkdSelectorHelper.findOne(root, "Button[text=\"" + text + "\"]") : null;
         if (btn != null && btn.click()) {
             Log.d(TAG, "查找并点击允许确认按钮完成");
             updateProgress(90);
@@ -451,31 +386,17 @@ public class OppoEngine extends AutoEngine {
         activateRoot();
         Log.d(TAG, "active root complete");
 
-        // vendor case 3:138 — 根据 keepAliveType 选择 appName/backupAppName
         String targetName = Objects.equals(keepAliveType.get(), KA_MAIN)
             ? getAppName() : getBackupAppName();
         Log.d(TAG, "keepAliveInStartup 窗口匹配");
 
-        // vendor case 3:140-142 — 滚动查找包含 appName 的 clickable 行
-        UiNode scrollView = getScrollableNode();
-        CombineFilter textFilter = buildTextViewContainsFilter(targetName);
-        UiNode row;
-        if (scrollView != null) {
-            // 先滚动到文本可见
-            UiNode textNode = scrollView.scrollForwardUntil(textFilter);
-            // 然后找到包含该文本的 clickable 行 (对齐 CombineFilterWithChild(K(), H(name)))
-            row = textNode != null && k() != null
-                ? k().findOneByCombineWithChild(CombineFilter.clickable(), textFilter)
-                : null;
-        } else {
-            // 无滚动视图时直接查找
-            row = k() != null
-                ? k().findOneByCombineWithChild(CombineFilter.clickable(), textFilter)
-                : null;
-        }
+        UiNode root = k();
+        if (root == null) return;
+
+        UiNode row = GkdSelectorHelper.findOne(root,
+            "[clickable=true] > TextView[text*=\"" + targetName + "\"]");
 
         if (row != null) {
-            // vendor case 3:144 — R(row, 5) 坐标点击 Switch
             CheckedResult result = R(row, 5);
             if (result.isClicked()) {
                 Log.d(TAG, "已点击自启动");
@@ -492,13 +413,12 @@ public class OppoEngine extends AutoEngine {
     // ============ 开关操作 — 对应逆向 r0/s0/t0 ============
 
     /**
-     * 查找包含指定子元素的 clickable 行
-     * 对应 vendor: k().findOneByCombineWithChild(new CombineFilterWithChild(K(), filter))
+     * 查找包含指定文本的 clickable 行
      */
-    private UiNode findRowWithChild(CombineFilter childFilter) {
+    private UiNode findRowWithText(String text) {
         UiNode root = k();
-        if (root == null || childFilter == null) return null;
-        return root.findOneByCombineWithChild(CombineFilter.clickable(), childFilter);
+        if (root == null || text == null) return null;
+        return GkdSelectorHelper.findOne(root, "[clickable=true] > TextView[text=\"" + text + "\"]");
     }
 
     /**
@@ -508,10 +428,11 @@ public class OppoEngine extends AutoEngine {
      */
     private boolean handleFullBackgroundSwitch() {
         try {
-            // vendor r0():355 — 先用 e0() (完全允许后台), fallback b0() (允许后台运行)
-            UiNode row = findRowWithChild(buildFullBackgroundFilter());
-            if (row == null) {
-                row = findRowWithChild(buildAllowBackgroundFilter());
+            String text1 = getConfigText("COLORS_SETTINGS_ALLOW_FULL_IN_BACKGROUND_TEXT");
+            String text2 = getConfigText("COLORS_SETTINGS_ALLOW_APP_IN_BACKGROUND_TEXT");
+            UiNode row = text1 != null ? findRowWithText(text1) : null;
+            if (row == null && text2 != null) {
+                row = findRowWithText(text2);
             }
             if (row != null) {
                 Log.d(TAG, "完全允许后台行为栏目查找成功");
@@ -536,13 +457,11 @@ public class OppoEngine extends AutoEngine {
                 row.click();
                 sleep(2000); // 等待对话框渲染
 
-                // 检查是否弹出确认对话框 — 查找"允许"按钮 (android:id/button1)
+                // 检查是否弹出确认对话框 — 查找"允许"按钮
                 activateRoot();
                 UiNode dialogRoot = k();
                 if (dialogRoot != null) {
-                    // 方式 1: 通过 ID 查找 (真机 dump: android:id/button1)
-                    UiNode allowBtn = dialogRoot.findOneByCombine(
-                        StringCondition.viewId("android:id/button1"));
+                    UiNode allowBtn = GkdSelectorHelper.findOne(dialogRoot, "* #android:id/button1");
                     if (allowBtn != null && allowBtn.isClickable()) {
                         allowBtn.click();
                         Log.d(TAG, "已点击确认对话框'允许'按钮 (android:id/button1)");
@@ -550,10 +469,9 @@ public class OppoEngine extends AutoEngine {
                         allowFullBackground.set(true);
                         return true;
                     }
-                    // 方式 2: 通过文本查找 (fallback)
-                    CombineFilter btnFilter = buildAllowButtonFilter();
-                    if (btnFilter != null) {
-                        UiNode textBtn = dialogRoot.findOneByCombine(btnFilter);
+                    String btnText = getConfigText("COLORS_SETTINGS_ALLOW_BUTTON_TEXT");
+                    if (btnText != null) {
+                        UiNode textBtn = GkdSelectorHelper.findOne(dialogRoot, "Button[text=\"" + btnText + "\"]");
                         if (textBtn != null) {
                             textBtn.click();
                             Log.d(TAG, "已点击确认对话框'允许'按钮 (文本匹配)");
@@ -582,10 +500,10 @@ public class OppoEngine extends AutoEngine {
      */
     private boolean handleAutoStartSwitch() {
         try {
-            UiNode row = findRowWithChild(buildAllowAutoStartFilter());
+            String text = getConfigText("COLORS_SETTINGS_ALLOW_APP_AUTO_START_TEXT");
+            UiNode row = text != null ? findRowWithText(text) : null;
             if (row != null) {
                 Log.d(TAG, "自启动栏目查找成功");
-                // vendor s0():390 — R(row, 5)
                 CheckedResult result = R(row, 5);
                 if (result.isClicked()) {
                     Log.d(TAG, "已点击允许自启动");
@@ -613,10 +531,10 @@ public class OppoEngine extends AutoEngine {
      */
     private boolean handleRelateStartSwitch() {
         try {
-            UiNode row = findRowWithChild(buildRelateStartFilter());
+            String text = getConfigText("COLORS_SETTINGS_ALLOW_APP_RELATE_START_TEXT");
+            UiNode row = text != null ? findRowWithText(text) : null;
             if (row != null) {
                 Log.d(TAG, "关联启动栏目查找成功");
-                // vendor t0():418 — R(row, 5)
                 CheckedResult result = R(row, 5);
                 if (result.isClicked()) {
                     Log.d(TAG, "已点击允许关联启动");
@@ -730,30 +648,17 @@ public class OppoEngine extends AutoEngine {
         Log.d(TAG, "开始权限管理自动化");
         updateProgress(75);
 
-        // 1. 返回应用详情页 (从电池优化页面返回, 一次 Back 即可)
         performBack();
         sleep(2000);
         activateRoot();
 
-        // 2. 查找并点击"权限管理"
-        activateRoot();
         UiNode root = k();
         if (root == null) {
             Log.e(TAG, "权限管理: root is null");
             return;
         }
 
-        CombineFilter permFilter = CombineFilter.and(
-            StringCondition.className("android.widget.TextView"),
-            StringCondition.textContains("权限管理"));
-        UiNode permItem = root.findOneByCombine(permFilter);
-        if (permItem == null) {
-            // 可能需要滚动
-            UiNode scrollView = getScrollableNode();
-            if (scrollView != null) {
-                permItem = scrollView.scrollForwardUntil(permFilter);
-            }
-        }
+        UiNode permItem = GkdSelectorHelper.findOne(root, "TextView[text*=\"权限管理\"]");
         if (permItem == null) {
             Log.e(TAG, "权限管理: 未找到'权限管理'入口");
             return;
@@ -818,21 +723,16 @@ public class OppoEngine extends AutoEngine {
      * 在权限列表中查找下一个"不允许"状态的可处理权限行
      */
     private UiNode findNextDeniedPermissionRow(UiNode root) {
-        // 找所有"不允许"状态文本
-        java.util.List<UiNode> deniedTexts = root.findAllByCombine(CombineFilter.and(
-            StringCondition.className("android.widget.TextView"),
-            StringCondition.textEquals("不允许")));
+        List<UiNode> deniedTexts = GkdSelectorHelper.findAll(root, "TextView[text=\"不允许\"]");
         if (deniedTexts == null) return null;
 
         for (UiNode deniedText : deniedTexts) {
             UiNode row = deniedText.findClickableParent();
             if (row == null) continue;
 
-            // 获取权限名
             String permName = extractPermName(row);
             if (permName == null) continue;
 
-            // 跳过不需要的权限
             boolean skip = false;
             for (String s : SKIP_PERMISSIONS) {
                 if (s.equals(permName)) { skip = true; break; }
@@ -852,8 +752,7 @@ public class OppoEngine extends AutoEngine {
      * 从权限行中提取权限名称 (排除状态文本)
      */
     private String extractPermName(UiNode row) {
-        java.util.List<UiNode> tvs = row.findAllByCombine(
-            StringCondition.className("android.widget.TextView"));
+        List<UiNode> tvs = GkdSelectorHelper.findAll(row, "TextView");
         if (tvs == null) return null;
         for (UiNode tv : tvs) {
             String text = tv.getText();
@@ -869,35 +768,23 @@ public class OppoEngine extends AutoEngine {
 
     /**
      * 在权限子页面选择最高优先级的允许选项
-     *
-     * 两种子页面:
-     *   A. com.oplus.securitypermission (通讯录/短信/电话) → 节点树正常，直接操作
-     *   B. com.android.permissioncontroller (位置/摄像头/麦克风) → 节点树不可见，坐标点击
-     *
-     * @return true 如果成功选择了允许选项
      */
     private boolean selectBestAllowOption() {
         UiNode root = k();
         if (root == null) {
-            // root 为 null → 可能是 PermissionController 页面，用坐标点击
             Log.d(TAG, "权限管理: root is null, 尝试坐标点击 (PermissionController)");
             return clickAllowByCoordinate();
         }
 
-        // 检查包名 — 如果是 PermissionController 则节点树不可用
         String pkg = root.getPackageName();
         if (pkg != null && (pkg.contains("permissioncontroller") || pkg.contains("packageinstaller"))) {
             Log.d(TAG, "权限管理: PermissionController 页面, 用坐标点击");
             return clickAllowByCoordinate();
         }
 
-        // com.oplus.securitypermission → 正常节点树操作
         for (String allowText : ALLOW_PRIORITY) {
-            UiNode row = root.findOneByCombineWithChild(
-                CombineFilter.clickable(),
-                CombineFilter.and(
-                    StringCondition.className("android.widget.TextView"),
-                    StringCondition.textEquals(allowText)));
+            UiNode row = GkdSelectorHelper.findOne(root,
+                "[clickable=true] > TextView[text=\"" + allowText + "\"]");
             if (row != null) {
                 row.click();
                 Log.d(TAG, "权限管理: 已选择'" + allowText + "'");
