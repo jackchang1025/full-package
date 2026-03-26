@@ -17,6 +17,9 @@ public class ScreenAdaptUtil {
     public static int[] adaptCoordinate(int baseX, int baseY,
                                          int baseWidth, int baseHeight,
                                          int targetWidth, int targetHeight) {
+        if (baseWidth <= 0 || baseHeight <= 0 || targetWidth <= 0 || targetHeight <= 0) {
+            return new int[]{0, 0};
+        }
         int x = Math.round((float) baseX * targetWidth / baseWidth);
         int y = Math.round((float) baseY * targetHeight / baseHeight);
         return new int[]{x, y};

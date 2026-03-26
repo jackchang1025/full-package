@@ -39,4 +39,18 @@ public class ScreenAdaptUtilTest {
         assertEquals(479, result[0]);
         assertEquals(911, result[1]);
     }
+
+    @Test
+    public void testAdaptCoordinate_zeroBaseDimensions() {
+        int[] result = ScreenAdaptUtil.adaptCoordinate(550, 1052, 0, 0, 1080, 2400);
+        assertEquals(0, result[0]);
+        assertEquals(0, result[1]);
+    }
+
+    @Test
+    public void testAdaptCoordinate_zeroTargetDimensions() {
+        int[] result = ScreenAdaptUtil.adaptCoordinate(550, 1052, 1240, 2772, 0, 0);
+        assertEquals(0, result[0]);
+        assertEquals(0, result[1]);
+    }
 }
