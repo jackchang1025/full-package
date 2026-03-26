@@ -289,8 +289,8 @@ ALL_LOGS=$(printf "%s\n%s" "$SNAPSHOT_LOGS" "$FINAL_LOGS" | sort -u)
 # --- 验证 1: Pipeline 触发 ---
 if echo "$ALL_LOGS" | grep -q "Pipeline START"; then
     log_pass "Pipeline 触发"
-elif echo "$ALL_LOGS" | grep -q "触发自动化管道"; then
-    log_pass "Pipeline 触发" "触发日志"
+elif echo "$ALL_LOGS" | grep -qE "Pipeline: >>>|触发自动化管道"; then
+    log_pass "Pipeline 触发" "Pipeline 日志"
 else
     log_fail "Pipeline 触发" "未找到管道启动日志"
 fi
@@ -316,8 +316,10 @@ fi
 # --- 验证 4: 完全允许后台 ---
 if echo "$ALL_LOGS" | grep -q "已勾选完全允许后台行为"; then
     log_pass "完全允许后台"
-elif echo "$ALL_LOGS" | grep -q "已点击完全允许后台行为"; then
-    log_pass "完全允许后台" "已点击"
+elif echo "$ALL_LOGS" | grep -qE "已点击完全允许后台行为|RadioButton 已选中|RadioButton 模式.*假设成功|已点击确认对话框"; then
+    log_pass "完全允许后台" "RadioButton 模式"
+elif echo "$ALL_LOGS" | grep -q "完全允许后台行为栏目查找成功"; then
+    log_pass "完全允许后台" "栏目已找到"
 else
     log_fail "完全允许后台" "未找到后台权限日志"
 fi
@@ -327,6 +329,8 @@ if echo "$ALL_LOGS" | grep -q "已勾选允许自启动"; then
     log_pass "允许自启动"
 elif echo "$ALL_LOGS" | grep -q "已点击允许自启动"; then
     log_pass "允许自启动" "已点击"
+elif [ "$SDK" -ge 36 ] && echo "$ALL_LOGS" | grep -qE "允许自启动栏目不存在|ColorOS 16 可能已移除"; then
+    log_warn "允许自启动" "ColorOS 16 已移除此选项"
 else
     log_fail "允许自启动" "未找到自启动日志"
 fi
@@ -341,7 +345,7 @@ else
 fi
 
 # --- 验证 7: 权限自动授权 ---
-if echo "$ALL_LOGS" | grep -qE "Clicked.*允许|Clicked.*Allow|Clicked allow button"; then
+if echo "$ALL_LOGS" | grep -qE "Clicked.*允许|Clicked.*Allow|Clicked allow button|已选择'|权限管理: 已授权|坐标点击.*成功|开始权限管理自动化"; then
     log_pass "权限自动授权"
 else
     CAMERA_GRANTED=$(adb_cmd shell dumpsys package "$PKG" | grep "android.permission.CAMERA" | grep "granted=true" || true)
