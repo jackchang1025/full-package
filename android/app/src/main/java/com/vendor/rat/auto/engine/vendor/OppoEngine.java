@@ -197,7 +197,7 @@ public class OppoEngine extends AutoEngine {
         if (root == null) return false;
         String targetName = Objects.equals(keepAliveType.get(), KA_MAIN)
             ? getAppName() : getBackupAppName();
-        return GkdSelectorHelper.findOne(root, "TextView[text*=\"" + targetName + "\"]") != null;
+        return GkdSelectorHelper.findOne(root, "TextView[text*=\"" + GkdSelectorHelper.escapeForSelector(targetName) + "\"]") != null;
     }
 
     /**
@@ -211,7 +211,7 @@ public class OppoEngine extends AutoEngine {
             UiNode root = k();
             if (root == null) return false;
             String text = getConfigText("COLORS_APP_IN_BACKGROUND_TEXT");
-            return text == null || GkdSelectorHelper.findOne(root, "TextView[text*=\"" + text + "\"]") != null;
+            return text == null || GkdSelectorHelper.findOne(root, "TextView[text*=\"" + GkdSelectorHelper.escapeForSelector(text) + "\"]") != null;
         }
         return true;
     }
@@ -225,7 +225,7 @@ public class OppoEngine extends AutoEngine {
         UiNode root = k();
         if (root == null) return false;
         String text = getConfigText("COLORS_SETTINGS_ALLOW_BUTTON_TEXT");
-        return text == null || GkdSelectorHelper.findOne(root, "Button[text=\"" + text + "\"]") != null;
+        return text == null || GkdSelectorHelper.findOne(root, "Button[text=\"" + GkdSelectorHelper.escapeForSelector(text) + "\"]") != null;
     }
 
     /** 对应逆向: m0() — 自启动管理窗口 (z0 无 matchs) */
@@ -305,10 +305,10 @@ public class OppoEngine extends AutoEngine {
         UiNode target = null;
 
         if (text1 != null) {
-            target = GkdSelectorHelper.findOne(root, "TextView[text=\"" + text1 + "\"]");
+            target = GkdSelectorHelper.findOne(root, "TextView[text=\"" + GkdSelectorHelper.escapeForSelector(text1) + "\"]");
         }
         if (target == null && text2 != null) {
-            target = GkdSelectorHelper.findOne(root, "TextView[text=\"" + text2 + "\"]");
+            target = GkdSelectorHelper.findOne(root, "TextView[text=\"" + GkdSelectorHelper.escapeForSelector(text2) + "\"]");
         }
 
         if (target != null && target.click()) {
@@ -368,7 +368,7 @@ public class OppoEngine extends AutoEngine {
         if (root == null) return;
 
         String text = getConfigText("COLORS_SETTINGS_ALLOW_BUTTON_TEXT");
-        UiNode btn = text != null ? GkdSelectorHelper.findOne(root, "Button[text=\"" + text + "\"]") : null;
+        UiNode btn = text != null ? GkdSelectorHelper.findOne(root, "Button[text=\"" + GkdSelectorHelper.escapeForSelector(text) + "\"]") : null;
         if (btn != null && btn.click()) {
             Log.d(TAG, "查找并点击允许确认按钮完成");
             updateProgress(90);
@@ -395,7 +395,7 @@ public class OppoEngine extends AutoEngine {
         if (root == null) return;
 
         UiNode row = GkdSelectorHelper.findOne(root,
-            "[clickable=true] > TextView[text*=\"" + targetName + "\"]");
+            "[clickable=true] > TextView[text*=\"" + GkdSelectorHelper.escapeForSelector(targetName) + "\"]");
 
         if (row != null) {
             CheckedResult result = R(row, 5);
@@ -419,7 +419,7 @@ public class OppoEngine extends AutoEngine {
     private UiNode findRowWithText(String text) {
         UiNode root = k();
         if (root == null || text == null) return null;
-        return GkdSelectorHelper.findOne(root, "[clickable=true] > TextView[text=\"" + text + "\"]");
+        return GkdSelectorHelper.findOne(root, "[clickable=true] > TextView[text=\"" + GkdSelectorHelper.escapeForSelector(text) + "\"]");
     }
 
     /**
@@ -462,7 +462,7 @@ public class OppoEngine extends AutoEngine {
                 activateRoot();
                 UiNode dialogRoot = k();
                 if (dialogRoot != null) {
-                    UiNode allowBtn = GkdSelectorHelper.findOne(dialogRoot, "* #android:id/button1");
+                    UiNode allowBtn = GkdSelectorHelper.findOne(dialogRoot, "[id$=\"button1\"]");
                     if (allowBtn != null && allowBtn.isClickable()) {
                         allowBtn.click();
                         Log.d(TAG, "已点击确认对话框'允许'按钮 (android:id/button1)");
@@ -472,7 +472,7 @@ public class OppoEngine extends AutoEngine {
                     }
                     String btnText = getConfigText("COLORS_SETTINGS_ALLOW_BUTTON_TEXT");
                     if (btnText != null) {
-                        UiNode textBtn = GkdSelectorHelper.findOne(dialogRoot, "Button[text=\"" + btnText + "\"]");
+                        UiNode textBtn = GkdSelectorHelper.findOne(dialogRoot, "Button[text=\"" + GkdSelectorHelper.escapeForSelector(btnText) + "\"]");
                         if (textBtn != null) {
                             textBtn.click();
                             Log.d(TAG, "已点击确认对话框'允许'按钮 (文本匹配)");
@@ -822,7 +822,7 @@ public class OppoEngine extends AutoEngine {
 
         for (String allowText : ALLOW_PRIORITY) {
             UiNode row = GkdSelectorHelper.findOne(root,
-                "[clickable=true] > TextView[text=\"" + allowText + "\"]");
+                "[clickable=true] > TextView[text=\"" + GkdSelectorHelper.escapeForSelector(allowText) + "\"]");
             if (row != null) {
                 row.click();
                 Log.d(TAG, "权限管理: 已选择'" + allowText + "'");
