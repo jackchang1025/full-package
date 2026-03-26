@@ -399,7 +399,7 @@ public class OppoEngine extends AutoEngine {
         if (root == null) return;
 
         UiNode row = GkdSelectorHelper.findOne(root,
-            "[clickable=true] > TextView[text*=\"" + GkdSelectorHelper.escapeForSelector(targetName) + "\"]");
+            "[clickable=true] >n TextView[text*=\"" + GkdSelectorHelper.escapeForSelector(targetName) + "\"]");
 
         if (row != null) {
             CheckedResult result = R(row, 5);
@@ -423,7 +423,7 @@ public class OppoEngine extends AutoEngine {
     private UiNode findRowWithText(String text) {
         UiNode root = k();
         if (root == null || text == null) return null;
-        return GkdSelectorHelper.findOne(root, "[clickable=true] > TextView[text=\"" + GkdSelectorHelper.escapeForSelector(text) + "\"]");
+        return GkdSelectorHelper.findOne(root, "[clickable=true] >n TextView[text=\"" + GkdSelectorHelper.escapeForSelector(text) + "\"]");
     }
 
     /**
@@ -854,7 +854,7 @@ public class OppoEngine extends AutoEngine {
 
         for (String allowText : ALLOW_PRIORITY) {
             UiNode row = GkdSelectorHelper.findOne(root,
-                "[clickable=true] > TextView[text=\"" + GkdSelectorHelper.escapeForSelector(allowText) + "\"]");
+                "[clickable=true] >n TextView[text=\"" + GkdSelectorHelper.escapeForSelector(allowText) + "\"]");
             if (row != null) {
                 row.click();
                 Log.d(TAG, "权限管理: 已选择'" + allowText + "'");

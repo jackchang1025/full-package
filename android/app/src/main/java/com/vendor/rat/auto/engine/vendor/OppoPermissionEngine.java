@@ -228,7 +228,7 @@ public class OppoPermissionEngine extends AutoEngine {
         // com.oplus.securitypermission 页面: GKD Selector 正常匹配
         for (String allowText : ALLOW_PRIORITY) {
             UiNode row = GkdSelectorHelper.findOne(root,
-                "[clickable=true] > TextView[text=\"" + allowText + "\"]");
+                "[clickable=true] >n TextView[text=\"" + allowText + "\"]");
             if (row != null) {
                 row.click();
                 grantedCount++;
