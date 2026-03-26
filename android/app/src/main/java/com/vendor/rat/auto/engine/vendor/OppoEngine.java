@@ -322,6 +322,9 @@ public class OppoEngine extends AutoEngine {
     /**
      * case 1: 耗电管理 — 自启动/关联启动/完全后台
      * 对应逆向: u.run() case 1
+     *
+     * ColorOS 16 适配: 自启动和关联启动已从耗电管理页移除，
+     * 失败不阻塞流程。无论开关操作是否成功，都调用 handleCompletion()。
      */
     private void handlePowerControlState() {
         if (!l0()) return;
@@ -332,25 +335,26 @@ public class OppoEngine extends AutoEngine {
         activateRoot();
         Log.d(TAG, "active root complete");
 
-        // s0(): 允许自启动
+        // s0(): 允许自启动 — ColorOS 16 已移除，失败不阻塞
         if (!handleAutoStartSwitch()) {
-            Log.e(TAG, "允许自启动行为失败");
+            Log.w(TAG, "允许自启动栏目不存在或操作失败 (ColorOS 16 可能已移除)");
         }
         updateProgress(50);
 
-        // t0(): 允许关联启动
+        // t0(): 允许关联启动 — ColorOS 16 已移除，失败不阻塞
         if (!handleRelateStartSwitch()) {
-            Log.e(TAG, "允许关联启动行为失败");
+            Log.w(TAG, "允许关联启动栏目不存在或操作失败 (ColorOS 16 可能已移除)");
         }
         updateProgress(60);
 
         // r0(): 完全允许后台
         if (!handleFullBackgroundSwitch()) {
-            Log.e(TAG, "允许完全后台行为失败");
-        } else {
-            updateProgress(70);
-            handleCompletion();
+            Log.w(TAG, "完全允许后台操作失败，仍继续后续流程");
         }
+        updateProgress(70);
+
+        // ColorOS 16 适配: 无论开关操作是否成功，都继续完成流程
+        handleCompletion();
     }
 
     /**
@@ -589,7 +593,11 @@ public class OppoEngine extends AutoEngine {
      */
     private void handleCompletion() {
         try {
-            if (!allowFullBackground.get()) return;
+            // ColorOS 16 适配: 不再以 allowFullBackground 作为门控
+            // 即使后台行为设置失败，也继续执行权限管理
+            if (!allowFullBackground.get()) {
+                Log.w(TAG, "后台行为未成功设置，但继续执行权限管理");
+            }
 
             String type = keepAliveType.get();
             if (KA_MAIN.equals(type)) {
