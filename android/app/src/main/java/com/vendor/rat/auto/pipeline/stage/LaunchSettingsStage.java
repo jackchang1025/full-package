@@ -20,8 +20,8 @@ public class LaunchSettingsStage implements PipelineStage {
 
     @Override
     public void handle(PipelineContext passable, Runnable next) {
-        // Skip for non-Huawei/Xiaomi devices
-        if (!passable.isHuawei() && !passable.isXiaomi()) {
+        // Skip for unsupported devices
+        if (!passable.isHuawei() && !passable.isXiaomi() && !passable.isOppo()) {
             next.run();
             return;
         }

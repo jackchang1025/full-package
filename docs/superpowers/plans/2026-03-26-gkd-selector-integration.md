@@ -45,7 +45,7 @@
 - Create: `android/selector/src/` (从 gkd 复制)
 - Modify: `android/settings.gradle`
 
-- [ ] **Step 1: 验证 GKD 源码存在**
+- [x] **Step 1: 验证 GKD 源码存在**
 
 ```bash
 ls -la gkd/selector/src/commonMain/kotlin/li/songe/selector/
@@ -53,13 +53,13 @@ ls -la gkd/selector/src/commonMain/kotlin/li/songe/selector/
 
 Expected: 显示 Selector.kt, Transform.kt 等文件
 
-- [ ] **Step 2: 复制 selector 模块**
+- [x] **Step 2: 复制 selector 模块**
 
 ```bash
 cp -r gkd/selector android/
 ```
 
-- [ ] **Step 3: 创建简化的 build.gradle.kts**
+- [x] **Step 3: 创建简化的 build.gradle.kts**
 
 ```kotlin
 plugins {
@@ -87,14 +87,14 @@ android {
 }
 ```
 
-- [ ] **Step 4: 添加到 settings.gradle**
+- [x] **Step 4: 添加到 settings.gradle**
 
 ```groovy
 include ':app'
 include ':selector'
 ```
 
-- [ ] **Step 5: 验证编译**
+- [x] **Step 5: 验证编译**
 
 ```bash
 cd android
@@ -103,7 +103,7 @@ cd android
 
 Expected: BUILD SUCCESSFUL
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add android/selector android/settings.gradle

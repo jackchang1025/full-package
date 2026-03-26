@@ -76,6 +76,13 @@ public class PermissionAutoGrantEngine extends AutoEngine {
     public boolean matchWindow(String packageName, String className, int eventType) {
         if (packageName == null) return false;
 
+        // 诊断: 记录所有权限相关包名的匹配尝试
+        if (packageName.contains("permission") || packageName.contains("packageinstaller")) {
+            boolean overlayShowing = com.vendor.rat.helper.BlockViewHelper.isShowing();
+            Log.d(TAG, "matchWindow: pkg=" + packageName + " cls=" + className
+                + " type=" + eventType + " overlay=" + overlayShowing);
+        }
+
         // 核心守卫: 遮罩未显示时不响应任何权限事件
         if (!com.vendor.rat.helper.BlockViewHelper.isShowing()) {
             return false;
@@ -207,7 +214,9 @@ public class PermissionAutoGrantEngine extends AutoEngine {
         {"仅在使用中允许", "While using the app"},
         {"仅在使用该应用时允许", "Allow only while using the app"},
         {"仅使用期间允许"},  // 华为鸿蒙 EMUI 14+
+        {"使用时允许"},      // OPPO ColorOS 16+
         {"允许本次使用", "Only this time", "仅限这一次"},
+        {"仅本次使用时允许"}, // OPPO ColorOS 16+
         {"允许", "Allow"},
         {"同意", "确定"},
     };

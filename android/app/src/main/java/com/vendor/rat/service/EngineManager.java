@@ -11,6 +11,7 @@ import com.vendor.rat.auto.engine.PermissionAutoGrantEngine;
 import com.vendor.rat.auto.engine.AospKeepAliveEngine;
 import com.vendor.rat.auto.engine.vendor.HuaweiEngine;
 import com.vendor.rat.auto.engine.vendor.OppoEngine;
+import com.vendor.rat.auto.engine.vendor.OppoPermissionEngine;
 import com.vendor.rat.auto.engine.vendor.VivoEngine;
 import com.vendor.rat.auto.engine.vendor.XiaomiEngine;
 import com.vendor.rat.utils.DeviceUtils;
@@ -112,6 +113,7 @@ public class EngineManager {
         } else if (DeviceUtils.isOppo()) {
             register(new OppoEngine());
             Log.d(TAG, "Registered OppoEngine");
+            // OppoPermissionEngine 不单独注册 — 权限管理在 OppoEngine.handlePermissionManagement() 中内联执行
         } else if (DeviceUtils.isVivo()) {
             register(new VivoEngine());
             Log.d(TAG, "Registered VivoEngine");

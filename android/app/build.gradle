@@ -1,5 +1,6 @@
 plugins {
     id 'com.android.application'
+    id 'org.jetbrains.kotlin.android'
 }
 
 android {
@@ -8,7 +9,7 @@ android {
 
     defaultConfig {
         applicationId "com.vendor.rat"
-        minSdk 21
+        minSdk 24
         // ADAPT: 提升到 34 让 POST_NOTIFICATIONS 成为标准运行时权限
         // 由 PermissionAutoGrantEngine 在无障碍启用后自动授权
         targetSdk 34
@@ -33,6 +34,10 @@ android {
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_1_8
         targetCompatibility JavaVersion.VERSION_1_8
+    }
+
+    kotlinOptions {
+        jvmTarget = '1.8'
     }
 
     // 测试配置

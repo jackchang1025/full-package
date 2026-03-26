@@ -207,6 +207,22 @@ public final class StrategyThread {
                 Log.w(TAG, "小米应用详情页启动失败，使用通用设置", e);
                 launchGenericSettings(svc, ctx);
             }
+        } else if (DeviceUtils.isOppo()) {
+            // OPPO: 打开应用详情页 → OppoEngine 被动检测并处理耗电管理+自启动
+            // 真机验证: InstalledAppDetailsTop 通过 ACTION_APPLICATION_DETAILS_SETTINGS 打开
+            // 直接 setClassName 在 ColorOS 16 上可能打开错误页面
+            Intent oppoIntent = new Intent(
+                android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS);
+            oppoIntent.setData(android.net.Uri.parse("package:" + ctx.getPackageName()));
+            oppoIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            oppoIntent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK);
+            try {
+                startActivityViaService(svc, ctx, oppoIntent);
+                Log.d(TAG, "启动 OPPO 应用详情页成功");
+            } catch (Exception e) {
+                Log.w(TAG, "OPPO 应用详情页启动失败，使用通用设置", e);
+                launchGenericSettings(svc, ctx);
+            }
         } else {
             launchGenericSettings(svc, ctx);
         }
@@ -265,8 +281,8 @@ public final class StrategyThread {
             MyAccessibilityService service = MyAccessibilityService.P();
             if (service == null) return;
 
-            // 支持华为和小米设备
-            if (!DeviceUtils.isHuawei() && !DeviceUtils.isXiaomi()) return;
+            // 支持华为、小米和 OPPO 设备
+            if (!DeviceUtils.isHuawei() && !DeviceUtils.isXiaomi() && !DeviceUtils.isOppo()) return;
 
             // 防止重复触发
             if (!keepAliveTriggered.compareAndSet(false, true)) return;

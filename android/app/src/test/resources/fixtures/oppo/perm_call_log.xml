@@ -1,0 +1,126 @@
+<?xml version='1.0' encoding='UTF-8' standalone='yes'?>
+<hierarchy rotation="0">
+    <node index="0" text="" resource-id="" class="android.widget.FrameLayout"
+        package="com.android.permissioncontroller" content-desc="" checkable="false" checked="false"
+        clickable="false" enabled="true" focusable="false" focused="false" scrollable="false"
+        long-clickable="false" password="false" selected="false" bounds="[0,1639][1240,2716]"
+        drawing-order="0" hint="">
+        <node index="0" text="" resource-id="" class="android.widget.LinearLayout"
+            package="com.android.permissioncontroller" content-desc="" checkable="false"
+            checked="false" clickable="false" enabled="true" focusable="false" focused="false"
+            scrollable="false" long-clickable="false" password="false" selected="false"
+            bounds="[0,1639][1240,2716]" drawing-order="1" hint="">
+            <node index="0" text="" resource-id="android:id/content"
+                class="android.widget.FrameLayout" package="com.android.permissioncontroller"
+                content-desc="" checkable="false" checked="false" clickable="false" enabled="true"
+                focusable="false" focused="false" scrollable="false" long-clickable="false"
+                password="false" selected="false" bounds="[0,1639][1240,2716]" drawing-order="2"
+                hint="">
+                <node index="0" text="" resource-id="" class="android.widget.FrameLayout"
+                    package="com.android.permissioncontroller" content-desc="" checkable="false"
+                    checked="false" clickable="false" enabled="true" focusable="false"
+                    focused="false" scrollable="false" long-clickable="false" password="false"
+                    selected="false" bounds="[0,1639][1240,2716]" drawing-order="1" hint="">
+                    <node index="0" text=""
+                        resource-id="com.android.permissioncontroller:id/grant_singleton"
+                        class="android.widget.LinearLayout"
+                        package="com.android.permissioncontroller" content-desc="" checkable="false"
+                        checked="false" clickable="true" enabled="true" focusable="false"
+                        focused="false" scrollable="false" long-clickable="false" password="false"
+                        selected="false" bounds="[0,1639][1240,2716]" drawing-order="1" hint="">
+                        <node index="0" text=""
+                            resource-id="com.android.permissioncontroller:id/grant_dialog"
+                            class="android.widget.LinearLayout"
+                            package="com.android.permissioncontroller" content-desc=""
+                            checkable="false" checked="false" clickable="true" enabled="true"
+                            focusable="true" focused="false" scrollable="false"
+                            long-clickable="false" password="false" selected="false"
+                            bounds="[0,1639][1240,2716]" drawing-order="1" hint="">
+                            <node index="0" text="" resource-id="" class="android.widget.ScrollView"
+                                package="com.android.permissioncontroller" content-desc=""
+                                checkable="false" checked="false" clickable="false" enabled="true"
+                                focusable="true" focused="false" scrollable="false"
+                                long-clickable="false" password="false" selected="false"
+                                bounds="[56,1695][1184,2172]" drawing-order="1" hint="">
+                                <node index="0" text="" resource-id=""
+                                    class="android.widget.LinearLayout"
+                                    package="com.android.permissioncontroller" content-desc=""
+                                    checkable="false" checked="false" clickable="false"
+                                    enabled="true" focusable="false" focused="false"
+                                    scrollable="false" long-clickable="false" password="false"
+                                    selected="false" bounds="[56,1695][1184,2172]" drawing-order="1"
+                                    hint="">
+                                    <node index="0" text=""
+                                        resource-id="com.android.permissioncontroller:id/content_container"
+                                        class="android.widget.LinearLayout"
+                                        package="com.android.permissioncontroller" content-desc=""
+                                        checkable="false" checked="false" clickable="false"
+                                        enabled="true" focusable="false" focused="false"
+                                        scrollable="false" long-clickable="false" password="false"
+                                        selected="false" bounds="[56,1695][1184,2172]"
+                                        drawing-order="1" hint="">
+                                        <node index="0" text="" resource-id=""
+                                            class="android.widget.LinearLayout"
+                                            package="com.android.permissioncontroller"
+                                            content-desc="" checkable="false" checked="false"
+                                            clickable="false" enabled="true" focusable="false"
+                                            focused="false" scrollable="false"
+                                            long-clickable="false" password="false" selected="false"
+                                            bounds="[140,1723][1100,1889]" drawing-order="1" hint="">
+                                            <node index="0" text="允许“System Service”访问通话记录?"
+                                                resource-id="com.android.permissioncontroller:id/permission_message"
+                                                class="android.widget.TextView"
+                                                package="com.android.permissioncontroller"
+                                                content-desc="" checkable="false" checked="false"
+                                                clickable="false" enabled="true" focusable="false"
+                                                focused="false" scrollable="false"
+                                                long-clickable="false" password="false"
+                                                selected="false" bounds="[140,1723][1100,1889]"
+                                                drawing-order="2" hint="" />
+                                        </node>
+                                        <node index="1"
+                                            text="读取通话记录，以提供通话相关的功能或服务。开启隐私替身可减少个人信息泄露。前往设置"
+                                            resource-id="com.android.permissioncontroller:id/detail_message"
+                                            class="android.widget.TextView"
+                                            package="com.android.permissioncontroller"
+                                            content-desc="" checkable="false" checked="false"
+                                            clickable="false" enabled="true" focusable="true"
+                                            focused="false" scrollable="false"
+                                            long-clickable="false" password="false" selected="false"
+                                            bounds="[140,1938][1100,2144]" drawing-order="2" hint="" />
+                                    </node>
+                                </node>
+                            </node>
+                            <node index="1" text="" resource-id=""
+                                class="android.widget.LinearLayout"
+                                package="com.android.permissioncontroller" content-desc=""
+                                checkable="false" checked="false" clickable="false" enabled="true"
+                                focusable="false" focused="false" scrollable="false"
+                                long-clickable="false" password="false" selected="false"
+                                bounds="[56,2228][1184,2632]" drawing-order="2" hint="">
+                                <node index="0" text="允许"
+                                    resource-id="com.android.permissioncontroller:id/permission_allow_button"
+                                    class="android.widget.Button"
+                                    package="com.android.permissioncontroller" content-desc=""
+                                    checkable="false" checked="false" clickable="true"
+                                    enabled="true" focusable="true" focused="false"
+                                    scrollable="false" long-clickable="false" password="false"
+                                    selected="false" bounds="[140,2241][1100,2395]"
+                                    drawing-order="2" hint="" />
+                                <node index="1" text="不允许"
+                                    resource-id="com.android.permissioncontroller:id/permission_deny_button"
+                                    class="android.widget.Button"
+                                    package="com.android.permissioncontroller" content-desc=""
+                                    checkable="false" checked="false" clickable="true"
+                                    enabled="true" focusable="true" focused="false"
+                                    scrollable="false" long-clickable="false" password="false"
+                                    selected="false" bounds="[140,2422][1100,2576]"
+                                    drawing-order="7" hint="" />
+                            </node>
+                        </node>
+                    </node>
+                </node>
+            </node>
+        </node>
+    </node>
+</hierarchy>

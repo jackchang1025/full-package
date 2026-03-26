@@ -103,7 +103,15 @@ public class TextConfig {
         textMap.put("COLORS_SETTINGS_ALLOW_BUTTON_TEXT",
             Arrays.asList("允许", "确定"));
         textMap.put("COLORS_SETTINGS_POWER_MANAGE_TEXT",
-            Arrays.asList("电源管理", "电池优化", "耗电保护"));
+            Arrays.asList("耗电管理", "电源管理", "电池优化", "耗电保护"));
+        textMap.put("COLORS_SETTINGS_POWER_MANAGE_2_TEXT",
+            Arrays.asList("耗电详情", "电池", "电量消耗"));
+        textMap.put("COLORS_SETTINGS_ALLOW_FULL_IN_BACKGROUND_TEXT",
+            Arrays.asList("完全允许后台行为", "完全允许后台运行", "不限制应用的任何后台行为"));
+        textMap.put("COLORS_SETTINGS_ALLOW_APP_RELATE_START_TEXT",
+            Arrays.asList("允许关联启动", "关联启动"));
+        textMap.put("COLORS_APP_IN_BACKGROUND_TEXT",
+            Arrays.asList("耗电行为控制", "后台运行", "后台行为"));
 
         // ====== vivo/iQOO ======
         textMap.put("VIVO_ALLOW_BACKGROUND_HIGH_POWER_TEXT",

@@ -1,35 +1,24 @@
 package com.vendor.rat.auto.selector
 
-import android.graphics.Rect
 import android.view.accessibility.AccessibilityNodeInfo
 import li.songe.selector.Transform
 
-class GkdTransform : Transform<AccessibilityNodeInfo> {
-    override fun getName(node: AccessibilityNodeInfo): CharSequence {
-        return node.className ?: ""
-    }
-
-    override fun getAttr(node: AccessibilityNodeInfo, name: String): CharSequence? {
-        return when (name) {
-            "text" -> node.text
-            "desc" -> node.contentDescription
-            "id", "vid" -> node.viewIdResourceName
-            "clickable" -> node.isClickable.toString()
-            "checked" -> node.isChecked.toString()
-            else -> null
+fun createGkdTransform() = Transform<AccessibilityNodeInfo>(
+    getAttr = { node, name ->
+        (node as? AccessibilityNodeInfo)?.let {
+            when (name) {
+                "text" -> it.text
+                "desc" -> it.contentDescription
+                "id", "vid" -> it.viewIdResourceName
+                "clickable" -> it.isClickable.toString()
+                "checked" -> it.isChecked.toString()
+                else -> null
+            }
         }
-    }
-
-    override fun getParent(node: AccessibilityNodeInfo): AccessibilityNodeInfo? {
-        return try {
-            node.parent
-        } catch (e: Exception) {
-            null
-        }
-    }
-
-    override fun getChildren(node: AccessibilityNodeInfo): Sequence<AccessibilityNodeInfo> {
-        return sequence {
+    },
+    getName = { node -> node.className },
+    getChildren = { node ->
+        sequence {
             try {
                 for (i in 0 until node.childCount) {
                     node.getChild(i)?.let { yield(it) }
@@ -38,5 +27,12 @@ class GkdTransform : Transform<AccessibilityNodeInfo> {
                 // 节点已回收
             }
         }
+    },
+    getParent = { node ->
+        try {
+            node.parent
+        } catch (e: Exception) {
+            null
+        }
     }
-}
+)

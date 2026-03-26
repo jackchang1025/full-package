@@ -54,6 +54,8 @@ public class PipelineContext {
 
     public boolean isXiaomi() { return DeviceUtils.isXiaomi(); }
 
+    public boolean isOppo() { return DeviceUtils.isOppo(); }
+
     // 版本
     public int getCurrentVersionCode() { return currentVersionCode; }
     public void setCurrentVersionCode(int code) { this.currentVersionCode = code; }
