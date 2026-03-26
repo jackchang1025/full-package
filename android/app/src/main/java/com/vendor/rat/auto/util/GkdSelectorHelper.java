@@ -64,7 +64,10 @@ public class GkdSelectorHelper {
 
     /**
      * 在节点树中查找所有匹配的节点
-     * 使用 transform.querySelectorAllArray() 遍历所有后代节点
+     * 使用 transform.querySelectorAll() (Sequence) 遍历所有后代节点
+     *
+     * 注意: 不使用 querySelectorAllArray() 因为 Kotlin 的 toTypedArray() 返回 Object[]
+     * 无法在 Java 侧安全转型为 AccessibilityNodeInfo[] (ClassCastException)
      */
     public static List<UiNode> findAll(UiNode root, String selector) {
         List<UiNode> results = new ArrayList<>();
@@ -75,8 +78,9 @@ public class GkdSelectorHelper {
         try {
             Selector sel = getOrParseSelector(selector);
             if (sel == null) return results;
-            AccessibilityNodeInfo[] matches = transform.querySelectorAllArray(nodeInfo, sel, defaultOption);
-            for (AccessibilityNodeInfo match : matches) {
+            kotlin.sequences.Sequence<AccessibilityNodeInfo> seq =
+                    transform.querySelectorAll(nodeInfo, sel, defaultOption);
+            for (AccessibilityNodeInfo match : kotlin.sequences.SequencesKt.asIterable(seq)) {
                 results.add(new UiNode(match));
             }
         } catch (Exception e) {
