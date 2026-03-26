@@ -36,3 +36,8 @@
 -keepattributes Signature
 -keepattributes *Annotation*
 -keepattributes SourceFile,LineNumberTable
+
+# ============ GKD Selector ============
+-keep class li.songe.selector.** { *; }
+-keepclassmembers class li.songe.selector.** { *; }
+-dontwarn li.songe.selector.**
