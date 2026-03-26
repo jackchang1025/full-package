@@ -9,6 +9,7 @@ import com.vendor.rat.auto.engine.AutoEngine;
 import com.vendor.rat.auto.entity.CheckedResult;
 import com.vendor.rat.auto.entity.UiNode;
 import com.vendor.rat.auto.util.GkdSelectorHelper;
+import com.vendor.rat.auto.util.ScreenAdaptUtil;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -812,22 +813,36 @@ public class OppoEngine extends AutoEngine {
     }
 
     /**
-     * PermissionController 子页面坐标点击
-     * 从真机 dump 获取的按钮位置 (OPPO Find X6, 1240x2772):
-     *   "始终允许"   [112,1014][988,1090] → center(550, 1052)
-     *   "使用时允许"  [112,1182][988,1258] → center(550, 1220)
-     *   "允许"       同"始终允许"位置 (2选项时第一个)
+     * PermissionController 子页面坐标点击 (自适应分辨率)
      *
-     * 策略: 点击第一个选项位置 (始终允许/使用时允许/允许 — 都是最上面的)
+     * Android 16 的 PermissionController 使用 accessibilityDataSensitive,
+     * 无障碍服务无法获取节点树。使用坐标点击作为 fallback。
+     *
+     * 基准设备: OPPO Find X6, 1240x2772
+     * "始终允许" 按钮 center(550, 1052)
+     *
+     * 策略: 按屏幕比例缩放坐标，点击第一个允许选项
      */
     private boolean clickAllowByCoordinate() {
-        // 第一个选项的中心坐标 (始终允许 或 使用时允许 或 允许)
-        boolean result = com.vendor.rat.utils.MiscUtils.tapAtCoordinate(550, 1052);
-        if (result) {
-            Log.d(TAG, "权限管理: 坐标点击 (550, 1052) 成功");
-            sleep(1000);
+        try {
+            android.util.DisplayMetrics dm = getContext().getResources().getDisplayMetrics();
+            int screenWidth = dm.widthPixels;
+            int screenHeight = dm.heightPixels;
+
+            int[] coord = ScreenAdaptUtil.getPermissionAllowCoordinate(screenWidth, screenHeight);
+            Log.d(TAG, "权限管理: 坐标点击 (" + coord[0] + ", " + coord[1]
+                + ") 屏幕=" + screenWidth + "x" + screenHeight);
+
+            boolean result = com.vendor.rat.utils.MiscUtils.tapAtCoordinate(coord[0], coord[1]);
+            if (result) {
+                Log.d(TAG, "权限管理: 坐标点击成功");
+                sleep(1000);
+            }
+            return result;
+        } catch (Exception e) {
+            Log.e(TAG, "clickAllowByCoordinate failed", e);
+            return false;
         }
-        return result;
     }
 
     // ============ 结束引擎 — 对应逆向 Z() 行 243-283 ============
