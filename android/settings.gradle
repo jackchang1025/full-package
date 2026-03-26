@@ -21,3 +21,4 @@ dependencyResolutionManagement {
 
 rootProject.name = "VendorRAT"
 include ':app'
+include ':selector'
