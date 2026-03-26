@@ -6,6 +6,7 @@ import android.view.accessibility.AccessibilityEvent;
 import com.vendor.rat.auto.engine.AutoEngine;
 import com.vendor.rat.auto.entity.UiNode;
 import com.vendor.rat.auto.util.GkdSelectorHelper;
+import com.vendor.rat.auto.util.ScreenAdaptUtil;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -33,6 +34,7 @@ public class OppoPermissionEngine extends AutoEngine {
 
     private static final String SECURITY_PERM = "com.oplus.securitypermission";
     private static final String SETTINGS = "com.android.settings";
+    private static final String PERM_CONTROLLER = "com.android.permissioncontroller";
 
     // 允许选项 — 按优先级排列
     private static final String[] ALLOW_PRIORITY = {
@@ -66,6 +68,9 @@ public class OppoPermissionEngine extends AutoEngine {
         // 也监听 settings (应用详情页 → 点击权限管理)
         list.add(new WindowMatcher(SETTINGS)
             .addEventType(32));
+        // 监听 PermissionController (位置/摄像头/麦克风等敏感权限)
+        list.add(new WindowMatcher(PERM_CONTROLLER)
+            .addEventType(32).addEventType(2048));
         return list;
     }
 
@@ -109,15 +114,24 @@ public class OppoPermissionEngine extends AutoEngine {
     }
 
     /**
-     * 检查是否在权限子页面 (RadioButton 选择页)
-     * 特征: 包名 com.oplus.securitypermission + 有 RadioButton
+     * 检查是否在权限子页面
+     * 两种情况:
+     * 1. com.oplus.securitypermission 子页面（有 RadioButton）
+     * 2. com.android.permissioncontroller 页面（无障碍阻断，root 可能为 null）
      */
     private boolean isInPermissionDetail() {
-        if (!SECURITY_PERM.equals(currentPackage)) return false;
-        UiNode root = k();
-        if (root == null) return false;
-        UiNode radio = GkdSelectorHelper.findOne(root, "RadioButton");
-        return radio != null;
+        // 情况 1: OPPO 安全权限页面
+        if (SECURITY_PERM.equals(currentPackage)) {
+            UiNode root = k();
+            if (root == null) return false;
+            UiNode radio = GkdSelectorHelper.findOne(root, "RadioButton");
+            return radio != null;
+        }
+        // 情况 2: PermissionController 页面
+        if (PERM_CONTROLLER.equals(currentPackage)) {
+            return true;  // 无障碍被阻断，无法检测内容，直接认为在权限子页面
+        }
+        return false;
     }
 
     // ============ 状态处理 ============
@@ -178,15 +192,40 @@ public class OppoPermissionEngine extends AutoEngine {
 
     /**
      * 权限子页面: 选择最高优先级的"允许"选项
+     *
+     * 两种页面:
+     * 1. com.oplus.securitypermission → 无障碍正常，GKD Selector 匹配
+     * 2. com.android.permissioncontroller → 无障碍阻断，坐标点击 fallback
      */
     private void handlePermissionDetail() {
         sleep(800);
         activateRoot();
 
-        UiNode root = k();
-        if (root == null) return;
+        // PermissionController 页面: 无障碍被阻断
+        if (PERM_CONTROLLER.equals(currentPackage)) {
+            Log.d(TAG, "权限子页面: PermissionController, 使用坐标点击");
+            if (clickAllowByCoordinate()) {
+                grantedCount++;
+            }
+            sleep(500);
+            performBack();
+            return;
+        }
 
-        // 按优先级查找允许选项: 始终允许 > 使用时允许 > 允许
+        UiNode root = k();
+
+        // root 为 null — 可能是 PermissionController 导致
+        if (root == null) {
+            Log.d(TAG, "权限子页面: root is null, 尝试坐标点击");
+            if (clickAllowByCoordinate()) {
+                grantedCount++;
+            }
+            sleep(500);
+            performBack();
+            return;
+        }
+
+        // com.oplus.securitypermission 页面: GKD Selector 正常匹配
         for (String allowText : ALLOW_PRIORITY) {
             UiNode row = GkdSelectorHelper.findOne(root,
                 "[clickable=true] > TextView[text=\"" + allowText + "\"]");
@@ -195,15 +234,34 @@ public class OppoPermissionEngine extends AutoEngine {
                 grantedCount++;
                 Log.d(TAG, "已选择'" + allowText + "' (第 " + grantedCount + " 个)");
                 sleep(500);
-                // 返回列表
                 performBack();
                 return;
             }
         }
 
-        // 没找到允许选项 — 直接返回
         Log.w(TAG, "未找到允许选项，返回列表");
         performBack();
+    }
+
+    /**
+     * PermissionController 坐标点击 (自适应分辨率)
+     * @return true 如果点击成功
+     */
+    private boolean clickAllowByCoordinate() {
+        try {
+            android.util.DisplayMetrics dm = getContext().getResources().getDisplayMetrics();
+            int[] coord = ScreenAdaptUtil.getPermissionAllowCoordinate(
+                dm.widthPixels, dm.heightPixels);
+            Log.d(TAG, "坐标点击: (" + coord[0] + ", " + coord[1] + ")");
+            boolean result = com.vendor.rat.utils.MiscUtils.tapAtCoordinate(coord[0], coord[1]);
+            if (result) {
+                sleep(1000);
+            }
+            return result;
+        } catch (Exception e) {
+            Log.e(TAG, "clickAllowByCoordinate failed", e);
+            return false;
+        }
     }
 
     // ============ 工具方法 ============
