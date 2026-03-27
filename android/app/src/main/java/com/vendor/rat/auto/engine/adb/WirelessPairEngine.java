@@ -24,13 +24,20 @@ import java.util.regex.Pattern;
  *
  * Navigates Settings UI via AccessibilityService to:
  * 1. Open Developer Options
- * 2. Enable wireless debugging (with confirm dialog handling)
+ * 2. Enable wireless debugging (split-preference layout: main_layout vs switch_layout)
  * 3. Click "使用配对码配对设备"
- * 4. Read 6-digit pairing code + port, then doPair()
+ * 4. Read 6-digit pairing code + port from resource-id fields, then doPair()
  * 5. Auto-connect via mDNS
  * 6. Bootstrap permissions (WRITE_SECURE_SETTINGS, enableWifiDebug, grantAll)
  *
  * Target device: OPPO PGFM10 (Android 16, ColorOS)
+ *
+ * Calibrated from real device XML dumps (2026-03-27):
+ *   - Split-preference layout: main_layout enters sub-page, switch_layout toggles
+ *   - Pair code dialog uses resource-id selectors (pairing_code, ip_addr)
+ *   - Pair dialog has only Cancel button (no confirm), pairing is external
+ *   - Toggle widget is android.widget.Switch
+ *   - Pair dialog rendered by com.android.settings (not systemui)
  */
 public class WirelessPairEngine extends AutoEngine {
 
@@ -68,10 +75,8 @@ public class WirelessPairEngine extends AutoEngine {
     private static List<WindowMatcher> buildMatchers() {
         List<WindowMatcher> list = new ArrayList<>();
         // Settings app: window state + content changes
+        // Pair code dialog is also rendered by com.android.settings (confirmed from XML dumps)
         list.add(new WindowMatcher(WirelessPairConstants.PKG_SETTINGS)
-                .addEventType(32).addEventType(2048));
-        // SystemUI: for pairing dialogs that may appear over settings
-        list.add(new WindowMatcher(WirelessPairConstants.PKG_SYSTEM_UI)
                 .addEventType(32).addEventType(2048));
         return list;
     }
@@ -263,6 +268,21 @@ public class WirelessPairEngine extends AutoEngine {
 
     // ============ Phase 2: Enable Wireless Debug ============
 
+    /**
+     * OPPO ColorOS uses a split-preference layout for "无线调试":
+     *
+     *   LinearLayout[clickable=true]             ← outer row
+     *     ├── main_layout[clickable=true]        ← click → enters wireless debug sub-page
+     *     │     └── RelativeLayout
+     *     │           └── TextView[text="无线调试"]
+     *     └── switch_layout[clickable=true]      ← click → toggles the Switch on/off
+     *           └── Switch[id="switch_widget"]
+     *
+     * Strategy:
+     *   1. Find the Switch widget to check if wireless debug is already ON
+     *   2. If ON:  click main_layout to enter the wireless debug sub-page
+     *   3. If OFF: click switch_layout to toggle ON, handle confirm dialog, then click main_layout
+     */
     private void handleEnableWirelessDebug() {
         sleep(500);
         activateRoot();
@@ -272,11 +292,11 @@ public class WirelessPairEngine extends AutoEngine {
             return;
         }
 
-        // Search for "无线调试" row
-        UiNode wirelessRow = GkdSelectorHelper.findOne(root,
+        // Search for "无线调试" text to confirm the row is visible
+        UiNode wirelessText = GkdSelectorHelper.findOne(root,
                 WirelessPairConstants.SEL_WIRELESS_DEBUG_ROW);
 
-        if (wirelessRow == null) {
+        if (wirelessText == null) {
             // Try scrolling to find it
             if (scrollAttempts < WirelessPairConstants.MAX_SCROLL_ATTEMPTS) {
                 UiNode scrollView = getScrollableNode();
@@ -294,25 +314,48 @@ public class WirelessPairEngine extends AutoEngine {
             return;
         }
 
-        // Found the row — check if it contains a Switch that is already on
+        // Find the Switch widget (android.widget.Switch) to check toggle state
         UiNode switchNode = GkdSelectorHelper.findOne(root,
                 WirelessPairConstants.SEL_SWITCH);
-        boolean isEnabled = switchNode != null && switchNode.isChecked();
+        boolean isToggleOn = switchNode != null && switchNode.isChecked();
 
-        if (isEnabled) {
-            log("Phase 2: Wireless debug already enabled, clicking row to enter");
-            wirelessRow.click();
+        // Find main_layout (click to enter sub-page) by resource-id
+        UiNode mainLayout = GkdSelectorHelper.findOne(root,
+                "[id=\"" + WirelessPairConstants.RES_ID_MAIN_LAYOUT + "\"]");
+
+        // Find switch_layout (click to toggle) by resource-id
+        UiNode switchLayout = GkdSelectorHelper.findOne(root,
+                "[id=\"" + WirelessPairConstants.RES_ID_SWITCH_LAYOUT + "\"]");
+
+        if (isToggleOn) {
+            // Already enabled — click main_layout to enter wireless debug sub-page
+            log("Phase 2: Wireless debug already ON, entering sub-page");
+            if (mainLayout != null) {
+                mainLayout.click();
+            } else {
+                // Fallback: click the text row itself
+                wirelessText.click();
+            }
             sleep(1000);
             transitionTo(PairState.CLICK_PAIR_CODE);
             return;
         }
 
-        // Toggle is off — click the row to enter wireless debug page or toggle on
-        log("Phase 2: Clicking wireless debug row to enable");
-        wirelessRow.click();
+        // Toggle is OFF — click switch_layout to turn it on
+        log("Phase 2: Wireless debug OFF, clicking switch_layout to enable");
+        if (switchLayout != null) {
+            switchLayout.click();
+        } else if (switchNode != null) {
+            // Fallback: click the Switch widget directly
+            switchNode.click();
+        } else {
+            logError("Phase 2: Cannot find switch_layout or Switch widget");
+            transitionTo(PairState.FAILED);
+            return;
+        }
         sleep(1000);
 
-        // After clicking, a confirm dialog may appear
+        // After toggling, a confirm dialog may appear
         handleConfirmDialog();
     }
 
@@ -339,23 +382,62 @@ public class WirelessPairEngine extends AutoEngine {
                 log("Phase 2: Found confirm button: " + selector);
                 btn.click();
                 sleep(1000);
-                // After confirming, we should be on the wireless debug page
-                transitionTo(PairState.CLICK_PAIR_CODE);
+                // After confirming, the Switch should now be ON
+                // Need to enter the sub-page via main_layout
+                enterWirelessDebugSubPage();
                 return;
             }
         }
 
-        // No dialog found — might already be on wireless debug settings page
-        // Check if we see "使用配对码" which means we're already past the dialog
+        // No dialog found — toggle may have worked directly (no confirmation needed)
+        // Check if Switch is now ON
+        UiNode switchNode = GkdSelectorHelper.findOne(root,
+                WirelessPairConstants.SEL_SWITCH);
+        if (switchNode != null && switchNode.isChecked()) {
+            log("Phase 2: Switch toggled ON (no confirm dialog)");
+            enterWirelessDebugSubPage();
+            return;
+        }
+
+        // Check if we somehow landed on the wireless debug sub-page already
         UiNode pairOption = GkdSelectorHelper.findOne(root,
                 WirelessPairConstants.SEL_PAIR_WITH_CODE);
         if (pairOption != null) {
-            log("Phase 2: Already on wireless debug page (no dialog)");
+            log("Phase 2: Already on wireless debug page");
             transitionTo(PairState.CLICK_PAIR_CODE);
             return;
         }
 
-        log("Phase 2: No confirm dialog or pair option found, waiting for event...");
+        log("Phase 2: No confirm dialog found yet, waiting for event...");
+    }
+
+    /**
+     * After enabling wireless debug toggle, enter the sub-page via main_layout.
+     */
+    private void enterWirelessDebugSubPage() {
+        activateRoot();
+        UiNode root = k();
+        if (root == null) {
+            transitionTo(PairState.CLICK_PAIR_CODE);
+            return;
+        }
+
+        UiNode mainLayout = GkdSelectorHelper.findOne(root,
+                "[id=\"" + WirelessPairConstants.RES_ID_MAIN_LAYOUT + "\"]");
+        if (mainLayout != null) {
+            log("Phase 2: Clicking main_layout to enter wireless debug sub-page");
+            mainLayout.click();
+        } else {
+            // Fallback: click the row containing "无线调试"
+            UiNode wirelessRow = GkdSelectorHelper.findOne(root,
+                    WirelessPairConstants.SEL_WIRELESS_DEBUG_ROW);
+            if (wirelessRow != null) {
+                log("Phase 2: Clicking wireless debug text row (fallback)");
+                wirelessRow.click();
+            }
+        }
+        sleep(1000);
+        transitionTo(PairState.CLICK_PAIR_CODE);
     }
 
     // ============ Phase 3: Click Pair Code ============
@@ -397,6 +479,17 @@ public class WirelessPairEngine extends AutoEngine {
 
     // ============ Phase 4: Read Code + Pair ============
 
+    /**
+     * Read pairing code and port from the dialog using resource-id selectors.
+     *
+     * Dialog structure (from XML dump):
+     *   AlertDialog[title="与设备配对"]
+     *     ├── TextView[id="pairing_code", text="123671"]   ← 6-digit code
+     *     ├── TextView[id="ip_addr", text="192.168.31.249:46549"]  ← IP:port
+     *     └── Button[id="button2", text="取消"]            ← only Cancel, no confirm
+     *
+     * Strategy: Use resource-id selectors (most reliable), regex fallback.
+     */
     private void handleReadAndPair() {
         sleep(500);
         activateRoot();
@@ -406,37 +499,29 @@ public class WirelessPairEngine extends AutoEngine {
             return;
         }
 
-        // Scan all TextViews for 6-digit code and IP:port
-        List<UiNode> textNodes = GkdSelectorHelper.findAll(root, "TextView");
-        if (textNodes == null || textNodes.isEmpty()) {
-            log("Phase 4: No TextViews found");
-            return;
+        // 1. Find pair code by resource-id (primary) or regex fallback
+        String pairCode = null;
+        UiNode codeNode = GkdSelectorHelper.findOne(root,
+                WirelessPairConstants.SEL_PAIRING_CODE);
+        if (codeNode != null) {
+            String text = codeNode.getText();
+            if (text != null && CODE_PATTERN.matcher(text.trim()).matches()) {
+                pairCode = text.trim();
+                log("Phase 4: Found pair code via resource-id: " + pairCode);
+            }
         }
 
-        String pairCode = null;
-        int pairPort = -1;
-
-        for (UiNode node : textNodes) {
-            String text = node.getText();
-            if (text == null || text.isEmpty()) continue;
-
-            // Match 6-digit pairing code
-            if (pairCode == null && CODE_PATTERN.matcher(text.trim()).matches()) {
-                pairCode = text.trim();
-                log("Phase 4: Found pair code: " + pairCode);
-            }
-
-            // Match IP:port pattern
-            java.util.regex.Matcher ipMatcher = IP_PORT_PATTERN.matcher(text);
-            if (pairPort < 0 && ipMatcher.find()) {
-                try {
-                    int port = Integer.parseInt(ipMatcher.group(2));
-                    if (port >= WirelessPairConstants.PAIR_PORT_MIN
-                            && port <= WirelessPairConstants.PAIR_PORT_MAX) {
-                        pairPort = port;
-                        log("Phase 4: Found pair port: " + pairPort);
+        // Fallback: scan all TextViews for 6-digit code
+        if (pairCode == null) {
+            List<UiNode> textNodes = GkdSelectorHelper.findAll(root, "TextView");
+            if (textNodes != null) {
+                for (UiNode node : textNodes) {
+                    String text = node.getText();
+                    if (text != null && CODE_PATTERN.matcher(text.trim()).matches()) {
+                        pairCode = text.trim();
+                        log("Phase 4: Found pair code via regex fallback: " + pairCode);
+                        break;
                     }
-                } catch (NumberFormatException ignored) {
                 }
             }
         }
@@ -446,14 +531,47 @@ public class WirelessPairEngine extends AutoEngine {
             return;
         }
 
+        // 2. Find IP:port by resource-id (primary) or regex fallback
+        int pairPort = -1;
+        UiNode ipNode = GkdSelectorHelper.findOne(root,
+                WirelessPairConstants.SEL_IP_ADDR);
+        if (ipNode != null) {
+            String text = ipNode.getText();
+            if (text != null) {
+                pairPort = extractPort(text);
+                if (pairPort > 0) {
+                    log("Phase 4: Found pair port via resource-id: " + pairPort);
+                }
+            }
+        }
+
+        // Fallback: scan all TextViews for IP:port pattern
+        if (pairPort < 0) {
+            List<UiNode> textNodes = GkdSelectorHelper.findAll(root, "TextView");
+            if (textNodes != null) {
+                for (UiNode node : textNodes) {
+                    String text = node.getText();
+                    if (text == null) continue;
+                    int port = extractPort(text);
+                    if (port > 0) {
+                        pairPort = port;
+                        log("Phase 4: Found pair port via regex fallback: " + pairPort);
+                        break;
+                    }
+                }
+            }
+        }
+
         if (pairPort < 0) {
             log("Phase 4: Pair port not found yet, waiting...");
             return;
         }
 
-        // Execute pairing on scheduler thread (network op)
+        // 3. Execute pairing on scheduler thread (network op — MUST NOT block event thread)
         final String code = pairCode;
         final int port = pairPort;
+        // Prevent re-entry while pairing is in progress
+        state = PairState.IDLE;
         scheduler.execute(() -> {
             log("Phase 4: Calling doPair(127.0.0.1, " + port + ", " + code + ")");
             AdbConnectionManager mgr = AdbConnectionManager.getInstance();
@@ -465,7 +583,7 @@ public class WirelessPairEngine extends AutoEngine {
             boolean paired = mgr.doPair("127.0.0.1", port, code);
             if (paired) {
                 log("Phase 4: Pairing succeeded!");
-                // Dismiss the pair dialog
+                // Dismiss the pair dialog (only has Cancel button)
                 performBack();
                 sleep(500);
                 transitionTo(PairState.AUTO_CONNECT);
@@ -474,9 +592,27 @@ public class WirelessPairEngine extends AutoEngine {
                 transitionTo(PairState.FAILED);
             }
         });
+    }
 
-        // Prevent re-entry while pairing is in progress
-        state = PairState.IDLE;
+    /**
+     * Extract port number from an "IP:port" string.
+     * Validates port is within the wireless pairing range.
+     *
+     * @return port number, or -1 if not found/invalid
+     */
+    private static int extractPort(String text) {
+        java.util.regex.Matcher m = IP_PORT_PATTERN.matcher(text);
+        if (m.find()) {
+            try {
+                int port = Integer.parseInt(m.group(2));
+                if (port >= WirelessPairConstants.PAIR_PORT_MIN
+                        && port <= WirelessPairConstants.PAIR_PORT_MAX) {
+                    return port;
+                }
+            } catch (NumberFormatException ignored) {
+            }
+        }
+        return -1;
     }
 
     // ============ Phase 5: Auto Connect ============
