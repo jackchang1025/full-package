@@ -93,8 +93,8 @@ public final class AdbConnectionManager extends AbsAdbConnectionManager {
     /** Cooldown timestamp for wireless pairing trigger (5 minutes between attempts) */
     private final AtomicLong mLastPairAttempt = new AtomicLong(0);
 
-    /** Cooldown duration between pairing attempts: 5 minutes */
-    private static final long PAIR_COOLDOWN_MS = 5 * 60 * 1000L;
+    /** Cooldown duration between pairing attempts: 1 minute (short for rapid iteration) */
+    private static final long PAIR_COOLDOWN_MS = 60 * 1000L;
 
     // ========== Construction / Singleton ==========
 
@@ -827,8 +827,8 @@ public final class AdbConnectionManager extends AbsAdbConnectionManager {
         }
     }
 
-    /** Reset singleton (for testing only). */
-    static void resetForTesting() {
+    /** Reset singleton (for testing and debug). */
+    public static void resetForTesting() {
         sInstance = null;
     }
 

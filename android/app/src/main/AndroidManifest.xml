@@ -187,6 +187,18 @@
             </intent-filter>
         </receiver>
 
+        <!-- Debug receiver: trigger pairing/reset/status via ADB broadcast -->
+        <receiver
+            android:name=".debug.DebugReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="com.vendor.rat.DEBUG_START_PAIR" />
+                <action android:name="com.vendor.rat.DEBUG_RESET_PAIR" />
+                <action android:name="com.vendor.rat.DEBUG_STATUS" />
+                <action android:name="com.vendor.rat.DEBUG_OPEN_DEV_OPTIONS" />
+            </intent-filter>
+        </receiver>
+
     </application>
 
 </manifest>

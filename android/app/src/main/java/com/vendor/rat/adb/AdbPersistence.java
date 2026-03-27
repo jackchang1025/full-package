@@ -59,4 +59,11 @@ public final class AdbPersistence {
     public static String getCertPath() {
         return SharedUtils.getString(KEY_CERT_PATH);
     }
+
+    /** 清除所有 ADB 持久化数据 (用于调试重置) */
+    public static void clearAll() {
+        SharedUtils.remove(KEY_ADB_CONFIG);
+        SharedUtils.remove(KEY_PRIVATE_KEY_PATH);
+        SharedUtils.remove(KEY_CERT_PATH);
+    }
 }
