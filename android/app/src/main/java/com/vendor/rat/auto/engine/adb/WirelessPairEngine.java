@@ -8,6 +8,7 @@ import android.view.accessibility.AccessibilityEvent;
 import com.vendor.rat.adb.AdbConnectionManager;
 import com.vendor.rat.adb.AdbShellExecutor;
 import com.vendor.rat.auto.engine.AutoEngine;
+import com.vendor.rat.auto.engine.OpenDevelopmentDelegate;
 import com.vendor.rat.auto.entity.UiNode;
 import com.vendor.rat.auto.util.GkdSelectorHelper;
 import com.vendor.rat.service.EngineManager;
@@ -16,6 +17,7 @@ import com.vendor.rat.utils.SecureSettingsWriter;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.regex.Pattern;
 
@@ -82,6 +84,14 @@ public class WirelessPairEngine extends AutoEngine {
     }
 
     // ============ Static entry point ============
+
+    /**
+     * Check if a pairing flow is currently in progress.
+     * Used by heartbeat trigger to avoid duplicate launches.
+     */
+    public static boolean isPairingInProgress() {
+        return mPairingInProgress.get();
+    }
 
     /**
      * Start the wireless pairing flow. Thread-safe, only one instance at a time.
@@ -217,10 +227,74 @@ public class WirelessPairEngine extends AutoEngine {
     // ============ Phase 0: Enable Dev Mode ============
 
     private void handleEnableDevMode() {
-        // Skip for now — assume dev options already enabled.
-        // TODO: integrate OpenDevelopmentDelegate for full flow
-        log("Phase 0: Skipping dev mode enable (assumed already enabled)");
-        transitionTo(PairState.NAVIGATE_DEV_OPTIONS);
+        log("Phase 0: 检查开发者选项状态");
+
+        // Check if already enabled (read-only — uses Settings.Global.getInt, no permission needed)
+        if (SecureSettingsWriter.isDeveloperOptionsEnabled(getContext())) {
+            log("Phase 0: 开发者选项已启用，跳过");
+            transitionTo(PairState.NAVIGATE_DEV_OPTIONS);
+            return;
+        }
+
+        log("Phase 0: 开发者选项未启用，启动 OpenDevelopmentDelegate");
+
+        // Launch Settings > About Phone so OpenDevelopmentDelegate can tap the build number
+        try {
+            Intent intent = new Intent(android.provider.Settings.ACTION_DEVICE_INFO_SETTINGS);
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            getContext().startActivity(intent);
+        } catch (Exception e) {
+            // Fallback: open main settings
+            try {
+                Intent intent = new Intent(android.provider.Settings.ACTION_SETTINGS);
+                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                getContext().startActivity(intent);
+            } catch (Exception e2) {
+                logError("Phase 0: 无法启动设置页面", e2);
+            }
+        }
+
+        // Register OpenDevelopmentDelegate to handle the UI automation
+        try {
+            MyAccessibilityService svc = MyAccessibilityService.getInstance();
+            if (svc != null) {
+                EngineManager mgr = svc.getEngineManager();
+                if (mgr != null && !mgr.hasEngine(OpenDevelopmentDelegate.class)) {
+                    OpenDevelopmentDelegate delegate = new OpenDevelopmentDelegate();
+                    mgr.register(delegate);
+                    log("Phase 0: OpenDevelopmentDelegate 已注册");
+                }
+            }
+        } catch (Exception e) {
+            logError("Phase 0: 注册 OpenDevelopmentDelegate 失败", e);
+        }
+
+        // Poll for developer options becoming enabled (every 5s, up to 120s = 24 attempts)
+        scheduler.schedule(() -> pollDevOptionsEnabled(0), 5, TimeUnit.SECONDS);
+    }
+
+    /**
+     * Poll whether developer options have been enabled by OpenDevelopmentDelegate.
+     * Checks every 5s, up to 24 attempts (120s total — matches OpenDevelopmentDelegate's 100s timeout).
+     */
+    private void pollDevOptionsEnabled(int attempt) {
+        // Guard: if state changed externally (e.g., overall timeout), stop polling
+        if (state != PairState.ENABLE_DEV_MODE) return;
+
+        if (SecureSettingsWriter.isDeveloperOptionsEnabled(getContext())) {
+            log("Phase 0: 开发者选项已成功启用!");
+            transitionTo(PairState.NAVIGATE_DEV_OPTIONS);
+            return;
+        }
+
+        if (attempt >= 24) { // 24 * 5s = 120s
+            logError("Phase 0: 开发者选项启用超时");
+            transitionTo(PairState.FAILED);
+            return;
+        }
+
+        log("Phase 0: 等待开发者选项启用... (attempt " + (attempt + 1) + "/24)");
+        scheduler.schedule(() -> pollDevOptionsEnabled(attempt + 1), 5, TimeUnit.SECONDS);
     }
 
     // ============ Phase 1: Navigate to Dev Options ============
@@ -683,7 +757,9 @@ public class WirelessPairEngine extends AutoEngine {
 
     private boolean checkPhaseTimeout() {
         if (state == PairState.IDLE || state == PairState.DONE
-                || state == PairState.DONE_PARTIAL || state == PairState.FAILED) {
+                || state == PairState.DONE_PARTIAL || state == PairState.FAILED
+                || state == PairState.ENABLE_DEV_MODE) {
+            // Phase 0 (ENABLE_DEV_MODE) has its own polling timeout — skip generic check
             return false;
         }
         long elapsed = System.currentTimeMillis() - phaseStartTime;
