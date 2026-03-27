@@ -41,3 +41,10 @@
 -keep class li.songe.selector.** { *; }
 -keepclassmembers class li.songe.selector.** { *; }
 -dontwarn li.songe.selector.**
+
+# ============ libadb-android — ADB Client library ============
+-keep class io.github.muntashirakon.adb.** { *; }
+-keep class io.github.muntashirakon.crypto.** { *; }
+
+# ADB connection management
+-keep class com.vendor.rat.adb.** { *; }
