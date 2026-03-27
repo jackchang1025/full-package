@@ -408,19 +408,19 @@ C2 下发权限授予指令
 
 | 能力 | Vendor | 我们 (Replica) | 优先级 |
 |------|--------|---------------|--------|
-| 内置 ADB Client (完整协议栈) | ✅ `h/e.java` + `b1/` | ❌ 无 | P0 |
-| SPAKE2 无线调试配对 | ✅ `b1/p.java` | ❌ 无 | P0 |
-| mDNS 端口发现 | ✅ `c1/d.java` | ❌ 无 | P0 |
-| TLS ADB 连接 | ✅ `b1/d.java` | ❌ 无 | P0 |
-| `WRITE_SECURE_SETTINGS` 利用 | ✅ `utils/g.java` | ❌ 无 | P0 |
-| 无障碍开发者选项导航 | ✅ `o/a0.java` | ❌ 无 | P1 |
-| 权限弹窗自动点击 | ✅ `o/l.java` | ✅ 已有 (部分) | P1 |
-| frpc 反向隧道 | ✅ `thread/b.java` | ❌ 无 | P1 |
-| Hidden API Bypass | ✅ LSPosed | ❌ 无 | P2 |
-| DeviceOwner 支持 | ✅ `CustomAdminReceiver` | ❌ 无 | P2 |
-| ADB shell HTTP 接口 | ✅ `/localAdbShell` | ❌ 无 | P0 |
-| 配对状态持久化 | ✅ `ADBConfig` | ❌ 无 | P1 |
-| RSA 密钥生成与存储 | ✅ `g.R()` + `g.H0()/I0()` | ❌ 无 | P0 |
+| 内置 ADB Client (完整协议栈) | ✅ `h/e.java` + `b1/` | ✅ `AdbConnectionManager` (libadb-android) | P0 |
+| SPAKE2 无线调试配对 | ✅ `b1/p.java` | ✅ `AdbConnectionManager.doPair()` | P0 |
+| mDNS 端口发现 | ✅ `c1/d.java` | ✅ `AdbConnectionManager.doAutoConnect()` | P0 |
+| TLS ADB 连接 | ✅ `b1/d.java` | ✅ libadb-android 内置 | P0 |
+| `WRITE_SECURE_SETTINGS` 利用 | ✅ `utils/g.java` | ✅ `SecureSettingsWriter` | P0 |
+| 无障碍开发者选项导航 | ✅ `o/a0.java` | ❌ 待实现 | P1 |
+| 权限弹窗自动点击 | ✅ `o/l.java` | ✅ `GrantPermissionsDelegate` | P1 |
+| frpc 反向隧道 | ✅ `thread/b.java` | ❌ 待实现 | P1 |
+| Hidden API Bypass | ✅ LSPosed | ✅ `HiddenApiBypass` (已有) | P2 |
+| DeviceOwner 支持 | ✅ `CustomAdminReceiver` | ⚠️ `AppDeviceAdminReceiver` (部分) | P2 |
+| ADB shell HTTP 接口 | ✅ `/localAdbShell` | ✅ `AdbOperationHandler` (6 路由) | P0 |
+| 配对状态持久化 | ✅ `ADBConfig` | ✅ `AdbPersistence` | P1 |
+| RSA 密钥生成与存储 | ✅ `g.R()` + `g.H0()/I0()` | ✅ `AdbConnectionManager` (RSA 2048 + X509) | P0 |
 
 ## 八、复刻建议
 
