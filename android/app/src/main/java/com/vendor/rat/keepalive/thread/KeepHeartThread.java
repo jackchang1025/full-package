@@ -162,7 +162,10 @@ public final class KeepHeartThread extends TimerTask {
                         adbHeartbeatCounter.set(0);
                         AdbConnectionManager mgr = AdbConnectionManager.getInstance();
                         if (mgr != null) {
+                            Log.d(TAG, "ADB heartbeat tick");
                             mgr.heartbeat();
+                        } else {
+                            Log.w(TAG, "ADB heartbeat: AdbConnectionManager is null");
                         }
                     }
                 } catch (Exception adbEx) {

@@ -449,8 +449,12 @@ public final class AdbConnectionManager extends AbsAdbConnectionManager {
     public void heartbeat() {
         if (!mHeartbeatLock.tryLock()) return;
         try {
+            // Trigger wireless self-pairing FIRST — before keys check
+            // (pairing itself will generate keys if needed)
+            triggerPairingIfNeeded();
+
             if (mPrivateKey == null || mCertificate == null) {
-                Log.d(TAG, "heartbeat: no keys available, skipping");
+                Log.d(TAG, "heartbeat: no keys available, skipping reconnect");
                 return;
             }
 
@@ -464,9 +468,6 @@ public final class AdbConnectionManager extends AbsAdbConnectionManager {
                     mAsyncExecutor.submit(this::doAutoConnect);
                 }
             }
-
-            // Trigger wireless self-pairing if not yet paired
-            triggerPairingIfNeeded();
         } catch (Exception e) {
             Log.e(TAG, "heartbeat exception", e);
         } finally {
