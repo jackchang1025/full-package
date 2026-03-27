@@ -82,6 +82,8 @@ dependencies {
 
     // ============ Robolectric 测试 (Level 2) ============
     testImplementation 'org.robolectric:robolectric:4.11.1'
+    // Conscrypt JVM variant for Robolectric tests (native JNI not available in JVM)
+    testImplementation 'org.conscrypt:conscrypt-openjdk-uber:2.5.2'
 
     // ============ Instrumentation 测试 (Level 3) ============
     androidTestImplementation 'androidx.test:runner:1.5.2'

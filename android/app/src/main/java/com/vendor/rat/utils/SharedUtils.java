@@ -1,5 +1,6 @@
 package com.vendor.rat.utils;
 
+import android.content.Context;
 import android.content.SharedPreferences;
 import android.os.UserManager;
 import android.util.Log;
@@ -12,6 +13,25 @@ import android.util.Log;
 public abstract class SharedUtils {
 
     private static final String TAG = "SharedUtils";
+    private static final String PREFS_NAME = "vendor_rat_prefs";
+    private static Context appContext;
+
+    /**
+     * Initialize SharedUtils with application context.
+     * Must be called once from Application.onCreate().
+     */
+    public static void init(Context context) {
+        if (context != null) {
+            appContext = context.getApplicationContext();
+        }
+    }
+
+    private static SharedPreferences getPrefs() {
+        if (appContext == null) {
+            return null;
+        }
+        return appContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+    }
 
     // ========== SharedPreferences Core Read/Write ==========
 
@@ -28,8 +48,26 @@ public abstract class SharedUtils {
                 return false;
             }
             try {
-                // ADAPT: vendor uses g.Z() for context
-                // TODO: VENDOR_VERIFY - context provider for SharedPreferences
+                SharedPreferences prefs = getPrefs();
+                if (prefs == null) {
+                    return false;
+                }
+                SharedPreferences.Editor editor = prefs.edit();
+                if (value instanceof String) {
+                    editor.putString(key, (String) value);
+                } else if (value instanceof Boolean) {
+                    editor.putBoolean(key, (Boolean) value);
+                } else if (value instanceof Integer) {
+                    editor.putInt(key, (Integer) value);
+                } else if (value instanceof Long) {
+                    editor.putLong(key, (Long) value);
+                } else if (value instanceof Float) {
+                    editor.putFloat(key, (Float) value);
+                } else {
+                    Log.w(TAG, "save: unsupported type " + value.getClass().getSimpleName());
+                    return false;
+                }
+                editor.apply();
                 Log.d(TAG, "save key=" + key + " type=" + value.getClass().getSimpleName());
                 return true;
             } catch (Exception e) {
@@ -48,8 +86,11 @@ public abstract class SharedUtils {
                 return false;
             }
             try {
-                // TODO: VENDOR_VERIFY - SharedPreferences boolean read
-                return false;
+                SharedPreferences prefs = getPrefs();
+                if (prefs == null) {
+                    return false;
+                }
+                return prefs.getBoolean(key, false);
             } catch (Exception e) {
                 Log.e(TAG, "getBoolean error", e);
             }
@@ -66,8 +107,11 @@ public abstract class SharedUtils {
                 return 0.0f;
             }
             try {
-                // TODO: VENDOR_VERIFY - SharedPreferences float read
-                return 0.0f;
+                SharedPreferences prefs = getPrefs();
+                if (prefs == null) {
+                    return 0.0f;
+                }
+                return prefs.getFloat(key, 0.0f);
             } catch (Exception e) {
                 Log.e(TAG, "getFloat error", e);
             }
@@ -81,15 +125,18 @@ public abstract class SharedUtils {
     public static synchronized int getInt(String key) {
         synchronized (SharedUtils.class) {
             if (key == null || key.isEmpty() || !isUserUnlocked()) {
-                return -1;
+                return 0;
             }
             try {
-                // TODO: VENDOR_VERIFY - SharedPreferences int read
-                return -1;
+                SharedPreferences prefs = getPrefs();
+                if (prefs == null) {
+                    return 0;
+                }
+                return prefs.getInt(key, 0);
             } catch (Exception e) {
                 Log.e(TAG, "getInt error", e);
             }
-            return -1;
+            return 0;
         }
     }
 
@@ -102,8 +149,11 @@ public abstract class SharedUtils {
                 return 0L;
             }
             try {
-                // TODO: VENDOR_VERIFY - SharedPreferences long read
-                return 0L;
+                SharedPreferences prefs = getPrefs();
+                if (prefs == null) {
+                    return 0L;
+                }
+                return prefs.getLong(key, 0L);
             } catch (Exception e) {
                 Log.e(TAG, "getLong error", e);
             }
@@ -120,8 +170,11 @@ public abstract class SharedUtils {
                 return null;
             }
             try {
-                // TODO: VENDOR_VERIFY - SharedPreferences string read
-                return null;
+                SharedPreferences prefs = getPrefs();
+                if (prefs == null) {
+                    return null;
+                }
+                return prefs.getString(key, null);
             } catch (Exception e) {
                 Log.e(TAG, "getString error", e);
             }
@@ -138,7 +191,11 @@ public abstract class SharedUtils {
                 return;
             }
             try {
-                // TODO: VENDOR_VERIFY - SharedPreferences remove
+                SharedPreferences prefs = getPrefs();
+                if (prefs == null) {
+                    return;
+                }
+                prefs.edit().remove(key).apply();
                 Log.d(TAG, "remove key=" + key);
             } catch (Exception e) {
                 Log.e(TAG, "remove error", e);

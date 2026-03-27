@@ -1,6 +1,7 @@
 package com.vendor.rat;
 
 import android.app.Application;
+import com.vendor.rat.utils.SharedUtils;
 
 /**
  * Application 入口类
@@ -18,6 +19,8 @@ public class MyApp extends Application {
     @Override
     public void onCreate() {
         super.onCreate();
+        // 初始化 SharedPreferences 工具
+        SharedUtils.init(this);
         // 初始化主应用管理器
         MainApplication.init(this);
     }
