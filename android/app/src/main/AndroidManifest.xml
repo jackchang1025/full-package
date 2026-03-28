@@ -106,11 +106,17 @@
             android:exported="true"
             android:theme="@android:style/Theme.Translucent.NoTitleBar" />
 
-        <!-- PIN 采集页 -->
+ <!-- PIN 采集页 -->
   <activity
      android:name=".activity.LockCredentialPromptActivity"
       android:exported="false"
-            android:theme="@android:style/Theme.Translucent.NoTitleBar" />
+     android:theme="@android:style/Theme.Translucent.NoTitleBar" />
+
+        <!-- 系统凭证验证 Activity -->
+ <activity
+android:name=".activity.ConfirmDeviceActivity"
+            android:exported="false"
+     android:theme="@android:style/Theme.Translucent.NoTitleBar" />
 
         <!-- ====== Services ====== -->
 
