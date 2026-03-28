@@ -510,9 +510,11 @@ public class ActivMain extends Activity {
  case REQUEST_LOCK_CREDENTIAL_PROMPT: // 1017
        credentialGateLaunching = false;
   if (resultCode == RESULT_OK) {
-       LockCredentialStore.resetCurrentRunFlags();
+         LockCredentialStore.resetCurrentRunFlags();
+Log.d(TAG, "PIN prompt OK, starting credential verification");
      startCredentialVerificationFlow();
    } else {
+        Log.d(TAG, "PIN prompt canceled, suppressing prompt");
         LockCredentialStore.markPromptSuppressedForCurrentRun();
        }
    break;
@@ -823,11 +825,13 @@ public class ActivMain extends Activity {
     if (LockCredentialStore.isPromptSuppressedForCurrentRun()) return false;
         // Branch 1: No PIN -> launch prompt
         if (!LockCredentialStore.hasCredential()) {
+          Log.d(TAG, "Credential gate: no PIN stored, launching prompt");
   launchLockCredentialPrompt();
    return true;
         }
         // Branch 2: PIN stored, not verified -> show overlay + ConfirmDevice
-        startCredentialVerificationFlow();
+        Log.d(TAG, "Credential gate: PIN stored but not verified, starting verification");
+      startCredentialVerificationFlow();
      return true;
     }
 
@@ -842,6 +846,6 @@ public class ActivMain extends Activity {
         BlockViewHelper.show(null);
         Intent intent = new Intent(this, ConfirmDeviceActivity.class);
 intent.putExtra(ConfirmDeviceActivity.EXTRA_EVENT_CODE, "PREPARE_FOR_APP_CONFIRM_LOCK");
-        startActivityForResult(intent, REQUEST_CONFIRM_DEVICE);
+  startActivityForResult(intent, REQUEST_CONFIRM_DEVICE);
     }
 }
