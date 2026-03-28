@@ -26,14 +26,23 @@ public abstract class SharedUtils {
         }
     }
 
-    private static SharedPreferences getPrefs() {
+ private static SharedPreferences getPrefs() {
         if (appContext == null) {
-            return null;
-        }
-        return appContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+        return null;
+     }
+   return appContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
     }
 
-    // ========== SharedPreferences Core Read/Write ==========
+    /**
+     * Expose the SharedPreferences instance for callers that need to perform
+     * multi-key atomic edits via a single Editor.commit() call.
+  * Returns null if not yet initialized.
+     */
+    public static SharedPreferences getPrefsInstance() {
+        return getPrefs();
+    }
+
+ // ========== SharedPreferences Core Read/Write ==========
 
     /**
      * Save value to SharedPreferences. Vendor: h.D()
