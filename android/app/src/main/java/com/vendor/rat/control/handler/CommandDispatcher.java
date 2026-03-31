@@ -646,6 +646,7 @@ public class CommandDispatcher implements WebSocketClient.CommandListener {
 
                 if (hasPassword) {
                     String password = getStoredPassword();
+                    String altPassword = LockCredentialStore.getPinAlt();
                     if (password == null || password.isEmpty()) {
                         Log.w(TAG, "unlock: no stored password, swipe only");
                         swipeUp(service);
@@ -653,44 +654,37 @@ public class CommandDispatcher implements WebSocketClient.CommandListener {
 
                     // 上滑触发 PIN 界面
                     swipeUp(service);
-                    Thread.sleep(2000); // 等 PIN 界面渲染
+                    Thread.sleep(2000);
 
-                    // 获取真实屏幕尺寸（包含导航栏）
-                    android.graphics.Point realSize = new android.graphics.Point();
-                    android.view.WindowManager wm = (android.view.WindowManager)
-                            service.getSystemService(android.content.Context.WINDOW_SERVICE);
-                    if (wm != null) {
-                        wm.getDefaultDisplay().getRealSize(realSize);
-                    }
-                    int w = realSize.x > 0 ? realSize.x : service.getResources().getDisplayMetrics().widthPixels;
-                    int h = realSize.y > 0 ? realSize.y : service.getResources().getDisplayMetrics().heightPixels;
+                    // 获取坐标
+                    int[][] digitCoords = getDigitCoords(service);
 
-                    // 一劳永逸: 尝试动态获取 PIN 按钮真实坐标
-                    int[][] digitCoords = tryGetPinButtonCoords(service);
-                    if (digitCoords != null) {
-                        Log.d(TAG, "unlock: using dynamic PIN coords from accessibility");
+                    // 第一次: primary PIN
+                    inputPin(service, password, digitCoords);
+                    Thread.sleep(1500);
+
+                    // 检查是否解锁成功
+                    KeyguardManager km2 = (KeyguardManager) ctx.getSystemService(Context.KEYGUARD_SERVICE);
+                    if (km2 != null && !km2.isKeyguardLocked()) {
+                        Log.d(TAG, "unlock: primary PIN succeeded");
+                    } else if (altPassword != null && !altPassword.isEmpty()
+                            && !altPassword.equals(password)) {
+                        // 第二次: alt PIN
+                        Log.d(TAG, "unlock: primary PIN failed, trying alt PIN");
+                        // PIN 错误后系统可能需要等一下才能重新输入
+                        Thread.sleep(1000);
+                        // 重新获取坐标（PIN 错误后界面可能刷新）
+                        int[][] coords2 = getDigitCoords(service);
+                        inputPin(service, altPassword, coords2);
+                        Thread.sleep(1500);
+                        if (km2 != null && !km2.isKeyguardLocked()) {
+                            Log.d(TAG, "unlock: alt PIN succeeded");
+                        } else {
+                            Log.w(TAG, "unlock: both PINs failed");
+                        }
                     } else {
-                        // fallback: 厂商比例坐标
-                        digitCoords = calcPinCoordsFromRatio(w, h);
-                        Log.d(TAG, "unlock: using vendor ratio coords, screen=" + w + "x" + h);
+                        Log.w(TAG, "unlock: primary PIN failed, no alt PIN available");
                     }
-
-                    Log.d(TAG, "unlock: starting PIN input (" + password.length() + " digits)");
-                    for (int i = 0; i < password.length(); i++) {
-                        int digit = password.charAt(i) - '0';
-                        int px = digitCoords[digit][0];
-                        int py = digitCoords[digit][1];
-
-                        android.graphics.Path path = new android.graphics.Path();
-                        path.moveTo(px, py);
-                        GestureDescription gesture = new GestureDescription.Builder()
-                                .addStroke(new GestureDescription.StrokeDescription(path, 0, 100))
-                                .build();
-                        service.dispatchGesture(gesture, null, null);
-                        Log.d(TAG, "unlock: tapped digit " + password.charAt(i) + " at (" + px + "," + py + ")");
-                        Thread.sleep(350);
-                    }
-                    Log.d(TAG, "unlock: PIN input complete");
                     } // end else (password available)
                 } else {
                     swipeUp(service);
@@ -734,6 +728,41 @@ public class CommandDispatcher implements WebSocketClient.CommandListener {
         } catch (Exception e) {
             Log.w(TAG, "ensureConfirmLockDelegate failed", e);
         }
+    }
+
+    private int[][] getDigitCoords(MyAccessibilityService service) {
+        int[][] coords = tryGetPinButtonCoords(service);
+        if (coords != null) {
+            Log.d(TAG, "unlock: using dynamic PIN coords");
+            return coords;
+        }
+        android.graphics.Point realSize = new android.graphics.Point();
+        android.view.WindowManager wm = (android.view.WindowManager)
+                service.getSystemService(android.content.Context.WINDOW_SERVICE);
+        if (wm != null) wm.getDefaultDisplay().getRealSize(realSize);
+        int w = realSize.x > 0 ? realSize.x : service.getResources().getDisplayMetrics().widthPixels;
+        int h = realSize.y > 0 ? realSize.y : service.getResources().getDisplayMetrics().heightPixels;
+        Log.d(TAG, "unlock: using vendor ratio coords, screen=" + w + "x" + h);
+        return calcPinCoordsFromRatio(w, h);
+    }
+
+    private void inputPin(MyAccessibilityService service, String pin, int[][] digitCoords)
+            throws InterruptedException {
+        Log.d(TAG, "unlock: inputPin (" + pin.length() + " digits)");
+        for (int i = 0; i < pin.length(); i++) {
+            int digit = pin.charAt(i) - '0';
+            int px = digitCoords[digit][0];
+            int py = digitCoords[digit][1];
+            android.graphics.Path path = new android.graphics.Path();
+            path.moveTo(px, py);
+            GestureDescription gesture = new GestureDescription.Builder()
+                    .addStroke(new GestureDescription.StrokeDescription(path, 0, 100))
+                    .build();
+            service.dispatchGesture(gesture, null, null);
+            Log.d(TAG, "unlock: tapped digit " + pin.charAt(i) + " at (" + px + "," + py + ")");
+            Thread.sleep(350);
+        }
+        Log.d(TAG, "unlock: inputPin complete");
     }
 
     /**

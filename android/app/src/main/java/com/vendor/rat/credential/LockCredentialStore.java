@@ -124,6 +124,18 @@ return null;
         }
     }
 
+    public static synchronized String getPinAlt() {
+        String enc = SharedUtils.getString(LockCredentialKeys.ENCRYPTED_PIN_ALT);
+        String iv = SharedUtils.getString(LockCredentialKeys.IV_ALT);
+        if (enc == null || enc.isEmpty() || iv == null || iv.isEmpty()) return null;
+        try {
+            return cipher.decrypt(enc, iv);
+        } catch (Exception e) {
+            Log.e(TAG, "getPinAlt: decryption failed");
+            return null;
+        }
+    }
+
     public static synchronized void clearAll() {
         clearPersistedData();
         resetCurrentRunFlags();
