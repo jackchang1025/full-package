@@ -1,6 +1,8 @@
 # App 启动完整时序图与组件流程
 
-## 一、全局时序图（从安装到投屏就绪）
+> 最后更新: 2026-03-31 — Pipeline 架构重构后
+
+## 一、全局时序图（从安装到首页就绪）
 
 ```
 时间轴 ──────────────────────────────────────────────────────────────────────►
@@ -33,18 +35,29 @@
 │          ├── triggerInitialApiRequests()                                     │
 │          └── registerContentObservers() ← 6 个 ContentObserver              │
 └──────────────────────────────────────────────────────────────────────────────┘
+```
 
+
+```
 ┌──────────────────────────────────────────────────────────────────────────────┐
 │  阶段 2: 用户授权无障碍服务 (手动 或 ADB WRITE_SECURE_SETTINGS)               │
 │                                                                              │
 │  ActivMain.onResume()                                                        │
-│      ├── P() == null && !isAdbSecureMode() → showGuideDialog()               │
-│      │       用户看到引导弹窗 → 跳转无障碍设置 → 手动开启                      │
+│      ├── 检查 MyAccessibilityService.P() (无障碍服务是否运行)                  │
+│      ├── 检查 isAdbSecureMode() (ADB WRITE_SECURE_SETTINGS 权限)             │
 │      │                                                                       │
-│      └── P() == null && isAdbSecureMode() → tryAutoEnableAccessibility()     │
-│              通过 WRITE_SECURE_SETTINGS 自动启用                              │
+│      ├── [无障碍未开启 & 无ADB权限]                                           │
+│      │     ├── WebView 加载引导页 URL                                         │
+│      │     └── showGuideDialog() → 弹窗引导用户去开启无障碍                    │
+│      │                                                                       │
+│      └── [无障碍已开启 或 有ADB权限]                                          │
+│            ├── dismissGuideDialog()                                           │
+│            ├── WebView 加载主页 URL                                           │
+│            └── 进入正常使用状态                                                │
 └──────────────────────────────────────────────────────────────────────────────┘
+```
 
+```
 ┌──────────────────────────────────────────────────────────────────────────────┐
 │  阶段 3: 无障碍服务启动 (~2s)                                                │
 │                                                                              │
@@ -55,175 +68,237 @@
 │      │   ├── flags = 91 (0x5B)                                               │
 │      │   └── API 33+: setCacheEnabled(true)                                  │
 │      │                                                                       │
-│      └── j0()  [服务初始化]                                                   │
-│          ├── f219p.set(this)  ← 保存服务实例引用                              │
-│          ├── engineManager = new EngineManager(this)                          │
-│          │   └── registerVendorEngines()                                      │
-│          │       ├── HuaweiEngine                                            │
-│          │       ├── XiaomiEngine                                            │
-│          │       ├── PermissionAutoGrantEngine                                │
-│          │       ├── OppoEngine                                              │
-│          │       ├── VivoEngine                                              │
-│          │       └── TranssionEngine                                         │
-│          │                                                                   │
-│          ├── isFirstOpen? → performGlobalAction(BACK) → markFirstOpenDone()  │
-│          ├── p0()  ← 上报 ACCESSIBILITY_CONTAINER 事件                       │
-│          ├── d0()  ← 加载 listenWindows.json                                 │
-│          │                                                                   │
-│          └── ★ new Thread("strategy-trigger")                                │
-│              └── sleep(1500ms) → triggerKeepAliveIfNeeded()                   │
-│                                  ↓↓↓ 进入阶段 4 ↓↓↓                          │
-└──────────────────────────────────────────────────────────────────────────────┘
-
-┌──────────────────────────────────────────────────────────────────────────────┐
-│  阶段 4: 保活自动化 — 遮罩 + 引擎 (~20-40s)                                  │
-│                                                                              │
-│  StrategyThread.triggerKeepAliveIfNeeded()                                   │
-│      ├── keepAliveTriggered? → return (内存防重入)                             │
-│      ├── ★ isKeepAliveCompleted()? → return (持久化检查)                       │
-│      │   ↑↑↑ 更新安装时这里返回 true，整个阶段 4-6 被跳过 ↑↑↑                  │
-│      ├── P() == null? → return                                               │
-│      ├── !isHuawei() && !isXiaomi()? → return                                │
-│      ├── compareAndSet(false, true)                                          │
+│      ├── j0()  [服务初始化]                                                   │
+│      │   ├── f219p.set(this)  ← 保存服务实例引用                              │
+│      │   ├── engineManager = new EngineManager(this)                          │
+│      │   │   └── registerVendorEngines()                                      │
+│      │   │       ├── HuaweiEngine                                            │
+│      │   │       ├── XiaomiEngine                                            │
+│      │   │       ├── OppoEngine                                              │
+│      │   │       ├── PermissionAutoGrantEngine                                │
+│      │   │       ├── VivoEngine                                              │
+│      │   │       └── TranssionEngine                                         │
+│      │   │                                                                   │
+│      │   ├── isFirstOpen? → performGlobalAction(BACK) → markFirstOpenDone()  │
+│      │   ├── p0()  ← 上报 ACCESSIBILITY_CONTAINER 事件                       │
+│      │   ├── d0()  ← 加载 listenWindows.json                                 │
+│      │   │                                                                   │
+│      │   └── ★ new Thread("strategy-trigger")                                │
+│      │       └── sleep(1500ms) → triggerKeepAliveIfNeeded()                   │
+│      │                           ↓↓↓ 进入阶段 4 ↓↓↓                          │
 │      │                                                                       │
-│      └── new Thread("strategy-trigger")                                      │
-│          └── sleep(500ms) → applyBlockView(null, true)                       │
-│              │                                                               │
-│              ▼                                                               │
-│  StrategyThread.applyBlockView()                                             │
-│      ├── BlockViewHelper.show()                                              │
-│      │   ├── muteAll() ← 禁用旋转/震动/静音                                  │
-│      │   ├── createView() [主线程]                                            │
-│      │   │   ├── BlockOverlayView (production/debug)                         │
-│      │   │   └── WindowManager.addView(TYPE_ACCESSIBILITY_OVERLAY)           │
-│      │   └── 轮询等待 viewShowing=true (最多 10s)                             │
-│      │                                                                       │
-│      ├── StealthHelper.updateProgress(10)                                    │
-│      │                                                                       │
-│      └── launchSettingsForVendor()                                           │
-│          ├── performGlobalAction(HOME)  ← 先回桌面                            │
-│          ├── sleep(500ms)                                                    │
-│          │                                                                   │
-│          ├── [华为] Intent → com.android.settings.HWSettings                 │
-│          └── [小米] Intent → ApplicationsDetailsActivity + package_name       │
-│                                                                              │
-│  ═══════════════════════════════════════════════════════════════════          │
-│  此时: 遮罩全屏覆盖 + 设置页面在遮罩下打开                                    │
-│  ═══════════════════════════════════════════════════════════════════          │
-│                                                                              │
-│  MyAccessibilityService.onAccessibilityEvent() [事件驱动循环]                 │
-│      ├── 遮罩守卫: isShowing() && launcher出现 → restoreSettingsTask()        │
-│      ├── G(event)  ← 更新根节点缓存                                          │
-│      └── f0(event) ← ★ engineManager.dispatchEvent()                         │
-│          │                                                                   │
-│          ├── [华为] HuaweiEngine.onWindowMatched()                           │
-│          │   ├── 主设置页 → 点击"电池" → 点击"启动管理"                         │
-│          │   ├── 启动管理列表 → 找到本应用 → 关闭"自动管理"                     │
-│          │   ├── 弹窗确认 → 勾选 允许自启动/后台活动/关联启动                    │
-│          │   └── 完成 → markKeepAliveCompleted() → Z()                       │
-│          │                                                                   │
-│          └── [小米] XiaomiEngine.onWindowMatched()                            │
-│              ├── 应用详情 → 点击"自启动"开关                                   │
-│              ├── 电池优化 → 设为无限制                                         │
-│              └── 完成 → markKeepAliveCompleted() → Z()                       │
-└──────────────────────────────────────────────────────────────────────────────┘
-
-┌──────────────────────────────────────────────────────────────────────────────┐
-│  阶段 5: 引擎完成 — 移除遮罩 + 触发权限请求 (~15-30s)                         │
-│                                                                              │
-│  AutoEngine.Z() [引擎清理]                                                   │
-│      ├── StealthHelper.updateProgress(100)                                   │
-│      ├── X()  ← pauseProxy()                                                │
-│      ├── service.H(true, true) ← 清理缓存                                    │
-│      ├── t0()  ← 上报保活状态                                                │
-│      ├── scheduler.shutdownNow()                                             │
-│      ├── finished=true, running=false                                        │
-│      ├── service.resumeProxy() ← ★ 恢复事件处理 (权限弹窗需要!)               │
-│      │                                                                       │
-│      └── BlockViewHelper.removeWithDestroy()                                 │
-│          ├── 启动 ActivMain (遮罩遮挡下，用户不可见)                           │
-│          ├── sleep(1000ms) ← 等待 Activity 启动动画                           │
-│          │                                                                   │
-│          ├── ★ ActivMain.triggerPermissionRequest()                           │
-│          │   └── runOnUiThread → requestAllPermissions()                      │
-│          │       └── requestNextPermissionGroup()                             │
-│          │                                                                   │
-│          ├── 轮询等待 allPermissionsGranted() (最多 60s)                      │
-│          │   │                                                               │
-│          │   │  ┌── 权限弹窗出现 ──────────────────────────────┐              │
-│          │   │  │  PermissionAutoGrantEngine.matchWindow()      │              │
-│          │   │  │  ├── BlockViewHelper.isShowing()? → true ✓   │              │
-│          │   │  │  └── autoClickAllow()                         │              │
-│          │   │  │      ├── 找到"允许"按钮                       │              │
-│          │   │  │      └── performAction(CLICK) → 授予权限      │              │
-│          │   │  └──────────────────────────────────────────────┘              │
-│          │   │                                                               │
-│          │   │  onRequestPermissionsResult(1013)                             │
-│          │   │  └── 500ms delay → requestNextPermissionGroup()               │
-│          │   │      └── 下一组权限... (循环)                                  │
-│          │   │                                                               │
-│          │   └── allPermissionsGranted() == true → break                     │
-│          │                                                                   │
-│          │  ★ 所有权限授予完成后:                                              │
-│          │  requestNextPermissionGroup()                                      │
-│          │  └── "All permissions granted"                                     │
-│          │      └── API < 30? → requestMediaProjectionPermission()            │
-│          │          └── startActivityForResult(createScreenCaptureIntent())   │
-│          │              └── 系统弹窗: "开始录制屏幕?"                          │
-│          │                  └── PermissionAutoGrantEngine 自动点击"立即开始"   │
-│          │                                                                   │
-│          │  onActivityResult(REQUEST_MEDIA_PROJECTION=1003)                   │
-│          │  └── startForegroundService(MediaLiveService)                      │
-│          │      └── MediaLiveService.onStartCommand()                         │
-│          │          └── service.initMediaProjection(code, data) ← ★ 截屏就绪  │
-│          │                                                                   │
-│          ├── doRemoveView() [主线程]                                          │
-│          │   ├── windowManager.removeViewImmediate(overlay)                   │
-│          │   ├── viewShowing=false                                            │
-│          │   └── restoreMuteStrategy() ← 恢复旋转/震动/音量                   │
-│          │                                                                   │
-│          └── resetOverlayGuard()                                             │
-└──────────────────────────────────────────────────────────────────────────────┘
-
-┌──────────────────────────────────────────────────────────────────────────────┐
-│  阶段 6: 正常运行 — WebSocket 命令循环                                        │
-│                                                                              │
-│  [Panel 发送投屏命令]                                                         │
-│  Panel → WebSocket Server (PHP) → Device WebSocket Client                    │
-│      │                                                                       │
-│      ▼                                                                       │
-│  WebSocketClient.onMessage()                                                 │
-│      └── parse JSON → commandListener.onCommand(type, subc, json)            │
-│          │                                                                   │
-│          ▼                                                                   │
-│  CommandDispatcher.onCommand("screencomd", "Screen", json)                   │
-│      └── dispatchScreenCommand("Screen", json)                               │
-│          └── screenshotHandler.handle(payload)                               │
-│              │                                                               │
-│              ▼                                                               │
-│  ScreenshotHandler.handle()                                                  │
-│      └── comdtype="SN" → startStreaming("screen")                            │
-│          └── scheduleAtFixedRate(captureAndSendFrame, 0, 1100ms)             │
-│              │                                                               │
-│              ▼ (每 1100ms)                                                   │
-│  captureAndSendFrame()                                                       │
-│      └── MyAccessibilityService.takeScreenshotAsync(callback)                │
-│          │                                                                   │
-│          ├── [API ≥ 30] takeScreenshotViaAccessibility()                     │
-│          │   └── AccessibilityService.takeScreenshot()                        │
-│          │       └── HardwareBuffer → Bitmap → JPEG → Base64 → WebSocket     │
-│          │                                                                   │
-│          └── [API < 30] takeScreenshotViaMediaProjection()                   │
-│              └── MediaProjection + ImageReader + VirtualDisplay               │
-│                  └── Image → Bitmap → JPEG → Base64 → WebSocket              │
-│                                                                              │
-│  ★ 如果 MediaProjection 未初始化:                                             │
-│    callback.onError("MediaProjection not initialized")                       │
-│    → 投屏数据为空 → Panel 无画面                                              │
+│      └── bringAppToFront() → 拉起 ActivMain 回前台                           │
 └──────────────────────────────────────────────────────────────────────────────┘
 ```
 
-## 二、组件交互关系图
+
+```
+┌──────────────────────────────────────────────────────────────────────────────┐
+│  阶段 4: 自动化管道 Pipeline (~30-70s)                                       │
+│                                                                              │
+│  StrategyThread.triggerKeepAliveIfNeeded()                                   │
+│      ├── [Guard 1] keepAliveTriggered == true? → return (内存防重入)           │
+│      ├── [Guard 2] P() == null? → return (无障碍未启动)                       │
+│      ├── [Guard 3] !isHuawei && !isXiaomi && !isOppo? → return              │
+│      ├── [Guard 4] compareAndSet(false, true) 失败? → return (CAS 防并发)    │
+│      │                                                                       │
+│      └── AutomationPipeline.executeStandard(service)                         │
+│          └── new Thread("automation-pipeline")                               │
+│                                                                              │
+│  ┌────────────────────────────────────────────────────────────────────────┐  │
+│  │  Pipeline 洋葱模型 — 10 个 Stage 顺序执行                              │  │
+│  │  (对齐 Laravel Illuminate\Pipeline\Pipeline)                           │  │
+│  │                                                                        │  │
+│  │  Stage 1: VersionCheckStage                                            │  │
+│  │  └── 对比 APK versionCode vs SharedPreferences 保存值                   │  │
+│  │      ├── 版本变化 → 重置 keepAliveCompleted=false                       │  │
+│  │      ├── 首次安装 → 无需重置                                            │  │
+│  │      └── 版本不变 → 不操作                                              │  │
+│  │                                                                        │  │
+│  │  Stage 2: CompletionCheckStage                                         │  │
+│  │  └── 检查 keepAliveCompleted (持久化)                                   │  │
+│  │      ├── [已完成 & 版本未变] → ★ 短路终止，不执行后续 Stage              │  │
+│  │      └── [未完成 或 版本变化] → 继续                                    │  │
+│  │                                                                        │  │
+│  │  Stage 3: ShowOverlayStage                                             │  │
+│  │  └── BlockViewHelper.show()                                            │  │
+│  │      ├── muteAll() ← 禁用旋转/震动/静音                                │  │
+│  │      ├── createView() [主线程] → TYPE_ACCESSIBILITY_OVERLAY             │  │
+│  │      ├── 轮询等待 viewShowing=true (最多 10s)                           │  │
+│  │      └── StealthHelper.updateProgress(10)                              │  │
+│  │                                                                        │  │
+│  │  ═══════════════════════════════════════════════════════════════════    │  │
+│  │  此时: 遮罩全屏覆盖，用户看不到后续操作                                  │  │
+│  │  ═══════════════════════════════════════════════════════════════════    │  │
+│  │                                                                        │  │
+│  │  Stage 4: LaunchSettingsStage                                          │  │
+│  │  └── StrategyThread.launchSettingsForVendor()                          │  │
+│  │      ├── performGlobalAction(HOME) ← 先回桌面                          │  │
+│  │      ├── sleep(500ms)                                                  │  │
+│  │      ├── [华为] Intent → HWSettings (搜索页)                           │  │
+│  │      ├── [小米] Intent → ApplicationsDetailsActivity (应用详情)         │  │
+│  │      └── [OPPO] Intent → ColorOS 电池优化页                            │  │
+│  │                                                                        │  │
+│  │  Stage 5: VendorEngineStage                                            │  │
+│  │  └── CountDownLatch.await(120s) ← 阻塞管道线程                         │  │
+│  │      │                                                                 │  │
+│  │      │  ┌── 无障碍事件驱动循环 (主线程) ──────────────────────────┐     │  │
+│  │      │  │  MyAccessibilityService.onAccessibilityEvent()          │     │  │
+│  │      │  │  └── engineManager.dispatchEvent()                      │     │  │
+│  │      │  │                                                         │     │  │
+│  │      │  │  [华为] HuaweiEngine                                    │     │  │
+│  │      │  │  ├── 搜索"启动管理" → 点击进入                          │     │  │
+│  │      │  │  ├── 找到本应用 → 关闭"自动管理"                        │     │  │
+│  │      │  │  ├── 弹窗 → 勾选 允许自启动/后台活动/关联启动            │     │  │
+│  │      │  │  └── 完成 → Z() → latch.countDown()                    │     │  │
+│  │      │  │                                                         │     │  │
+│  │      │  │  [小米] XiaomiEngine                                    │     │  │
+│  │      │  │  ├── 应用详情 → 点击"自启动"开关 → 确认对话框            │     │  │
+│  │      │  │  ├── 点击"省电策略"/"电量消耗" → 选择"无限制"            │     │  │
+│  │      │  │  └── 完成 → Z() → latch.countDown()                    │     │  │
+│  │      │  │                                                         │     │  │
+│  │      │  │  [OPPO] OppoEngine                                     │     │  │
+│  │      │  │  ├── 电池优化 → 自启动管理 → 开启自启动                  │     │  │
+│  │      │  │  ├── 权限管理 → 逐项授予权限 (失败2次则跳过)             │     │  │
+│  │      │  │  └── 完成 → Z() → latch.countDown()                    │     │  │
+│  │      │  └─────────────────────────────────────────────────────────┘     │  │
+│  │      │                                                                 │  │
+│  │      └── latch released → 继续管道                                     │  │
+│  │                                                                        │  │
+│  │  Stage 6: NavigateToAppStage                                           │  │
+│  │  └── startActivity(launchIntent) ← 遮罩遮挡下将 App 拉回前台           │  │
+│  │      └── sleep(1000ms) ← 等待启动动画                                  │  │
+│  │                                                                        │  │
+│  │  Stage 7: PermissionRequestStage                                       │  │
+│  │  ├── [OPPO] 跳过 (已在 OppoEngine 中处理)                             │  │
+│  │  └── [华为/小米] ActivMain.triggerPermissionRequest()                  │  │
+│  │      └── requestNextPermissionGroup() ← 逐组弹出权限对话框             │  │
+│  │          │  CAMERA → RECORD_AUDIO → LOCATION → SMS → CONTACTS →       │  │
+│  │          │  CALL_LOG → CALL_PHONE → READ_PHONE_STATE → STORAGE →      │  │
+│  │          │  POST_NOTIFICATIONS                                         │  │
+│  │          │                                                             │  │
+│  │          │  ┌── PermissionAutoGrantEngine (被动监听) ──────────┐       │  │
+│  │          │  │  matchWindow(permissioncontroller) → true        │       │  │
+│  │          │  │  └── autoClickAllow()                            │       │  │
+│  │          │  │      ├── 找"允许"按钮 (始终允许 > 使用中允许 > 允许)│      │  │
+│  │          │  │      └── performAction(CLICK)                    │       │  │
+│  │          │  └──────────────────────────────────────────────────┘       │  │
+│  │          │                                                             │  │
+│  │          └── 轮询 allPermissionsGranted() (最多 60s)                   │  │
+│  │                                                                        │  │
+│  │  Stage 8: MediaProjectionStage                                         │  │
+│  │  ├── [API ≥ 30] 跳过 (用 AccessibilityService.takeScreenshot)          │  │
+│  │  └── [API < 30] 触发录屏授权弹窗 → 自动点击"立即开始"                  │  │
+│  │                                                                        │  │
+│  │  Stage 9: RemoveOverlayStage                                           │  │
+│  │  └── BlockViewHelper.removeViewInternal() [主线程]                      │  │
+│  │      ├── windowManager.removeViewImmediate(overlay)                     │  │
+│  │      ├── viewShowing=false                                             │  │
+│  │      └── restoreMuteStrategy() ← 恢复旋转/震动/音量                    │  │
+│  │                                                                        │  │
+│  │  Stage 10: MarkCompletedStage                                          │  │
+│  │  └── SharedPreferences 持久化                                          │  │
+│  │      ├── keepAliveCompleted = true                                     │  │
+│  │      └── last_version_code = 当前 versionCode                          │  │
+│  └────────────────────────────────────────────────────────────────────────┘  │
+│                                                                              │
+│  Pipeline.andFinally()                                                       │
+│  └── Safety net: 如果遮罩仍在显示 → 强制移除                                 │
+│  └── currentContext = null                                                    │
+└──────────────────────────────────────────────────────────────────────────────┘
+```
+
+
+```
+┌──────────────────────────────────────────────────────────────────────────────┐
+│  阶段 5: 回到首页 — 正常运行                                                 │
+│                                                                              │
+│  Pipeline 结束后:                                                             │
+│  ├── ActivMain 已在 Stage 6 被拉到前台                                        │
+│  ├── 遮罩在 Stage 9 移除 → 用户重新看到屏幕                                   │
+│  ├── WebView 显示主页面                                                       │
+│  ├── 所有权限已授予                                                           │
+│  ├── 保活已配置 (自启动 + 电池优化)                                           │
+│  └── 下次启动 → CompletionCheckStage 检测到已完成 → 直接跳过整个管道          │
+│                                                                              │
+│  [Panel 发送投屏命令]                                                         │
+│  Panel → WebSocket Server (PHP) → Device WebSocket Client                    │
+│      └── CommandDispatcher → ScreenshotHandler                               │
+│          └── scheduleAtFixedRate(captureAndSendFrame, 0, 1100ms)             │
+│              └── MyAccessibilityService.takeScreenshotAsync()                │
+│                  ├── [API ≥ 30] AccessibilityService.takeScreenshot()         │
+│                  └── [API < 30] MediaProjection + ImageReader                │
+│                      └── Bitmap → JPEG → Base64 → WebSocket → Panel 显示     │
+└──────────────────────────────────────────────────────────────────────────────┘
+```
+
+## 二、多角色时序图
+
+```
+用户          ActivMain        MyA11yService     Pipeline线程        VendorEngine      PermAutoGrant
+ │               │                  │                  │                 │                  │
+ │──打开App──→ onCreate            │                  │                 │                  │
+ │               ├─ WebView+背景    │                  │                 │                  │
+ │               │                  │                  │                 │                  │
+ │             onResume             │                  │                 │                  │
+ │               ├─ P()==null       │                  │                 │                  │
+ │               ├─ showGuide      │                  │                 │                  │
+ │               │  Dialog()        │                  │                 │                  │
+ │               │                  │                  │                 │                  │
+ │──开启无障碍──→│       onServiceConnected            │                 │                  │
+ │               │                  ├─ r0() 配置       │                 │                  │
+ │               │                  ├─ j0() 初始化     │                 │                  │
+ │               │                  │  ├─ 注册引擎     │                 │                  │
+ │               │                  │  └─ 1.5s后 ─────→│                 │                  │
+ │               │                  │    trigger()     │                 │                  │
+ │               │                  ├─ bringAppToFront │                 │                  │
+ │               │                  │                  │                 │                  │
+ │             onResume             │     executeStandard()              │                  │
+ │               ├─ dismissGuide   │                  │                 │                  │
+ │               ├─ loadMainUrl    │   VersionCheck   │                 │                  │
+ │               │                  │   CompletionCheck│                 │                  │
+ │               │                  │                  │                 │                  │
+ │  ┌────────────┼──────────────────┼── ShowOverlay ──┤                 │                  │
+ │  │ 遮罩覆盖   │                  │                  │                 │                  │
+ │  │            │                  │   LaunchSettings │                 │                  │
+ │  │            │                  │   ├─ HOME        │                 │                  │
+ │  │            │                  │   └─ 启动设置页  │                 │                  │
+ │  │            │                  │                  │                 │                  │
+ │  │            │                  │   VendorEngine   │                 │                  │
+ │  │            │                  │   await(latch)───┼────────────────→│                  │
+ │  │            │                  │                  │                 │                  │
+ │  │            │          ←─窗口事件─┘               │    自动化操作    │                  │
+ │  │            │                  │                  │    (自启动+电池) │                  │
+ │  │            │                  │                  │                 │                  │
+ │  │            │                  │                  │   countDown()←──┤                  │
+ │  │            │                  │   ←──latch释放───┤                 │                  │
+ │  │            │                  │                  │                 │                  │
+ │  │            │                  │   NavigateToApp  │                 │                  │
+ │  │       ←────┤ (拉回前台)       │                  │                 │                  │
+ │  │            │                  │                  │                 │                  │
+ │  │            │                  │   PermissionReq  │                 │                  │
+ │  │            │  triggerPerm ←───┤                  │                 │                  │
+ │  │            ├─ requestPerms   │                  │                 │                  │
+ │  │            │                  │                  │                 │                  │
+ │  │            │          ←─权限弹窗─┘               │                 │    matchWindow() │
+ │  │            │                  │                  │                 │    autoClick()   │
+ │  │            │                  │                  │                 │    ├─ "允许"     │
+ │  │            │                  │                  │                 │    └─ 下一组     │
+ │  │            │                  │                  │                 │                  │
+ │  │            │                  │   MediaProjection│                 │                  │
+ │  │            │                  │   (API<30 only)  │                 │                  │
+ │  │            │                  │                  │                 │                  │
+ │  │            │                  │   RemoveOverlay  │                 │                  │
+ │  └────────────┼──────────────────┼──────────────────┤                 │                  │
+ │               │                  │                  │                 │                  │
+ │               │                  │   MarkCompleted  │                 │                  │
+ │               │                  │   Pipeline END   │                 │                  │
+ │               │                  │                  │                 │                  │
+ │  ←─看到首页───┤                  │                  │                 │                  │
+ │               │                  │                  │                 │                  │
+```
+
+## 三、组件交互关系图
 
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
@@ -245,258 +320,104 @@
 │  │              │  │                │  │ ┌─ EngineManager ────┐ │  │
 │  │ show()       │  │ onStartCommand │  │ │                    │ │  │
 │  │ isShowing()  │  │ → initMedia    │  │ │ dispatchEvent()    │ │  │
-│  │ removeWith   │  │   Projection   │  │ │  ├─ HuaweiEngine   │ │  │
-│  │  Destroy()   │  │   on service   │  │ │  ├─ XiaomiEngine   │ │  │
-│  │              │  │                │  │ │  ├─ PermissionAuto  │ │  │
-│  │ sendProgress │  └────────────────┘  │ │  │  GrantEngine    │ │  │
-│  │  ()          │                      │ │  ├─ OppoEngine     │ │  │
-│  └──────────────┘                      │ │  ├─ VivoEngine     │ │  │
-│         ▲                              │ │  └─ TranssionEng   │ │  │
-│         │                              │ └────────────────────┘ │  │
-│         │ show/remove                  │                        │  │
-│         │                              │ takeScreenshotAsync()  │  │
-│  ┌──────┴───────┐                      │  ├─ API≥30: Accessib  │  │
-│  │ Strategy     │                      │  └─ API<30: MediaProj │  │
-│  │ Thread       │                      └────────────────────────┘  │
-│  │              │                               ▲                  │
-│  │ triggerKeep  │                               │                  │
-│  │ AliveIf      │                               │ takeScreenshot   │
-│  │ Needed()     │                               │                  │
-│  │              │                      ┌────────┴───────────────┐  │
-│  │ applyBlock   │                      │ ScreenshotHandler      │  │
-│  │ View()       │                      │                        │  │
-│  │              │                      │ handle() → streaming   │  │
-│  │ isKeepAlive  │                      │ captureAndSendFrame()  │  │
-│  │ Completed()  │                      └────────────────────────┘  │
-│  │ ★ 版本检查   │                               ▲                  │
-│  └──────────────┘                               │                  │
-│                                                  │ onCommand        │
-│  ┌──────────────┐                      ┌────────┴───────────────┐  │
-│  │ ActivMain    │                      │ CommandDispatcher      │  │
-│  │              │                      │                        │  │
-│  │ onCreate()   │                      │ "screencomd" → Screen  │  │
-│  │ onResume()   │                      │  shotHandler           │  │
-│  │              │                      └────────────────────────┘  │
-│  │ triggerPerm  │                               ▲                  │
-│  │ ission       │                               │                  │
-│  │ Request()    │                      ┌────────┴───────────────┐  │
-│  │              │                      │ WebSocketClient        │  │
-│  │ requestMedia │                      │                        │  │
-│  │ Projection   │                      │ onMessage() → parse    │  │
-│  │ Permission() │                      │ → commandListener      │  │
-│  └──────────────┘                      └────────────────────────┘  │
-│                                                  ▲                  │
+│  │ removeView   │  │   Projection   │  │ │  ├─ HuaweiEngine   │ │  │
+│  │  Internal()  │  │                │  │ │  ├─ XiaomiEngine   │ │  │
+│  │              │  └────────────────┘  │ │  ├─ OppoEngine     │ │  │
+│  └──────────────┘                      │ │  ├─ PermAutoGrant  │ │  │
+│         ▲                              │ │  ├─ VivoEngine     │ │  │
+│         │                              │ │  └─ TranssionEng   │ │  │
+│         │ show/remove                  │ └────────────────────┘ │  │
+│         │                              └────────────────────────┘  │
+│  ┌──────┴───────────────────────────────────────┐                  │
+│  │ AutomationPipeline (洋葱模型)                 │                  │
+│  │                                               │                  │
+│  │ send(ctx).through(stages).thenReturn()        │                  │
+│  │                                               │                  │
+│  │ ┌─VersionCheck ─┐                            │                  │
+│  │ │┌─CompletionChk┐│                            │                  │
+│  │ ││┌─ShowOverlay─┐││                            │                  │
+│  │ │││┌LaunchSett─┐│││                            │                  │
+│  │ ││││┌VendorEng┐││││  ← CountDownLatch         │                  │
+│  │ │││││┌NavApp──┐│││││                           │                  │
+│  │ ││││││┌Perm──┐││││││                           │                  │
+│  │ │││││││┌Med─┐│││││││                           │                  │
+│  │ ││││││││┌Rm┐││││││││                           │                  │
+│  │ │││││││││Mk│││││││││  ← MarkCompleted          │                  │
+│  │ ││││││││└──┘││││││││                           │                  │
+│  │ │││││││└────┘│││││││                           │                  │
+│  │ ││││││└──────┘││││││                           │                  │
+│  │ │││││└────────┘│││││                           │                  │
+│  │ ││││└──────────┘││││                           │                  │
+│  │ │││└────────────┘│││                           │                  │
+│  │ ││└──────────────┘││                           │                  │
+│  │ │└────────────────┘│                           │                  │
+│  │ └──────────────────┘                           │                  │
+│  └────────────────────────────────────────────────┘                  │
+│                                                                      │
+│  ┌──────────────┐                      ┌────────────────────────┐   │
+│  │ ActivMain    │                      │ ScreenshotHandler      │   │
+│  │              │                      │                        │   │
+│  │ onCreate()   │                      │ captureAndSendFrame()  │   │
+│  │ onResume()   │                      │ → takeScreenshotAsync  │   │
+│  │ triggerPerm  │                      └────────────────────────┘   │
+│  │ Request()    │                               ▲                   │
+│  └──────────────┘                               │ onCommand         │
+│                                        ┌────────┴───────────────┐   │
+│  ┌──────────────┐                      │ WebSocketClient        │   │
+│  │ Strategy     │                      │ → CommandDispatcher    │   │
+│  │ Thread       │                      └────────────────────────┘   │
+│  │              │                               ▲                   │
+│  │ triggerKeep  │                               │ WebSocket         │
+│  │ AliveIf      │                      ┌────────┴────────┐         │
+│  │ Needed()     │                      │  PHP Swoole      │         │
+│  └──────────────┘                      │  Server :8081    │         │
+│                                        └────────┬────────┘         │
 └──────────────────────────────────────────────────┼──────────────────┘
-                                                   │ WebSocket
-                                          ┌────────┴────────┐
-                                          │  PHP Swoole      │
-                                          │  WebSocket       │
-                                          │  Server :8081    │
-                                          └────────┬────────┘
                                                    ▲
-                                                   │
                                           ┌────────┴────────┐
                                           │  Web Panel       │
                                           │  (Vue 3)         │
-                                          │                  │
-                                          │ slr_panelsend    │
-                                          │ subc=screen      │
-                                          │ screentype=SN    │
                                           └─────────────────┘
 ```
 
-## 三、各组件详细流程
 
-### 3.1 StrategyThread — 保活触发器
+## 四、Pipeline Stage 详细说明
 
-```
-triggerKeepAliveIfNeeded()
-│
-├─ [Guard 1] keepAliveTriggered == true? ──────► return (已触发过，内存防重入)
-│
-├─ [Guard 2] isKeepAliveCompleted()? ──────────► return (持久化已完成)
-│             │
-│             └─ SharedPreferences("keep_alive_state")
-│                └─ getBoolean("keep_alive_completed", false)
-│                   ★ 当前问题: 更新安装后此值仍为 true
-│                   ★ 修复方案: 检查 versionCode 变化时重置为 false
-│
-├─ [Guard 3] P() == null? ────────────────────► return (无障碍未启动)
-│
-├─ [Guard 4] !isHuawei() && !isXiaomi()? ────► return (不支持的厂商)
-│
-├─ [Guard 5] compareAndSet(false, true) ──────► return (CAS 失败，并发防护)
-│
-└─ new Thread("strategy-trigger")
-   └─ sleep(500ms)
-   └─ applyBlockView(null, true)
-      ├─ BlockViewHelper.show()
-      ├─ StealthHelper.updateProgress(10)
-      └─ launchSettingsForVendor()
-```
+### Stage 对照表
 
-### 3.2 BlockViewHelper — 遮罩管理器
+| # | Stage | 职责 | 短路条件 | 耗时 |
+|---|-------|------|---------|------|
+| 1 | VersionCheckStage | 对比 versionCode，版本变化时重置完成标志 | 无 | <1ms |
+| 2 | CompletionCheckStage | 检查持久化完成状态 | 已完成 & 版本未变 → 终止 | <1ms |
+| 3 | ShowOverlayStage | 显示全屏遮罩，禁用旋转/震动/静音 | 显示失败 → 终止 | ~200ms |
+| 4 | LaunchSettingsStage | HOME → 启动厂商设置页 | 非支持设备 → 跳过 | ~500ms |
+| 5 | VendorEngineStage | CountDownLatch 等待引擎完成 | 超时 120s 也继续 | 5-30s |
+| 6 | NavigateToAppStage | 遮罩下拉回 App 前台 | 无 | ~1s |
+| 7 | PermissionRequestStage | 逐组请求运行时权限 | OPPO 跳过；已全部授予 → 跳过 | 10-30s |
+| 8 | MediaProjectionStage | 请求录屏权限 (API<30) | API ≥ 30 → 跳过 | ~3s |
+| 9 | RemoveOverlayStage | 移除遮罩，恢复设备状态 | 遮罩未显示 → 跳过 | ~500ms |
+| 10 | MarkCompletedStage | 持久化 completed + versionCode | 无 | <1ms |
 
-```
-show(blockViewVO)                          removeWithDestroy()
-│                                          │
-├─ isShowing()? → return                   ├─ viewRef != null?
-├─ P() != null?                            ├─ lock.tryLock()
-├─ lock.tryLock()                          │
-│                                          ├─ 启动 ActivMain (遮罩下不可见)
-├─ muteAll()                               ├─ sleep(1000ms)
-│  ├─ 禁用自动旋转                          │
-│  ├─ 关闭震动                              ├─ ★ triggerPermissionRequest()
-│  └─ 全局静音                              │  └─ requestNextPermissionGroup()
-│                                          │     └─ 逐组请求权限弹窗
-├─ createView() [主线程]                    │        └─ PermissionAutoGrantEngine 自动点击
-│  ├─ production 模式: 全屏背景+进度条       │
-│  └─ debug 模式: 透明可观察                 ├─ 轮询 allPermissionsGranted() (60s)
-│                                          │
-├─ WindowManager.addView()                 ├─ ★ requestMediaProjectionPermission() (API<30)
-│  └─ TYPE_ACCESSIBILITY_OVERLAY           │  └─ startActivityForResult(1003)
-│                                          │     └─ onActivityResult → MediaLiveService
-├─ viewShowing=true                        │
-│                                          ├─ doRemoveView() [主线程]
-└─ 轮询等待 viewShowing (10s)               │  ├─ windowManager.removeViewImmediate()
-                                           │  ├─ viewShowing=false
-                                           │  └─ restoreMuteStrategy()
-                                           │
-                                           └─ resetOverlayGuard()
-```
+### 厂商引擎对照表
 
-### 3.3 AutoEngine.Z() — 引擎完成清理
+| 厂商 | Engine | LaunchSettings 目标 | 自动化内容 | 权限处理 |
+|------|--------|-------------------|-----------|---------|
+| 华为 | HuaweiEngine | HWSettings 搜索页 | 搜索"启动管理" → 关闭自动管理 → 勾选三项 | Stage 7 标准流程 |
+| 小米 | XiaomiEngine | ApplicationsDetailsActivity | 自启动 Switch → 省电策略"无限制" | Stage 7 标准流程 |
+| OPPO | OppoEngine | ColorOS 电池优化页 | 电池优化 → 自启动 → 权限管理 | Engine 内部处理 |
 
-```
-Z() [由 HuaweiEngine/XiaomiEngine 调用]
-│
-├─ lock.tryLock()
-├─ !T()? (未终止)
-│
-├─ StealthHelper.updateProgress(100)    ← 进度条跳到 100%
-├─ X() → pauseProxy()                  ← 暂停事件处理
-├─ service.H(true, true)               ← 清理节点缓存
-├─ t0()                                ← 上报保活状态
-├─ scheduler.shutdownNow()             ← 停止定时任务
-├─ stateQueue.clear()
-│
-├─ finished=true, running=false
-├─ service.resumeProxy()               ← ★ 恢复事件处理 (关键!)
-│                                         PermissionAutoGrantEngine 需要此时才能工作
-│
-├─ BlockViewHelper.removeWithDestroy() ← 移除遮罩 + 触发权限 (见 3.2)
-│
-└─ offerStrategyEvent("PREPARE_FOR_APP_CONFIRM_LOCK")
-```
+### 关键技术点
 
-### 3.4 PermissionAutoGrantEngine — 权限自动授予
+1. **洋葱模型**: Pipeline 对齐 Laravel `Illuminate\Pipeline\Pipeline`，每个 Stage 包裹下一个，`next.run()` 继续，不调用则短路
+2. **CountDownLatch**: VendorEngineStage 通过 latch 阻塞管道线程，引擎在无障碍事件线程完成后 `countDown()` 释放
+3. **遮罩守卫**: 所有引擎在 `onEventSafe()` 入口检查 `BlockViewHelper.isShowing()`，遮罩移除后立即停止响应
+4. **Safety net**: `Pipeline.andFinally()` 确保即使 Stage 异常，遮罩也会被移除
+5. **版本感知**: VersionCheckStage + CompletionCheckStage 组合实现"更新安装后重跑管道"
 
-```
-onAccessibilityEvent()
-│
-└─ engineManager.dispatchEvent(pkg, cls, event)
-   │
-   └─ PermissionAutoGrantEngine.matchWindow()
-      │
-      ├─ [Guard] BlockViewHelper.isShowing() == false? → return false
-      │          ★ 遮罩关闭后立即停止响应
-      │
-      ├─ pkg == "com.google.android.permissioncontroller"?
-      ├─ pkg == "com.android.packageinstaller"?
-      │
-      ├─ 排除 ManagePermissions 等管理页面
-      │
-      └─ true → onWindowMatched()
-         └─ autoClickAllow()
-            ├─ sleep(500ms)           ← 等待弹窗渲染
-            ├─ getRootNode()
-            ├─ 找 "拒绝" 按钮 (验证弹窗存在)
-            ├─ 取消 "不再询问" 勾选
-            └─ 点击允许按钮 (优先级):
-               ├─ 1. "始终允许" / "Allow all the time"
-               ├─ 2. "仅在使用中允许" / "While using the app"
-               ├─ 3. "允许" / "Allow"
-               └─ 4. ViewID fallback
-```
+## 五、真机测试结果 (2026-03-31)
 
-### 3.5 截屏命令链路
-
-```
-Panel                    PHP Server              Device
-  │                         │                      │
-  │ slr_panelsend           │                      │
-  │ subc=screen             │                      │
-  │ pid=xxx                 │                      │
-  │ screentype=SN           │                      │
-  │ ───────────────────────►│                      │
-  │                         │ type=screencomd      │
-  │                         │ subc=Screen           │
-  │                         │ comdtype=SN           │
-  │                         │ ────────────────────►│
-  │                         │                      │
-  │                         │                      │ WebSocketClient.onMessage()
-  │                         │                      │ └─ CommandDispatcher
-  │                         │                      │    └─ ScreenshotHandler.handle()
-  │                         │                      │       └─ comdtype=SN
-  │                         │                      │          └─ startStreaming("screen")
-  │                         │                      │
-  │                         │                      │ ┌─ 每 1100ms ──────────────┐
-  │                         │                      │ │ captureAndSendFrame()     │
-  │                         │                      │ │ └─ takeScreenshotAsync()  │
-  │                         │                      │ │    ├─ API≥30: Accessible  │
-  │                         │                      │ │    └─ API<30: MediaProj   │
-  │                         │                      │ │       └─ Bitmap → JPEG    │
-  │                         │                      │ │          → Base64          │
-  │                         │    type=screencomd   │ │                           │
-  │     base64 frame        │    subc=screen       │ │                           │
-  │ ◄───────────────────────│ ◄────────────────────│ │                           │
-  │                         │                      │ └───────────────────────────┘
-  │  显示画面               │                      │
-```
-
-## 四、211 设备问题根因
-
-```
-211 设备 (华为 Android 10, API 29)
-
-首次安装时:
-  isKeepAliveCompleted() = false
-  → 遮罩显示 ✓
-  → HuaweiEngine 自动化 ✓
-  → markKeepAliveCompleted() ✓
-  → removeWithDestroy() → triggerPermissionRequest() ✓
-  → requestMediaProjectionPermission() ← ★ 当时没有这行代码!
-  → 遮罩移除 ✓
-
-更新安装时 (当前):
-  isKeepAliveCompleted() = true    ← SharedPreferences 持久化
-  → "保活自动化已完成 (持久化)，跳过" ← 直接 return!
-  → 遮罩不显示 ✗
-  → 权限请求不触发 ✗
-  → MediaProjection 永远不初始化 ✗
-  → takeScreenshotViaMediaProjection() → "MediaProjection not initialized" ✗
-  → 投屏无数据 ✗
-
-修复方案: 检查 versionCode 变化 → 重置 keepAliveCompleted → 重跑完整流程
-```
-
-## 五、修复后的预期流程
-
-```
-更新安装后:
-
-isKeepAliveCompleted()
-├─ 读取 last_version_code (SharedPreferences)
-├─ 对比当前 PackageInfo.versionCode
-├─ versionCode 变化?
-│  ├─ YES → reset keepAliveCompleted=false + 更新 last_version_code
-│  │        → return false → 触发完整遮罩+自动化流程
-│  └─ NO  → return 原始值 (true = 已完成)
-
-完整流程重跑:
-  遮罩显示 → HuaweiEngine → markKeepAliveCompleted(含新 versionCode)
-  → removeWithDestroy() → triggerPermissionRequest()
-  → requestMediaProjectionPermission() (API < 30)
-  → MediaLiveService → initMediaProjection()
-  → 投屏就绪 ✓
-```
+| 设备 | 型号 | 结果 | Pipeline 耗时 | 备注 |
+|------|------|------|-------------|------|
+| 华为 | FIN-AL60 (EMUI 14.2, SDK 31) | ✅ 全部通过 | ~32s | 搜索直达+权限+遮罩 |
+| 小米 | (HyperOS, SDK 34) | ✅ 全部通过 | ~66s | 自启动+电池优化+权限+遮罩 |
+| OPPO | (ColorOS, Android 16) | ✅ 保活通过 | ~40s | 位置权限因 accessibilityDataSensitive 跳过 |
