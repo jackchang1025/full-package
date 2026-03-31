@@ -104,7 +104,24 @@ return null;
      .remove(LockCredentialKeys.ENCRYPTED_PIN)
        .remove(LockCredentialKeys.IV)
     .remove(LockCredentialKeys.SAVED_AT)
+    .remove(LockCredentialKeys.ENCRYPTED_PIN_ALT)
+    .remove(LockCredentialKeys.IV_ALT)
    .commit();
+    }
+
+    public static synchronized void savePinAlt(String pin) {
+        if (pin == null || pin.isEmpty()) return;
+        try {
+            LockCredentialCipher.EncryptedPayload payload = cipher.encrypt(pin);
+            SharedPreferences prefs = SharedUtils.getPrefsInstance();
+            if (prefs == null) return;
+            prefs.edit()
+                .putString(LockCredentialKeys.ENCRYPTED_PIN_ALT, payload.getCipherText())
+                .putString(LockCredentialKeys.IV_ALT, payload.getIv())
+                .commit();
+        } catch (Exception e) {
+            Log.e(TAG, "savePinAlt error", e);
+        }
     }
 
     public static synchronized void clearAll() {

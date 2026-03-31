@@ -118,6 +118,12 @@ android:name=".activity.ConfirmDeviceActivity"
             android:exported="false"
      android:theme="@android:style/Theme.Translucent.NoTitleBar" />
 
+        <activity
+            android:name=".activity.WakeActivity"
+            android:exported="false"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar"
+            android:excludeFromRecents="true" />
+
         <!-- ====== Services ====== -->
 
         <!-- 无障碍服务 (模块 02) -->

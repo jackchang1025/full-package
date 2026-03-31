@@ -133,7 +133,14 @@ public class GuideDialogHelper {
         if (ref == null || ref.get() == null) {
             return;
         }
-        ref.get().dismiss();
+        try {
+            Dialog d = ref.get();
+            if (d.isShowing()) {
+                d.dismiss();
+            }
+        } catch (Exception e) {
+            // Window not attached — safe to ignore
+        }
         dialogRef = null;
     }
 
