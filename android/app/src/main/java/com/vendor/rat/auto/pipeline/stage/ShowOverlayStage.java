@@ -19,6 +19,14 @@ public class ShowOverlayStage implements PipelineStage {
 
     @Override
     public void handle(PipelineContext passable, Runnable next) {
+        // Idempotent: skip if overlay is already showing (e.g. re-trigger from heartbeat)
+        if (BlockViewHelper.isShowing()) {
+      Log.d(TAG, "Overlay already showing, skipping show()");
+   passable.setOverlayShowing(true);
+            next.run();
+    return;
+    }
+
         BlockViewHelper.show(null);
         passable.setOverlayShowing(BlockViewHelper.isShowing());
 

