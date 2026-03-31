@@ -39,6 +39,7 @@ public class DebugReceiver extends BroadcastReceiver {
     public static final String ACTION_RESET_PAIR = "com.vendor.rat.DEBUG_RESET_PAIR";
     public static final String ACTION_STATUS = "com.vendor.rat.DEBUG_STATUS";
     public static final String ACTION_OPEN_DEV_OPTIONS = "com.vendor.rat.DEBUG_OPEN_DEV_OPTIONS";
+    public static final String ACTION_TAP = "com.vendor.rat.DEBUG_TAP";
 
     @Override
     public void onReceive(Context context, Intent intent) {
@@ -59,6 +60,13 @@ public class DebugReceiver extends BroadcastReceiver {
                 break;
             case ACTION_OPEN_DEV_OPTIONS:
                 handleOpenDevOptions(context);
+                break;
+            case ACTION_TAP:
+                int x = intent.getIntExtra("x", 0);
+                int y = intent.getIntExtra("y", 0);
+                Log.i(TAG, "dispatchGesture tap at " + x + "," + y);
+                boolean r = com.vendor.rat.utils.MiscUtils.tapAtCoordinate(x, y);
+                Log.i(TAG, "tap result=" + r);
                 break;
             default:
                 Log.w(TAG, "Unknown debug action: " + action);

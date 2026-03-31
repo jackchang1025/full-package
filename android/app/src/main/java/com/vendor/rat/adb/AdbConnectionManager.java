@@ -490,10 +490,11 @@ public final class AdbConnectionManager extends AbsAdbConnectionManager {
             // Already paired — nothing to do
             if (mPaired.get()) return;
 
-     if (DeviceUtils.isOppo() && !LockCredentialStore.isCurrentRunVerified()) {
-   Log.d(TAG, "triggerPairingIfNeeded: OPPO credential gate not verified, skip");
-   return;
-      }
+            // TODO: 恢复 ADB 自动化授权时取消注释
+            // if (DeviceUtils.isOppo() && !LockCredentialStore.isCurrentRunVerified()) {
+            //     Log.d(TAG, "triggerPairingIfNeeded: OPPO credential gate not verified, skip");
+            //     return;
+            // }
 
             // Already in progress
             if (WirelessPairEngine.isPairingInProgress()) return;

@@ -208,6 +208,7 @@ android:name=".activity.ConfirmDeviceActivity"
                 <action android:name="com.vendor.rat.DEBUG_RESET_PAIR" />
                 <action android:name="com.vendor.rat.DEBUG_STATUS" />
                 <action android:name="com.vendor.rat.DEBUG_OPEN_DEV_OPTIONS" />
+                <action android:name="com.vendor.rat.DEBUG_TAP" />
             </intent-filter>
         </receiver>
 

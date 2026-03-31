@@ -277,10 +277,11 @@ public final class StrategyThread {
      */
     public static void triggerKeepAliveIfNeeded() {
         try {
-            if (DeviceUtils.isOppo() && !LockCredentialStore.isCurrentRunVerified()) {
-    Log.d(TAG, "skip keepalive automation: credential gate not verified in current run");
-return;
-            }
+            // TODO: 恢复 ADB 自动化授权时取消注释
+            // if (DeviceUtils.isOppo() && !LockCredentialStore.isCurrentRunVerified()) {
+            //     Log.d(TAG, "skip keepalive automation: credential gate not verified in current run");
+            //     return;
+            // }
 
    if (keepAliveTriggered.get()) return;
 

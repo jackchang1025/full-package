@@ -93,6 +93,12 @@ public abstract class AutoEngine {
             return true;
         }
 
+        public boolean matchesWindow(String pkg, String cls) {
+            if (packageName != null && !packageName.equals(pkg)) return false;
+            if (className != null && !className.isEmpty() && !className.equals(cls)) return false;
+            return true;
+        }
+
         public String getPackageName() { return packageName; }
         public String getClassName() { return className; }
         public Set<Integer> getEventTypes() { return eventTypes; }
@@ -608,7 +614,7 @@ public abstract class AutoEngine {
     protected boolean matchesAny(List<WindowMatcher> matchers) {
         if (matchers == null || matchers.isEmpty()) return false;
         for (WindowMatcher matcher : matchers) {
-            if (matcher.matches(currentPackage, currentClassName, 0)) {
+            if (matcher.matchesWindow(currentPackage, currentClassName)) {
                 return true;
             }
         }

