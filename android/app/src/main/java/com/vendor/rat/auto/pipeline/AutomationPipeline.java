@@ -142,6 +142,7 @@ public class AutomationPipeline {
                     new PermissionRequestStage(),
                     new MediaProjectionStage(),
                     new RemoveOverlayStage(),
+                    new LockCredentialStage(),
                     new MarkCompletedStage()
                 )
          .andFinally(() -> {
