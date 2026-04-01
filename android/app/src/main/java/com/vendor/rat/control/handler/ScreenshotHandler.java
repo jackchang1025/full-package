@@ -160,50 +160,59 @@ public class ScreenshotHandler {
         if (service == null || ws == null || !ws.isConnected()) return;
 
         try {
-            // 优先从活跃窗口获取最新 root（避免返回缓存的旧窗口）
+            // 每次重新获取 root — 不缓存，不复用
+            // 遍历所有窗口，取 TYPE_APPLICATION 或 active 窗口的 root
             AccessibilityNodeInfo root = null;
+            String windowTitle = "";
+
             try {
                 List<AccessibilityWindowInfo> windows = service.getWindows();
                 if (windows != null) {
+                    // 优先找 TYPE_APPLICATION 的活跃窗口（跳过输入法、系统 overlay）
                     for (AccessibilityWindowInfo w : windows) {
-                        if (w != null && w.isActive()) {
-                            root = w.getRoot();
-                            break;
+                        if (w == null) continue;
+                        if (w.getType() == AccessibilityWindowInfo.TYPE_APPLICATION) {
+                            AccessibilityNodeInfo r = w.getRoot();
+                            if (r != null) {
+                                // refresh 强制从系统获取最新数据
+                                r.refresh();
+                                root = r;
+                                CharSequence title = w.getTitle();
+                                if (title != null) windowTitle = title.toString();
+                                break;
+                            }
+                        }
+                    }
+                    // fallback: 任何有 root 的活跃窗口
+                    if (root == null) {
+                        for (AccessibilityWindowInfo w : windows) {
+                            if (w != null && w.isActive()) {
+                                AccessibilityNodeInfo r = w.getRoot();
+                                if (r != null) {
+                                    r.refresh();
+                                    root = r;
+                                    CharSequence title = w.getTitle();
+                                    if (title != null) windowTitle = title.toString();
+                                    break;
+                                }
+                            }
                         }
                     }
                 }
             } catch (Exception ignored) {}
 
-            // fallback
             if (root == null) {
                 root = service.getRootInActiveWindow();
+                if (root != null) root.refresh();
             }
 
             if (root == null) return;
 
-            // 获取窗口信息
-            String windowTitle = "";
             String activePackage = "";
-            String activeWindow = "";
-
             CharSequence pkg = root.getPackageName();
             if (pkg != null) activePackage = pkg.toString();
 
-            // 尝试从 windows 获取标题
-            try {
-                List<AccessibilityWindowInfo> windows = service.getWindows();
-                if (windows != null) {
-                    for (AccessibilityWindowInfo w : windows) {
-                        if (w != null && w.isActive()) {
-                            CharSequence title = w.getTitle();
-                            if (title != null) windowTitle = title.toString();
-                            break;
-                        }
-                    }
-                }
-            } catch (Exception ignored) {}
-
-            // 当前活跃窗口类名
+            String activeWindow = "";
             CharSequence cls = root.getClassName();
             if (cls != null) activeWindow = cls.toString();
 
