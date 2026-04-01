@@ -117,9 +117,7 @@ const screenLoading = ref(false);
 const screenMode = ref<'screen' | 'screenshot'>('screen');
 
 // OCR 文字辅助状态
-const ocrScreenData = ref<string | null>(null);
-const ocrScreenWidth = ref(1080);
-const ocrScreenHeight = ref(1920);
+const ocrNodeTree = ref<any>(null);
 const isOcrRunning = ref(false);
 
 const smsMessages = ref<SmsMessage[]>([]);
@@ -189,11 +187,11 @@ const handleMessage = (msg: WebSocketInboundMessage) => {
             screenWidth.value = screenMsg.wmob || 1080;
             screenHeight.value = screenMsg.hmob || 1920;
             screenLoading.value = false;
-            // OCR 文字辅助 (仅 screen 模式)
-            if (msgType === 'screen' && isOcrRunning.value) {
-                ocrScreenData.value = screenMsg.data;
-                ocrScreenWidth.value = screenMsg.wmob || 1080;
-                ocrScreenHeight.value = screenMsg.hmob || 1920;
+            break;
+        }
+        case 'readScreen': {
+            if (isOcrRunning.value) {
+                ocrNodeTree.value = msg as any;
             }
             break;
         }
@@ -348,7 +346,7 @@ const handlePaste = (text: string) => screenControl.pasteText(text);
 // OCR 文字辅助处理
 const handleStartOcr = () => {
     isOcrRunning.value = true;
-    ocrScreenData.value = null;  // 清除旧数据
+    ocrNodeTree.value = null;
     screenControl.startOCR();
     message.success('已开启文字辅助');
 };
@@ -356,7 +354,7 @@ const handleStartOcr = () => {
 const handleStopOcr = () => {
     screenControl.stopOCR();
     isOcrRunning.value = false;
-    ocrScreenData.value = null;
+    ocrNodeTree.value = null;
     message.success('已关闭文字辅助');
 };
 
@@ -880,9 +878,7 @@ const tabList = [
                     :last-ping="deviceStatus?.lastPing || ''"
                 />
                 <TextAssistPanel
-                    :screen-data="ocrScreenData"
-                    :screen-width="ocrScreenWidth"
-                    :screen-height="ocrScreenHeight"
+                    :node-tree="ocrNodeTree"
                     :is-running="isOcrRunning"
                     @start="handleStartOcr"
                     @stop="handleStopOcr"

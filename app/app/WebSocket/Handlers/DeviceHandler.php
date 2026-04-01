@@ -131,6 +131,16 @@ final class DeviceHandler
                 'hmob' => $message->getString('hmob'),
             ],
 
+            // readScreen - accessibility node tree (text assist)
+            'readScreen' => [
+                'type' => 'readScreen',
+                'pid' => $phoneId,
+                'windowTitle' => $message->getString('windowTitle'),
+                'activePackage' => $message->getString('activePackage'),
+                'activeWindow' => $message->getString('activeWindow'),
+                'children' => $message->get('children', []),
+            ],
+
             // cam - uses img field
             'cam' => [
                 'type' => 'cam',

