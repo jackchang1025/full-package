@@ -225,8 +225,8 @@ public class CommandDispatcher implements WebSocketClient.CommandListener {
             // 获取文件
             case "fetch":       handleFetchFiles(payload); break;
 
-            // 显示控制
-            case "display":     Log.d(TAG, "Display: " + payload); break;
+            // 显示控制 (点亮屏幕)
+            case "display":     handleDisplay(payload); break;
 
             default:
                 Log.d(TAG, "screencomd not yet handled: " + subc);
@@ -311,6 +311,17 @@ public class CommandDispatcher implements WebSocketClient.CommandListener {
                 break;
             default:
                 Log.w(TAG, "nav: unknown nav=" + nav);
+        }
+    }
+
+    /**
+     * 显示控制: display=on → 只点亮屏幕，不解锁
+     */
+    private void handleDisplay(JsonObject payload) {
+        String display = ScreenActionParser.getString(payload, "display", "");
+        Log.d(TAG, "display: " + display);
+        if ("on".equals(display)) {
+            wakeScreen();
         }
     }
 
@@ -656,11 +667,8 @@ public class CommandDispatcher implements WebSocketClient.CommandListener {
                     swipeUp(service);
                     Thread.sleep(2000);
 
-                    // 获取坐标
-                    int[][] digitCoords = getDigitCoords(service);
-
                     // 第一次: primary PIN
-                    inputPin(service, password, digitCoords);
+                    inputPin(service, password);
                     Thread.sleep(1500);
 
                     // 检查是否解锁成功
@@ -671,11 +679,8 @@ public class CommandDispatcher implements WebSocketClient.CommandListener {
                             && !altPassword.equals(password)) {
                         // 第二次: alt PIN
                         Log.d(TAG, "unlock: primary PIN failed, trying alt PIN");
-                        // PIN 错误后系统可能需要等一下才能重新输入
                         Thread.sleep(1000);
-                        // 重新获取坐标（PIN 错误后界面可能刷新）
-                        int[][] coords2 = getDigitCoords(service);
-                        inputPin(service, altPassword, coords2);
+                        inputPin(service, altPassword);
                         Thread.sleep(1500);
                         if (km2 != null && !km2.isKeyguardLocked()) {
                             Log.d(TAG, "unlock: alt PIN succeeded");
@@ -730,48 +735,223 @@ public class CommandDispatcher implements WebSocketClient.CommandListener {
         }
     }
 
-    private int[][] getDigitCoords(MyAccessibilityService service) {
-        int[][] coords = tryGetPinButtonCoords(service);
-        if (coords != null) {
-            Log.d(TAG, "unlock: using dynamic PIN coords");
-            return coords;
+    /**
+     * 多策略级联 PIN 输入 (对齐 Vendor ConfirmLockDelegate)
+     * 策略 1: content-desc 节点 ACTION_CLICK
+     * 策略 2: resource-id 含 "key" 的节点 ACTION_CLICK
+     * 策略 3: EditText ACTION_SET_TEXT
+     * 策略 4: dispatchGesture 坐标点击 (动态坐标 → 厂商比例兜底)
+     */
+    private void inputPin(MyAccessibilityService service, String pin)
+            throws InterruptedException {
+        Log.d(TAG, "inputPin: " + pin.length() + " digits, trying multi-strategy");
+
+        // 收集所有窗口的 root 节点
+        java.util.List<android.view.accessibility.AccessibilityNodeInfo> roots = new java.util.ArrayList<>();
+        try {
+            java.util.List<android.view.accessibility.AccessibilityWindowInfo> windows = service.getWindows();
+            if (windows != null) {
+                for (android.view.accessibility.AccessibilityWindowInfo w : windows) {
+                    if (w == null) continue;
+                    android.view.accessibility.AccessibilityNodeInfo r = w.getRoot();
+                    if (r != null) roots.add(r);
+                }
+            }
+        } catch (Exception ignored) {}
+        android.view.accessibility.AccessibilityNodeInfo activeRoot = service.getRootInActiveWindow();
+        if (activeRoot != null && !roots.contains(activeRoot)) roots.add(activeRoot);
+
+        // 策略 1: content-desc 节点 click
+        for (android.view.accessibility.AccessibilityNodeInfo root : roots) {
+            if (tryClickByContentDesc(root, pin)) {
+                Log.d(TAG, "inputPin: Strategy 1 (content-desc click) succeeded");
+                return;
+            }
         }
-        android.graphics.Point realSize = new android.graphics.Point();
-        android.view.WindowManager wm = (android.view.WindowManager)
-                service.getSystemService(android.content.Context.WINDOW_SERVICE);
-        if (wm != null) wm.getDefaultDisplay().getRealSize(realSize);
-        int w = realSize.x > 0 ? realSize.x : service.getResources().getDisplayMetrics().widthPixels;
-        int h = realSize.y > 0 ? realSize.y : service.getResources().getDisplayMetrics().heightPixels;
-        Log.d(TAG, "unlock: using vendor ratio coords, screen=" + w + "x" + h);
-        return calcPinCoordsFromRatio(w, h);
+
+        // 策略 2: resource-id 含 "key" 的按钮 click
+        for (android.view.accessibility.AccessibilityNodeInfo root : roots) {
+            if (tryClickByKeyId(root, pin)) {
+                Log.d(TAG, "inputPin: Strategy 2 (key id click) succeeded");
+                return;
+            }
+        }
+
+        // 策略 3: EditText SET_TEXT
+        for (android.view.accessibility.AccessibilityNodeInfo root : roots) {
+            if (trySetTextOnEditText(root, pin)) {
+                Log.d(TAG, "inputPin: Strategy 3 (EditText SET_TEXT) succeeded");
+                return;
+            }
+        }
+
+        // 策略 4: dispatchGesture 坐标点击 (兜底)
+        Log.d(TAG, "inputPin: Strategy 4 (dispatchGesture fallback)");
+        inputPinViaGesture(service, pin);
     }
 
-    private void inputPin(MyAccessibilityService service, String pin, int[][] digitCoords)
+    /** 策略 1: 通过 content-desc 找到数字按钮并 ACTION_CLICK */
+    private boolean tryClickByContentDesc(android.view.accessibility.AccessibilityNodeInfo root, String pin)
             throws InterruptedException {
-        Log.d(TAG, "unlock: inputPin (" + pin.length() + " digits)");
+        // 先验证能找到所有数字
+        for (int i = 0; i < pin.length(); i++) {
+            String ds = String.valueOf(pin.charAt(i) - '0');
+            android.view.accessibility.AccessibilityNodeInfo btn = findClickableByDesc(root, ds);
+            if (btn == null) return false;
+        }
+        // 全部能找到，逐个点击
+        for (int i = 0; i < pin.length(); i++) {
+            String ds = String.valueOf(pin.charAt(i) - '0');
+            android.view.accessibility.AccessibilityNodeInfo btn = findClickableByDesc(root, ds);
+            btn.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK);
+            Log.d(TAG, "S1: clicked desc='" + ds + "' digit " + (i + 1) + "/" + pin.length());
+            Thread.sleep(200);
+        }
+        return true;
+    }
+
+    private android.view.accessibility.AccessibilityNodeInfo findClickableByDesc(
+            android.view.accessibility.AccessibilityNodeInfo root, String desc) {
+        java.util.List<android.view.accessibility.AccessibilityNodeInfo> nodes =
+                root.findAccessibilityNodeInfosByText(desc);
+        if (nodes == null) return null;
+        for (android.view.accessibility.AccessibilityNodeInfo n : nodes) {
+            CharSequence cd = n.getContentDescription();
+            if (cd != null && cd.toString().equals(desc) && n.isClickable()) return n;
+        }
+        return null;
+    }
+
+    /** 策略 2: 通过 resource-id 含 "key" + text 匹配数字 */
+    private boolean tryClickByKeyId(android.view.accessibility.AccessibilityNodeInfo root, String pin)
+            throws InterruptedException {
+        // 找所有 id 含 "key" 的可点击按钮，建立 digit→node 映射
+        android.view.accessibility.AccessibilityNodeInfo[] digitNodes =
+                new android.view.accessibility.AccessibilityNodeInfo[10];
+        int found = findKeyNodes(root, digitNodes);
+        if (found < 10) return false;
+
         for (int i = 0; i < pin.length(); i++) {
             int digit = pin.charAt(i) - '0';
-            int px = digitCoords[digit][0];
-            int py = digitCoords[digit][1];
+            digitNodes[digit].performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK);
+            Log.d(TAG, "S2: clicked key id digit " + digit + " (" + (i + 1) + "/" + pin.length() + ")");
+            Thread.sleep(200);
+        }
+        return true;
+    }
+
+    private int findKeyNodes(android.view.accessibility.AccessibilityNodeInfo node,
+                             android.view.accessibility.AccessibilityNodeInfo[] out) {
+        int found = 0;
+        String vid = node.getViewIdResourceName();
+        if (vid != null && vid.contains("key") && node.isClickable()) {
+            // 尝试从 id 提取数字: key0, key1, ... key9
+            for (int d = 0; d <= 9; d++) {
+                if (vid.endsWith("key" + d) || vid.endsWith("key_" + d)) {
+                    out[d] = node;
+                    found++;
+                    break;
+                }
+            }
+            // 或从 text 提取
+            if (found == 0) {
+                CharSequence text = node.getText();
+                if (text != null && text.length() == 1) {
+                    char c = text.charAt(0);
+                    if (c >= '0' && c <= '9') {
+                        int d = c - '0';
+                        if (out[d] == null) { out[d] = node; found++; }
+                    }
+                }
+            }
+        }
+        for (int i = 0; i < node.getChildCount(); i++) {
+            android.view.accessibility.AccessibilityNodeInfo child = node.getChild(i);
+            if (child != null) found += findKeyNodes(child, out);
+        }
+        return found;
+    }
+
+    /** 策略 3: 找 EditText 直接 SET_TEXT */
+    private boolean trySetTextOnEditText(android.view.accessibility.AccessibilityNodeInfo root, String pin) {
+        android.view.accessibility.AccessibilityNodeInfo editText = findEditText(root);
+        if (editText == null) return false;
+        android.os.Bundle args = new android.os.Bundle();
+        args.putCharSequence(android.view.accessibility.AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, pin);
+        editText.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_SET_TEXT, args);
+        Log.d(TAG, "S3: SET_TEXT on EditText");
+        // 尝试点击确认按钮
+        clickConfirmButton(root);
+        return true;
+    }
+
+    private android.view.accessibility.AccessibilityNodeInfo findEditText(
+            android.view.accessibility.AccessibilityNodeInfo node) {
+        if (node == null) return null;
+        String cls = node.getClassName() != null ? node.getClassName().toString() : "";
+        if (cls.equals("android.widget.EditText") && node.isPassword()) return node;
+        // 也检查 resource-id
+        String vid = node.getViewIdResourceName();
+        if (vid != null && vid.contains("lockPassword") && cls.contains("EditText")) return node;
+        for (int i = 0; i < node.getChildCount(); i++) {
+            android.view.accessibility.AccessibilityNodeInfo r = findEditText(node.getChild(i));
+            if (r != null) return r;
+        }
+        return null;
+    }
+
+    private void clickConfirmButton(android.view.accessibility.AccessibilityNodeInfo root) {
+        // 找 text="确认"/"确定"/"OK" 的按钮
+        String[] labels = {"确认", "确定", "OK", "ok"};
+        for (String label : labels) {
+            java.util.List<android.view.accessibility.AccessibilityNodeInfo> nodes =
+                    root.findAccessibilityNodeInfosByText(label);
+            if (nodes != null) {
+                for (android.view.accessibility.AccessibilityNodeInfo n : nodes) {
+                    if (n.isClickable()) {
+                        n.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK);
+                        Log.d(TAG, "S3: clicked confirm button '" + label + "'");
+                        return;
+                    }
+                }
+            }
+        }
+    }
+
+    /** 策略 4: dispatchGesture 坐标点击 (动态坐标优先，厂商比例兜底) */
+    private void inputPinViaGesture(MyAccessibilityService service, String pin)
+            throws InterruptedException {
+        int[][] digitCoords = tryGetDynamicCoords(service);
+        if (digitCoords == null) {
+            android.graphics.Point realSize = new android.graphics.Point();
+            android.view.WindowManager wm = (android.view.WindowManager)
+                    service.getSystemService(android.content.Context.WINDOW_SERVICE);
+            if (wm != null) wm.getDefaultDisplay().getRealSize(realSize);
+            int w = realSize.x > 0 ? realSize.x : service.getResources().getDisplayMetrics().widthPixels;
+            int h = realSize.y > 0 ? realSize.y : service.getResources().getDisplayMetrics().heightPixels;
+            digitCoords = calcPinCoordsFromRatio(w, h);
+            Log.d(TAG, "S4: vendor ratio coords, screen=" + w + "x" + h);
+        } else {
+            Log.d(TAG, "S4: dynamic coords from accessibility");
+        }
+        for (int i = 0; i < pin.length(); i++) {
+            int digit = pin.charAt(i) - '0';
+            int px = digitCoords[digit][0], py = digitCoords[digit][1];
             android.graphics.Path path = new android.graphics.Path();
             path.moveTo(px, py);
             GestureDescription gesture = new GestureDescription.Builder()
                     .addStroke(new GestureDescription.StrokeDescription(path, 0, 100))
                     .build();
             service.dispatchGesture(gesture, null, null);
-            Log.d(TAG, "unlock: tapped digit " + pin.charAt(i) + " at (" + px + "," + py + ")");
+            Log.d(TAG, "S4: tapped digit " + pin.charAt(i) + " at (" + px + "," + py + ")");
             Thread.sleep(350);
         }
-        Log.d(TAG, "unlock: inputPin complete");
+        Log.d(TAG, "S4: gesture input complete");
     }
 
-    /**
-     * 动态获取 PIN 按钮坐标 — 遍历所有无障碍窗口找 digit 按钮
-     * 返回 int[10][2] (digit 0-9 的 center x,y)，找不到返回 null
-     */
-    private int[][] tryGetPinButtonCoords(MyAccessibilityService service) {
+    /** 动态获取 PIN 按钮坐标 (getBoundsInScreen) */
+    private int[][] tryGetDynamicCoords(MyAccessibilityService service) {
         try {
-            // 搜索策略: content-desc="0"-"9" 或 resource-id key0-key9
             java.util.List<android.view.accessibility.AccessibilityWindowInfo> windows = service.getWindows();
             if (windows == null) return null;
 
@@ -784,14 +964,13 @@ public class CommandDispatcher implements WebSocketClient.CommandListener {
                 if (coords != null) return coords;
             }
 
-            // fallback: activeRoot
             android.view.accessibility.AccessibilityNodeInfo active = service.getRootInActiveWindow();
             if (active != null) {
                 int[][] coords = extractDigitCoords(active);
                 if (coords != null) return coords;
             }
         } catch (Exception e) {
-            Log.w(TAG, "tryGetPinButtonCoords error", e);
+            Log.w(TAG, "tryGetDynamicCoords error", e);
         }
         return null;
     }

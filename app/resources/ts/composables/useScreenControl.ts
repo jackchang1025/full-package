@@ -183,6 +183,13 @@ export function useScreenControl(
         });
     };
 
+    const wakeScreen = () => {
+        return sendDataRequest({
+            subc: 'display',
+            display: 'on',
+        });
+    };
+
     const takeScreenshot = () => {
         return sendDataRequest({
             subc: 'screen',
@@ -209,6 +216,7 @@ export function useScreenControl(
         pasteText,
         setScreenQuality,
         lockDevice,
+        wakeScreen,
         takeScreenshot,
     };
 }

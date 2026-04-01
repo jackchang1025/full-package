@@ -376,7 +376,7 @@ const handleScreenshot = () => screenControl.takeScreenshot();
 const handleQualityChange = (quality: number) => screenControl.setScreenQuality(quality);
 
 const handleWakeScreen = () => {
-    screenControl.lockDevice(0);  // 0 = 解锁，会唤醒屏幕
+    screenControl.wakeScreen();
     message.success('点亮屏幕请求已发送');
 };
 
