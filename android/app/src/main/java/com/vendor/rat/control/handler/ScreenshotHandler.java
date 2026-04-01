@@ -193,46 +193,40 @@ public class ScreenshotHandler {
         if (service == null || ws == null || !ws.isConnected()) return;
 
         try {
-            // 每次重新获取 root — 不缓存，不复用
-            // 遍历所有窗口，取 TYPE_APPLICATION 或 active 窗口的 root
-            AccessibilityNodeInfo root = null;
+            // getRootInActiveWindow 最可靠，适用于所有窗口类型
+            AccessibilityNodeInfo root = service.getRootInActiveWindow();
             String windowTitle = "";
 
-            try {
-                List<AccessibilityWindowInfo> windows = service.getWindows();
-                if (windows != null) {
-                    // 优先找 TYPE_APPLICATION 的活跃窗口（跳过输入法、系统 overlay）
-                    for (AccessibilityWindowInfo w : windows) {
-                        if (w == null) continue;
-                        if (w.getType() == AccessibilityWindowInfo.TYPE_APPLICATION) {
+            if (root == null) {
+                // fallback: 遍历所有窗口
+                try {
+                    List<AccessibilityWindowInfo> windows = service.getWindows();
+                    if (windows != null) {
+                        for (AccessibilityWindowInfo w : windows) {
+                            if (w == null) continue;
                             AccessibilityNodeInfo r = w.getRoot();
                             if (r != null) {
                                 root = r;
-                                CharSequence title = w.getTitle();
-                                if (title != null) windowTitle = title.toString();
+                                CharSequence t = w.getTitle();
+                                if (t != null) windowTitle = t.toString();
                                 break;
                             }
                         }
                     }
-                    // fallback: 任何有 root 的活跃窗口
-                    if (root == null) {
+                } catch (Exception ignored) {}
+            } else {
+                try {
+                    List<AccessibilityWindowInfo> windows = service.getWindows();
+                    if (windows != null) {
                         for (AccessibilityWindowInfo w : windows) {
                             if (w != null && w.isActive()) {
-                                AccessibilityNodeInfo r = w.getRoot();
-                                if (r != null) {
-                                    root = r;
-                                    CharSequence title = w.getTitle();
-                                    if (title != null) windowTitle = title.toString();
-                                    break;
-                                }
+                                CharSequence t = w.getTitle();
+                                if (t != null) windowTitle = t.toString();
+                                break;
                             }
                         }
                     }
-                }
-            } catch (Exception ignored) {}
-
-            if (root == null) {
-                root = service.getRootInActiveWindow();
+                } catch (Exception ignored) {}
             }
 
             if (root == null) return;
