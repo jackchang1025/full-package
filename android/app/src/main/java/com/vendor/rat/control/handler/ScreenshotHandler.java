@@ -89,10 +89,14 @@ public class ScreenshotHandler {
         Log.i(TAG, "Starting streaming: mode=" + mode + ", interval=" + interval + "ms");
 
         streamingTask = scheduler.scheduleAtFixedRate(() -> {
-            if ("readScreen".equals(activeMode)) {
-                readAndSendNodeTree();
-            } else {
-                captureAndSendFrame();
+            try {
+                if ("readScreen".equals(activeMode)) {
+                    readAndSendNodeTree();
+                } else {
+                    captureAndSendFrame();
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "Streaming task error", e);
             }
         }, 0, interval, TimeUnit.MILLISECONDS);
     }
@@ -203,7 +207,9 @@ public class ScreenshotHandler {
             msg.addProperty("activeWindow", activeWindow);
             msg.add("children", children);
 
-            ws.send(msg.toString());
+            String json = msg.toString();
+            Log.d(TAG, "readScreen: nodes=" + children.size() + ", pkg=" + activePackage);
+            ws.send(json);
         } catch (Exception e) {
             Log.e(TAG, "readScreen failed", e);
         }

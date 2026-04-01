@@ -138,7 +138,7 @@ final class DeviceHandler
                 'windowTitle' => $message->getString('windowTitle'),
                 'activePackage' => $message->getString('activePackage'),
                 'activeWindow' => $message->getString('activeWindow'),
-                'children' => $message->get('children', []),
+                'children' => $message->get('children') ?? [],
             ],
 
             // cam - uses img field
