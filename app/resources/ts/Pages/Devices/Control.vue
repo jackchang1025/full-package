@@ -184,8 +184,8 @@ const handleMessage = (msg: WebSocketInboundMessage) => {
         case 'screenshot': {
             const screenMsg = msg as ScreenDataMessage;
             screenData.value = screenMsg.data;
-            screenWidth.value = screenMsg.wmob || 1080;
-            screenHeight.value = screenMsg.hmob || 1920;
+            screenWidth.value = Number(screenMsg.wmob) || 1080;
+            screenHeight.value = Number(screenMsg.hmob) || 1920;
             screenLoading.value = false;
             break;
         }
