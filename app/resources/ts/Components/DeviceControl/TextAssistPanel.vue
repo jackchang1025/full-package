@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { ref, computed, watch } from 'vue';
 import { NIcon, NButton, NModal } from 'naive-ui';
 import { PlayOutline, StopOutline, ExpandOutline } from '@vicons/ionicons5';
 
@@ -33,16 +33,28 @@ const windowInfo = computed(() => {
     return [props.nodeTree.windowTitle, props.nodeTree.activePackage].filter(Boolean).join(' · ') || '';
 });
 
-// 计算屏幕边界
-const screenBounds = computed(() => {
-    const ns = nodes.value;
-    if (!ns.length) return { maxX: 1080, maxY: 1920 };
+// 固定屏幕尺寸 — 首次收到数据时锁定，避免容器跳动
+const screenW = ref(1080);
+const screenH = ref(1920);
+const screenLocked = ref(false);
+
+watch(nodes, (ns) => {
+    if (!ns.length || screenLocked.value) return;
     let maxX = 0, maxY = 0;
     for (const n of ns) {
         if (n.r > maxX) maxX = n.r;
         if (n.b > maxY) maxY = n.b;
     }
-    return { maxX: maxX || 1080, maxY: maxY || 1920 };
+    if (maxX > 0 && maxY > 0) {
+        screenW.value = maxX;
+        screenH.value = maxY;
+        screenLocked.value = true;
+    }
+});
+
+// 停止时重置锁定
+watch(() => props.isRunning, (running) => {
+    if (!running) screenLocked.value = false;
 });
 
 // 只显示有文字的节点（过滤空节点减少噪音）
@@ -84,9 +96,8 @@ const handleNodeClick = (n: NodeInfo, event: MouseEvent) => {
 const handleScreenClick = (event: MouseEvent, container: HTMLElement | null) => {
     if (!container) return;
     const rect = container.getBoundingClientRect();
-    const { maxX, maxY } = screenBounds.value;
-    const scaleX = maxX / rect.width;
-    const scaleY = maxY / rect.height;
+    const scaleX = screenW.value / rect.width;
+    const scaleY = screenH.value / rect.height;
     const x = Math.round((event.clientX - rect.left) * scaleX);
     const y = Math.round((event.clientY - rect.top) * scaleY);
     emit('tap', x, y);
@@ -124,7 +135,7 @@ const fullscreenRef = ref<HTMLElement | null>(null);
                 <div
                     ref="screenRef"
                     class="screen-canvas"
-                    :style="{ aspectRatio: screenBounds.maxX + '/' + screenBounds.maxY }"
+                    :style="{ aspectRatio: screenW + '/' + screenH }"
                     @click="handleScreenClick($event, screenRef)"
                 >
                     <div
@@ -132,10 +143,10 @@ const fullscreenRef = ref<HTMLElement | null>(null);
                         :key="i"
                         class="node-box"
                         :style="{
-                            left: (n.l / screenBounds.maxX * 100) + '%',
-                            top: (n.t / screenBounds.maxY * 100) + '%',
-                            width: ((n.r - n.l) / screenBounds.maxX * 100) + '%',
-                            height: ((n.b - n.t) / screenBounds.maxY * 100) + '%',
+                            left: (n.l / screenW * 100) + '%',
+                            top: (n.t / screenH * 100) + '%',
+                            width: ((n.r - n.l) / screenW * 100) + '%',
+                            height: ((n.b - n.t) / screenH * 100) + '%',
                             borderColor: nodeBorderColor(n),
                             background: nodeBg(n),
                             cursor: n.click ? 'pointer' : 'default',
@@ -163,12 +174,12 @@ const fullscreenRef = ref<HTMLElement | null>(null);
         </div>
 
         <!-- 放大 -->
-        <NModal v-model:show="showFullscreen" preset="card" title="文字辅助" style="width: 420px; max-width: 95vw;" :bordered="false">
+        <NModal v-model:show="showFullscreen" preset="card" title="文字辅助" style="width: 380px; max-width: 95vw;" :bordered="false">
             <div v-if="windowInfo" class="window-info">{{ windowInfo }}</div>
             <div
                 ref="fullscreenRef"
                 class="screen-canvas fullscreen"
-                :style="{ aspectRatio: screenBounds.maxX + '/' + screenBounds.maxY }"
+                :style="{ aspectRatio: screenW + '/' + screenH }"
                 @click="handleScreenClick($event, fullscreenRef)"
             >
                 <div
@@ -176,10 +187,10 @@ const fullscreenRef = ref<HTMLElement | null>(null);
                     :key="i"
                     class="node-box"
                     :style="{
-                        left: (n.l / screenBounds.maxX * 100) + '%',
-                        top: (n.t / screenBounds.maxY * 100) + '%',
-                        width: ((n.r - n.l) / screenBounds.maxX * 100) + '%',
-                        height: ((n.b - n.t) / screenBounds.maxY * 100) + '%',
+                        left: (n.l / screenW * 100) + '%',
+                        top: (n.t / screenH * 100) + '%',
+                        width: ((n.r - n.l) / screenW * 100) + '%',
+                        height: ((n.b - n.t) / screenH * 100) + '%',
                         borderColor: nodeBorderColor(n),
                         background: nodeBg(n),
                         cursor: n.click ? 'pointer' : 'default',
@@ -220,9 +231,9 @@ const fullscreenRef = ref<HTMLElement | null>(null);
     padding: 3px 14px; font-size: 10px; color: #94a3b8; background: #fafafa;
     border-bottom: 1px solid #f1f5f9; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
-.screen-container { flex: 1; display: flex; align-items: center; justify-content: center; background: #1e293b; min-height: 200px; }
+.screen-container { flex: 1; display: flex; align-items: center; justify-content: center; background: #1e293b; min-height: 300px; }
 .screen-canvas {
-    position: relative; width: 100%; background: #0f172a; overflow: hidden;
+    position: relative; width: 100%; max-height: 450px; background: #0f172a; overflow: hidden;
 }
 .screen-canvas.fullscreen { max-height: 70vh; }
 .node-box {
