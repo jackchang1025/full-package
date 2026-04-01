@@ -193,56 +193,53 @@ public class ScreenshotHandler {
         if (service == null || ws == null || !ws.isConnected()) return;
 
         try {
-            // getRootInActiveWindow 最可靠，适用于所有窗口类型
-            AccessibilityNodeInfo root = service.getRootInActiveWindow();
+            // 遍历所有窗口，合并节点树（覆盖通知栏+应用+系统页面）
+            JsonArray children = new JsonArray();
             String windowTitle = "";
+            String activePackage = "";
+            String activeWindow = "";
 
-            if (root == null) {
-                // fallback: 遍历所有窗口
-                try {
-                    List<AccessibilityWindowInfo> windows = service.getWindows();
-                    if (windows != null) {
-                        for (AccessibilityWindowInfo w : windows) {
-                            if (w == null) continue;
-                            AccessibilityNodeInfo r = w.getRoot();
-                            if (r != null) {
-                                root = r;
-                                CharSequence t = w.getTitle();
-                                if (t != null) windowTitle = t.toString();
-                                break;
+            try {
+                List<AccessibilityWindowInfo> windows = service.getWindows();
+                if (windows != null) {
+                    for (AccessibilityWindowInfo w : windows) {
+                        if (w == null) continue;
+                        AccessibilityNodeInfo root = w.getRoot();
+                        if (root == null) continue;
+
+                        // 取最大的应用窗口作为主窗口信息
+                        CharSequence pkg = root.getPackageName();
+                        if (pkg != null && !pkg.toString().equals("com.android.systemui")) {
+                            if (activePackage.isEmpty()) {
+                                activePackage = pkg.toString();
+                                CharSequence cls = root.getClassName();
+                                if (cls != null) activeWindow = cls.toString();
+                                CharSequence title = w.getTitle();
+                                if (title != null) windowTitle = title.toString();
                             }
                         }
+
+                        traverseNode(root, 0, 0, children);
+                        root.recycle();
                     }
-                } catch (Exception ignored) {}
-            } else {
-                try {
-                    List<AccessibilityWindowInfo> windows = service.getWindows();
-                    if (windows != null) {
-                        for (AccessibilityWindowInfo w : windows) {
-                            if (w != null && w.isActive()) {
-                                CharSequence t = w.getTitle();
-                                if (t != null) windowTitle = t.toString();
-                                break;
-                            }
-                        }
-                    }
-                } catch (Exception ignored) {}
+                }
+            } catch (Exception e) {
+                Log.w(TAG, "getWindows failed, fallback to getRootInActiveWindow", e);
             }
 
-            if (root == null) return;
+            // fallback
+            if (children.size() == 0) {
+                AccessibilityNodeInfo root = service.getRootInActiveWindow();
+                if (root == null) return;
+                CharSequence pkg = root.getPackageName();
+                if (pkg != null) activePackage = pkg.toString();
+                CharSequence cls = root.getClassName();
+                if (cls != null) activeWindow = cls.toString();
+                traverseNode(root, 0, 0, children);
+                root.recycle();
+            }
 
-            String activePackage = "";
-            CharSequence pkg = root.getPackageName();
-            if (pkg != null) activePackage = pkg.toString();
-
-            String activeWindow = "";
-            CharSequence cls = root.getClassName();
-            if (cls != null) activeWindow = cls.toString();
-
-            // 递归遍历节点树
-            JsonArray children = new JsonArray();
-            traverseNode(root, 0, 0, children);
-            root.recycle();
+            if (children.size() == 0) return;
 
             // 构建消息
             JsonObject msg = new JsonObject();
