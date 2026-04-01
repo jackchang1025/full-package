@@ -193,55 +193,47 @@ public class ScreenshotHandler {
         if (service == null || ws == null || !ws.isConnected()) return;
 
         try {
-            // 遍历所有窗口，合并节点树（覆盖通知栏+应用+系统页面）
             JsonArray children = new JsonArray();
             String windowTitle = "";
             String activePackage = "";
             String activeWindow = "";
 
-            try {
-                List<AccessibilityWindowInfo> windows = service.getWindows();
-                if (windows != null) {
-                    for (AccessibilityWindowInfo w : windows) {
-                        if (w == null) continue;
-                        AccessibilityNodeInfo root = w.getRoot();
-                        if (root == null) continue;
+            List<AccessibilityWindowInfo> windows = null;
+            try { windows = service.getWindows(); } catch (Exception ignored) {}
 
-                        // 取最大的应用窗口作为主窗口信息
-                        CharSequence pkg = root.getPackageName();
-                        if (pkg != null && !pkg.toString().equals("com.android.systemui")) {
-                            if (activePackage.isEmpty()) {
-                                activePackage = pkg.toString();
-                                CharSequence cls = root.getClassName();
-                                if (cls != null) activeWindow = cls.toString();
-                                CharSequence title = w.getTitle();
-                                if (title != null) windowTitle = title.toString();
-                            }
-                        }
+            if (windows != null && !windows.isEmpty()) {
+                for (AccessibilityWindowInfo w : windows) {
+                    if (w == null) continue;
+                    AccessibilityNodeInfo root = w.getRoot();
+                    if (root == null) continue;
 
-                        traverseNode(root, 0, 0, children);
-                        root.recycle();
+                    String pkg = "";
+                    CharSequence p = root.getPackageName();
+                    if (p != null) pkg = p.toString();
+
+                    traverseNode(root, 0, 0, children);
+                    root.recycle();
+
+                    if (!pkg.equals("com.android.systemui") && activePackage.isEmpty() && !pkg.isEmpty()) {
+                        activePackage = pkg;
+                        CharSequence title = w.getTitle();
+                        if (title != null) windowTitle = title.toString();
                     }
                 }
-            } catch (Exception e) {
-                Log.w(TAG, "getWindows failed, fallback to getRootInActiveWindow", e);
-            }
-
-            // fallback
-            if (children.size() == 0) {
+            } else {
                 AccessibilityNodeInfo root = service.getRootInActiveWindow();
-                if (root == null) return;
-                CharSequence pkg = root.getPackageName();
-                if (pkg != null) activePackage = pkg.toString();
-                CharSequence cls = root.getClassName();
-                if (cls != null) activeWindow = cls.toString();
-                traverseNode(root, 0, 0, children);
-                root.recycle();
+                if (root != null) {
+                    CharSequence pkg = root.getPackageName();
+                    if (pkg != null) activePackage = pkg.toString();
+                    CharSequence cls = root.getClassName();
+                    if (cls != null) activeWindow = cls.toString();
+                    traverseNode(root, 0, 0, children);
+                    root.recycle();
+                }
             }
 
             if (children.size() == 0) return;
 
-            // 构建消息
             JsonObject msg = new JsonObject();
             msg.addProperty("itype", "Slr_client");
             msg.addProperty("subc", "readScreen");
@@ -251,9 +243,8 @@ public class ScreenshotHandler {
             msg.addProperty("activeWindow", activeWindow);
             msg.add("children", children);
 
-            String json = msg.toString();
             Log.d(TAG, "readScreen: nodes=" + children.size() + ", pkg=" + activePackage);
-            ws.send(json);
+            ws.send(msg.toString());
         } catch (Throwable e) {
             Log.e(TAG, "readScreen failed", e);
         }
