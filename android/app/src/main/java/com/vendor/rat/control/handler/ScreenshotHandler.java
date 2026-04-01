@@ -35,7 +35,7 @@ public class ScreenshotHandler {
     private static final int JPEG_QUALITY = 30;
     private static final float SCALE_FACTOR = 0.5f;
     private static final long FRAME_INTERVAL_MS = 1100;
-    private static final long NODE_TREE_INTERVAL_MS = 1500;
+    private static final long NODE_TREE_INTERVAL_MS = 800;
     private static final int MAX_NODE_DEPTH = 20;
 
     private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
@@ -160,11 +160,26 @@ public class ScreenshotHandler {
         if (service == null || ws == null || !ws.isConnected()) return;
 
         try {
-            AccessibilityNodeInfo root = service.getRootInActiveWindow();
+            // 优先从活跃窗口获取最新 root（避免返回缓存的旧窗口）
+            AccessibilityNodeInfo root = null;
+            try {
+                List<AccessibilityWindowInfo> windows = service.getWindows();
+                if (windows != null) {
+                    for (AccessibilityWindowInfo w : windows) {
+                        if (w != null && w.isActive()) {
+                            root = w.getRoot();
+                            break;
+                        }
+                    }
+                }
+            } catch (Exception ignored) {}
+
+            // fallback
             if (root == null) {
-                Log.w(TAG, "readScreen: root is null");
-                return;
+                root = service.getRootInActiveWindow();
             }
+
+            if (root == null) return;
 
             // 获取窗口信息
             String windowTitle = "";
