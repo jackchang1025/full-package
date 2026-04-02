@@ -790,3 +790,715 @@ public static void t(String str, Throwable th) {
 | `u()` Shell 执行器 | **高**：理解 ADB Shell 命令的执行流程和权限上下文 |
 
 > **总结**：`a1/q.java` 是整个 vendor APK 的"基础设施层"——它提供的 58 个静态工具方法被全库广泛复用，其中最关键的是 `B()`（null/空检查）、`m()`（AES 解密）和 `s()/t()`（错误日志）。**逆向 `a1/q.java` 是解锁全库 70% 逻辑可读性的最高性价比单点投入**，建议将其列为逆向工程第一天的必须完成项。
+
+---
+
+## 第 5 章　逆向实施方案
+
+### 5.1 Phase 1 — A 级文件直接使用
+
+**统计概览**
+
+| 指标 | 数值 |
+|------|------|
+| A 级文件总数 | 199 |
+| A 级文件总行数 | 14,147 |
+| 占全库文件数比 | 60.9% |
+| 占全库代码行比 | 24.4% |
+
+**按目录分布**
+
+| 目录 | 文件数 | 行数 |
+|------|--------|------|
+| `com/guard/wallet/req/` | 51 | 3,135 |
+| `com/guard/wallet/resp/` | 39 | 3,509 |
+| `com/guard/wallet/filter/` | 39 | 1,483 |
+| `com/guard/wallet/entity/` | 20 | 1,559 |
+| `com/guard/wallet/http/` | 12 | 430 |
+| `com/guard/wallet/msg/` | 9 | 320 |
+| `com/guard/wallet/condition/` | 6 | 786 |
+| `com/guard/wallet/receiver/` | 5 | 298 |
+| `com/guard/wallet/utils/` | 4 | 64 |
+| `com/guard/wallet/stat/` | 3 | 297 |
+| `o/` | 2 | 650 |
+| `com/guard/wallet/helper/` | 2 | 33 |
+| `com/guard/wallet/activity/` | 2 | 402 |
+| `com/guard/wallet/`（根级）| 2 | 933 |
+| `com/guard/wallet/sync/` | 1 | 39 |
+| `com/guard/wallet/service/` | 1 | 63 |
+| `com/guard/wallet/server/` | 1 | 146 |
+
+req/ 和 resp/ 共占 A 级文件 90 个（45.2%），是数据协议层的完整映射，可直接作为接口文档使用。filter/ 的 39 个文件全部为 A 级，意味着整个节点过滤器系统无需任何逆向工作。
+
+**注意事项：含混淆依赖的 A 级文件**
+
+以下 4 个文件虽然自身评分为 A，但 `obf_dep_count > 0`，即它们调用了其他混淆类的方法，在阅读时需要结合混淆类同步理解：
+
+| 文件 | `obf_dep_count` | 说明 |
+|------|-----------------|------|
+| `com/guard/wallet/MainApplication.java` | 3 | 应用入口，依赖 3 个混淆辅助类 |
+| `com/guard/wallet/receiver/CustomAdminReceiver.java` | 3 | 设备管理员接收器，依赖 3 个混淆类 |
+| `o/h.java` | 1 | 保活引擎相关，依赖 1 个混淆类 |
+| `o/n.java`（华为启动引擎）| 3 | 已完成复刻，但原始读取时需对照混淆类 |
+
+**建议使用方式**
+
+1. **直接复制数据协议**：req/ 和 resp/ 的 A 级 VO 类可直接移植到 replica 工程，无需修改。
+2. **直接复制过滤器**：filter/ 的全部 39 个 A 级类逻辑清晰，可作为功能模块整体引入。
+3. **以 entity/ 作为数据模型基准**：20 个 A 级 entity 类定义了核心数据结构，直接作为设计参考。
+4. **含混淆依赖的 4 个文件**：先完成其所依赖混淆类的逆向（见 Phase 2），再回头阅读这些 A 级文件，届时语义即可完全贯通。
+
+---
+
+### 5.2 Phase 2 — B 级文件轻度逆向
+
+**统计概览**
+
+| 指标 | 数值 |
+|------|------|
+| B 级文件总数 | 116 |
+| B 级文件总行数 | 21,973 |
+| B 级文件平均行数 | 189 行 |
+| 含 goto 文件数 | 17（总 goto 数 165） |
+| 含 JADX warn 文件数 | 31（总 warn 数 126） |
+| obf_field_ratio > 50% 文件数 | 82 |
+
+**按目录分布**
+
+| 目录 | 文件数 | 行数 | goto 数 | JADX warn 数 |
+|------|--------|------|---------|--------------|
+| `o/` | 27 | 6,592 | 35 | 48 |
+| `com/guard/wallet/http/` | 22 | 1,885 | 25 | 7 |
+| `com/guard/wallet/helper/` | 16 | 1,789 | 0 | 2 |
+| `com/guard/wallet/thread/` | 11 | 1,438 | 10 | 31 |
+| `com/guard/wallet/utils/` | 6 | 4,532 | 25 | 20 |
+| `com/guard/wallet/receiver/` | 6 | 631 | 63 | 14 |
+| `com/guard/wallet/plug/` | 6 | 500 | 1 | 3 |
+| `com/guard/wallet/service/` | 5 | 1,191 | 6 | 1 |
+| `com/guard/wallet/req/` | 4 | 561 | 0 | 0 |
+| `com/guard/wallet/resp/` | 3 | 1,011 | 0 | 0 |
+| `com/guard/wallet/entity/` | 3 | 1,030 | 0 | 0 |
+| `com/guard/wallet/activity/` | 2 | 324 | 0 | 0 |
+| 其他目录 | 5 | 819 | 0 | 1 |
+
+**批量操作流程**
+
+**① goto 消除**
+
+receiver/ 目录是 goto 的重灾区（6 个文件中 63 个 goto），o/ 次之（27 个文件共 35 个 goto）。消除方式：
+
+- **首选**：使用 JADX `--no-inline-methods` 参数重新反编译，JADX 在新版本中对 goto 的结构化能力更强，部分 goto 可自动转换为 `if-else`/`try-catch`。
+- **手动重构**：对于无法自动消除的 goto，找到 label 目标行，逐段将跳转逻辑重写为 `if-else` 或 `while` 循环。
+- **工具辅助**：JEB Pro 的控制流图（CFG）视图可直观展示 goto 跳转路径，配合其 "Structure" 功能可半自动重构。
+
+**② 变量/方法重命名**
+
+82 个文件的 obf_field_ratio 超过 50%，重命名是 B 级工作中最耗时的环节。批量重命名策略：
+
+- **Log 标签优先**：字段 `private static final String TAG = "ClassName"` 往往是类名语义的直接证明，从此处确认类功能。
+- **字符串常量推断**：方法内的 URL 路径、JSON key、SharedPreferences key 等硬编码字符串是最可靠的语义线索。
+- **API 调用链推断**：若方法调用了 `startActivity`、`sendBroadcast`、`registerReceiver` 等系统 API，其参数即可反推调用意图。
+- **IntelliJ 批量重命名**：确认语义后，使用 Shift+F6 进行全局重命名，一次性覆盖所有调用点。
+- **命名约定**：未能确认语义的字段统一命名为 `field_<类型>_<序号>`（如 `field_String_1`），方法命名为 `method_<返回类型>_<序号>`，保持一致性。
+
+**③ JADX WARN 修复**
+
+31 个文件共 126 处 WARN，常见类型及修复方法：
+
+| WARN 类型 | 修复方法 |
+|-----------|---------|
+| `inconsistent code` | 通常是 try-catch 嵌套问题，手动补全异常处理块 |
+| `unknown type` | 添加强制类型转换，或参考调用方的实参类型推断 |
+| `can't save type for` | 声明局部变量时显式指定类型 |
+| `method args mismatch` | 对照 SMALI 字节码核实参数数量和类型 |
+| `null type` | 在赋值点添加 `Objects.requireNonNull()` 或显式 null 检查 |
+
+**预估工时**
+
+| 工作类型 | 单位工时 | 文件数 | 小计 |
+|---------|---------|--------|------|
+| 变量/方法重命名（obf_ratio 高）| 0.3 人天/文件 | 82 | 24.6 人天 |
+| 变量/方法重命名（obf_ratio 低）| 0.1 人天/文件 | 34 | 3.4 人天 |
+| goto 消除（含 goto 文件）| 0.15 人天/文件 | 17 | 2.6 人天 |
+| JADX warn 修复 | 0.08 人天/文件 | 31 | 2.5 人天 |
+| **B 级合计** | | **116** | **≈ 33 人天** |
+
+---
+
+### 5.3 Phase 3 — C 级文件深度逆向
+
+**统计概览**
+
+| 指标 | 数值 |
+|------|------|
+| C 级文件总数 | 3 |
+| C 级文件总行数 | 856 |
+| C 级文件平均行数 | 285 行 |
+
+**文件清单**
+
+| 文件 | 行数 | goto | JADX warn | obf_field_ratio | obf_dep |
+|------|------|------|-----------|-----------------|---------|
+| `com/guard/wallet/thread/e.java` | 147 | 12 | 3 | 100% | 0 |
+| `com/guard/wallet/thread/i.java` | 327 | 14 | 6 | 100% | 0 |
+| `o/k.java` | 382 | 19 | 22 | 100% | 4 |
+
+三个 C 级文件均位于线程/保活层，obf_field_ratio 均为 100%（所有字段均为混淆命名），且 goto 和 JADX warn 并发，是整个项目中难度最高的"纯逆向"文件。其中 `o/k.java` 还依赖 4 个外部混淆类，需先完成其依赖的逆向后才能完整理解。
+
+**逐方法分析策略**
+
+1. **SMALI 对照**：对于 JADX 输出不可信的区域（warn 集中处），切换到 SMALI 字节码逐指令分析，以字节码为权威来源。
+2. **Frida 动态追踪**：对 `thread/e.java` 和 `thread/i.java` 的关键方法插桩，在真机上捕获入参/出参/执行路径，辅助静态分析确认逻辑。
+3. **依赖优先**：`o/k.java` 的 4 个 obf_dep 需先识别（很可能在 B 级文件中），逐一确认后再攻克 `o/k.java` 主体。
+4. **功能假设驱动**：结合已知的线程模块职责（截屏、监听、心跳等），从方法调用的系统 API（`Thread.sleep`、`Handler.sendMessage`、`MediaProjection` 等）出发，先建立功能假设，再逐行验证。
+
+**预估工时**
+
+| 文件 | 估算工时 |
+|------|---------|
+| `com/guard/wallet/thread/e.java`（147 行）| 1.5 人天 |
+| `com/guard/wallet/thread/i.java`（327 行）| 2.5 人天 |
+| `o/k.java`（382 行，含依赖前置）| 3.0 人天 |
+| **C 级合计** | **≈ 7 人天** |
+
+---
+
+### 5.4 Phase 4 — D 级文件替代方案
+
+**统计概览**
+
+| 指标 | 数值 |
+|------|------|
+| D 级文件总数 | 9 |
+| D 级文件总行数 | 20,682 |
+| D 级文件平均行数 | 2,298 行 |
+
+**文件清单及替代策略**
+
+| # | 文件 | 行数 | goto | JADX warn | switch_cases | 策略 |
+|---|------|------|------|-----------|--------------|------|
+| 1 | `com/guard/wallet/server/b.java` | 11,172 | 84 | 22 | 508 | 路由表分析 |
+| 2 | `com/guard/wallet/entity/UiObject.java` | 3,801 | 25 | 4 | 156 | 参考 replica 实现 |
+| 3 | `o/a0.java` | 2,003 | 126 | 49 | 0 | 行为驱动重写 |
+| 4 | `o/e.java` | 982 | 47 | 12 | 0 | 行为驱动重写 |
+| 5 | `o/c.java` | 801 | 79 | 48 | 0 | 行为驱动重写 |
+| 6 | `com/guard/wallet/service/MyAccessibilityService.java` | 1,402 | 32 | 9 | 0 | 行为驱动重写 |
+| 7 | `com/guard/wallet/utils/d.java` | 123 | 0 | 0 | 0 | 调用链推断 |
+| 8 | `com/guard/wallet/receiver/PowerBroadcastReceiver.java` | 140 | 33 | 2 | 4 | 调用链推断 |
+| 9 | `com/guard/wallet/condition/TargetActionCondition.java` | 258 | 26 | 36 | 7 | 模式化重写 |
+
+**各文件替代策略详解**
+
+**① `server/b.java`（11,172 行，508 个 switch case）**
+
+这是全库最大单文件，是服务端命令路由器（dispatch center）。无需全量逆向，策略如下：
+
+- 以 508 个 switch case 的 case 值（即命令码 / 路由字符串）作为索引表，建立"命令码 → 处理逻辑概述"的映射文档。
+- 对每个 case 分支，只需读取分支内调用的方法名（往往调用 req/resp VO 类，已在 A 级中清晰可读），即可推断出该命令的功能。
+- 可按功能域分批处理：先处理高频命令（截屏、控制、文件操作），低频命令按需处理。
+- 预估读懂全部路由（不深入每个分支）需 **5～8 人天**，建立完整功能索引后，按需深入任一分支仅需 0.5 人天。
+
+**② `entity/UiObject.java`（3,801 行，156 个 switch case）**
+
+这是 UI 节点对象的核心实体类，本项目已有 replica 实现（`android/` 目录）。策略：
+
+- 对照现有 replica 的 `UiObject` 实现，以 diff 方式找出缺失字段和方法，而不是从零阅读 3,801 行。
+- 重点核查 getter/setter 的字段名映射，以及 156 个 switch case 对应的节点属性类型。
+- 预估 **2～3 人天** 完成 diff 对齐，而非从零逆向的 8～10 人天。
+
+**③ `o/a0.java`（2,003 行，126 个 goto，49 个 JADX warn）**
+
+混淆最重的引擎类之一，goto 和 JADX warn 密度极高，静态分析可信度低。策略：
+
+- **优先动态分析**：Frida hook 所有 public/package 方法，在真机运行场景下捕获调用时序、入参类型、返回值，建立行为模型。
+- **行为驱动重写**：基于捕获的行为模型，从头以 Java 8 重写等价实现，而非修复混淆代码。
+- 预估 **4～6 人天**（含 Frida 调试环境搭建）。
+
+**④ `o/c.java`（801 行）和 `o/e.java`（982 行）**
+
+两者均为 goto/warn 极高的混淆引擎类（`o/c.java`：79 goto，48 warn；`o/e.java`：47 goto，12 warn，13 个混淆字段）。策略同 `o/a0.java`：
+
+- `o/e.java` 有 25 个单字母方法 + 13 个混淆字段，推测是某厂商保活引擎（已部分复刻），优先对照已有 replica 实现进行 diff。
+- `o/c.java` 的 4 个 obf_dep 依赖同步理解。
+- 预估 `o/c.java` **3～4 人天**，`o/e.java` **3～5 人天**。
+
+**⑤ `service/MyAccessibilityService.java`（1,402 行）**
+
+无障碍服务主类，13 个混淆字段，6 个 obf_dep，9 个 JADX warn。该类是整个控制系统的核心调度入口。策略：
+
+- 以系统回调方法（`onAccessibilityEvent`、`onServiceConnected`、`onInterrupt`）为切入点，这些方法名固定，是分析的天然锚点。
+- 结合 AccessibilityEvent 的 eventType 枚举值，逐个 case 分析事件处理逻辑。
+- 已有 replica 实现可作对照基准，重点关注 diff 部分。
+- 预估 **3～5 人天**。
+
+**⑥ `utils/d.java`（123 行，9 个单字母方法）**
+
+行数少但方法全混淆。策略：
+
+- 通过调用方（在 B/A 级文件中搜索 `d.` 调用）推断每个静态方法的语义。
+- 预估 **0.5 人天**。
+
+**⑦ `receiver/PowerBroadcastReceiver.java`（140 行，33 个 goto，4 个 switch case）**
+
+电源广播接收器，goto 密度极高（每行 0.24 个 goto）。策略：
+
+- 结合 Android 电源管理广播 action 列表（`ACTION_SCREEN_ON/OFF`、`ACTION_BATTERY_CHANGED` 等），4 个 switch case 对应有限的广播类型，穷举分析。
+- 预估 **0.5 人天**。
+
+**⑧ `condition/TargetActionCondition.java`（258 行，26 个 goto，36 个 JADX warn）**
+
+条件匹配类，JADX warn 密度最高（每行 0.14 个 warn）。策略：
+
+- 参照已完成的其他 Condition 类（均为 A 级）作为模式模板，推断此类的实现结构。
+- 7 个 switch case 对应有限的条件类型，以模式化重写代替逐行分析。
+- 预估 **1～1.5 人天**。
+
+**D 级预估工时汇总**
+
+| 文件 | 策略 | 估算工时 |
+|------|------|---------|
+| `server/b.java` | 路由表索引（不含深入分支）| 5～8 人天 |
+| `entity/UiObject.java` | diff 对照 replica | 2～3 人天 |
+| `o/a0.java` | Frida + 重写 | 4～6 人天 |
+| `o/c.java` | Frida + 重写 | 3～4 人天 |
+| `o/e.java` | diff + 重写 | 3～5 人天 |
+| `service/MyAccessibilityService.java` | 锚点驱动 + diff | 3～5 人天 |
+| `utils/d.java` | 调用链推断 | 0.5 人天 |
+| `receiver/PowerBroadcastReceiver.java` | 穷举分析 | 0.5 人天 |
+| `condition/TargetActionCondition.java` | 模式化重写 | 1～1.5 人天 |
+| **D 级合计** | | **22～34 人天** |
+
+---
+
+### 5.5 逆向工具链推荐
+
+**JADX 配置优化**
+
+推荐参数组合：
+
+```bash
+jadx \
+  --show-bad-code \        # 显示反编译质量不佳的代码（不跳过）
+  --deobf \                # 启用内置反混淆（基于 ProGuard map 或规则）
+  --deobf-min 3 \          # 最短混淆名长度阈值（≤3 字符视为混淆，尝试还原）
+  --no-inline-methods \    # 禁用内联展开，有助于减少 goto 生成
+  --escape-unicode \       # 转义 Unicode（避免中文字符显示乱码）
+  --output-dir ./output \
+  vendor.apk
+```
+
+对于 goto 密集的 D/C 级文件，额外添加：
+
+```bash
+  --cfg              # 导出控制流图（CFG），辅助理解 goto 跳转结构
+```
+
+**反混淆工具对比**
+
+| 工具 | goto 处理 | 变量重命名 | WARN 率 | 适用场景 |
+|------|----------|------------|---------|---------|
+| **JADX 1.5+** | 中等 | 规则驱动 | 中 | 首选，免费，持续更新 |
+| **JEB Pro 4.x** | 优秀 | 手动+自动 | 低 | D/C 级深度逆向，CFG 视图最佳 |
+| **Procyon** | 较弱 | 无 | 高 | 仅作为 JADX 失败时的备选 |
+| **CFR** | 中等 | 无 | 中 | 生成代码风格较接近原始 Java |
+
+建议工作流：**JADX 初次反编译 → JEB Pro 处理 D/C 级高 warn 文件 → IntelliJ 重命名重构**。
+
+**IDE 重构（IntelliJ IDEA）**
+
+| 操作 | 快捷键 | 用途 |
+|------|--------|------|
+| Rename | Shift+F6 | 批量重命名字段/方法 |
+| Inline Variable | Ctrl+Alt+N | 消除多余的中间变量 |
+| Extract Method | Ctrl+Alt+M | 将复杂块提取为命名方法 |
+| Find Usages | Alt+F7 | 追踪混淆类/方法的所有调用点 |
+
+**动态分析（Frida）**
+
+适用于 D 级及 JADX warn 密集的 C 级文件。推荐脚本模式：
+
+```javascript
+// 拦截指定类的所有方法调用，记录参数和返回值
+Java.perform(function() {
+  var cls = Java.use("com.guard.wallet.server.b"); // 或 o.a0 等混淆类
+  cls.class.getDeclaredMethods().forEach(function(m) {
+    var methodName = m.getName();
+    cls[methodName].overloads.forEach(function(overload) {
+      overload.implementation = function() {
+        console.log("[+] " + methodName + "(" + JSON.stringify(arguments) + ")");
+        var ret = overload.apply(this, arguments);
+        console.log("  → " + JSON.stringify(ret));
+        return ret;
+      };
+    });
+  });
+});
+```
+
+---
+
+### 5.6 预估总工时
+
+| Phase | 内容 | 文件数 | 行数 | 工时估算 |
+|-------|------|--------|------|---------|
+| Phase 1 | A 级直接使用 | 199 | 14,147 | **0 人天**（无需逆向）|
+| Phase 2 | B 级轻度逆向 | 116 | 21,973 | **≈ 33 人天** |
+| Phase 3 | C 级深度逆向 | 3 | 856 | **≈ 7 人天** |
+| Phase 4 | D 级替代方案 | 9 | 20,682 | **22～34 人天** |
+| **合计** | **全库 327 文件** | **327** | **57,658** | **62～74 人天** |
+
+**重要说明**
+
+- 上述工时基于单人独立工作估算，采用并行分工（如 2～3 人同步推进）可将整体周期缩短至 3～5 周。
+- Phase 2 的 33 人天中，`o/` 目录的 27 个 B 级文件占约 12 人天，是 B 级工作中最集中的投入点。
+- Phase 4 的 `server/b.java` 单文件（5～8 人天）占 D 级工时的 22%～24%，但其 508 个路由的完整索引对全系统理解的价值极高，建议列为最高优先级。
+- `a1/q.java`（在第 4 章已深度分析）虽为 B 级，但作为全库基础设施，建议将其排在所有 B 级工作的第一位，完成后可使其他 B 级文件的理解效率提升约 30%。
+
+---
+
+## 第 6 章　逐文件评分清单（附录）
+
+本章列出全库 327 个文件的完整评分明细。各列含义：
+
+| 列 | 含义 |
+|----|------|
+| 文件 | 相对于 `sources/` 的路径 |
+| 行数 | 源文件总行数 |
+| 反混淆 | Dim1：反混淆难度评分（10 = 无混淆）|
+| 反编译 | Dim2：反编译质量评分（10 = 无 warn/goto）|
+| 语义 | Dim3：语义可读性评分（10 = 全语义明确）|
+| 工作量 | Dim4：逆向工作量评分（10 = 几乎无需工作）|
+| 可维护 | Dim5：可维护性评分（10 = 高度可维护）|
+| 综合 | 加权总分（满分 10）|
+| 等级 | A / B / C / D |
+
+
+| 文件 | 行数 | 反混淆 | 反编译 | 语义 | 工作量 | 可维护 | 综合 | 等级 |
+|------|------|--------|--------|------|--------|--------|------|------|
+| com/guard/wallet/LockActivity.java | 225 | 4 | 10 | 8 | 6 | 8 | 7.20 | B |
+| com/guard/wallet/MainApplication.java | 909 | 10 | 10 | 6 | 4 | 8 | 8.00 | A |
+| com/guard/wallet/MyApp.java | 24 | 10 | 10 | 0 | 10 | 10 | 8.00 | A |
+| com/guard/wallet/activity/ConfirmDeviceActivity.java | 225 | 4 | 10 | 8 | 6 | 8 | 7.20 | B |
+| com/guard/wallet/activity/GuideActivity.java | 99 | 6 | 10 | 6 | 8 | 10 | 7.90 | B |
+| com/guard/wallet/activity/MainActivity.java | 345 | 6 | 10 | 10 | 6 | 10 | 8.40 | A |
+| com/guard/wallet/activity/NoDisplayActivity.java | 57 | 6 | 10 | 8 | 8 | 10 | 8.30 | A |
+| com/guard/wallet/bridge/a.java | 115 | 2 | 10 | 10 | 8 | 10 | 7.70 | B |
+| com/guard/wallet/condition/ActionValueCondition.java | 43 | 10 | 10 | 0 | 10 | 10 | 8.00 | A |
+| com/guard/wallet/condition/BoolCondition.java | 307 | 10 | 10 | 8 | 6 | 10 | 9.00 | A |
+| com/guard/wallet/condition/BoundsCondition.java | 79 | 10 | 10 | 4 | 8 | 10 | 8.50 | A |
+| com/guard/wallet/condition/GlobalActionCondition.java | 86 | 10 | 10 | 6 | 8 | 10 | 8.90 | A |
+| com/guard/wallet/condition/IntCondition.java | 180 | 10 | 10 | 8 | 6 | 10 | 9.00 | A |
+| com/guard/wallet/condition/PointCondition.java | 59 | 6 | 10 | 4 | 8 | 10 | 7.50 | B |
+| com/guard/wallet/condition/StringCondition.java | 91 | 10 | 10 | 8 | 8 | 10 | 9.30 | A |
+| com/guard/wallet/condition/TargetActionCondition.java | 258 | 10 | 0 | 4 | 6 | 10 | 5.70 | D |
+| com/guard/wallet/entity/ADBConfig.java | 129 | 10 | 10 | 2 | 8 | 10 | 8.10 | A |
+| com/guard/wallet/entity/ADBKey.java | 7 | 10 | 10 | 0 | 10 | 10 | 8.00 | A |
+| com/guard/wallet/entity/AdbShellResult.java | 43 | 10 | 10 | 6 | 10 | 10 | 9.20 | A |
+| com/guard/wallet/entity/BuildConfig.java | 601 | 10 | 10 | 2 | 4 | 10 | 7.50 | B |
+| com/guard/wallet/entity/CacheResponseKey.java | 55 | 10 | 10 | 4 | 8 | 10 | 8.50 | A |
+| com/guard/wallet/entity/CheckPortResult.java | 49 | 10 | 10 | 4 | 10 | 10 | 8.80 | A |
+| com/guard/wallet/entity/CheckedResult.java | 41 | 10 | 10 | 4 | 10 | 10 | 8.80 | A |
+| com/guard/wallet/entity/CommandResult.java | 51 | 10 | 10 | 4 | 8 | 10 | 8.50 | A |
+| com/guard/wallet/entity/CookieVO.java | 124 | 10 | 10 | 2 | 8 | 10 | 8.10 | A |
+| com/guard/wallet/entity/DeviceCipher.java | 102 | 10 | 10 | 2 | 8 | 10 | 8.10 | A |
+| com/guard/wallet/entity/DistanceTouchNode.java | 39 | 10 | 10 | 4 | 10 | 10 | 8.80 | A |
+| com/guard/wallet/entity/HostCookies.java | 107 | 10 | 10 | 8 | 8 | 10 | 9.30 | A |
+| com/guard/wallet/entity/LangDialog.java | 271 | 10 | 10 | 8 | 6 | 10 | 9.00 | A |
+| com/guard/wallet/entity/NoticeRootChangedVO.java | 52 | 10 | 10 | 8 | 8 | 10 | 9.30 | A |
+| com/guard/wallet/entity/PairPortAndCodeResult.java | 54 | 10 | 10 | 8 | 8 | 10 | 9.30 | A |
+| com/guard/wallet/entity/Point.java | 59 | 6 | 10 | 4 | 8 | 10 | 7.50 | B |
+| com/guard/wallet/entity/ProcessInfo.java | 91 | 10 | 10 | 8 | 8 | 10 | 9.30 | A |
+| com/guard/wallet/entity/ReadScreenNodeInfo.java | 145 | 10 | 10 | 2 | 8 | 10 | 8.10 | A |
+| com/guard/wallet/entity/ReadScreenWindow.java | 67 | 10 | 10 | 4 | 8 | 10 | 8.50 | A |
+| com/guard/wallet/entity/RootInActiveWindowResult.java | 37 | 10 | 10 | 4 | 10 | 10 | 8.80 | A |
+| com/guard/wallet/entity/TakeScreenShotResult.java | 40 | 10 | 10 | 4 | 10 | 10 | 8.80 | A |
+| com/guard/wallet/entity/UiObject.java | 3801 | 10 | 0 | 8 | 2 | 10 | 5.90 | D |
+| com/guard/wallet/entity/UiObjectCollection.java | 370 | 10 | 10 | 0 | 6 | 10 | 7.40 | B |
+| com/guard/wallet/entity/WIFIState.java | 55 | 10 | 10 | 8 | 8 | 10 | 9.30 | A |
+| com/guard/wallet/filter/BooleanFilter.java | 42 | 10 | 10 | 4 | 10 | 10 | 8.80 | A |
+| com/guard/wallet/filter/BoundsFilter.java | 69 | 10 | 10 | 4 | 8 | 10 | 8.50 | A |
+| com/guard/wallet/filter/ClassNameFilters.java | 32 | 10 | 10 | 6 | 10 | 10 | 9.20 | A |
+| com/guard/wallet/filter/CombineFilter.java | 207 | 10 | 10 | 4 | 6 | 10 | 8.20 | A |
+| com/guard/wallet/filter/CombineFilterWithChild.java | 39 | 10 | 10 | 4 | 10 | 10 | 8.80 | A |
+| com/guard/wallet/filter/CombineFilterWithUpLevel.java | 39 | 10 | 10 | 4 | 10 | 10 | 8.80 | A |
+| com/guard/wallet/filter/CombineFiltersWithOr.java | 66 | 10 | 10 | 4 | 8 | 10 | 8.50 | A |
+| com/guard/wallet/filter/DescFilters.java | 29 | 10 | 10 | 0 | 10 | 10 | 8.00 | A |
+| com/guard/wallet/filter/Filter.java | 8 | 10 | 10 | 0 | 10 | 10 | 8.00 | A |
+| com/guard/wallet/filter/HintTextFilters.java | 29 | 10 | 10 | 0 | 10 | 10 | 8.00 | A |
+| com/guard/wallet/filter/IdFilters.java | 29 | 10 | 10 | 0 | 10 | 10 | 8.00 | A |
+| com/guard/wallet/filter/IntEqualsFilter.java | 21 | 10 | 10 | 0 | 10 | 10 | 8.00 | A |
+| com/guard/wallet/filter/IntFilter.java | 46 | 10 | 10 | 0 | 10 | 10 | 8.00 | A |
+| com/guard/wallet/filter/IntFilters.java | 30 | 10 | 10 | 0 | 10 | 10 | 8.00 | A |
+| com/guard/wallet/filter/IntGreaterThanFilter.java | 21 | 10 | 10 | 0 | 10 | 10 | 8.00 | A |
+| com/guard/wallet/filter/IntGreaterThanOrEqualFilter.java | 21 | 10 | 10 | 0 | 10 | 10 | 8.00 | A |
+| com/guard/wallet/filter/IntLessThanFilter.java | 21 | 10 | 10 | 0 | 10 | 10 | 8.00 | A |
+| com/guard/wallet/filter/IntLessThanOrEqualFilter.java | 21 | 10 | 10 | 0 | 10 | 10 | 8.00 | A |
+| com/guard/wallet/filter/IntNotEqualsFilter.java | 21 | 10 | 10 | 0 | 10 | 10 | 8.00 | A |
+| com/guard/wallet/filter/PackageNameFilters.java | 29 | 10 | 10 | 0 | 10 | 10 | 8.00 | A |
+| com/guard/wallet/filter/PanelTitleFilters.java | 29 | 10 | 10 | 0 | 10 | 10 | 8.00 | A |
+| com/guard/wallet/filter/PointFilter.java | 41 | 10 | 10 | 0 | 10 | 10 | 8.00 | A |
+| com/guard/wallet/filter/RoleDescFilters.java | 29 | 10 | 10 | 0 | 10 | 10 | 8.00 | A |
+| com/guard/wallet/filter/Selector.java | 58 | 10 | 10 | 4 | 8 | 10 | 8.50 | A |
+| com/guard/wallet/filter/StateDescFilters.java | 29 | 10 | 10 | 0 | 10 | 10 | 8.00 | A |
+| com/guard/wallet/filter/StringContainsFilter.java | 52 | 10 | 10 | 4 | 8 | 10 | 8.50 | A |
+| com/guard/wallet/filter/StringEndsWithFilter.java | 52 | 10 | 10 | 4 | 8 | 10 | 8.50 | A |
+| com/guard/wallet/filter/StringEqualsFilter.java | 49 | 10 | 10 | 4 | 10 | 10 | 8.80 | A |
+| com/guard/wallet/filter/StringMatchesFilter.java | 48 | 10 | 10 | 4 | 10 | 10 | 8.80 | A |
+| com/guard/wallet/filter/StringStartsWithFilter.java | 52 | 10 | 10 | 4 | 8 | 10 | 8.50 | A |
+| com/guard/wallet/filter/TextFilters.java | 29 | 10 | 10 | 0 | 10 | 10 | 8.00 | A |
+| com/guard/wallet/filter/TooltipFilters.java | 29 | 10 | 10 | 0 | 10 | 10 | 8.00 | A |
+| com/guard/wallet/filter/UniqueIdFilters.java | 29 | 10 | 10 | 0 | 10 | 10 | 8.00 | A |
+| com/guard/wallet/filter/WindowTitleContainsFilter.java | 24 | 10 | 10 | 0 | 10 | 10 | 8.00 | A |
+| com/guard/wallet/filter/WindowTitleEndsWithFilter.java | 24 | 10 | 10 | 0 | 10 | 10 | 8.00 | A |
+| com/guard/wallet/filter/WindowTitleEqualFilter.java | 21 | 10 | 10 | 6 | 10 | 10 | 9.20 | A |
+| com/guard/wallet/filter/WindowTitleFilters.java | 24 | 10 | 10 | 0 | 10 | 10 | 8.00 | A |
+| com/guard/wallet/filter/WindowTitleMatchesFilter.java | 20 | 10 | 10 | 0 | 10 | 10 | 8.00 | A |
+| com/guard/wallet/filter/WindowTitleStartsWithFilter.java | 24 | 10 | 10 | 0 | 10 | 10 | 8.00 | A |
+| com/guard/wallet/helper/a.java | 89 | 2 | 8 | 4 | 8 | 10 | 6.00 | B |
+| com/guard/wallet/helper/b.java | 49 | 4 | 10 | 4 | 10 | 10 | 7.30 | B |
+| com/guard/wallet/helper/c.java | 11 | 10 | 10 | 0 | 10 | 10 | 8.00 | A |
+| com/guard/wallet/helper/d.java | 43 | 2 | 10 | 8 | 10 | 10 | 7.60 | B |
+| com/guard/wallet/helper/e.java | 22 | 10 | 10 | 8 | 10 | 10 | 9.60 | A |
+| com/guard/wallet/helper/f.java | 122 | 6 | 8 | 6 | 8 | 8 | 7.10 | B |
+| com/guard/wallet/helper/g.java | 233 | 2 | 10 | 8 | 6 | 10 | 7.00 | B |
+| com/guard/wallet/helper/h.java | 33 | 4 | 10 | 0 | 10 | 10 | 6.50 | B |
+| com/guard/wallet/helper/i.java | 29 | 4 | 10 | 6 | 10 | 10 | 7.70 | B |
+| com/guard/wallet/helper/j.java | 46 | 4 | 10 | 4 | 10 | 10 | 7.30 | B |
+| com/guard/wallet/helper/k.java | 22 | 4 | 10 | 0 | 10 | 10 | 6.50 | B |
+| com/guard/wallet/helper/l.java | 21 | 4 | 10 | 0 | 10 | 10 | 6.50 | B |
+| com/guard/wallet/helper/m.java | 58 | 2 | 10 | 8 | 8 | 10 | 7.30 | B |
+| com/guard/wallet/helper/n.java | 148 | 2 | 10 | 8 | 8 | 10 | 7.30 | B |
+| com/guard/wallet/helper/o.java | 303 | 2 | 10 | 8 | 6 | 8 | 6.70 | B |
+| com/guard/wallet/helper/p.java | 87 | 4 | 10 | 6 | 8 | 10 | 7.40 | B |
+| com/guard/wallet/helper/q.java | 78 | 4 | 10 | 8 | 8 | 8 | 7.50 | B |
+| com/guard/wallet/helper/r.java | 428 | 2 | 10 | 8 | 6 | 8 | 6.70 | B |
+| com/guard/wallet/http/CloseADBDebugCallback$1.java | 8 | 10 | 10 | 0 | 10 | 10 | 8.00 | A |
+| com/guard/wallet/http/DeviceOwnerCallback$1.java | 8 | 10 | 10 | 0 | 10 | 10 | 8.00 | A |
+| com/guard/wallet/http/ResetWifiDebugCallback$1.java | 8 | 10 | 10 | 0 | 10 | 10 | 8.00 | A |
+| com/guard/wallet/http/a.java | 57 | 2 | 10 | 10 | 8 | 10 | 7.70 | B |
+| com/guard/wallet/http/a0.java | 40 | 2 | 10 | 10 | 10 | 10 | 8.00 | A |
+| com/guard/wallet/http/b.java | 47 | 2 | 10 | 10 | 10 | 10 | 8.00 | A |
+| com/guard/wallet/http/b0.java | 39 | 2 | 10 | 8 | 10 | 10 | 7.60 | B |
+| com/guard/wallet/http/c.java | 46 | 2 | 10 | 10 | 10 | 10 | 8.00 | A |
+| com/guard/wallet/http/c0.java | 38 | 2 | 10 | 8 | 10 | 10 | 7.60 | B |
+| com/guard/wallet/http/d.java | 40 | 2 | 10 | 10 | 10 | 10 | 8.00 | A |
+| com/guard/wallet/http/d0.java | 50 | 2 | 10 | 10 | 10 | 10 | 8.00 | A |
+| com/guard/wallet/http/e.java | 57 | 2 | 10 | 10 | 8 | 10 | 7.70 | B |
+| com/guard/wallet/http/e0.java | 46 | 2 | 10 | 8 | 10 | 10 | 7.60 | B |
+| com/guard/wallet/http/f.java | 42 | 2 | 10 | 6 | 10 | 10 | 7.20 | B |
+| com/guard/wallet/http/g.java | 41 | 2 | 10 | 8 | 10 | 10 | 7.60 | B |
+| com/guard/wallet/http/h.java | 221 | 2 | 8 | 6 | 6 | 10 | 6.10 | B |
+| com/guard/wallet/http/i.java | 293 | 2 | 2 | 8 | 6 | 10 | 5.00 | B |
+| com/guard/wallet/http/j.java | 46 | 2 | 10 | 6 | 10 | 10 | 7.20 | B |
+| com/guard/wallet/http/k.java | 52 | 2 | 10 | 4 | 8 | 10 | 6.50 | B |
+| com/guard/wallet/http/l.java | 374 | 2 | 10 | 10 | 6 | 10 | 7.40 | B |
+| com/guard/wallet/http/m.java | 58 | 2 | 10 | 8 | 8 | 10 | 7.30 | B |
+| com/guard/wallet/http/n.java | 40 | 2 | 10 | 8 | 10 | 10 | 7.60 | B |
+| com/guard/wallet/http/o.java | 49 | 2 | 10 | 6 | 10 | 10 | 7.20 | B |
+| com/guard/wallet/http/p.java | 47 | 2 | 10 | 10 | 10 | 10 | 8.00 | A |
+| com/guard/wallet/http/q.java | 47 | 2 | 10 | 10 | 10 | 10 | 8.00 | A |
+| com/guard/wallet/http/r.java | 67 | 2 | 10 | 10 | 8 | 10 | 7.70 | B |
+| com/guard/wallet/http/s.java | 40 | 2 | 10 | 10 | 10 | 10 | 8.00 | A |
+| com/guard/wallet/http/t.java | 39 | 2 | 10 | 8 | 10 | 10 | 7.60 | B |
+| com/guard/wallet/http/u.java | 49 | 2 | 10 | 10 | 10 | 10 | 8.00 | A |
+| com/guard/wallet/http/v.java | 123 | 2 | 2 | 8 | 8 | 10 | 5.30 | B |
+| com/guard/wallet/http/w.java | 68 | 2 | 10 | 10 | 8 | 10 | 7.70 | B |
+| com/guard/wallet/http/x.java | 42 | 2 | 10 | 6 | 10 | 10 | 7.20 | B |
+| com/guard/wallet/http/y.java | 38 | 2 | 10 | 8 | 10 | 10 | 7.60 | B |
+| com/guard/wallet/http/z.java | 55 | 2 | 10 | 8 | 8 | 10 | 7.30 | B |
+| com/guard/wallet/msg/BaseMsgBody.java | 12 | 10 | 10 | 0 | 10 | 10 | 8.00 | A |
+| com/guard/wallet/msg/BridgeBody.java | 42 | 10 | 10 | 6 | 10 | 10 | 9.20 | A |
+| com/guard/wallet/msg/BridgeBufferBody.java | 58 | 10 | 10 | 4 | 8 | 10 | 8.50 | A |
+| com/guard/wallet/msg/BridgeBufferMessage.java | 33 | 10 | 10 | 6 | 10 | 10 | 9.20 | A |
+| com/guard/wallet/msg/BridgeHttpMessage.java | 34 | 10 | 10 | 8 | 10 | 10 | 9.60 | A |
+| com/guard/wallet/msg/BridgeMessage.java | 34 | 10 | 10 | 4 | 10 | 10 | 8.80 | A |
+| com/guard/wallet/msg/ReadEventMessage.java | 31 | 10 | 10 | 6 | 10 | 10 | 9.20 | A |
+| com/guard/wallet/msg/ReadScreenEvent.java | 44 | 10 | 10 | 4 | 10 | 10 | 8.80 | A |
+| com/guard/wallet/msg/ReadScreenMessage.java | 32 | 10 | 10 | 6 | 10 | 10 | 9.20 | A |
+| com/guard/wallet/plug/a.java | 55 | 4 | 10 | 8 | 8 | 10 | 7.80 | B |
+| com/guard/wallet/plug/b.java | 76 | 2 | 10 | 4 | 8 | 10 | 6.50 | B |
+| com/guard/wallet/plug/c.java | 261 | 2 | 10 | 8 | 6 | 10 | 7.00 | B |
+| com/guard/wallet/plug/d.java | 55 | 2 | 10 | 8 | 8 | 10 | 7.30 | B |
+| com/guard/wallet/plug/e.java | 21 | 4 | 10 | 0 | 10 | 10 | 6.50 | B |
+| com/guard/wallet/plug/f.java | 32 | 2 | 4 | 6 | 10 | 10 | 5.70 | B |
+| com/guard/wallet/receiver/AlarmReceiver.java | 37 | 10 | 10 | 10 | 10 | 10 | 10.00 | A |
+| com/guard/wallet/receiver/BatteryLevelReceiver.java | 80 | 4 | 10 | 10 | 8 | 10 | 8.20 | A |
+| com/guard/wallet/receiver/BootBroadcast.java | 103 | 4 | 2 | 8 | 8 | 10 | 5.80 | B |
+| com/guard/wallet/receiver/CallReceiver.java | 88 | 4 | 2 | 10 | 8 | 10 | 6.20 | B |
+| com/guard/wallet/receiver/CustomAdminReceiver.java | 119 | 6 | 10 | 10 | 8 | 8 | 8.40 | A |
+| com/guard/wallet/receiver/LocaleChangeReceiver.java | 29 | 10 | 10 | 8 | 10 | 10 | 9.60 | A |
+| com/guard/wallet/receiver/NetWorkReceiver.java | 33 | 4 | 10 | 8 | 10 | 10 | 8.10 | A |
+| com/guard/wallet/receiver/PackageReceiver.java | 117 | 4 | 2 | 10 | 8 | 10 | 6.20 | B |
+| com/guard/wallet/receiver/PowerBroadcastReceiver.java | 140 | 4 | 0 | 10 | 8 | 10 | 5.70 | D |
+| com/guard/wallet/receiver/ScreenBroadcastReceiver.java | 167 | 4 | 10 | 10 | 6 | 8 | 7.60 | B |
+| com/guard/wallet/receiver/ShutDownBroadcastReceiver.java | 89 | 4 | 2 | 8 | 8 | 10 | 5.80 | B |
+| com/guard/wallet/receiver/SmsReceiver.java | 67 | 4 | 10 | 8 | 8 | 10 | 7.80 | B |
+| com/guard/wallet/req/AdminAdminActivatingVO.java | 29 | 10 | 10 | 6 | 10 | 10 | 9.20 | A |
+| com/guard/wallet/req/ApiRequest.java | 28 | 10 | 10 | 6 | 10 | 10 | 9.20 | A |
+| com/guard/wallet/req/AppLocateValueVO.java | 43 | 10 | 10 | 6 | 10 | 10 | 9.20 | A |
+| com/guard/wallet/req/BatteryLevelVO.java | 98 | 10 | 10 | 4 | 8 | 10 | 8.50 | A |
+| com/guard/wallet/req/BlockViewVO.java | 72 | 10 | 10 | 4 | 8 | 10 | 8.50 | A |
+| com/guard/wallet/req/BootEventVO.java | 38 | 10 | 10 | 4 | 10 | 10 | 8.80 | A |
+| com/guard/wallet/req/ContainerEventVO.java | 58 | 10 | 10 | 4 | 8 | 10 | 8.50 | A |
+| com/guard/wallet/req/DeviceCipherStateVO.java | 111 | 10 | 10 | 2 | 8 | 10 | 8.10 | A |
+| com/guard/wallet/req/DeviceTokenVO.java | 131 | 10 | 10 | 8 | 8 | 10 | 9.30 | A |
+| com/guard/wallet/req/DeviceUpdateVO.java | 104 | 10 | 10 | 8 | 8 | 10 | 9.30 | A |
+| com/guard/wallet/req/EventSubscribe.java | 234 | 10 | 10 | 2 | 6 | 10 | 7.80 | B |
+| com/guard/wallet/req/HeartBodyVO.java | 58 | 10 | 10 | 4 | 8 | 10 | 8.50 | A |
+| com/guard/wallet/req/ListenPropResponse.java | 60 | 10 | 10 | 4 | 8 | 10 | 8.50 | A |
+| com/guard/wallet/req/ListenResponseVO.java | 69 | 10 | 10 | 4 | 8 | 10 | 8.50 | A |
+| com/guard/wallet/req/ListenWindow.java | 260 | 10 | 10 | 4 | 6 | 10 | 8.20 | A |
+| com/guard/wallet/req/LocalDebugEventVO.java | 54 | 10 | 10 | 8 | 8 | 10 | 9.30 | A |
+| com/guard/wallet/req/LockPatternVO.java | 89 | 10 | 10 | 4 | 8 | 10 | 8.50 | A |
+| com/guard/wallet/req/MatchListenWindowVO.java | 40 | 10 | 10 | 4 | 10 | 10 | 8.80 | A |
+| com/guard/wallet/req/MessageBodyVO.java | 16 | 10 | 10 | 0 | 10 | 10 | 8.00 | A |
+| com/guard/wallet/req/MessageRecordVO.java | 43 | 10 | 10 | 0 | 10 | 10 | 8.00 | A |
+| com/guard/wallet/req/NavigateWifiSettingDialogVO.java | 79 | 10 | 10 | 8 | 8 | 10 | 9.30 | A |
+| com/guard/wallet/req/NetStateVO.java | 64 | 10 | 10 | 0 | 8 | 10 | 7.70 | B |
+| com/guard/wallet/req/NotificationDialogVO.java | 79 | 10 | 10 | 8 | 8 | 10 | 9.30 | A |
+| com/guard/wallet/req/PasswordEventBodyVO.java | 42 | 10 | 10 | 6 | 10 | 10 | 9.20 | A |
+| com/guard/wallet/req/PermissionRequestVO.java | 79 | 10 | 10 | 4 | 8 | 10 | 8.50 | A |
+| com/guard/wallet/req/PermissionResponseVO.java | 78 | 10 | 10 | 4 | 8 | 10 | 8.50 | A |
+| com/guard/wallet/req/QueryAgentFileVO.java | 43 | 10 | 10 | 6 | 10 | 10 | 9.20 | A |
+| com/guard/wallet/req/ReqADBPairVO.java | 59 | 10 | 10 | 4 | 8 | 10 | 8.50 | A |
+| com/guard/wallet/req/ReqAdbInstallVO.java | 67 | 10 | 10 | 8 | 8 | 10 | 9.30 | A |
+| com/guard/wallet/req/ReqAdbPushVO.java | 67 | 10 | 10 | 8 | 8 | 10 | 9.30 | A |
+| com/guard/wallet/req/ReqAdbShellVO.java | 30 | 10 | 10 | 6 | 10 | 10 | 9.20 | A |
+| com/guard/wallet/req/ReqAppLocateValueVO.java | 43 | 10 | 10 | 6 | 10 | 10 | 9.20 | A |
+| com/guard/wallet/req/ReqCacheTaskBodyVO.java | 43 | 10 | 10 | 6 | 10 | 10 | 9.20 | A |
+| com/guard/wallet/req/ReqDefaultBodyVO.java | 30 | 10 | 10 | 6 | 10 | 10 | 9.20 | A |
+| com/guard/wallet/req/ReqDeleteFileVO.java | 43 | 10 | 10 | 6 | 10 | 10 | 9.20 | A |
+| com/guard/wallet/req/ReqDownloadFileVO.java | 49 | 10 | 10 | 4 | 10 | 10 | 8.80 | A |
+| com/guard/wallet/req/ReqListenHelper.java | 118 | 10 | 10 | 6 | 8 | 10 | 8.90 | A |
+| com/guard/wallet/req/ReqListenWindowVO.java | 55 | 10 | 10 | 8 | 8 | 10 | 9.30 | A |
+| com/guard/wallet/req/ReqMessageVO.java | 55 | 10 | 10 | 8 | 8 | 10 | 9.30 | A |
+| com/guard/wallet/req/ReqMonitorLocationVO.java | 42 | 10 | 10 | 4 | 10 | 10 | 8.80 | A |
+| com/guard/wallet/req/ReqNoticeAliveVO.java | 38 | 10 | 10 | 4 | 10 | 10 | 8.80 | A |
+| com/guard/wallet/req/ReqOpenWifiDebugVO.java | 51 | 10 | 10 | 4 | 8 | 10 | 8.50 | A |
+| com/guard/wallet/req/ReqResetAccessibilityService.java | 30 | 10 | 10 | 6 | 10 | 10 | 9.20 | A |
+| com/guard/wallet/req/ReqSendSMSVO.java | 43 | 10 | 10 | 6 | 10 | 10 | 9.20 | A |
+| com/guard/wallet/req/ReqSmsRecognizePlugVO.java | 30 | 10 | 10 | 6 | 10 | 10 | 9.20 | A |
+| com/guard/wallet/req/ReqStartApp.java | 60 | 10 | 10 | 4 | 8 | 10 | 8.50 | A |
+| com/guard/wallet/req/ReqUnlockDeviceVO.java | 123 | 10 | 10 | 2 | 8 | 10 | 8.10 | A |
+| com/guard/wallet/req/ReqWifiSettingDialogVO.java | 27 | 10 | 10 | 6 | 10 | 10 | 9.20 | A |
+| com/guard/wallet/req/RequestCommand.java | 30 | 10 | 10 | 6 | 10 | 10 | 9.20 | A |
+| com/guard/wallet/req/RewriteDebugPortVO.java | 39 | 10 | 10 | 4 | 10 | 10 | 8.80 | A |
+| com/guard/wallet/req/ScreenMetricsVO.java | 209 | 10 | 10 | 2 | 6 | 10 | 7.80 | B |
+| com/guard/wallet/req/SearchFieldVO.java | 54 | 10 | 10 | 0 | 8 | 10 | 7.70 | B |
+| com/guard/wallet/req/TouchEvent.java | 67 | 10 | 10 | 8 | 8 | 10 | 9.30 | A |
+| com/guard/wallet/req/UploadAppIconVO.java | 52 | 10 | 10 | 8 | 8 | 10 | 9.30 | A |
+| com/guard/wallet/req/UploadFileVO.java | 43 | 10 | 10 | 6 | 10 | 10 | 9.20 | A |
+| com/guard/wallet/resp/ApiResult.java | 100 | 10 | 10 | 8 | 8 | 10 | 9.30 | A |
+| com/guard/wallet/resp/AppInfo.java | 129 | 10 | 10 | 2 | 8 | 10 | 8.10 | A |
+| com/guard/wallet/resp/AttachFileVO.java | 127 | 10 | 10 | 8 | 8 | 10 | 9.30 | A |
+| com/guard/wallet/resp/BackAppStateVO.java | 79 | 10 | 10 | 6 | 8 | 10 | 8.90 | A |
+| com/guard/wallet/resp/CacheTaskResponseVO.java | 67 | 10 | 10 | 8 | 8 | 10 | 9.30 | A |
+| com/guard/wallet/resp/CacheTaskVO.java | 103 | 10 | 10 | 2 | 8 | 10 | 8.10 | A |
+| com/guard/wallet/resp/CallMessageVO.java | 55 | 10 | 10 | 8 | 8 | 10 | 9.30 | A |
+| com/guard/wallet/resp/CallStateVO.java | 55 | 10 | 10 | 8 | 8 | 10 | 9.30 | A |
+| com/guard/wallet/resp/ContactsBodyVO.java | 40 | 10 | 10 | 4 | 10 | 10 | 8.80 | A |
+| com/guard/wallet/resp/DeviceAdminVO.java | 59 | 10 | 10 | 4 | 8 | 10 | 8.50 | A |
+| com/guard/wallet/resp/DeviceAgentFileVO.java | 139 | 10 | 10 | 8 | 8 | 10 | 9.30 | A |
+| com/guard/wallet/resp/DeviceContactInfoVO.java | 217 | 10 | 10 | 2 | 6 | 10 | 7.80 | B |
+| com/guard/wallet/resp/DeviceContactNumberVO.java | 49 | 10 | 10 | 8 | 10 | 10 | 9.60 | A |
+| com/guard/wallet/resp/DeviceDebugVO.java | 149 | 10 | 10 | 2 | 8 | 10 | 8.10 | A |
+| com/guard/wallet/resp/DeviceInfoVO.java | 517 | 10 | 10 | 8 | 4 | 10 | 8.70 | A |
+| com/guard/wallet/resp/DeviceKeepAliveVO.java | 49 | 10 | 10 | 4 | 10 | 10 | 8.80 | A |
+| com/guard/wallet/resp/DeviceLocationVO.java | 79 | 10 | 10 | 4 | 8 | 10 | 8.50 | A |
+| com/guard/wallet/resp/DeviceMediaStoreImageVO.java | 10 | 10 | 10 | 0 | 10 | 10 | 8.00 | A |
+| com/guard/wallet/resp/DeviceNotificationVO.java | 179 | 10 | 10 | 2 | 6 | 10 | 7.80 | B |
+| com/guard/wallet/resp/DevicePairStateVO.java | 140 | 10 | 10 | 2 | 8 | 10 | 8.10 | A |
+| com/guard/wallet/resp/DeviceRecordStateVO.java | 60 | 10 | 10 | 4 | 8 | 10 | 8.50 | A |
+| com/guard/wallet/resp/DeviceSmsRecognizeVO.java | 79 | 10 | 10 | 8 | 8 | 10 | 9.30 | A |
+| com/guard/wallet/resp/DeviceWalletAuthStrategyVO.java | 144 | 10 | 10 | 4 | 8 | 10 | 8.50 | A |
+| com/guard/wallet/resp/MainUninstallPolicyVO.java | 39 | 10 | 10 | 4 | 10 | 10 | 8.80 | A |
+| com/guard/wallet/resp/MessageGroupVO.java | 39 | 10 | 10 | 4 | 10 | 10 | 8.80 | A |
+| com/guard/wallet/resp/PackagesBodyVO.java | 40 | 10 | 10 | 4 | 10 | 10 | 8.80 | A |
+| com/guard/wallet/resp/PairResponseVO.java | 59 | 10 | 10 | 4 | 8 | 10 | 8.50 | A |
+| com/guard/wallet/resp/PermissionInfoVO.java | 79 | 10 | 10 | 8 | 8 | 10 | 9.30 | A |
+| com/guard/wallet/resp/PermissionsBodyVO.java | 60 | 10 | 10 | 4 | 8 | 10 | 8.50 | A |
+| com/guard/wallet/resp/PowerControlStateVO.java | 95 | 10 | 10 | 4 | 8 | 10 | 8.50 | A |
+| com/guard/wallet/resp/PushResponseVO.java | 109 | 10 | 10 | 2 | 8 | 10 | 8.10 | A |
+| com/guard/wallet/resp/ResStartApp.java | 79 | 10 | 10 | 8 | 8 | 10 | 9.30 | A |
+| com/guard/wallet/resp/RespCipherStateVO.java | 133 | 10 | 10 | 2 | 8 | 10 | 8.10 | A |
+| com/guard/wallet/resp/RespDeleteFileVO.java | 39 | 10 | 10 | 4 | 10 | 10 | 8.80 | A |
+| com/guard/wallet/resp/RespDownloadFileVO.java | 43 | 10 | 10 | 6 | 10 | 10 | 9.20 | A |
+| com/guard/wallet/resp/SearchNodeListResultVO.java | 59 | 10 | 10 | 4 | 8 | 10 | 8.50 | A |
+| com/guard/wallet/resp/SearchNodeResultVO.java | 38 | 10 | 10 | 4 | 10 | 10 | 8.80 | A |
+| com/guard/wallet/resp/SmsMessageVO.java | 79 | 10 | 10 | 4 | 8 | 10 | 8.50 | A |
+| com/guard/wallet/resp/SmsRecognizePlug.java | 201 | 10 | 10 | 4 | 6 | 10 | 8.20 | A |
+| com/guard/wallet/resp/SmsRecognizeRespVO.java | 49 | 10 | 10 | 4 | 10 | 10 | 8.80 | A |
+| com/guard/wallet/resp/SyncSmsBodyVO.java | 40 | 10 | 10 | 4 | 10 | 10 | 8.80 | A |
+| com/guard/wallet/resp/UiObjectVO.java | 615 | 10 | 10 | 2 | 4 | 10 | 7.50 | B |
+| com/guard/wallet/server/a.java | 63 | 2 | 10 | 6 | 8 | 10 | 6.90 | B |
+| com/guard/wallet/server/b.java | 11172 | 6 | 0 | 8 | 0 | 8 | 4.30 | D |
+| com/guard/wallet/server/c.java | 146 | 6 | 10 | 8 | 8 | 10 | 8.30 | A |
+| com/guard/wallet/service/AccessibilityDelegateManager.java | 800 | 2 | 10 | 8 | 4 | 2 | 5.50 | B |
+| com/guard/wallet/service/AccountAuthenticatorService.java | 64 | 4 | 10 | 6 | 8 | 10 | 7.40 | B |
+| com/guard/wallet/service/CustomNotificationService.java | 173 | 4 | 10 | 8 | 6 | 10 | 7.50 | B |
+| com/guard/wallet/service/LocalHotspotService.java | 42 | 4 | 10 | 6 | 10 | 10 | 7.70 | B |
+| com/guard/wallet/service/MediaLiveService.java | 112 | 10 | 2 | 8 | 8 | 10 | 7.30 | B |
+| com/guard/wallet/service/MyAccessibilityService.java | 1402 | 6 | 0 | 8 | 4 | 6 | 4.60 | D |
+| com/guard/wallet/service/WIFIBackgroundService.java | 63 | 6 | 10 | 8 | 8 | 10 | 8.30 | A |
+| com/guard/wallet/stat/AccessibilityEventStatVO.java | 132 | 10 | 10 | 2 | 8 | 10 | 8.10 | A |
+| com/guard/wallet/stat/KeyboardEventVO.java | 55 | 10 | 10 | 8 | 8 | 10 | 9.30 | A |
+| com/guard/wallet/stat/ScreenEventStatVO.java | 110 | 10 | 10 | 2 | 8 | 10 | 8.10 | A |
+| com/guard/wallet/sync/StubProvider.java | 39 | 10 | 10 | 0 | 10 | 10 | 8.00 | A |
+| com/guard/wallet/sync/SyncService.java | 27 | 4 | 10 | 0 | 10 | 10 | 6.50 | B |
+| com/guard/wallet/thread/a.java | 122 | 4 | 10 | 8 | 8 | 10 | 7.80 | B |
+| com/guard/wallet/thread/b.java | 208 | 2 | 4 | 8 | 6 | 8 | 5.20 | B |
+| com/guard/wallet/thread/c.java | 45 | 2 | 10 | 6 | 10 | 10 | 7.20 | B |
+| com/guard/wallet/thread/d.java | 33 | 4 | 8 | 6 | 10 | 10 | 7.20 | B |
+| com/guard/wallet/thread/e.java | 147 | 2 | 2 | 4 | 8 | 10 | 4.50 | C |
+| com/guard/wallet/thread/f.java | 293 | 4 | 10 | 10 | 6 | 10 | 7.90 | B |
+| com/guard/wallet/thread/g.java | 54 | 4 | 10 | 8 | 8 | 8 | 7.50 | B |
+| com/guard/wallet/thread/h.java | 39 | 4 | 8 | 4 | 10 | 8 | 6.50 | B |
+| com/guard/wallet/thread/i.java | 327 | 2 | 2 | 6 | 6 | 10 | 4.60 | C |
+| com/guard/wallet/thread/j.java | 220 | 2 | 8 | 4 | 6 | 10 | 5.70 | B |
+| com/guard/wallet/thread/k.java | 98 | 4 | 10 | 4 | 8 | 10 | 7.00 | B |
+| com/guard/wallet/thread/l.java | 108 | 2 | 2 | 8 | 8 | 10 | 5.30 | B |
+| com/guard/wallet/thread/m.java | 218 | 4 | 10 | 10 | 6 | 10 | 7.90 | B |
+| com/guard/wallet/utils/a.java | 11 | 10 | 10 | 0 | 10 | 10 | 8.00 | A |
+| com/guard/wallet/utils/b.java | 105 | 2 | 10 | 8 | 8 | 10 | 7.30 | B |
+| com/guard/wallet/utils/c.java | 5 | 10 | 10 | 0 | 10 | 10 | 8.00 | A |
+| com/guard/wallet/utils/d.java | 123 | 0 | 10 | 10 | 8 | 10 | 7.20 | D |
+| com/guard/wallet/utils/e.java | 367 | 2 | 6 | 10 | 6 | 10 | 6.40 | B |
+| com/guard/wallet/utils/f.java | 56 | 2 | 10 | 6 | 8 | 10 | 6.90 | B |
+| com/guard/wallet/utils/g.java | 3142 | 6 | 2 | 10 | 2 | 10 | 5.80 | B |
+| com/guard/wallet/utils/h.java | 761 | 4 | 10 | 8 | 4 | 10 | 7.20 | B |
+| com/guard/wallet/utils/i.java | 43 | 4 | 10 | 8 | 10 | 10 | 8.10 | A |
+| com/guard/wallet/utils/j.java | 5 | 10 | 10 | 0 | 10 | 10 | 8.00 | A |
+| com/guard/wallet/utils/k.java | 101 | 2 | 2 | 10 | 8 | 10 | 5.70 | B |
+| o/a.java | 346 | 4 | 8 | 8 | 6 | 6 | 6.40 | B |
+| o/a0.java | 2003 | 6 | 0 | 10 | 2 | 8 | 5.00 | D |
+| o/b.java | 177 | 2 | 10 | 0 | 6 | 10 | 5.40 | B |
+| o/b0.java | 136 | 4 | 10 | 6 | 8 | 8 | 7.10 | B |
+| o/c.java | 801 | 6 | 0 | 8 | 4 | 8 | 4.90 | D |
+| o/c0.java | 30 | 2 | 10 | 0 | 10 | 10 | 6.00 | B |
+| o/d.java | 292 | 4 | 10 | 10 | 6 | 6 | 7.30 | B |
+| o/d0.java | 261 | 4 | 10 | 10 | 6 | 8 | 7.60 | B |
+| o/e.java | 982 | 2 | 0 | 8 | 4 | 6 | 3.60 | D |
+| o/e0.java | 373 | 4 | 8 | 10 | 6 | 8 | 7.10 | B |
+| o/f.java | 31 | 4 | 4 | 6 | 10 | 8 | 5.90 | B |
+| o/g.java | 316 | 6 | 8 | 10 | 6 | 8 | 7.60 | B |
+| o/g0.java | 432 | 6 | 2 | 8 | 6 | 8 | 5.70 | B |
+| o/h.java | 196 | 8 | 10 | 10 | 6 | 8 | 8.60 | A |
+| o/h0.java | 307 | 4 | 10 | 10 | 6 | 8 | 7.60 | B |
+| o/i.java | 266 | 6 | 4 | 10 | 6 | 8 | 6.60 | B |
+| o/i0.java | 684 | 6 | 10 | 10 | 4 | 8 | 7.80 | B |
+| o/j0.java | 51 | 2 | 10 | 4 | 8 | 10 | 6.50 | B |
+| o/k.java | 382 | 4 | 2 | 8 | 6 | 6 | 4.90 | C |
+| o/l.java | 71 | 4 | 10 | 8 | 8 | 8 | 7.50 | B |
+| o/m.java | 32 | 4 | 8 | 6 | 10 | 8 | 6.90 | B |
+| o/n.java | 454 | 6 | 10 | 10 | 6 | 8 | 8.10 | A |
+| o/o.java | 55 | 2 | 10 | 8 | 8 | 8 | 7.00 | B |
+| o/p.java | 80 | 4 | 10 | 10 | 8 | 8 | 7.90 | B |
+| o/q.java | 498 | 4 | 8 | 10 | 6 | 8 | 7.10 | B |
+| o/r.java | 69 | 4 | 2 | 8 | 8 | 8 | 5.50 | B |
+| o/s.java | 107 | 4 | 10 | 0 | 8 | 10 | 6.20 | B |
+| o/t.java | 677 | 6 | 10 | 8 | 4 | 8 | 7.40 | B |
+| o/u.java | 169 | 4 | 8 | 10 | 6 | 8 | 7.10 | B |
+| o/v.java | 526 | 6 | 10 | 10 | 4 | 8 | 7.80 | B |
+| o/w.java | 33 | 4 | 6 | 6 | 10 | 8 | 6.40 | B |
+| o/x.java | 531 | 6 | 2 | 10 | 4 | 8 | 5.80 | B |
+| o/z.java | 42 | 4 | 10 | 0 | 10 | 10 | 6.50 | B |
