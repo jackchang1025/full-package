@@ -1,169 +1,188 @@
-# Vendor → Replica Java 复刻详细评估
+# Vendor 反编译代码逆向可读性评估
 
 > **评估日期**: 2026-04-02
-> **Vendor 源码**: `decompiled_vendor/sources/com/guard/wallet/` (294 文件) + `o/` (33 文件)
-> **Replica 代码**: `android/app/src/main/java/com/vendor/rat/`
+> **反编译工具**: JADX
+> **源码位置**: `decompiled_vendor/sources/`
 
 ---
 
-## 一、总体概况
+## 一、代码规模
 
-| 指标 | Vendor | Replica | 比率 |
+| 范围 | 文件数 | 代码行数 | 说明 |
 |------|--------|---------|------|
-| 文件数 | 327 | 406 | 124%（拆分更细） |
-| 代码行数 | 57,658 | 48,108 | 83.4% |
-| 包/目录数 | 19 | 35 | 更模块化 |
-| 编译状态 | — | ✅ BUILD SUCCESSFUL | — |
-| TODO 标记 | — | 217 (其中 VENDOR_VERIFY 185) | — |
-| Stub 文件 | — | 16 | — |
-
-**映射表状态**: 全部 9 个模块标记为 ✅ 完成。
+| `com/guard/wallet/` | 294 | 46,248 | 业务代码 |
+| `o/` | 33 | 11,410 | 引擎层（全混淆） |
+| **业务代码合计** | **327** | **57,658** | — |
+| 外部混淆包 (a1/, p0/, f0/ 等) | ~350 | ~25,000 | 被业务代码引用的混淆依赖 |
+| 第三方库 (org/, android/) | ~3,900 | ~418,000 | BouncyCastle、OkHttp 等 |
 
 ---
 
-## 二、模块级评估
+## 二、混淆程度
 
-### MODULE_01: 网络通信 — ✅ 完整
+### 按包分类
 
-| Vendor | Replica | 评价 |
-|--------|---------|------|
-| `http/h.java` (221L) | `network/HttpClient.java` | 完整 |
-| `http/l.java` (374L) | `network/NetworkManager.java` | 完整 |
-| `bridge/a.java` (115L) | `network/WebSocketClient.java` | 完整，已扩展 |
-| `msg/` 9 个 | `network/msg/` 9 个 | 1:1 映射 |
-| `http/` 30 个回调 | `network/` 26 个 | 大部分为 5 行 stub |
+| 包 | 文件数 | 混淆率 | 类名 | 方法名 | 变量名 |
+|----|--------|--------|------|--------|--------|
+| **activity/** | 4 | 0% | ✅ 可读 | ✅ 可读 | ✅ 可读 |
+| **entity/** | 24 | 0% | ✅ 可读 | ✅ 可读 | ✅ 可读 |
+| **filter/** | 39 | 0% | ✅ 可读 | ✅ 可读 | ✅ 可读 |
+| **condition/** | 8 | 0% | ✅ 可读 | ✅ 可读 | ✅ 可读 |
+| **msg/** | 9 | 0% | ✅ 可读 | ✅ 可读 | ✅ 可读 |
+| **receiver/** | 12 | 0% | ✅ 可读 | ✅ 可读 | ✅ 可读 |
+| **req/** | 55 | 0% | ✅ 可读 | ✅ 可读 | ✅ 可读 |
+| **resp/** | 42 | 0% | ✅ 可读 | ✅ 可读 | ✅ 可读 |
+| **service/** | 7 | 0% | ✅ 可读 | ⚠️ 部分混淆 | ⚠️ 部分混淆 |
+| **stat/** | 3 | 0% | ✅ 可读 | ✅ 可读 | ✅ 可读 |
+| **sync/** | 2 | 0% | ✅ 可读 | ✅ 可读 | ✅ 可读 |
+| **helper/** | 18 | 100% | ❌ 单字母 | ❌ 单字母 | ❌ 混淆 |
+| **http/** | 34 | 91% | ❌ 单字母 | ❌ 单字母 | ❌ 混淆 |
+| **thread/** | 13 | 100% | ❌ 单字母 | ❌ 单字母 | ❌ 混淆 |
+| **utils/** | 11 | 100% | ❌ 单字母 | ❌ 单字母 | ❌ 混淆 |
+| **plug/** | 6 | 100% | ❌ 单字母 | ❌ 单字母 | ❌ 混淆 |
+| **server/** | 3 | 100% | ❌ 单字母 | ❌ 单字母 | ❌ 混淆 |
+| **bridge/** | 1 | 100% | ❌ 单字母 | ❌ 单字母 | ❌ 混淆 |
+| **o/** (引擎) | 33 | 100% | ❌ 单字母 | ❌ 单字母 | ❌ 混淆 |
 
-**风险**: 26 个网络回调文件中有 4 个仅 5 行（h/i/l/v.java），标记 `VENDOR_VERIFY`。这些是 HTTP API 回调，如果服务端需要特定响应格式可能出问题。但当前 WebSocket 通信正常工作。
+### 汇总
 
-### MODULE_02: 权限绕过 — ✅ 基本完整
+| 类别 | 文件数 | 行数 | 占比 |
+|------|--------|------|------|
+| 完全可读（类名+方法名+变量名） | 211 | 16,700 | 29% |
+| 完全混淆（类名+方法名+变量名） | 116 | 40,958 | 71% |
 
-| Vendor | Replica | 差异 |
-|--------|---------|------|
-| `MyAccessibilityService` 1402L | 1137L | **-19%** |
-| `AccessibilityDelegateManager` 800L | `EngineManager` 583L | **-27%** |
-
-**差异分析**: Replica 精简了部分 vendor 的冗余逻辑（重复的 null check、日志），核心行为路径完整。无障碍服务在真机上已验证可用。
-
-### MODULE_03: 厂商适配引擎 — ✅ 完整
-
-| Vendor `o/` | Replica `auto/engine/` | 差异 |
-|-------------|----------------------|------|
-| 33 文件, 11,410L | 31 文件, 11,911L | **+4%** |
-
-这是复刻质量最高的模块。Replica 行数甚至略多于 Vendor（因为添加了注释和更清晰的命名）。华为/小米/OPPO/vivo/三星引擎全部完成。
-
-### MODULE_04: UI 自动化框架 — ⚠️ 有缺口
-
-| Vendor | Replica | 差异 |
-|--------|---------|------|
-| `UiObject.java` 3801L | `UiNode.java` 1046L | **-72%** |
-| `filter/` 39 文件 | `auto/filter/` 42 文件 | 文件数完整 |
-| `condition/` 8 文件 | `auto/condition/` 9 文件 | 完整 |
-
-**关键缺口**: `UiObject.java` 是 vendor 最大的单文件（3801 行），包含完整的 UI 节点操作 API（查找、点击、滑动、输入、等待等）。Replica 的 `UiNode.java` 只有 1046 行，缺失约 2755 行。这些缺失的方法主要是高级 UI 操作（组合查找、条件等待、复杂手势），目前引擎层直接调用 AccessibilityNodeInfo API 绕过了部分缺失。
-
-**影响**: 如果未来需要实现更复杂的自动化脚本（如多步骤 UI 流程），这个缺口会成为瓶颈。
-
-### MODULE_05: 数据收集 — ✅ 完整
-
-所有 receiver、stat、helper 文件已映射。密码采集覆盖层（PinCaptureOverlay、PatternCaptureOverlay）已实现。
-
-### MODULE_06: 远程控制 — ⚠️ 最大缺口
-
-| Vendor | Replica | 差异 |
-|--------|---------|------|
-| `server/b.java` 11,172L (244 方法) | `control/` 5,141L (含 handler/) | **-54%** |
-| `CommandDispatcher` — | 1,919L (93 方法) | 核心路由 |
-
-**关键缺口**: Vendor 的 `server/b.java` 是整个 APK 的核心命令处理器（11,172 行、244 个方法），处理所有来自 Panel 的远程控制命令。Replica 拆分为 `CommandDispatcher` + 12 个 handler，但总行数只有一半。
-
-缺失的主要是：
-- 部分 UI 自动化命令的服务端处理（搜索节点、条件等待等）
-- 部分文件操作的完整实现（文件搜索、批量操作）
-- 部分 ADB 命令的完整处理链
-
-**影响**: 这是功能完整性的最大风险。Panel 发送的命令如果在 CommandDispatcher 中没有对应 handler，会被静默忽略。
-
-### MODULE_07: 保活机制 — ✅ 完整
-
-| Vendor | Replica | 差异 |
-|--------|---------|------|
-| `thread/` 13 文件, 1912L | `keepalive/thread/` 15 文件 | 完整 |
-| `receiver/` 相关 | `keepalive/receiver/` | 完整 |
-| `sync/` 2 文件 | `keepalive/sync/` 2 文件 | 完整 |
-
-### MODULE_08: 启动流程与隐蔽 — ⚠️ 有缺口
-
-| Vendor | Replica | 差异 |
-|--------|---------|------|
-| `MainApplication.java` 909L | 425L | **-53%** |
-| `utils/g.java` 3142L | `MiscUtils.java` 493L | **-84%** |
-| `utils/h.java` 761L | `SharedUtils.java` 477L | **-37%** |
-
-**关键缺口**:
-- `utils/g.java`（3142 行）是 vendor 的万能工具类，包含设备信息采集、文件操作、加密、网络检测等。Replica 只实现了 16%。
-- `MainApplication.java` 缺失的部分主要是初始化时的各种检测和配置加载。
-
-**影响**: 部分设备信息采集可能不完整，影响 Panel 显示的设备详情。核心功能（WebSocket 连接、命令执行）不受影响。
-
-### MODULE_09: 数据模型 — ✅ 完整
-
-| Vendor | Replica | 差异 |
-|--------|---------|------|
-| `req/` 55 文件, 3696L | `model/req/` 55 文件 | 1:1 映射 |
-| `resp/` 42 文件, 4520L | `model/resp/` 42 文件 | 1:1 映射 |
-
-数据模型是批量转换的，文件数完全匹配。但 185 个 `VENDOR_VERIFY` 标记中大部分在这里，主要是 `static of()` 工厂方法依赖混淆后的工具类。
+**结论**: 71% 的代码行数处于完全混淆状态。可读的 29% 主要是数据模型（req/resp/entity）、过滤器（filter/condition）和广播接收器（receiver）。
 
 ---
 
-## 三、风险矩阵
+## 三、反编译质量
 
-| 风险等级 | 模块 | 缺口 | 影响 |
-|---------|------|------|------|
-| 🔴 高 | MODULE_06 远程控制 | server/b.java 54% 缺失 | Panel 部分命令无响应 |
-| 🟡 中 | MODULE_04 UiObject | UiObject 72% 缺失 | 复杂自动化脚本受限 |
-| 🟡 中 | MODULE_08 utils/g | MiscUtils 84% 缺失 | 设备信息采集不完整 |
-| 🟢 低 | MODULE_08 MainApplication | 53% 缺失 | 初始化检测不完整 |
-| 🟢 低 | MODULE_01 回调 stub | 4 个 5 行 stub | HTTP API 回调可能不完整 |
-| ⚪ 无 | MODULE_03/07/09 | 完整或超出 | — |
+### JADX 产出问题
+
+| 问题类型 | 数量 | 影响 |
+|---------|------|------|
+| `goto` 语句 | 356 | Java 不支持 goto，需手动重构为 if/while/break |
+| JADX WARN 总数 | 1,365 | 类型推断失败、代码重构失败等 |
+| Multi-variable type inference failed | 79 | 变量类型无法推断，需手动标注 |
+| Can't rename method to resolve collision | 33 | 方法名冲突，需手动解决 |
+| super call moved to top | 21 | 可能破坏代码语义 |
+| Incorrect switch cases order | 10 | switch 逻辑可能错误 |
+| Code restructure failed | 多处 | 代码块丢失，逻辑不完整 |
+
+### goto 重灾区
+
+| 文件 | goto 数量 | 行数 | 说明 |
+|------|----------|------|------|
+| `o/a0.java` | 126 | 2,003 | 安装代理（最严重） |
+| `server/b.java` | 84 | 11,172 | 命令处理核心 |
+| `o/c.java` | 79 | 801 | 引擎基类 |
+| `o/e.java` | 47 | 982 | 引擎接口 |
+| `PowerBroadcastReceiver.java` | 33 | 140 | 电源广播 |
+| `MyAccessibilityService.java` | 32 | 1,402 | 无障碍服务 |
+
+**`o/a0.java` 每 16 行就有一个 goto**，基本不可直接阅读。
 
 ---
 
-## 四、TODO 分析
+## 四、核心文件逆向难度评级
 
-| 类型 | 数量 | 说明 |
+### 🔴 极难（需完全重写）
+
+| 文件 | 行数 | 混淆 | goto | JADX WARN | 说明 |
+|------|------|------|------|-----------|------|
+| `server/b.java` | 11,172 | 全混淆 | 84 | 多 | 236 个方法全部单字母命名（A/A0/A1...Z3），是整个 APK 的命令路由中枢。方法间通过混淆变量 `q.s()`、`r.l()`、`h.d()` 交叉引用 |
+| `utils/g.java` | 3,142 | 全混淆 | 多 | 5+ | 万能工具类，方法名 A~Z/A0~Z0，涵盖设备信息、加密、文件、网络、UI 等完全不相关的功能 |
+| `o/a0.java` | 2,003 | 全混淆 | 126 | 多 | 安装代理，goto 密度最高，控制流几乎无法理解 |
+
+### 🟡 困难（需大量分析）
+
+| 文件 | 行数 | 混淆 | 说明 |
+|------|------|------|------|
+| `o/e.java` | 982 | 全混淆 | 引擎接口+实现，47 个 goto |
+| `o/c.java` | 801 | 全混淆 | 引擎基类，79 个 goto |
+| `utils/h.java` | 761 | 全混淆 | SharedPreferences 封装 |
+| `o/t.java` | 677 | 全混淆 | 开发者选项自动化 |
+| `o/i0.java` | 684 | 全混淆 | 屏幕解锁 |
+| `helper/r.java` | 428 | 全混淆 | 密码采集覆盖层 |
+| `http/l.java` | 374 | 全混淆 | 网络管理器 |
+
+### 🟢 可读（可直接二次开发）
+
+| 文件 | 行数 | 说明 |
 |------|------|------|
-| `VENDOR_VERIFY` | 185 | 需要对照 vendor 验证的逻辑，大部分在 model/req 和 model/resp |
-| 功能性 TODO | 32 | 实际需要实现的功能点 |
-| Stub 文件 | 16 | 仅有类声明，无实际逻辑 |
-
-`VENDOR_VERIFY` 标记大多是数据模型的 `static of()` 方法，这些方法在 vendor 中依赖混淆后的工具类（`utils/g`、`utils/h`）。由于工具类本身复刻不完整，这些方法被标记为待验证。
-
----
-
-## 五、已验证可用的功能
-
-通过真机测试（OPPO 设备）确认可用：
-
-- ✅ WebSocket 连接和心跳
-- ✅ 设备注册和上线
-- ✅ 屏幕投屏（SN）
-- ✅ 截图（SM）
-- ✅ 文字辅助 / 节点树读取（SK）
-- ✅ 触摸转发（tap/swipe/gesture）
-- ✅ 屏幕唤醒 / 解锁
-- ✅ 无障碍服务引导
-- ✅ 厂商适配引擎（OPPO）
+| `entity/UiObject.java` | 3,801 | 最大可读文件，UI 节点操作 API，方法名完整 |
+| `service/MyAccessibilityService.java` | 1,402 | 无障碍服务，类名方法名可读，但内部调用混淆类 |
+| `MainApplication.java` | 909 | 应用入口，部分可读 |
+| `service/AccessibilityDelegateManager.java` | 800 | 引擎管理器，部分可读 |
+| `entity/BuildConfig.java` | 601 | 配置常量，完全可读 |
+| `req/` 55 个 | 3,696 | 请求数据模型，完全可读 |
+| `resp/` 42 个 | 4,520 | 响应数据模型，完全可读 |
+| `filter/` 39 个 | 1,210 | UI 过滤器，完全可读 |
+| `receiver/` 12 个 | ~970 | 广播接收器，完全可读 |
 
 ---
 
-## 六、建议优先级
+## 五、逆向辅助线索
 
-1. **MODULE_06 CommandDispatcher 补全**（高优先）— 逐个对照 vendor `server/b.java` 的 244 个方法，补全缺失的命令处理。这直接决定 Panel 能控制多少功能。
+### 可利用的信息
 
-2. **MODULE_04 UiNode 补全**（中优先）— 补全 UiObject 的高级查找和操作方法，为自动化引擎提供完整 API。
+1. **API 路由字符串** — `server/b.java` 包含 130+ 个 HTTP API 路由（如 `/contacts`、`/syncSms`、`/lockScreen`），是理解每个方法功能的最佳线索
+2. **日志 TAG** — 部分混淆类保留了日志标签（如 `"HttpServer"`、`"UiObject-createRoot:"`）
+3. **数据模型** — `req/`、`resp/` 完全可读，通过参数类型可反推混淆方法的功能
+4. **Android API 调用** — 混淆方法内部调用的 Android SDK API 是可读的（如 `AccessibilityNodeInfo`、`PowerManager`）
+5. **字段名** — JADX 保留了部分字段的原始名（如 `f554l`、`f166a`），虽然混淆但有编号规律
 
-3. **MODULE_08 MiscUtils 补全**（低优先）— 按需补全设备信息采集方法，不需要一次性全部实现。
+### 不可利用的信息
 
-4. **VENDOR_VERIFY 清理**（低优先）— 逐步验证和修复 185 个标记，优先处理运行时实际调用到的路径。
+1. **方法名** — 混淆类的方法全部是 A/B/C...Z/A0/B0...Z0 格式，无语义
+2. **变量名** — 全部是 str/str2/i2/z2 等反编译器生成的占位名
+3. **控制流** — goto 语句破坏了原始逻辑结构，需要手动重建
+4. **跨包引用** — `a1.q` 被引用 301 次，`q.s()` 在 server/b.java 中出现 324 次，不知道具体功能需要先逆向这些工具类
+
+---
+
+## 六、二次开发可行性评估
+
+### 直接可用（无需逆向）— 29% 代码
+
+- `req/` + `resp/` + `entity/`：数据模型完整可读，可直接复用
+- `filter/` + `condition/`：UI 自动化过滤器框架完整
+- `receiver/`：广播接收器逻辑清晰
+- `msg/`：消息协议定义完整
+
+### 需要逆向但可行 — 约 30% 代码
+
+- `service/MyAccessibilityService.java`：类名方法名可读，内部调用混淆类需逐个解析
+- `entity/UiObject.java`：3801 行完全可读，是 UI 自动化的核心 API
+- `o/` 厂商引擎：虽然全混淆，但每个文件对应一个厂商，通过 Android API 调用和字符串常量可推断功能
+- `helper/` 部分文件：通过 Android View API 调用可推断是覆盖层/对话框
+
+### 逆向极困难 — 约 41% 代码
+
+- `server/b.java`（11,172 行）：236 个方法全混淆，是最大的逆向瓶颈。但 130+ 个 API 路由字符串提供了方法功能的线索
+- `utils/g.java`（3,142 行）：万能工具类，功能杂糅，需要逐方法分析
+- `http/` 网络层：回调链复杂，混淆后难以追踪数据流
+- `a1/q.java`（1,134 行）：被引用 301 次的核心工具类，不逆向它就无法理解大量业务代码
+
+---
+
+## 七、逆向工作量估算
+
+| 阶段 | 内容 | 预估工时 |
+|------|------|---------|
+| 1. 基础工具类 | 逆向 `a1/q.java`（1134 行，被引用 301 次）| 2-3 天 |
+| 2. 核心命令路由 | 逆向 `server/b.java`（11172 行，236 方法）| 5-8 天 |
+| 3. 工具类 | 逆向 `utils/g.java`（3142 行）+ `utils/h.java`（761 行）| 3-4 天 |
+| 4. 引擎层 | 逆向 `o/` 33 个文件（11410 行）| 5-7 天 |
+| 5. 网络层 | 逆向 `http/` + `bridge/`（~2500 行）| 2-3 天 |
+| 6. 辅助类 | 逆向 `helper/` + `thread/` + `plug/`（~3500 行）| 3-4 天 |
+| 7. 外部依赖 | 识别 `a1/`、`p0/`、`f0/` 等混淆包的原始库 | 1-2 天 |
+| **合计** | | **21-31 天** |
+
+### 建议策略
+
+1. **优先逆向 `a1/q.java`** — 被引用 301 次，是解锁其他所有混淆代码的钥匙
+2. **按 API 路由逆向 `server/b.java`** — 不需要一次性全部逆向，按功能需求逐个路由分析
+3. **利用 `req/resp` 反推** — 数据模型完全可读，通过参数类型反推混淆方法的输入输出
+4. **厂商引擎按需逆向** — 只逆向目标厂商（如 OPPO），不需要全部
+5. **goto 重灾区考虑重写** — `o/a0.java`（126 个 goto）等文件，逆向不如参考行为重写
