@@ -164,13 +164,20 @@ while IFS= read -r filepath; do
     jadx_warn_count=$( (grep -E 'JADX WARN|JADX INFO' "$filepath" 2>/dev/null || true) | wc -l | tr -d ' ')
 
     # ---- 4. 混淆字段数 ----
-    proguard_fields=$( (grep -o -E 'f[0-9]+[a-z]' "$filepath" 2>/dev/null || true) | sort -u | wc -l | tr -d ' ')
-    single_letter_fields=$( (grep -E '(private|public|protected)\s+\S+\s+[a-z]\s*[;=]' "$filepath" 2>/dev/null || true) | wc -l | tr -d ' ')
+    # 修正: 旧正则 'f[0-9]+[a-z]' 匹配所有引用（含跨文件），严重虚高
+    # 新方法: 用 JADX 'renamed from' 注释计数（仅匹配本文件声明的被混淆字段）
+    proguard_fields=$( (grep -c 'renamed from' "$filepath" 2>/dev/null || true) | tr -d ' ')
+    [[ -z "$proguard_fields" ]] && proguard_fields=0
+    # 修正: 旧正则漏匹配含 final/static/volatile/泛型的声明
+    # 新方法: 行首 access_modifier ... 单字母 ;（排除含括号的方法声明）
+    single_letter_fields=$( (grep -E '^\s+(private|public|protected)\s+' "$filepath" 2>/dev/null || true) | (grep -E ';\s*$' || true) | (grep -E '\b[a-z]\s*[;=]' || true) | wc -l | tr -d ' ')
     obf_field_count=$((proguard_fields + single_letter_fields))
 
     # ---- 5. 总字段数 ----
-    total_field_count=$( (grep -E '(private|public|protected)\s+\S+\s+\w+\s*[;=]' "$filepath" 2>/dev/null || true) | wc -l | tr -d ' ')
-    [[ $total_field_count -eq 0 ]] && total_field_count=1
+    # 修正: 旧正则 '\S+\s+\w+\s*[;=]' 无法处理 final/static/泛型等修饰符
+    # 新方法: access_modifier 开头 + 以分号结尾 + 排除含括号的方法声明
+    total_field_count=$( (grep -E '^\s+(private|public|protected)\s+' "$filepath" 2>/dev/null || true) | (grep -c -E ';\s*$' || true) | tr -d ' ')
+    [[ -z "$total_field_count" || "$total_field_count" == "0" ]] && total_field_count=1
 
     # ---- 6. 单字母方法数 ----
     single_letter_method_count=$( (grep -E '(public|private|protected)\s+(static\s+)?(final\s+)?\w+\s+[a-z]\s*\(' "$filepath" 2>/dev/null || true) | wc -l | tr -d ' ')
