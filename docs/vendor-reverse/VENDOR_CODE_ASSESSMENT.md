@@ -879,7 +879,7 @@ req/ 和 resp/ 共占 A 级文件 90 个（45.2%），是数据协议层的完�
 | `com/guard/wallet/resp/` | 3 | 1,011 | 0 | 0 |
 | `com/guard/wallet/entity/` | 3 | 1,030 | 0 | 0 |
 | `com/guard/wallet/activity/` | 2 | 324 | 0 | 0 |
-| 其他目录 | 5 | 819 | 0 | 1 |
+| 其他目录 | 5 | 489 | 0 | 0 |
 
 **批量操作流程**
 
