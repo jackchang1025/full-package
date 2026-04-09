@@ -940,10 +940,11 @@ public abstract class AppUtils {
     }
 
     /**
-     * y(keyStore) — 创建 TLS 1.3 SSLContext (Conscrypt 优先, fallback 到系统)。
-     * skeleton: 使用系统默认 SSLContext (缺少 AdbKeyPair/AdbKeyManager/AdbTrustAllManager 完整实现)。
+     * y() — 创建 TLS 1.3 SSLContext (Conscrypt 优先, fallback 到系统)。
+     * NOTE: TLS for ADB is now handled by libadb-android library internally.
+     * This method is kept for any non-ADB TLS usage.
      */
-    public static SSLContext y(com.guard.wallet.adb.AdbKeyPair var0) {
+    public static SSLContext y() {
         SSLContext cached = j;
         if (cached != null) return cached;
 
@@ -967,9 +968,7 @@ public abstract class AppUtils {
         System.out.println("Using " + (i ? "custom" : "default") + " TLSv1.3 provider...");
 
         try {
-            com.guard.wallet.adb.AdbKeyManager keyMgr = new com.guard.wallet.adb.AdbKeyManager(var0);
-            com.guard.wallet.adb.AdbTrustAllManager trustMgr = new com.guard.wallet.adb.AdbTrustAllManager();
-            j.init(new KeyManager[]{keyMgr}, new X509TrustManager[]{trustMgr}, new SecureRandom());
+            j.init(null, null, new SecureRandom());
         } catch (Exception ex) {
             Log.e("SSLUtils", "SSLContext init failed", ex);
         }

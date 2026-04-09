@@ -19,6 +19,34 @@ public final class AdbHandler {
 
     private AdbHandler() {}
 
+    /** 诊断端点: 返回 ADB 连接完整状态 */
+    public static void adbDiag(AsyncHttpServerResponse response) {
+        try {
+            org.json.JSONObject diag = new org.json.JSONObject();
+            AdbConnectionManager.initialize();
+            AdbConnectionManager manager = AdbConnectionManager.getInstance();
+            diag.put("managerExists", manager != null);
+            if (manager != null) {
+                diag.put("isPaired", manager.isPaired());
+                diag.put("isConnected_D", manager.D());
+                diag.put("isConnected_lib", manager.isConnected());
+                diag.put("hasKeys", manager.hasKeys());
+                // 尝试打开 shell stream 看看具体错误
+                try {
+                    io.github.muntashirakon.adb.AdbStream stream = manager.openStream(io.github.muntashirakon.adb.LocalServices.SHELL, "echo diag_test");
+                    diag.put("streamOpen", true);
+                    stream.close();
+                } catch (Exception streamEx) {
+                    diag.put("streamOpen", false);
+                    diag.put("streamError", streamEx.getClass().getSimpleName() + ": " + streamEx.getMessage());
+                }
+            }
+            HttpResponseHelper.ok(response, diag);
+        } catch (Exception e) {
+            HttpResponseHelper.error(response, "diag error: " + e.getMessage());
+        }
+    }
+
     public static void localAdbConnect(AsyncHttpServerResponse response, String command) {
         try {
             Log.d(TAG, "localAdbConnect: " + command);
@@ -57,22 +85,23 @@ public final class AdbHandler {
 
     public static void localAdbShell(AsyncHttpServerResponse response, String command) {
         try {
-            Log.d(TAG, "localAdbShell: " + command);
-            Log.d("AdbDebug", "localAdbShell ENTER command=" + command);
+            Log.e("AdbDebug", "localAdbShell ENTER command=" + command);
             AdbConnectionManager.initialize();
             AdbConnectionManager manager = AdbConnectionManager.getInstance();
-            Log.d("AdbDebug", "localAdbShell manager=" + manager + " isPaired=" + (manager != null ? manager.isPaired() : "null"));
+            Log.e("AdbDebug", "localAdbShell manager=" + manager
+                + " isPaired=" + (manager != null ? manager.isPaired() : "null")
+                + " isConnected=" + (manager != null ? manager.D() : "null"));
             boolean result = false;
             if (manager != null) {
-                Log.d("AdbDebug", "localAdbShell calling executeShellCommand...");
+                Log.e("AdbDebug", "localAdbShell calling executeShellCommand...");
                 result = manager.executeShellCommand(command);
             } else {
                 Log.e("AdbDebug", "localAdbShell manager is NULL!");
             }
-            Log.d("AdbDebug", "localAdbShell result=" + result);
+            Log.e("AdbDebug", "localAdbShell result=" + result);
             HttpResponseHelper.ok(response, result);
         } catch (Exception e) {
-            AppUtils.s(TAG, e);
+            Log.e("AdbDebug", "localAdbShell EXCEPTION", e);
             HttpResponseHelper.error(response, "Internal error");
         }
     }
