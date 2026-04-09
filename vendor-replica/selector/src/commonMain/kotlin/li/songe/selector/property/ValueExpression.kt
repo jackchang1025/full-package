@@ -180,7 +180,6 @@ sealed class ValueExpression(open val value: Any?, open val type: String) : Stri
 
     data class IntLiteral(override val value: Int) : LiteralExpression(value, "int")
 
-    @ConsistentCopyVisibility
     data class StringLiteral internal constructor(
         override val value: String,
         internal val matches: ((CharSequence) -> Boolean)? = null
