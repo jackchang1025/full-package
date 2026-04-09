@@ -174,7 +174,8 @@ public class CombineFilterConverterTest {
 
         CombineFiltersWithOr or = new CombineFiltersWithOr(Arrays.asList(f1, f2));
         String result = CombineFilterConverter.toGkdSelector(or);
-        assertEquals("[text=\"允许\"] || [text=\"确定\"]", result);
+        // GKD OR syntax requires each operand wrapped in parentheses
+        assertEquals("([text=\"允许\"]) || ([text=\"确定\"])", result);
     }
 
     @Test
