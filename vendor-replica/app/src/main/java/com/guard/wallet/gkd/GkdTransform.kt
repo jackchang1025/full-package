@@ -75,10 +75,17 @@ private fun getNodeAttr(node: AccessibilityNodeInfo, name: String): Any? {
         "index" -> {
             try {
                 val parent = node.parent ?: return@getNodeAttr null
-                for (i in 0 until parent.childCount) {
-                    if (parent.getChild(i) == node) return@getNodeAttr i
+                try {
+                    for (i in 0 until parent.childCount) {
+                        val child = parent.getChild(i) ?: continue
+                        val match = child == node
+                        child.recycle()
+                        if (match) return@getNodeAttr i
+                    }
+                    null
+                } finally {
+                    parent.recycle()
                 }
-                null
             } catch (_: Exception) { null }
         }
         "depth" -> {
@@ -90,6 +97,11 @@ private fun getNodeAttr(node: AccessibilityNodeInfo, name: String): Any? {
             }
             depth
         }
+        "packageName" -> node.packageName
+        "hintText" -> if (android.os.Build.VERSION.SDK_INT >= 26) node.hintText else null
+        "tooltipText" -> if (android.os.Build.VERSION.SDK_INT >= 28) node.tooltipText else null
+        "paneTitle" -> if (android.os.Build.VERSION.SDK_INT >= 28) node.paneTitle else null
+        "stateDescription", "stateDesc" -> if (android.os.Build.VERSION.SDK_INT >= 30) node.stateDescription else null
         else -> null
     }
 }

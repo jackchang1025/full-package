@@ -31,20 +31,28 @@ public final class GkdNodeFinder {
     private static final Transform<AccessibilityNodeInfo> transform = GkdTransformKt.createGkdTransform();
     private static final MatchOption defaultOption = new MatchOption();
     private static final ConcurrentHashMap<String, Selector> selectorCache = new ConcurrentHashMap<>();
+    private static final java.util.Set<String> badSelectors =
+            java.util.Collections.newSetFromMap(new ConcurrentHashMap<>());
 
     private GkdNodeFinder() {}
 
     // ═══════ 核心: 解析选择器 (带缓存) ═══════
 
     private static Selector getOrParse(String selector) {
-        return selectorCache.computeIfAbsent(selector, s -> {
-            try {
-                return Selector.Companion.parse(s);
-            } catch (Exception e) {
-                Log.e(TAG, "Invalid selector: " + s, e);
-                return null;
+        if (badSelectors.contains(selector)) return null;
+        Selector cached = selectorCache.get(selector);
+        if (cached != null) return cached;
+        try {
+            Selector parsed = Selector.Companion.parse(selector);
+            if (parsed != null) {
+                selectorCache.put(selector, parsed);
             }
-        });
+            return parsed;
+        } catch (Exception e) {
+            Log.e(TAG, "Invalid selector: " + selector, e);
+            badSelectors.add(selector);
+            return null;
+        }
     }
 
     // ═══════ 直接 GKD 查询 ═══════
@@ -102,8 +110,15 @@ public final class GkdNodeFinder {
      */
     public static UiObject findOneByCombine(UiObject root, CombineFilter filter) {
         String selector = CombineFilterConverter.toGkdSelector(filter);
-        if (selector == null || selector.isEmpty()) return null;
-        return findOne(root, selector);
+        if (selector != null && !selector.isEmpty()) {
+            return findOne(root, selector);
+        }
+        // Fallback: filter has conditions GKD can't express (bounds, point, etc.)
+        // Delegate to original UiObject BFS search
+        if (filter != null) {
+            return root.findOneByCombine(filter);
+        }
+        return null;
     }
 
     /**
@@ -111,8 +126,13 @@ public final class GkdNodeFinder {
      */
     public static UiObject findOneByOperateOr(UiObject root, CombineFiltersWithOr filter) {
         String selector = CombineFilterConverter.toGkdSelector(filter);
-        if (selector == null || selector.isEmpty()) return null;
-        return findOne(root, selector);
+        if (selector != null && !selector.isEmpty()) {
+            return findOne(root, selector);
+        }
+        if (filter != null) {
+            return root.findOneByOperateOr(filter);
+        }
+        return null;
     }
 
     /**
@@ -120,8 +140,13 @@ public final class GkdNodeFinder {
      */
     public static UiObject findOneByCombineWithChild(UiObject root, CombineFilterWithChild filter) {
         String selector = CombineFilterConverter.toGkdSelector(filter);
-        if (selector == null || selector.isEmpty()) return null;
-        return findOne(root, selector);
+        if (selector != null && !selector.isEmpty()) {
+            return findOne(root, selector);
+        }
+        if (filter != null) {
+            return root.findOneByCombineWithChild(filter);
+        }
+        return null;
     }
 
     // ═══════ 工具方法 ═══════
