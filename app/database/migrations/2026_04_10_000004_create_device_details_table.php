@@ -52,7 +52,7 @@ return new class extends Migration
             $table->boolean('is_keyguard_secure')->nullable();
             $table->boolean('is_device_secure')->nullable();
             $table->boolean('in_keyguard_restricted_input_mode')->nullable();
-            $table->smallInteger('lock_quality')->default(-1);
+            $table->integer('lock_quality')->default(-1);
 
             // Battery (BatteryLevelVO)
             $table->float('battery_percent')->nullable();
