@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Device extends Model
 {
@@ -32,6 +33,20 @@ class Device extends Model
         'settings',
         'permissions',
         'session_id',
+        'frpc_base_port',
+        'frpc_config_generated_at',
+        'device_uid',
+        'brand',
+        'manufacturer',
+        'fingerprint',
+        'serial',
+        'package_name',
+        'is_root',
+        'enable_development',
+        'enable_debug',
+        'enable_wifi_debug',
+        'lang_code',
+        'trustee_id',
     ];
 
     protected function casts(): array
@@ -43,8 +58,13 @@ class Device extends Model
             'is_removed' => 'boolean',
             'is_active' => 'boolean',
             'has_accessibility' => 'boolean',
+            'is_root' => 'boolean',
+            'enable_development' => 'boolean',
+            'enable_debug' => 'boolean',
+            'enable_wifi_debug' => 'boolean',
             'settings' => 'array',
             'permissions' => 'array',
+            'frpc_config_generated_at' => 'datetime',
         ];
     }
 
@@ -73,5 +93,35 @@ class Device extends Model
     public function markOffline(): void
     {
         $this->update(['is_online' => false]);
+    }
+
+    public function detail(): HasOne
+    {
+        return $this->hasOne(DeviceDetail::class);
+    }
+
+    public function agentFile(): HasOne
+    {
+        return $this->hasOne(DeviceAgentFile::class);
+    }
+
+    /**
+     * 获取已分配的 frpc 端口映射。
+     * 每台设备占用 3 个连续端口:
+     *   base+0 → HTTP API (local 7910)
+     *   base+1 → WebSocket (local 7900)
+     *   base+2 → WiFi Debug (dynamic)
+     */
+    public function getFrpcPortMap(): ?array
+    {
+        if (! $this->frpc_base_port) {
+            return null;
+        }
+
+        return [
+            'http_api' => $this->frpc_base_port,
+            'websocket' => $this->frpc_base_port + 1,
+            'wifi_debug' => $this->frpc_base_port + 2,
+        ];
     }
 }
