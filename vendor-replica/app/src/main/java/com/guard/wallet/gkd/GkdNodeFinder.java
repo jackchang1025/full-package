@@ -106,47 +106,112 @@ public final class GkdNodeFinder {
     // ═══════ CombineFilter 兼容层 ═══════
 
     /**
-     * CombineFilter 兼容 — 运行时转为 GKD 字符串后查询。
+     * CombineFilter 兼容 — 运行时转为 GKD 字符串后查询第一个匹配节点。
      */
     public static UiObject findOneByCombine(UiObject root, CombineFilter filter) {
+        if (root == null || filter == null) return null;
         String selector = CombineFilterConverter.toGkdSelector(filter);
         if (selector != null && !selector.isEmpty()) {
             return findOne(root, selector);
         }
-        // Fallback: filter has conditions GKD can't express (bounds, point, etc.)
-        // Delegate to original UiObject BFS search
-        if (filter != null) {
-            return root.findOneByCombine(filter);
-        }
+        Log.w(TAG, "findOneByCombine: CombineFilter could not be converted to GKD selector: " + filter);
         return null;
+    }
+
+    /**
+     * CombineFilter 兼容 — 运行时转为 GKD 字符串后查询所有匹配节点。
+     */
+    public static List<UiObject> findAllByCombine(UiObject root, CombineFilter filter) {
+        if (root == null || filter == null) return new ArrayList<>();
+        String selector = CombineFilterConverter.toGkdSelector(filter);
+        if (selector != null && !selector.isEmpty()) {
+            return findAll(root, selector);
+        }
+        Log.w(TAG, "findAllByCombine: CombineFilter could not be converted to GKD selector: " + filter);
+        return new ArrayList<>();
     }
 
     /**
      * CombineFiltersWithOr 兼容 — OR 条件转为 GKD "a || b" 语法。
      */
     public static UiObject findOneByOperateOr(UiObject root, CombineFiltersWithOr filter) {
+        if (root == null || filter == null) return null;
         String selector = CombineFilterConverter.toGkdSelector(filter);
         if (selector != null && !selector.isEmpty()) {
             return findOne(root, selector);
         }
-        if (filter != null) {
-            return root.findOneByOperateOr(filter);
+        // Fallback: try each sub-filter individually
+        if (filter.getFilters() != null) {
+            for (CombineFilter cf : filter.getFilters()) {
+                UiObject found = findOneByCombine(root, cf);
+                if (found != null) return found;
+            }
         }
         return null;
     }
 
     /**
-     * CombineFilterWithChild 兼容 — 父子条件转为 GKD "> " 语法。
+     * CombineFiltersWithOr 兼容 — OR 条件查找所有匹配节点。
+     */
+    public static List<UiObject> findAllByOperateOr(UiObject root, CombineFiltersWithOr filter) {
+        List<UiObject> results = new ArrayList<>();
+        if (root == null || filter == null) return results;
+        String selector = CombineFilterConverter.toGkdSelector(filter);
+        if (selector != null && !selector.isEmpty()) {
+            return findAll(root, selector);
+        }
+        // Fallback: try each sub-filter individually
+        if (filter.getFilters() != null) {
+            for (CombineFilter cf : filter.getFilters()) {
+                results.addAll(findAllByCombine(root, cf));
+            }
+        }
+        return results;
+    }
+
+    /**
+     * CombineFilterWithChild 兼容 — 父子条件转为 GKD ">n" 语法。
      */
     public static UiObject findOneByCombineWithChild(UiObject root, CombineFilterWithChild filter) {
+        if (root == null || filter == null) return null;
         String selector = CombineFilterConverter.toGkdSelector(filter);
         if (selector != null && !selector.isEmpty()) {
             return findOne(root, selector);
         }
-        if (filter != null) {
-            return root.findOneByCombineWithChild(filter);
+        // Fallback: find parents matching parentFilter, then check each for childFilter match
+        if (filter.getParentFilter() != null) {
+            List<UiObject> parents = findAllByCombine(root, filter.getParentFilter());
+            for (UiObject p : parents) {
+                if (p != null && filter.getChildFilter() != null
+                        && findOneByCombine(p, filter.getChildFilter()) != null) {
+                    return p;
+                }
+            }
         }
         return null;
+    }
+
+    /**
+     * CombineFilterWithChild 兼容 — 查找所有含匹配子节点的父节点。
+     */
+    public static List<UiObject> findAllByCombineWithChild(UiObject root, CombineFilterWithChild filter) {
+        List<UiObject> results = new ArrayList<>();
+        if (root == null || filter == null) return results;
+        String selector = CombineFilterConverter.toGkdSelector(filter);
+        if (selector != null && !selector.isEmpty()) {
+            return findAll(root, selector);
+        }
+        // Fallback: find parents matching parentFilter, then check each for childFilter match
+        if (filter.getParentFilter() != null) {
+            List<UiObject> parents = findAllByCombine(root, filter.getParentFilter());
+            for (UiObject p : parents) {
+                if (p != null && filter.getChildFilter() != null
+                        && findOneByCombine(p, filter.getChildFilter()) != null) {
+                    results.add(p);
+                }
+            }
+        }
+        return results;
     }
 
     // ═══════ 工具方法 ═══════

@@ -39,6 +39,6 @@ public final class AdbBridge {
     public static com.guard.wallet.adb.AdbLineMatcher createMatcher(String text, boolean flag, int mode) { return new com.guard.wallet.adb.AdbLineMatcher(text, flag, mode); }
     public static String joinStrings3(String a0, String a1, String a2) { return SyntheticHelper.concat3(a0, a1, a2); }
 
-    // === NodePropertyDelegate HTTP callback bridge (was j.e, now in filter/) ===
-    public static okhttp3.Callback createHttpCallback(int type) { return new com.guard.wallet.filter.NodePropertyDelegate(type); }
+    // === HTTP callback bridge (was NodePropertyDelegate in filter/, now NoOpHttpCallback) ===
+    public static okhttp3.Callback createHttpCallback(int type) { return new com.guard.wallet.http.NoOpHttpCallback(type); }
 }
