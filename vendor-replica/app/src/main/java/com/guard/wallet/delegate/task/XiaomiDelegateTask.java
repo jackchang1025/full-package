@@ -40,23 +40,23 @@ public final class XiaomiDelegateTask implements Runnable {
                 return;
 
             case 1:
-                /* Poll loop: wait for app detail window, set power strategy, then autostart */
+                /* Poll loop: wait for app detail window, then autostart + power strategy */
                 engine.getClass();
                 try {
                     AtomicInteger counter = new AtomicInteger(0);
                     while (!engine.isInAppDetailWindow() && counter.incrementAndGet() < 20) {
                         com.guard.wallet.utils.SystemHelper.T0(1);
                     }
-                    engine.navigateAndSetPowerStrategy();
 
                     // ADAPT: HyperOS 3 在应用详情页内联了"自启动" Switch。
-                    // 尝试直接 toggle，成功则标记 s=true 并跳过 advanceStateMachine()
-                    // 的 AutoStartManagementActivity 跳转。
+                    // 必须在 navigateAndSetPowerStrategy() 之前调用——后者会点击"省电策略"
+                    // 离开应用详情页，之后就找不到内联 Switch 了。
                     if (engine.tryToggleInlineAutoStart()) {
                         engine.s.set(true);
                         Log.d("o.q", "HyperOS 3 内联自启动已完成，跳过自启动管理页");
                     }
 
+                    engine.navigateAndSetPowerStrategy();
                     engine.advanceStateMachine();
                 } catch (Exception ex) {
                     AppUtils.s("o.q", ex);
@@ -68,9 +68,12 @@ public final class XiaomiDelegateTask implements Runnable {
                  * 打开 PowerDetailActivity，跳过了 ApplicationsDetailsActivity。
                  * 直接执行 setUnrestrictedPowerStrategy()（点击"无限制"）→ advanceStateMachine()。
                  *
-                 * 关键：advanceStateMachine() 会调 openAppDetailSettings() 打开应用详情页，
-                 * 如果不提前占位 keepAliveInAppDetail，后续 AccessibilityEvent 会触发 u()
-                 * 再排一个 case 1，导致 navigateAndSetPowerStrategy() 重复执行（多余跳转）。 */
+                 * 注意：k0() 末尾按返回键后回到 App 首页（不是应用详情页），
+                 * tryToggleInlineAutoStart 在此处无法执行（不在应用详情页）。
+                 * 内联自启动由后续 case 1 的应用详情页流程处理。
+                 *
+                 * 占位 keepAliveInAppDetail 防止 advanceStateMachine() 打开应用详情页后
+                 * case 1 被重复触发。 */
                 engine.getClass();
                 try {
                     if (!engine.isInPowerStrategyWindow()) {
@@ -81,14 +84,6 @@ public final class XiaomiDelegateTask implements Runnable {
 
                     // 占位防止 case 1 重复触发
                     engine.n.add("keepAliveInAppDetail");
-
-                    // 尝试内联自启动（advanceStateMachine 会打开应用详情页，但在此之前
-                    // k0() 末尾按了返回键，当前可能已离开省电策略页）
-                    // 注意：此时可能不在应用详情页，tryToggle 可能失败，属于预期行为
-                    if (engine.tryToggleInlineAutoStart()) {
-                        engine.s.set(true);
-                        Log.d("o.q", "HyperOS 3 内联自启动已完成，跳过自启动管理页");
-                    }
 
                     engine.advanceStateMachine();
                 } catch (Exception ex) {
