@@ -35,7 +35,7 @@ public final class PermissionGrantTask implements Runnable {
                 /* keepAliveInAppDetail — find and click battery management item */
                 var5.getClass();
                 try {
-                    if (!var5.isInAppDetail()) {
+                    if (!var5.isInAppDetailWindow()) {
                         return;
                     }
                     Log.d("o.g", "keepAliveInAppDetail 窗口匹配");

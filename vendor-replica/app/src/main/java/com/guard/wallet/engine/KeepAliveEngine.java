@@ -56,7 +56,7 @@ public abstract class KeepAliveEngine extends AccessibilityDelegate {
     /** 单线程调度执行器，周期保活任务 */
     public final ScheduledExecutorService p = Executors.newSingleThreadScheduledExecutor();
 
-    /** 运行状态标志: true 表示引擎正在运行 */
+    /** 引擎终止标志: true 表示引擎已完成/已标记为终止 */
     public final AtomicBoolean q = new AtomicBoolean(false);
 
     // ═══════ 内联辅助方法 (a.a.c / a.a.b / o.b.r / o.b.q) ═══════
@@ -629,9 +629,9 @@ public abstract class KeepAliveEngine extends AccessibilityDelegate {
     }
 
     /**
-     * vendor T() → isEngineFinished() — 检查引擎是否正在运行。
+     * vendor T() → isEngineFinished() — 检查引擎是否已完成（标记为终止）。
      *
-     * @return true 若引擎运行标志已设置
+     * @return true 若引擎已被标记为终止（markEngineRunning() 已调用）
      */
     public final boolean isEngineFinished() {
         return this.q.get();

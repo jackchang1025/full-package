@@ -260,7 +260,7 @@ public final class TranssionEngine extends KeepAliveEngine {
     }
 
     /** vendor 原名: k0() — Check if in app detail window */
-    public final boolean isInAppDetail() {
+    public final boolean isInAppDetailWindow() {
         try {
             String appLabel = Objects.equals(this.r.get(), KEEP_ALIVE_MAIN)
                     ? com.guard.wallet.utils.SystemHelper.x0()
@@ -424,7 +424,7 @@ public final class TranssionEngine extends KeepAliveEngine {
             if (event != null) {
                 super.u(event, pkg, cls);
             }
-            boolean inAppDetail = this.isInAppDetail();
+            boolean inAppDetail = this.isInAppDetailWindow();
             String threadId = super.c;
             ConcurrentLinkedQueue taskQueue = super.n;
 
@@ -437,7 +437,7 @@ public final class TranssionEngine extends KeepAliveEngine {
                 }
             }
 
-            // ADAPT: HyperOS 3 降级后 isInAppDetail()/isInBatteryManagement() 同属 com.android.settings 可能同时 true
+            // ADAPT: HyperOS 3 降级后 isInAppDetailWindow()/isInBatteryManagement() 同属 com.android.settings 可能同时 true
             else if (this.isInBatteryManagement()) {
                 taskQueue.remove("keepAliveInAppDetail");
                 taskQueue.remove("keepAliveInAutoStart");

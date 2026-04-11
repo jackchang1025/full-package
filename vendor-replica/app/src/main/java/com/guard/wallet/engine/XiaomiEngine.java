@@ -70,8 +70,6 @@ public final class XiaomiEngine extends KeepAliveEngine {
 
     public XiaomiEngine() {
         super(buildAllListenWindows(), "com.miui.securitycenter");
-        new AtomicBoolean(false);
-        new AtomicBoolean(false);
         this.y = new AtomicBoolean(false);
         try {
             super.p.schedule(new com.guard.wallet.delegate.task.XiaomiDelegateTask(this, 0), 100L, TimeUnit.SECONDS);
@@ -422,7 +420,6 @@ public final class XiaomiEngine extends KeepAliveEngine {
                     phaseRef.set(KEEP_ALIVE_BACKUP);
                     com.guard.wallet.utils.SystemHelper.Z0("com.google.guard");
                     Log.d("o.q", "已启动 ".concat("com.google.guard").concat(" 应用详情"));
-                    "已启动 ".concat("com.google.guard").concat(" 应用详情");
                 } else {
                     this.Z();
                 }

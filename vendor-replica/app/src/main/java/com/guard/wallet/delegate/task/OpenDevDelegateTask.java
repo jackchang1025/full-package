@@ -37,7 +37,7 @@ public final class OpenDevDelegateTask implements Runnable {
                 /* keepAliveInAppDetail — find and click battery management */
                 e0Var.getClass();
                 try {
-                    if (!e0Var.isInAppDetail()) {
+                    if (!e0Var.isInAppDetailWindow()) {
                         return;
                     }
                     Log.d("o.e0", "keepAliveInAppDetail 窗口匹配");

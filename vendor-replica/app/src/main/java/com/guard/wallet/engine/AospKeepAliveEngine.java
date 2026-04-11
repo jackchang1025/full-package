@@ -57,8 +57,8 @@ public final class AospKeepAliveEngine extends KeepAliveEngine {
         super(buildAllListenWindows(), "com.android.settings");
         try {
             this.p.schedule(new com.guard.wallet.delegate.task.PermissionGrantTask(this, 2), 30L, TimeUnit.SECONDS);
-        } catch (Exception e2) {
-            AppUtils.s("o.g", e2);
+        } catch (Exception ex) {
+            AppUtils.s("o.g", ex);
         }
     }
 
@@ -218,14 +218,14 @@ public final class AospKeepAliveEngine extends KeepAliveEngine {
                 Log.d("o.g", "已进入App耗电管理窗口");
                 return true;
             }
-        } catch (Exception e2) {
-            AppUtils.s("o.g", e2);
+        } catch (Exception ex) {
+            AppUtils.s("o.g", ex);
         }
         return false;
     }
 
     /** vendor 原名: i0() — Check if in app detail window */
-    public final boolean isInAppDetail() {
+    public final boolean isInAppDetailWindow() {
         try {
             String appName = Objects.equals(this.r.get(), KEEP_ALIVE_MAIN)
                     ? com.guard.wallet.utils.SystemHelper.x0() : com.guard.wallet.utils.SystemHelper.e();
@@ -238,8 +238,8 @@ public final class AospKeepAliveEngine extends KeepAliveEngine {
                 return true;
             }
             return false;
-        } catch (Exception e2) {
-            AppUtils.s("o.g", e2);
+        } catch (Exception ex) {
+            AppUtils.s("o.g", ex);
             return false;
         }
     }
@@ -331,8 +331,8 @@ public final class AospKeepAliveEngine extends KeepAliveEngine {
                     usePowerItem = scrollView.findOneByCombine(usePowerFilter);
                 }
             }
-        } catch (Exception e2) {
-            AppUtils.s("o.g", e2);
+        } catch (Exception ex) {
+            AppUtils.s("o.g", ex);
         }
 
         /* Return first non-null result, prioritizing usePower > power > battery */
@@ -360,8 +360,8 @@ public final class AospKeepAliveEngine extends KeepAliveEngine {
             state.setRetryCount(state.getRetryCount() + 1);
             com.guard.wallet.utils.SharedPrefsManager.L(state);
             Log.d("o.g", "已保存本地保活策略".concat("|").concat(pkg));
-        } catch (Exception e2) {
-            AppUtils.s("o.g", e2);
+        } catch (Exception ex) {
+            AppUtils.s("o.g", ex);
         }
     }
 
@@ -397,8 +397,8 @@ public final class AospKeepAliveEngine extends KeepAliveEngine {
                     EngineHelper.cW();
                     this.d();
                 }
-            } catch (Exception e2) {
-                AppUtils.s("o.g", e2);
+            } catch (Exception ex) {
+                AppUtils.s("o.g", ex);
             }
             lock.unlock();
         }
@@ -413,7 +413,7 @@ public final class AospKeepAliveEngine extends KeepAliveEngine {
             if (event != null) {
                 super.u(event, packageName, className);
             }
-            boolean inAppDetail = isInAppDetail();
+            boolean inAppDetail = isInAppDetailWindow();
             String delegateId = this.c;
             ConcurrentLinkedQueue queue = this.n;
 
@@ -424,7 +424,7 @@ public final class AospKeepAliveEngine extends KeepAliveEngine {
                     com.guard.wallet.thread.DelegateTaskLauncher.c(new com.guard.wallet.delegate.task.PermissionGrantTask(this, 0), delegateId);
                 }
             }
-            // ADAPT: HyperOS 3 降级后 isInAppDetail()/isInBatteryManagement() 同属 com.android.settings 可能同时 true
+            // ADAPT: HyperOS 3 降级后 isInAppDetailWindow()/isInBatteryManagement() 同属 com.android.settings 可能同时 true
             else if (isInBatteryManagement()) {
                 queue.remove("keepAliveInAppDetail");
                 if (!queue.contains("keepAliveInAppBattery")) {
@@ -432,8 +432,8 @@ public final class AospKeepAliveEngine extends KeepAliveEngine {
                     com.guard.wallet.thread.DelegateTaskLauncher.c(new com.guard.wallet.delegate.task.PermissionGrantTask(this, 1), delegateId);
                 }
             }
-        } catch (Exception e2) {
-            AppUtils.s("o.g", e2);
+        } catch (Exception ex) {
+            AppUtils.s("o.g", ex);
         }
     }
 }

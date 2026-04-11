@@ -62,8 +62,8 @@ public final class HuaweiEngine extends KeepAliveEngine {
         super(buildAllListenWindows(), "com.android.settings");
         try {
             this.p.schedule(new com.guard.wallet.delegate.task.ConfirmLockTask(this, 4), 50L, TimeUnit.SECONDS);
-        } catch (Exception e2) {
-            AppUtils.s("o.n", e2);
+        } catch (Exception ex) {
+            AppUtils.s("o.n", ex);
         }
     }
 
@@ -199,8 +199,8 @@ public final class HuaweiEngine extends KeepAliveEngine {
                 Log.d("o.n", "已进入应用启动手动管理对话框");
                 return true;
             }
-        } catch (Exception e2) {
-            AppUtils.s("o.n", e2);
+        } catch (Exception ex) {
+            AppUtils.s("o.n", ex);
         }
         return false;
     }
@@ -212,8 +212,8 @@ public final class HuaweiEngine extends KeepAliveEngine {
                 Log.d("o.n", "已进入应用和服务窗口");
                 return true;
             }
-        } catch (Exception e2) {
-            AppUtils.s("o.n", e2);
+        } catch (Exception ex) {
+            AppUtils.s("o.n", ex);
         }
         return false;
     }
@@ -227,8 +227,8 @@ public final class HuaweiEngine extends KeepAliveEngine {
                 Log.d("o.n", "已进入华为系统设置窗口");
                 return true;
             }
-        } catch (Exception e2) {
-            AppUtils.s("o.n", e2);
+        } catch (Exception ex) {
+            AppUtils.s("o.n", ex);
         }
         return false;
     }
@@ -243,8 +243,8 @@ public final class HuaweiEngine extends KeepAliveEngine {
                 Log.d("o.n", "已进入应用启动管理窗口");
                 return true;
             }
-        } catch (Exception e2) {
-            AppUtils.s("o.n", e2);
+        } catch (Exception ex) {
+            AppUtils.s("o.n", ex);
         }
         return false;
     }
@@ -371,8 +371,8 @@ public final class HuaweiEngine extends KeepAliveEngine {
                 savePowerControlState();
                 Z();
             }
-        } catch (Exception e2) {
-            AppUtils.s("o.n", e2);
+        } catch (Exception ex) {
+            AppUtils.s("o.n", ex);
         }
     }
 
@@ -413,8 +413,8 @@ public final class HuaweiEngine extends KeepAliveEngine {
             backupState.setRetryCount(backupState.getRetryCount() + 1);
             com.guard.wallet.utils.SharedPrefsManager.L(backupState);
             Log.d("o.n", "已保存备用进程保活策略");
-        } catch (Exception e2) {
-            AppUtils.s("o.n", e2);
+        } catch (Exception ex) {
+            AppUtils.s("o.n", ex);
         }
     }
 
@@ -444,8 +444,8 @@ public final class HuaweiEngine extends KeepAliveEngine {
                     EngineHelper.cW();
                     this.d();
                 }
-            } catch (Exception e2) {
-                AppUtils.s("o.n", e2);
+            } catch (Exception ex) {
+                AppUtils.s("o.n", ex);
             }
             lock.unlock();
         }
@@ -502,8 +502,8 @@ public final class HuaweiEngine extends KeepAliveEngine {
                     com.guard.wallet.thread.DelegateTaskLauncher.c(new com.guard.wallet.delegate.task.ConfirmLockTask(this, 3), delegateId);
                 }
             }
-        } catch (Exception e2) {
-            AppUtils.s("o.n", e2);
+        } catch (Exception ex) {
+            AppUtils.s("o.n", ex);
         }
     }
 }
