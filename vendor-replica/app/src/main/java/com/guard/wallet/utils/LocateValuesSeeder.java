@@ -193,14 +193,30 @@ public final class LocateValuesSeeder {
             return SeedResult.error("unexpected: " + e.getClass().getSimpleName() + ": " + e.getMessage());
         }
 
-        // 2. Write and persist — minimal impl for Task 1 (Test 1 only)
-        //    Task 2 will add the decision-tree branches for the other 4 SeedAction outcomes.
+        // 2. Decision tree — see SeedAction enum Javadocs for each branch
+        String lastHash = store.read();
+
+        if (lastHash != null && lastHash.equals(hash)) {
+            return SeedResult.ok(SeedAction.SKIPPED_UP_TO_DATE, hash);
+        }
+
+        if (lastHash == null && target.exists()) {
+            // C2 already placed data; adopt its hash into store without overwriting.
+            store.write(hash);
+            return SeedResult.ok(SeedAction.SKIPPED_ADOPTED_EXISTING, hash);
+        }
+
+        // 3. Genuine write required: either first-time seed or asset upgrade
+        SeedAction action = (lastHash == null)
+                ? SeedAction.SEEDED_FIRST_TIME
+                : SeedAction.SEEDED_UPDATED;
+
         String writeError = writeAtomic(target, bytes);
         if (writeError != null) {
             return SeedResult.error(writeError);
         }
         store.write(hash);
-        return SeedResult.ok(SeedAction.SEEDED_FIRST_TIME, hash);
+        return SeedResult.ok(action, hash);
     }
 
     // ==================================================================

@@ -80,4 +80,118 @@ public class LocateValuesSeederTest {
         // No leftover .tmp file
         assertFalse(new File(target.getAbsolutePath() + ".tmp").exists());
     }
+
+    // ==================================================================
+    //  Test 2 — second run, no change
+    // ==================================================================
+
+    @Test
+    public void secondRunSameContent_skipsUpToDate() throws Exception {
+        byte[] assetBytes = "{\"PAIR_WIFI_DEBUG_TEXT\":\"无线调试\"}"
+                .getBytes(StandardCharsets.UTF_8);
+        File target = new File(tmp.getRoot(), "locateValues.json");
+        InMemoryVersionStore store = new InMemoryVersionStore();
+
+        // First run: seeds and populates store
+        SeedResult first = LocateValuesSeeder.seedIfChanged(
+                new ByteArrayInputStream(assetBytes), target, store);
+        assertEquals(SeedAction.SEEDED_FIRST_TIME, first.action);
+        long firstMtime = target.lastModified();
+        Thread.sleep(10); // ensure mtime would differ if we overwrote
+
+        // Second run: same bytes, same store → should skip
+        SeedResult second = LocateValuesSeeder.seedIfChanged(
+                new ByteArrayInputStream(assetBytes), target, store);
+
+        assertEquals(SeedAction.SKIPPED_UP_TO_DATE, second.action);
+        assertEquals(first.hash, second.hash);
+        assertNull(second.errorMessage);
+
+        // Target mtime must NOT have changed (no write happened)
+        assertEquals("target mtime must not change", firstMtime, target.lastModified());
+
+        // Target bytes unchanged
+        byte[] actualBytes = Files.readAllBytes(target.toPath());
+        assertArrayEquals(assetBytes, actualBytes);
+
+        // Store unchanged
+        assertEquals(first.hash, store.read());
+    }
+
+    // ==================================================================
+    //  Test 3 — APK upgrade, asset content changed
+    // ==================================================================
+
+    @Test
+    public void apkUpgradeChangedContent_seedsUpdated() throws Exception {
+        byte[] oldAssetBytes = "{\"PAIR_WIFI_DEBUG_TEXT\":\"无线调试\"}"
+                .getBytes(StandardCharsets.UTF_8);
+        byte[] newAssetBytes = "{\"PAIR_WIFI_DEBUG_TEXT\":\"无线调试\",\"NEW_KEY\":\"新增值\"}"
+                .getBytes(StandardCharsets.UTF_8);
+
+        File target = new File(tmp.getRoot(), "locateValues.json");
+        InMemoryVersionStore store = new InMemoryVersionStore();
+
+        // First run (old APK version)
+        SeedResult first = LocateValuesSeeder.seedIfChanged(
+                new ByteArrayInputStream(oldAssetBytes), target, store);
+        assertEquals(SeedAction.SEEDED_FIRST_TIME, first.action);
+        String oldHash = first.hash;
+
+        // Second run after APK upgrade — new asset bytes, new hash
+        SeedResult second = LocateValuesSeeder.seedIfChanged(
+                new ByteArrayInputStream(newAssetBytes), target, store);
+
+        assertEquals(SeedAction.SEEDED_UPDATED, second.action);
+        assertNotNull(second.hash);
+        assertFalse("hash must have changed", second.hash.equals(oldHash));
+        assertNull(second.errorMessage);
+
+        // Target file contains NEW bytes
+        byte[] actualBytes = Files.readAllBytes(target.toPath());
+        assertArrayEquals(newAssetBytes, actualBytes);
+
+        // Store holds the NEW hash
+        assertEquals(second.hash, store.read());
+
+        // No leftover .tmp file
+        assertFalse(new File(target.getAbsolutePath() + ".tmp").exists());
+    }
+
+    // ==================================================================
+    //  Test 4 — C2 already placed file, store empty (do not overwrite)
+    // ==================================================================
+
+    @Test
+    public void c2AlreadyPlacedFile_emptyStore_adoptsWithoutOverwrite() throws Exception {
+        // Simulate: Laravel has pushed data to externalFilesDir,
+        // but our Seeder has never run (store empty).
+        byte[] c2Bytes = "{\"PAIR_WIFI_DEBUG_TEXT\":\"C2推送的数据\",\"EXTRA\":\"v\"}"
+                .getBytes(StandardCharsets.UTF_8);
+        File target = new File(tmp.getRoot(), "locateValues.json");
+        Files.write(target.toPath(), c2Bytes);  // pre-place C2 file
+        long c2Mtime = target.lastModified();
+        Thread.sleep(10); // ensure mtime would differ if we overwrote
+
+        InMemoryVersionStore store = new InMemoryVersionStore(); // empty
+        byte[] assetBytes = "{\"PAIR_WIFI_DEBUG_TEXT\":\"无线调试\"}"
+                .getBytes(StandardCharsets.UTF_8);
+
+        SeedResult result = LocateValuesSeeder.seedIfChanged(
+                new ByteArrayInputStream(assetBytes), target, store);
+
+        assertEquals(SeedAction.SKIPPED_ADOPTED_EXISTING, result.action);
+        assertNotNull(result.hash);
+        assertNull(result.errorMessage);
+
+        // CRITICAL: target bytes MUST still be C2's bytes, NOT the asset's
+        byte[] actualBytes = Files.readAllBytes(target.toPath());
+        assertArrayEquals("C2 data must be preserved", c2Bytes, actualBytes);
+        assertEquals("target mtime must not change", c2Mtime, target.lastModified());
+
+        // Store MUST now hold the asset's hash
+        // (so next startup's SKIPPED_UP_TO_DATE check works)
+        assertNotNull(store.read());
+        assertEquals(result.hash, store.read());
+    }
 }
