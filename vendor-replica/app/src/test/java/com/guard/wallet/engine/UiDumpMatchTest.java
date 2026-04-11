@@ -188,6 +188,40 @@ public class UiDumpMatchTest {
                 hasSwitch);
     }
 
+    // ═══════ 应用详情页内联自启动 Switch (HyperOS 3) ═══════
+
+    @Test
+    public void appDetailWithAutostart_hasInlineAutoStartSwitch() {
+        String xml = loadDump("app-detail-with-autostart.xml");
+        assertTrue("应用详情页应有内联的自启动 Switch (content-desc='自启动')",
+                xml.contains("content-desc=\"自启动\"")
+                && xml.contains("class=\"android.widget.Switch\""));
+    }
+
+    @Test
+    public void appDetailWithAutostart_autoStartSwitchIsCheckable() {
+        String xml = loadDump("app-detail-with-autostart.xml");
+        int idx = xml.indexOf("content-desc=\"自启动\"");
+        assertTrue("自启动 Switch 应存在", idx > 0);
+        int nodeStart = xml.lastIndexOf("<node", idx);
+        int nodeEnd = xml.indexOf("/>", idx);
+        if (nodeEnd == -1) nodeEnd = xml.indexOf("</node>", idx);
+        String node = xml.substring(nodeStart, Math.min(nodeEnd + 2, xml.length()));
+        assertTrue("自启动 Switch 应可勾选", node.contains("checkable=\"true\""));
+        assertTrue("自启动 Switch 应可点击", node.contains("clickable=\"true\""));
+    }
+
+    @Test
+    public void appDetailWithAutostart_autoStartDefaultUnchecked() {
+        String xml = loadDump("app-detail-with-autostart.xml");
+        int idx = xml.indexOf("content-desc=\"自启动\"");
+        int nodeStart = xml.lastIndexOf("<node", idx);
+        int nodeEnd = xml.indexOf("/>", idx);
+        if (nodeEnd == -1) nodeEnd = xml.indexOf("</node>", idx);
+        String node = xml.substring(nodeStart, Math.min(nodeEnd + 2, xml.length()));
+        assertTrue("自启动 Switch 默认应未勾选", node.contains("checked=\"false\""));
+    }
+
     // ═══════ locateValues.json 完整性检查 ═══════
 
     @Test
