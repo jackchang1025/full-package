@@ -37,7 +37,7 @@ import static org.junit.Assert.fail;
  *    而不是屏幕标题 "安全设置"。这是 vendor 在 o/a0.java:441 中
  *    针对小米安全中心 AdbInputApplyActivity "正在开启" 弹窗的匹配条件。
  * 3. 每个厂商类别至少有一个 canary key 解析为预期值。
- * 4. 完整 82-key 覆盖由 allRequiredKeysPresent() 断言。
+ * 4. 完整 80-key 覆盖由 allRequiredKeysPresent() 断言。
  *
  * <p><b>Working directory requirement:</b> this test reads the asset file via
  * the relative path {@code src/main/assets/locateValues.json}, which resolves
@@ -185,18 +185,16 @@ public class LocateValuesAssetTest {
     }
 
     /**
-     * 全量 82-key 存在性断言。若以后新增 key 到 locateValues.json，
+     * 全量 80-key 存在性断言。若以后新增 key 到 locateValues.json，
      * 同步把 key 名加到下面的 required[] 数组；若删除 key，也同步删。
      * 断言同时检查 map.size() == required.length，防止遗留 dead key。
      */
     @Test
     public void allRequiredKeysPresent() {
         String[] required = {
-            // PAIR_* (31) — ADB wireless pairing — vendor o/a0.java
+            // PAIR_* (29) — ADB wireless pairing — vendor o/a0.java
             "PAIR_WIFI_DEBUG_TEXT",
             "PAIR_WIFI_DEBUG_2_TEXT",
-            "PAIR_WIFI_DEBUG_CONTAINS_TEXT",
-            "PAIR_WIFI_DEBUG_CONTAINS_2_TEXT",
             "PAIR_DEVELOPER_OPTION_TEXT",
             "PAIR_DEVELOPERS_OPTION_TEXT",
             "PAIR_DEVELOPER_OPTION_2_TEXT",
@@ -293,7 +291,7 @@ public class LocateValuesAssetTest {
 
         assertEquals(
             "Required-key list size drift — update the array above when you add or remove keys",
-            82,
+            80,
             required.length
         );
 
