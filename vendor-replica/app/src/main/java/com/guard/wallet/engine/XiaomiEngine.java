@@ -609,6 +609,20 @@ public final class XiaomiEngine extends KeepAliveEngine {
                 }
             }
 
+            // ADAPT: HyperOS 3 的 openAppDetailSettings() 直接打开 PowerDetailActivity
+            // (省电策略页)，跳过了 ApplicationsDetailsActivity (应用详情页)。
+            // 检测到已在省电策略窗口时，直接执行 k0() + j0()，跳过 c0() 的查找点击步骤。
+            else if (this.g0()) {
+                taskQueue.remove("keepAliveInAutoStartManage");
+                taskQueue.remove("keepAliveInAppPermissions");
+                taskQueue.remove("keepAliveInOtherPermissions");
+                taskQueue.remove("keepAliveInPermissionModify");
+                if (!taskQueue.contains("keepAliveInAppPowerStrategy")) {
+                    taskQueue.add("keepAliveInAppPowerStrategy");
+                    com.guard.wallet.thread.DelegateTaskLauncher.c(new com.guard.wallet.delegate.task.XiaomiDelegateTask(this, 3), threadId);
+                }
+            }
+
             // ADAPT: HyperOS 3 packageName-only fallback 后 f0() 和 h0() 可能同时 true
             // (同属 com.miui.securitycenter)。改为 else if 让 f0() 优先。
             else if (this.h0()) {
