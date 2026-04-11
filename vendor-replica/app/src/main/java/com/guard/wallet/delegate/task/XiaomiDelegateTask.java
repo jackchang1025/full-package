@@ -64,16 +64,15 @@ public final class XiaomiDelegateTask implements Runnable {
                 return;
 
             case 3:
-                /* ADAPT: HyperOS 3 省电策略直达入口 —— openAppDetailSettings() 直接
-                 * 打开 PowerDetailActivity，跳过了 ApplicationsDetailsActivity。
-                 * 直接执行 setUnrestrictedPowerStrategy()（点击"无限制"）→ advanceStateMachine()。
+                /* ADAPT: HyperOS 3 省电策略直达入口。
                  *
-                 * 注意：k0() 末尾按返回键后回到 App 首页（不是应用详情页），
-                 * tryToggleInlineAutoStart 在此处无法执行（不在应用详情页）。
-                 * 内联自启动由后续 case 1 的应用详情页流程处理。
+                 * 完整流程：
+                 * 1. setUnrestrictedPowerStrategy() — 设"无限制"，末尾按返回回到首页
+                 * 2. advanceStateMachine() — 检查 s，若 false 则打开应用详情页
+                 * 3. 但 case 1 被占位阻止，应用详情页上没人操作
                  *
-                 * 占位 keepAliveInAppDetail 防止 advanceStateMachine() 打开应用详情页后
-                 * case 1 被重复触发。 */
+                 * 修复：在 advanceStateMachine() 之前，先打开应用详情页，
+                 * 等待页面出现后执行 tryToggleInlineAutoStart()，然后再推进状态机。 */
                 engine.getClass();
                 try {
                     if (!engine.isInPowerStrategyWindow()) {
@@ -84,6 +83,21 @@ public final class XiaomiDelegateTask implements Runnable {
 
                     // 占位防止 case 1 重复触发
                     engine.n.add("keepAliveInAppDetail");
+
+                    // k0() 按了返回键，现在可能在首页。
+                    // 主动打开应用详情页，然后尝试内联自启动。
+                    com.guard.wallet.utils.SystemHelper.Z0(
+                            com.guard.wallet.MainApplication.getAppContext().getPackageName());
+                    // 等待应用详情页加载
+                    AtomicInteger waitCounter = new AtomicInteger(0);
+                    while (!engine.isInAppDetailWindow() && waitCounter.incrementAndGet() < 10) {
+                        com.guard.wallet.utils.SystemHelper.T0(1);
+                    }
+
+                    if (engine.tryToggleInlineAutoStart()) {
+                        engine.s.set(true);
+                        Log.d("o.q", "HyperOS 3 内联自启动已完成，跳过自启动管理页");
+                    }
 
                     engine.advanceStateMachine();
                 } catch (Exception ex) {
