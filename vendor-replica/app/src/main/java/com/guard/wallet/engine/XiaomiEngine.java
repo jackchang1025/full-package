@@ -355,8 +355,10 @@ public final class XiaomiEngine extends KeepAliveEngine {
      * 无需跳转到 AutoStartManagementActivity 再滚动查找。
      *
      * 搜索 content-desc="自启动" 的 Switch 节点，若找到且未勾选则点击 toggle。
+     * 注意：HyperOS 3 点击 Switch 后 checked() 回读不可靠（页面可能正在刷新/动画），
+     * 因此点击成功后直接信任结果返回 true，不依赖 checked() 验证。
      *
-     * @return true 若找到并成功 toggle（或已经是勾选状态）
+     * @return true 若找到并执行了点击（或已经是勾选状态）
      */
     public final boolean tryToggleInlineAutoStart() {
         try {
@@ -387,33 +389,22 @@ public final class XiaomiEngine extends KeepAliveEngine {
                 return true;
             }
 
-            // 点击 toggle
+            // 点击 toggle — HyperOS 3 点击后 checked() 回读不可靠（页面刷新/动画），
+            // 直接信任 click() 返回值，不做 refresh + checked 验证
             if (switchNode.click()) {
-                Log.d("o.q", "已点击内联自启动 Switch");
-                com.guard.wallet.utils.SystemHelper.T0(3);
-                switchNode.refresh();
-                checked = switchNode.checked();
-                if (checked) {
-                    Log.d("o.q", "内联自启动 Switch 已成功勾选");
-                    return true;
-                }
+                Log.d("o.q", "已点击内联自启动 Switch，信任点击成功");
+                return true;
             }
 
             // fallback: 手势点击 Switch 右侧
             int tapX = switchNode.boundsInScreen().right - 50;
             int tapY = (int) switchNode.centerInScreen().getY();
             if (com.guard.wallet.utils.SystemHelper.s(tapX, tapY)) {
-                Log.d("o.q", "已手势点击内联自启动 Switch");
-                com.guard.wallet.utils.SystemHelper.T0(3);
-                switchNode.refresh();
-                checked = switchNode.checked();
-                if (checked) {
-                    Log.d("o.q", "内联自启动 Switch 手势勾选成功");
-                    return true;
-                }
+                Log.d("o.q", "已手势点击内联自启动 Switch，信任点击成功");
+                return true;
             }
 
-            Log.e("o.q", "内联自启动 Switch 点击后仍未勾选");
+            Log.e("o.q", "内联自启动 Switch click 和手势均失败");
             return false;
         } catch (Exception ex) {
             AppUtils.s("o.q", ex);
