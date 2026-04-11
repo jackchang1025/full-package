@@ -195,7 +195,7 @@ public final class DelegateEventDispatcher implements Runnable {
                     }
                     vVar.r.set(Objects.equals(str4, "com.google.guard") ? com.guard.wallet.delegate.ScreenCaptureManager.e.d : com.guard.wallet.delegate.ScreenCaptureManager.e.c);
                     if (com.guard.wallet.utils.SystemHelper.Z0(str4)) {
-                        Log.d("o.v", str4.concat(" \u542f\u52a8\u6210\u529f"));
+                        Log.e("o.v", str4.concat(" \u542f\u52a8\u6210\u529f"));
                         str4.concat(" \u542f\u52a8\u6210\u529f");
                         return;
                     } else {
@@ -240,7 +240,7 @@ public final class DelegateEventDispatcher implements Runnable {
                         atomicReference.set(com.guard.wallet.delegate.ScreenCaptureManager.e.c);
                     }
                     i0Var.s.set("prepareInAppPowerRank");
-                    if (i0Var.A0()) {
+                    if (i0Var.launchPowerRankActivity()) {
                         Log.d("o.i0", "App\u8017\u7535\u7ba1\u7406\u7a97\u53e3\u5df2\u542f\u52a8");
                         str = " App\u8017\u7535\u7ba1\u7406\u7a97\u53e3\u5df2\u542f\u52a8";
                     } else {

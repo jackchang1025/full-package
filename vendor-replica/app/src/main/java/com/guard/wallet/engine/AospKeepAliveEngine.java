@@ -54,7 +54,7 @@ public final class AospKeepAliveEngine extends KeepAliveEngine {
     public final AtomicBoolean u = new AtomicBoolean(false);
 
     public AospKeepAliveEngine() {
-        super(k0(), "com.android.settings");
+        super(buildAllListenWindows(), "com.android.settings");
         try {
             this.p.schedule(new com.guard.wallet.delegate.task.PermissionGrantTask(this, 2), 30L, TimeUnit.SECONDS);
         } catch (Exception e2) {
@@ -64,8 +64,8 @@ public final class AospKeepAliveEngine extends KeepAliveEngine {
 
     // ======= Static CombineFilter builders =======
 
-    /** Filter: TextView text = COMMON_ALLOW_BACKGROUND_USAGE_TEXT (may return null) */
-    public static CombineFilter b0() {
+    /** vendor 原名: b0() — Filter: COMMON_ALLOW_BACKGROUND_USAGE_TEXT (may return null) */
+    public static CombineFilter buildAllowBackgroundFilter() {
         String text = com.guard.wallet.utils.LocateValuesUtils.getValue("COMMON_ALLOW_BACKGROUND_USAGE_TEXT");
         if (AppUtils.B(text)) {
             return null;
@@ -78,8 +78,8 @@ public final class AospKeepAliveEngine extends KeepAliveEngine {
         return cf;
     }
 
-    /** Filter: TextView text contains COMMON_SETTINGS_BATTERY_TEXT (may return null) */
-    public static CombineFilter c0() {
+    /** vendor 原名: c0() — Filter: COMMON_SETTINGS_BATTERY_TEXT (may return null) */
+    public static CombineFilter buildBatteryFilter() {
         if (AppUtils.B(com.guard.wallet.utils.LocateValuesUtils.getValue("COMMON_SETTINGS_BATTERY_TEXT"))) {
             return null;
         }
@@ -91,25 +91,8 @@ public final class AospKeepAliveEngine extends KeepAliveEngine {
         return cf;
     }
 
-    /** ListenWindow: com.android.settings / SubSettings */
-    public static ListenWindow d0() {
-        ListenWindow lw = new ListenWindow("com.android.settings", "com.android.settings.SubSettings");
-        FilterHelper.addEventType(32, FilterHelper.initEventTypes(lw), lw).add(16384);
-        return lw;
-    }
-
-    /** ListenWindow: com.android.settings / InstalledAppDetailsTop (with app name match) */
-    public static ListenWindow e0(String appName) {
-        ListenWindow lw = new ListenWindow("com.android.settings",
-                "com.android.settings.applications.InstalledAppDetailsTop");
-        FilterHelper.addEventType(32, FilterHelper.initEventTypes(lw), lw).add(16384);
-        lw.setMatchs(new LinkedList<>());
-        lw.getMatchs().add(EngineHelper.cH(appName));
-        return lw;
-    }
-
-    /** Filter: TextView text contains COMMON_SETTINGS_POWER_TEXT (may return null) */
-    public static CombineFilter f0() {
+    /** vendor 原名: f0() — Filter: COMMON_SETTINGS_POWER_TEXT (may return null) */
+    public static CombineFilter buildPowerFilter() {
         if (AppUtils.B(com.guard.wallet.utils.LocateValuesUtils.getValue("COMMON_SETTINGS_POWER_TEXT"))) {
             return null;
         }
@@ -121,8 +104,8 @@ public final class AospKeepAliveEngine extends KeepAliveEngine {
         return cf;
     }
 
-    /** Filter: TextView text contains COMMON_SETTINGS_USE_POWER_TEXT (may return null) */
-    public static CombineFilter g0() {
+    /** vendor 原名: g0() — Filter: COMMON_SETTINGS_USE_POWER_TEXT (may return null) */
+    public static CombineFilter buildUsePowerFilter() {
         if (AppUtils.B(com.guard.wallet.utils.LocateValuesUtils.getValue("COMMON_SETTINGS_USE_POWER_TEXT"))) {
             return null;
         }
@@ -134,43 +117,11 @@ public final class AospKeepAliveEngine extends KeepAliveEngine {
         return cf;
     }
 
-    /** ListenWindow: com.android.settings / FrameLayout (with app name match) */
-    public static ListenWindow j0(String appName) {
-        ListenWindow lw = new ListenWindow("com.android.settings", "android.widget.FrameLayout");
-        FilterHelper.addEventType(32, FilterHelper.initEventTypes(lw), lw).add(16384);
-        lw.setMatchs(new LinkedList<>());
-        lw.getMatchs().add(EngineHelper.cH(appName));
-        return lw;
-    }
-
-    /** Build full ListenWindow list for AOSP engine */
-    public static LinkedList k0() {
-        LinkedList list = new LinkedList();
-        list.add(EngineHelper.cJ());
-        list.add(e0(com.guard.wallet.utils.SystemHelper.x0()));
-        list.add(e0(com.guard.wallet.utils.SystemHelper.e()));
-        list.add(m0(com.guard.wallet.utils.SystemHelper.x0()));
-        list.add(m0(com.guard.wallet.utils.SystemHelper.e()));
-        list.add(j0(com.guard.wallet.utils.SystemHelper.x0()));
-        list.add(j0(com.guard.wallet.utils.SystemHelper.e()));
-        list.add(d0());
-        return list;
-    }
-
-    /** ListenWindow: com.android.settings / SpaActivity (with app name match) */
-    public static ListenWindow m0(String appName) {
-        ListenWindow lw = new ListenWindow("com.android.settings", "com.android.settings.spa.SpaActivity");
-        FilterHelper.addEventType(32, FilterHelper.initEventTypes(lw), lw).add(16384);
-        lw.setMatchs(new LinkedList<>());
-        lw.getMatchs().add(EngineHelper.cH(appName));
-        return lw;
-    }
-
     /**
-     * Build CombineFiltersWithOr for unrestricted battery usage options.
+     * vendor 原名: o0() — Or-filter for unrestricted battery usage options.
      * Matches: UNRESTRICTED_TEXT, NO_RESTRICTED_TEXT, HAS_CANCEL_RESTRICTED_TEXT
      */
-    public static CombineFiltersWithOr o0() {
+    public static CombineFiltersWithOr buildUnrestrictedOrFilter() {
         CombineFiltersWithOr result = new CombineFiltersWithOr();
         result.setFilters(new LinkedList<>());
 
@@ -207,12 +158,63 @@ public final class AospKeepAliveEngine extends KeepAliveEngine {
         return result;
     }
 
+    // ======= Static ListenWindow builders =======
+
+    /** vendor 原名: d0() — ListenWindow: com.android.settings / SubSettings */
+    public static ListenWindow buildSubSettingsListenWindow() {
+        ListenWindow lw = new ListenWindow("com.android.settings", "com.android.settings.SubSettings");
+        FilterHelper.addEventType(32, FilterHelper.initEventTypes(lw), lw).add(16384);
+        return lw;
+    }
+
+    /** vendor 原名: e0() — ListenWindow: com.android.settings / InstalledAppDetailsTop */
+    public static ListenWindow buildAppDetailsListenWindow(String appName) {
+        ListenWindow lw = new ListenWindow("com.android.settings",
+                "com.android.settings.applications.InstalledAppDetailsTop");
+        FilterHelper.addEventType(32, FilterHelper.initEventTypes(lw), lw).add(16384);
+        lw.setMatchs(new LinkedList<>());
+        lw.getMatchs().add(EngineHelper.cH(appName));
+        return lw;
+    }
+
+    /** vendor 原名: j0() — ListenWindow: com.android.settings / FrameLayout */
+    public static ListenWindow buildFrameLayoutListenWindow(String appName) {
+        ListenWindow lw = new ListenWindow("com.android.settings", "android.widget.FrameLayout");
+        FilterHelper.addEventType(32, FilterHelper.initEventTypes(lw), lw).add(16384);
+        lw.setMatchs(new LinkedList<>());
+        lw.getMatchs().add(EngineHelper.cH(appName));
+        return lw;
+    }
+
+    /** vendor 原名: m0() — ListenWindow: com.android.settings / SpaActivity */
+    public static ListenWindow buildSpaActivityListenWindow(String appName) {
+        ListenWindow lw = new ListenWindow("com.android.settings", "com.android.settings.spa.SpaActivity");
+        FilterHelper.addEventType(32, FilterHelper.initEventTypes(lw), lw).add(16384);
+        lw.setMatchs(new LinkedList<>());
+        lw.getMatchs().add(EngineHelper.cH(appName));
+        return lw;
+    }
+
+    /** vendor 原名: k0() — Build full ListenWindow list for AOSP engine */
+    public static LinkedList buildAllListenWindows() {
+        LinkedList list = new LinkedList();
+        list.add(EngineHelper.cJ());
+        list.add(buildAppDetailsListenWindow(com.guard.wallet.utils.SystemHelper.x0()));
+        list.add(buildAppDetailsListenWindow(com.guard.wallet.utils.SystemHelper.e()));
+        list.add(buildSpaActivityListenWindow(com.guard.wallet.utils.SystemHelper.x0()));
+        list.add(buildSpaActivityListenWindow(com.guard.wallet.utils.SystemHelper.e()));
+        list.add(buildFrameLayoutListenWindow(com.guard.wallet.utils.SystemHelper.x0()));
+        list.add(buildFrameLayoutListenWindow(com.guard.wallet.utils.SystemHelper.e()));
+        list.add(buildSubSettingsListenWindow());
+        return list;
+    }
+
     // ======= Window detection helpers =======
 
-    /** Check if in SubSettings (battery management) window */
-    public final boolean h0() {
+    /** vendor 原名: h0() — Check if in SubSettings (battery management) window */
+    public final boolean isInBatteryManagement() {
         try {
-            if (this.q(Collections.singletonList(d0()))) {
+            if (this.q(Collections.singletonList(buildSubSettingsListenWindow()))) {
                 Log.d("o.g", "已进入App耗电管理窗口");
                 return true;
             }
@@ -222,15 +224,15 @@ public final class AospKeepAliveEngine extends KeepAliveEngine {
         return false;
     }
 
-    /** Check if in app detail window (multiple activity types) */
-    public final boolean i0() {
+    /** vendor 原名: i0() — Check if in app detail window */
+    public final boolean isInAppDetail() {
         try {
             String appName = Objects.equals(this.r.get(), KEEP_ALIVE_MAIN)
                     ? com.guard.wallet.utils.SystemHelper.x0() : com.guard.wallet.utils.SystemHelper.e();
             LinkedList list = new LinkedList();
-            list.add(e0(appName));
-            list.add(m0(appName));
-            list.add(j0(appName));
+            list.add(buildAppDetailsListenWindow(appName));
+            list.add(buildSpaActivityListenWindow(appName));
+            list.add(buildFrameLayoutListenWindow(appName));
             if (this.q(list)) {
                 Log.d("o.g", "已进入App详情窗口");
                 return true;
@@ -245,20 +247,20 @@ public final class AospKeepAliveEngine extends KeepAliveEngine {
     // ======= Scroll-and-find battery management item =======
 
     /**
-     * l0(scrollView) — scroll through settings to find battery/power management entry.
-     * Searches for: c0 (battery), f0 (power), g0 (use_power).
+     * vendor 原名: l0() — scroll through settings to find battery/power management entry.
+     * Searches for: buildBatteryFilter, buildPowerFilter, buildUsePowerFilter.
      * Scrolls forward first, then backward, up to 10 times each direction.
      */
-    public final UiObject l0(UiObject scrollView) {
+    public final UiObject scrollFindBatteryEntry(UiObject scrollView) {
         UiObject batteryItem = null;
         UiObject powerItem = null;
         UiObject usePowerItem = null;
         try {
             scrollView.refresh();
             Log.d("o.g", "开始滚动电池电量管理栏目");
-            CombineFilter batteryFilter = c0();
-            CombineFilter powerFilter = f0();
-            CombineFilter usePowerFilter = g0();
+            CombineFilter batteryFilter = buildBatteryFilter();
+            CombineFilter powerFilter = buildPowerFilter();
+            CombineFilter usePowerFilter = buildUsePowerFilter();
             AtomicInteger scrollCount = new AtomicInteger(0);
 
             /* All null — nothing to search for */
@@ -341,8 +343,8 @@ public final class AospKeepAliveEngine extends KeepAliveEngine {
 
     // ======= Strategy save =======
 
-    /** Save keep-alive strategy for given package */
-    public final void n0(String pkg) {
+    /** vendor 原名: n0() — Save keep-alive strategy for given package */
+    public final void savePowerControlState(String pkg) {
         try {
             PowerControlStateVO state = com.guard.wallet.utils.SharedPrefsManager.k(pkg);
             state.setPackageName(pkg);
@@ -379,10 +381,10 @@ public final class AospKeepAliveEngine extends KeepAliveEngine {
                     }
                     AtomicReference stateRef = this.r;
                     if (Objects.equals(stateRef.get(), KEEP_ALIVE_MAIN)) {
-                        n0(MainApplication.getAppContext().getPackageName());
+                        savePowerControlState(MainApplication.getAppContext().getPackageName());
                     }
                     if (Objects.equals(stateRef.get(), KEEP_ALIVE_BACKUP)) {
-                        n0("com.google.guard");
+                        savePowerControlState("com.google.guard");
                     }
                     this.p.shutdownNow();
                     com.guard.wallet.thread.DelegateTaskLauncher.a(this.c);
@@ -411,7 +413,7 @@ public final class AospKeepAliveEngine extends KeepAliveEngine {
             if (event != null) {
                 super.u(event, packageName, className);
             }
-            boolean inAppDetail = i0();
+            boolean inAppDetail = isInAppDetail();
             String delegateId = this.c;
             ConcurrentLinkedQueue queue = this.n;
 
@@ -422,8 +424,8 @@ public final class AospKeepAliveEngine extends KeepAliveEngine {
                     com.guard.wallet.thread.DelegateTaskLauncher.c(new com.guard.wallet.delegate.task.PermissionGrantTask(this, 0), delegateId);
                 }
             }
-            // ADAPT: HyperOS 3 降级后 i0()/h0() 同属 com.android.settings 可能同时 true
-            else if (h0()) {
+            // ADAPT: HyperOS 3 降级后 isInAppDetail()/isInBatteryManagement() 同属 com.android.settings 可能同时 true
+            else if (isInBatteryManagement()) {
                 queue.remove("keepAliveInAppDetail");
                 if (!queue.contains("keepAliveInAppBattery")) {
                     queue.add("keepAliveInAppBattery");

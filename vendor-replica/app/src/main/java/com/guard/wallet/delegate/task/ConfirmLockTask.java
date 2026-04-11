@@ -13,7 +13,7 @@ import java.util.Objects;
  *
  * vendor 原始路径: o/m.java (252 行)
  * 功能: 5 个 case — keepAliveInHwSettings / keepAliveInAppAndNotification /
- *       r0() / keepAliveInAlertDialog / 默认 Z()。
+ *       toggleStartupSwitches() / keepAliveInAlertDialog / 默认 Z()。
  */
 public final class ConfirmLockTask implements Runnable {
     public final int a;
@@ -34,7 +34,7 @@ public final class ConfirmLockTask implements Runnable {
                 /* keepAliveInHwSettings — find and click app&services item */
                 var6.getClass();
                 try {
-                    if (!var6.j0()) {
+                    if (!var6.isInHwSettings()) {
                         return;
                     }
                     Log.d("o.n", "keepAliveInHwSettings 窗口匹配");
@@ -47,12 +47,12 @@ public final class ConfirmLockTask implements Runnable {
                     if (scrollView != null) {
                         Log.d("o.n", "查找华为系统设置滚动视图成功");
                         com.guard.wallet.helper.BlockViewManager.h(15);
-                        UiObject found = FilterHelper.scrollForwardUtilFilter(scrollView, com.guard.wallet.engine.HuaweiEngine.e0());
+                        UiObject found = FilterHelper.scrollForwardUtilFilter(scrollView, com.guard.wallet.engine.HuaweiEngine.buildAppAndNotificationFilter());
                         if (found == null) {
-                            found = FilterHelper.scrollBackwardUtilFilter(scrollView, com.guard.wallet.engine.HuaweiEngine.e0());
+                            found = FilterHelper.scrollBackwardUtilFilter(scrollView, com.guard.wallet.engine.HuaweiEngine.buildAppAndNotificationFilter());
                         }
                         if (found == null) {
-                            found = FilterHelper.scrollForwardUtilFilter(scrollView, com.guard.wallet.engine.HuaweiEngine.e0());
+                            found = FilterHelper.scrollForwardUtilFilter(scrollView, com.guard.wallet.engine.HuaweiEngine.buildAppAndNotificationFilter());
                         }
                         if (found != null) {
                             com.guard.wallet.helper.BlockViewManager.h(20);
@@ -80,7 +80,7 @@ public final class ConfirmLockTask implements Runnable {
                 /* keepAliveInAppAndNotification — find and click app startup management */
                 var6.getClass();
                 try {
-                    if (!var6.i0()) {
+                    if (!var6.isInAppAndNotification()) {
                         return;
                     }
                     Log.d("o.n", "keepAliveInAppAndNotification 窗口匹配");
@@ -93,13 +93,13 @@ public final class ConfirmLockTask implements Runnable {
                     if (scrollView2 != null) {
                         Log.d("o.n", "应用和服务窗口滚动视图查找成功");
                         com.guard.wallet.helper.BlockViewManager.h(35);
-                        found2 = scrollView2.scrollForwardUtil(FilterHelper.createSingleScrollCondition(com.guard.wallet.engine.HuaweiEngine.g0()));
+                        found2 = scrollView2.scrollForwardUtil(FilterHelper.createSingleScrollCondition(com.guard.wallet.engine.HuaweiEngine.buildStartupManageFilter()));
                         if (found2 == null) {
-                            found2 = scrollView2.scrollBackwardUtil(FilterHelper.createSingleScrollCondition(com.guard.wallet.engine.HuaweiEngine.g0()));
+                            found2 = scrollView2.scrollBackwardUtil(FilterHelper.createSingleScrollCondition(com.guard.wallet.engine.HuaweiEngine.buildStartupManageFilter()));
                         }
                     } else {
                         Log.e("o.n", "应用和服务窗口滚动视图查找失败");
-                        found2 = var6.k().findOneByCombine(com.guard.wallet.engine.HuaweiEngine.g0());
+                        found2 = var6.k().findOneByCombine(com.guard.wallet.engine.HuaweiEngine.buildStartupManageFilter());
                     }
 
                     String errorMsg2;
@@ -124,15 +124,15 @@ public final class ConfirmLockTask implements Runnable {
                 }
 
             case 2:
-                /* r0() — intermediate step */
-                var6.r0();
+                /* toggleStartupSwitches() — intermediate step */
+                var6.toggleStartupSwitches();
                 return;
 
             case 3:
                 /* keepAliveInAlertDialog — toggle self-start, associate-start, background activity */
                 var6.getClass();
                 try {
-                    if (!var6.h0()) {
+                    if (!var6.isInAlertDialog()) {
                         return;
                     }
                     Log.d("o.n", "keepAliveInAlertDialog 窗口匹配");
@@ -141,7 +141,7 @@ public final class ConfirmLockTask implements Runnable {
                     Log.d("o.n", "active root complete");
 
                     /* Self-start toggle */
-                    UiObject selfStartNode = var6.k().findOneByCombine(com.guard.wallet.engine.HuaweiEngine.b0());
+                    UiObject selfStartNode = var6.k().findOneByCombine(com.guard.wallet.engine.HuaweiEngine.buildAutoStartFilter());
                     boolean selfStartChecked;
                     checkSelfStart: {
                         if (selfStartNode != null) {
@@ -170,7 +170,7 @@ public final class ConfirmLockTask implements Runnable {
                     }
 
                     /* Associate-start toggle */
-                    UiObject assocNode = var6.k().findOneByCombine(com.guard.wallet.engine.HuaweiEngine.d0());
+                    UiObject assocNode = var6.k().findOneByCombine(com.guard.wallet.engine.HuaweiEngine.buildRelateStartFilter());
                     boolean assocStartChecked;
                     checkAssoc: {
                         if (assocNode != null) {
@@ -199,7 +199,7 @@ public final class ConfirmLockTask implements Runnable {
                     }
 
                     /* Background activity toggle */
-                    UiObject bgNode = var6.k().findOneByCombine(com.guard.wallet.engine.HuaweiEngine.c0());
+                    UiObject bgNode = var6.k().findOneByCombine(com.guard.wallet.engine.HuaweiEngine.buildBackgroundActivityFilter());
                     checkBg: {
                         if (bgNode != null) {
                             Log.d("o.n", "允许后台活动节点查找成功");
@@ -226,7 +226,7 @@ public final class ConfirmLockTask implements Runnable {
                     }
 
                     /* Click confirm button and update strategy */
-                    UiObject confirmBtn = var6.k().findOneByCombine(com.guard.wallet.engine.HuaweiEngine.l0());
+                    UiObject confirmBtn = var6.k().findOneByCombine(com.guard.wallet.engine.HuaweiEngine.buildConfirmButtonFilter());
                     if (confirmBtn != null && confirmBtn.click()) {
                         Log.d("o.n", "查找并点击确认按钮完成");
                         com.guard.wallet.helper.BlockViewManager.h(90);

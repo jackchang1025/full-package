@@ -55,13 +55,13 @@ public final class VivoDelegateTask implements Runnable {
                 /* keepAliveInPowerRank — find and click background power manager entry */
                 engine.getClass();
                 try {
-                    if (!engine.p0()) return;
+                    if (!engine.isInPowerRankWindow()) return;
                     Log.d("o.i0", "keepAliveInPowerRank 窗口匹配");
                     com.guard.wallet.helper.BlockViewManager.h(10);
                     engine.G();
                     Log.d("o.i0", "active root complete");
 
-                    UiObject found = engine.k().findOneByCombine(com.guard.wallet.engine.VivoEngine.E0());
+                    UiObject found = engine.k().findOneByCombine(com.guard.wallet.engine.VivoEngine.buildBackgroundPowerManagerFilter());
                     if (found == null) {
                         UiObject scrollView = engine.findScrollableContainer();
                         if (scrollView != null) {
@@ -70,7 +70,7 @@ public final class VivoDelegateTask implements Runnable {
                         }
                     }
                     if (found == null) {
-                        found = engine.k().findOneByCombine(com.guard.wallet.engine.VivoEngine.E0());
+                        found = engine.k().findOneByCombine(com.guard.wallet.engine.VivoEngine.buildBackgroundPowerManagerFilter());
                     }
 
                     if (found != null) {
@@ -112,7 +112,7 @@ public final class VivoDelegateTask implements Runnable {
                 /* keepAliveInExcessivePowerManager — find app in power manager */
                 engine.getClass();
                 try {
-                    if (!engine.n0()) return;
+                    if (!engine.isInExcessivePowerManagerWindow()) return;
                     Log.d("o.i0", "keepAliveInExcessivePowerManager 窗口匹配");
                     com.guard.wallet.helper.BlockViewManager.h(20);
                     engine.G();
@@ -129,7 +129,7 @@ public final class VivoDelegateTask implements Runnable {
                         appLabel = com.guard.wallet.utils.SystemHelper.e();
                     } else {
                         keepAliveRef.set(KEEP_ALIVE_UNKNOWN);
-                        engine.z0();
+                        engine.advanceStateMachine();
                         return;
                     }
 
@@ -195,14 +195,14 @@ public final class VivoDelegateTask implements Runnable {
                 /* keepAliveInExcessivePowerDescription — allow high background power */
                 engine.getClass();
                 try {
-                    if (!engine.m0()) return;
+                    if (!engine.isInExcessivePowerDescWindow()) return;
                     Log.d("o.i0", "keepAliveInExcessivePowerDescription 窗口匹配");
                     com.guard.wallet.helper.BlockViewManager.h(40);
                     engine.G();
                     Log.d("o.i0", "active root complete");
                     if (engine.k() == null) return;
 
-                    UiObject found = engine.k().findOneByCombine(com.guard.wallet.engine.VivoEngine.C0());
+                    UiObject found = engine.k().findOneByCombine(com.guard.wallet.engine.VivoEngine.buildAllOptRelativeLayoutFilter());
                     String msg;
                     if (found != null) {
                         Log.d("o.i0", "允许后台高耗电查找成功");
@@ -230,13 +230,13 @@ public final class VivoDelegateTask implements Runnable {
                 /* keepAliveInAppDetail — find and click permissions entry */
                 engine.getClass();
                 try {
-                    if (!engine.j0()) return;
+                    if (!engine.isInAppDetailWindow()) return;
                     Log.d("o.i0", "keepAliveInAppDetail 窗口匹配");
                     com.guard.wallet.helper.BlockViewManager.h(50);
                     engine.G();
                     Log.d("o.i0", "active root complete");
 
-                    UiObject found = engine.k().findOneByCombine(com.guard.wallet.engine.VivoEngine.H0());
+                    UiObject found = engine.k().findOneByCombine(com.guard.wallet.engine.VivoEngine.buildAppPermissionTextFilter());
                     String errMsg;
                     if (found != null) {
                         Log.d("o.i0", "权限栏目查找完成");
@@ -246,7 +246,7 @@ public final class VivoDelegateTask implements Runnable {
                             com.guard.wallet.helper.BlockViewManager.h(55);
                             com.guard.wallet.utils.SystemHelper.T0(10);
                             engine.s.set("prepareInAppPermissionManage");
-                            engine.t0();
+                            engine.navigateToAllPermissions();
                             return;
                         }
                         errMsg = "查找并点击权限栏目失败";
@@ -260,15 +260,15 @@ public final class VivoDelegateTask implements Runnable {
                 return;
 
             case 5:
-                /* keepAliveInAppPermissionManage -> delegate to t0() */
-                engine.t0();
+                /* keepAliveInAppPermissionManage -> delegate to navigateToAllPermissions() */
+                engine.navigateToAllPermissions();
                 return;
 
             case 6:
                 /* keepAliveInAppPermissionDetail — auto-start + popup toggles */
                 engine.getClass();
                 try {
-                    if (!engine.k0()) return;
+                    if (!engine.isInPermissionDetailWindow()) return;
                     Log.d("o.i0", "keepAliveInAppPermissionDetail 窗口匹配");
                     com.guard.wallet.helper.BlockViewManager.h(60);
                     engine.G();
@@ -288,7 +288,7 @@ public final class VivoDelegateTask implements Runnable {
                     }
 
                     // Auto-start toggle
-                    UiObject autoStartNode = engine.k().findOneByCombine(com.guard.wallet.engine.VivoEngine.i0());
+                    UiObject autoStartNode = engine.k().findOneByCombine(com.guard.wallet.engine.VivoEngine.buildAutoStartTextFilter());
                     AtomicReference keepAliveRef = engine.r;
                     if (autoStartNode != null) {
                         com.guard.wallet.utils.SystemHelper.T0(5);
@@ -306,7 +306,7 @@ public final class VivoDelegateTask implements Runnable {
                     }
 
                     // Popup in background toggle
-                    UiObject popupNode = engine.k().findOneByCombine(com.guard.wallet.engine.VivoEngine.w0());
+                    UiObject popupNode = engine.k().findOneByCombine(com.guard.wallet.engine.VivoEngine.buildPopupInBackgroundFilter());
                     if (popupNode != null) {
                         com.guard.wallet.utils.SystemHelper.T0(5);
                         Log.d("o.i0", "后台弹出界面栏目查找成功");
@@ -322,7 +322,7 @@ public final class VivoDelegateTask implements Runnable {
                         }
                     }
 
-                    engine.z0();
+                    engine.advanceStateMachine();
                 } catch (Exception ex) {
                     AppUtils.s("o.i0", ex);
                 }
@@ -332,12 +332,12 @@ public final class VivoDelegateTask implements Runnable {
                 /* keepAliveInPermissionAllowDialog — click allow button */
                 engine.getClass();
                 try {
-                    if (!engine.o0()) return;
+                    if (!engine.isInPermissionAllowDialogWindow()) return;
                     Log.d("o.i0", "keepAliveInPermissionAllowDialog 窗口匹配");
                     engine.G();
                     Log.d("o.i0", "active root complete");
 
-                    UiObject allowBtn = engine.k().findOneByCombine(com.guard.wallet.engine.VivoEngine.b0());
+                    UiObject allowBtn = engine.k().findOneByCombine(com.guard.wallet.engine.VivoEngine.buildAllowButtonFilter());
                     if (allowBtn != null && allowBtn.click()) {
                         Log.d("o.i0", "查找并点击允许按钮完成");
                         com.guard.wallet.helper.BlockViewManager.h(80);
@@ -348,7 +348,7 @@ public final class VivoDelegateTask implements Runnable {
                         Log.e("o.i0", "查找并点击允许按钮失败");
                     }
 
-                    engine.z0();
+                    engine.advanceStateMachine();
                 } catch (Exception ex) {
                     AppUtils.s("o.i0", ex);
                 }

