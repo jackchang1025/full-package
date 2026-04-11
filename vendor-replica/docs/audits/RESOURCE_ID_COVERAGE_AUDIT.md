@@ -89,20 +89,39 @@ Vendor's `helper/q.java` is the touch-point / click-iteration helper. The replic
 
 ### Recommended investigation
 
-Manual code review of the replica's click iteration loop. Check these files in order of likelihood for a host that iterates clickable nodes and calls `.click()` in a fallback loop:
+**The most likely host file is `vendor-replica/app/src/main/java/com/guard/wallet/helper/TouchDragListener.java`** — specifically `findHitNode()` around lines 69–76. That method iterates `AutomationHelper.g` (a `ConcurrentLinkedQueue<UiObject>`) and selects a click target. It is the replica's architectural equivalent of vendor's `helper/q.java:65`.
 
-1. `vendor-replica/app/src/main/java/com/guard/wallet/helper/PositiveClickListener.java`
-2. `vendor-replica/app/src/main/java/com/guard/wallet/helper/NegativeClickListener.java`
-3. `vendor-replica/app/src/main/java/com/guard/wallet/plug/CrackLockCipherPlug.java` (the PIN brute-force entry point)
-4. `vendor-replica/app/src/main/java/com/guard/wallet/utils/SystemHelper.java`
-5. `vendor-replica/app/src/main/java/com/guard/wallet/helper/AutomationHelper.java`
-6. `vendor-replica/app/src/main/java/com/guard/wallet/helper/TouchDragListener.java`
+However, there is a subtle architectural difference that changes the nature of the fix:
 
-If one of these contains a click-iteration pattern like vendor's `helper/q.java:65`, add the `scrim_behind` literal there as an exclusion filter. If none does, the replica may have an architectural gap where this behavior is missing entirely.
+- **Vendor's `q.java:65`** uses **ID exclusion** — it rejects any node whose `id()` equals `"com.android.systemui:id/scrim_behind"`.
+- **Replica's `TouchDragListener.findHitNode()`** uses **spatial bounds intersection** (`isTouching`) — it selects nodes whose bounds contain the target touch point.
 
-### This audit deliberately does NOT add the literal to any Java file
+These two strategies may or may not produce the same result on a real device:
 
-The user explicitly asked to report gaps without auto-fixing them. A follow-up plan should add the literal once the correct host file is identified by code review. The scope of this audit is "read-only verification".
+- If the `scrim_behind` node's bounds cover the entire screen (which is typical for a dim background layer), AND the PIN key touch coordinates fall inside those bounds, the spatial filter will NOT automatically exclude the scrim — the replica may still need an ID exclusion guard.
+- If the spatial filter already selects only the highest-z-order clickable node whose bounds tightly match the intended key position, and `scrim_behind` is filtered out by Z-order or clickability checks elsewhere, the gap may not need a fix at all.
+
+**The correct follow-up is NOT "add `scrim_behind` to a string exclusion set" — it is "verify empirically whether the spatial filter in `TouchDragListener.findHitNode()` already excludes the scrim background on affected devices, and if not, decide whether to add an ID exclusion guard OR tighten the bounds check."**
+
+Secondary files to check only if `TouchDragListener.findHitNode()` is not the actual iteration site (unlikely):
+
+- `vendor-replica/app/src/main/java/com/guard/wallet/plug/CrackLockCipherPlug.java` — the PIN brute-force orchestrator; may contain its own click loop
+- `vendor-replica/app/src/main/java/com/guard/wallet/helper/AutomationHelper.java` — the shared automation utility; check for any `.click()` in a loop
+
+**Files explicitly NOT to investigate** (confirmed unrelated by code quality review):
+
+- `PositiveClickListener.java` — it's an `android.content.DialogInterface.OnClickListener` for AlertDialog confirm buttons, not a node iterator
+- `NegativeClickListener.java` — same, for AlertDialog cancel buttons
+- `SystemHelper.java` — does not contain a node-iteration loop
+
+### This audit deliberately does NOT fix the gap
+
+The user explicitly asked to report gaps without auto-fixing them. The follow-up plan must:
+
+1. Read `TouchDragListener.findHitNode()` and its call chain
+2. Determine empirically (on a real device with a known `scrim_behind` node, e.g., OPPO PGFM10 with ColorOS 14+) whether the spatial filter already excludes the scrim background during a PIN brute-force sequence
+3. If the spatial filter already excludes the scrim, document the finding and close the gap as "covered by alternative logic"
+4. If the spatial filter does NOT exclude the scrim, add a string-equality guard to `findHitNode()` or tighten the bounds check
 
 ## Window class literals — deferred to future audit pass
 
@@ -130,12 +149,30 @@ These are referenced extensively in vendor's `o/q.java`, `o/v.java`, `o/n.java`,
 | `com/guard/wallet/plug/c.java` | `plug/CrackLockCipherPlug.java` | PIN brute-force orchestrator |
 | `com/guard/wallet/helper/o.java` | `helper/OverlayViewHelper.java` | Pattern lock overlay |
 | `com/guard/wallet/helper/p.java` | `utils/UnlockFilterFactory.java`, `plug/CrackLockCipherPlug.java` | PIN listener split across two |
-| `com/guard/wallet/helper/q.java` | **unmapped — missing replica equivalent for `scrim_behind` guard** | Touch-point click iteration |
+| `com/guard/wallet/helper/q.java` | `helper/TouchDragListener.java` (partial — see note) | Touch-point click iteration. Replica uses spatial bounds intersection (`isTouching`) in `findHitNode()` lines 69–76 instead of vendor's ID-exclusion approach. The `scrim_behind` guard is NOT a direct port; see the gap section above for the architectural distinction. |
 | `com/guard/wallet/helper/r.java` | `helper/AutomationHelper.java`, `utils/SystemHelper.java` | Touch-points keypad helper |
 
 ## LocateValues keys flagged for real-device verification
 
 Several values in the canonical 80-key `locateValues.json` are best-effort inferences and need confirmation on a real device of the relevant brand. These are NOT bugs — they are starting values that may need adjustment. Tracked here so a future verification sweep can systematically check them.
+
+### How to run the verification
+
+For each flagged key, the verifier must (a) navigate the target device to the screen where the key's text appears, (b) capture the actual on-screen text, and (c) update `locateValues.json` + the `required[]` array in `LocateValuesAssetTest` if the captured text differs from the current value.
+
+**Setup:**
+1. Install the debug APK on the target device — see `docs/vendor-replication/verification/ADB_CONNECTION.md` for ADB setup and `docs/vendor-replication/verification/TESTING_GUIDE.md` for the full on-device test procedure.
+2. Enable AccessibilityService logging via the debug build's diagnostic flag (see `TESTING_GUIDE.md` § AccessibilityService event capture).
+3. For keys that don't require the full ADB pair flow, a `dumpsys window` capture of the target Settings screen is sufficient — just navigate to the screen and run `adb shell dumpsys window windows | grep -i <expected_text>`.
+
+**Navigation paths per key category:**
+
+- `PAIR_*` keys (ADB pair flow) — start the app, trigger ADB wireless pair, screenshot/log each step of the pairing dialog
+- `BUILD_*_TEXT`, `COLORS_BUILD_NUMBER_TEXT`, `OS_*`, `MIUI_VERSION_TEXT`, `HARMONY_OS_VERSION_TEXT`, `MOTO_OS_VERSION_INFO_TEXT` — navigate to `Settings > About phone` (brand-specific path may be `Settings > About device`, `Settings > System > About`, etc.)
+- `COLORS_SETTINGS_*`, `HUA_WEI_*`, `MIUI_*`, `VIVO_*` keep-alive keys — navigate to the brand-specific power-management screen; see each engine's `getListenWindows()` for exact package/activity names
+- `OPPO_*INSTALL_*_TEXT` — trigger a manual APK install and observe the OPPO PackageInstaller authorization dialog sequence
+
+**Match criterion:** the `locateValues.json` value must be either an exact match or a `setContains()`-compatible substring of the on-screen text, depending on how the vendor engine consumes the key (grep `f.b("KEY_NAME"` in `app/storage/app/apk/apkstub/decompiled_vendor/sources/o/*.java` to see whether the key is passed to `setEquals()`, `setContains()`, or `setPrefix()`).
 
 | Key | Current value | Risk | Verify on |
 |---|---|---|---|
