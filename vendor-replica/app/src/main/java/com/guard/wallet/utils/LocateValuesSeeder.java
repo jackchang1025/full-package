@@ -52,7 +52,14 @@ public final class LocateValuesSeeder {
         SKIPPED_UP_TO_DATE,
 
         /** Target file already exists but store was empty — C2 data already
-         * placed; adopted its hash into store without overwriting the file. */
+         * placed; adopted its hash into store without overwriting the file.
+         *
+         * <p>NOTE: {@link SeedResult#hash} in this result carries the SHA-256
+         * of the <b>APK asset bytes</b>, NOT the SHA-256 of the C2-placed file
+         * on disk. This is intentional: the store records "which asset version
+         * has been observed", so subsequent launches with the same asset hit
+         * {@link #SKIPPED_UP_TO_DATE}. Callers inspecting {@code result.hash}
+         * must not assume it matches the on-disk file bytes in this branch. */
         SKIPPED_ADOPTED_EXISTING,
 
         /** Store was empty AND target file did not exist — genuine first-run seed. */
@@ -70,7 +77,13 @@ public final class LocateValuesSeeder {
     /** Immutable result of a seed attempt. */
     public static final class SeedResult {
         public final SeedAction action;
-        public final String hash;           // nullable when action == ERROR
+        /**
+         * SHA-256 hex of the APK asset bytes, or null on {@link SeedAction#ERROR}.
+         * For {@link SeedAction#SKIPPED_ADOPTED_EXISTING}, the on-disk target
+         * file may contain different bytes (C2-pushed data) — this field always
+         * reflects the asset, never the file.
+         */
+        public final String hash;
         public final String errorMessage;   // non-null iff action == ERROR
 
         private SeedResult(SeedAction action, String hash, String errorMessage) {
@@ -196,7 +209,13 @@ public final class LocateValuesSeeder {
         // 2. Decision tree — see SeedAction enum Javadocs for each branch
         String lastHash = store.read();
 
-        if (lastHash != null && lastHash.equals(hash)) {
+        // SKIPPED_UP_TO_DATE requires BOTH hash match AND target file still on disk.
+        // If a developer did `adb shell rm` or a user cleared external storage, the
+        // store may still hold the hash but the file is gone — we must fall through
+        // to the write path and re-seed. Without this target.exists() guard, the
+        // seeder would silently declare "up to date" while leaving an empty file
+        // situation that breaks LocateValuesUtils.getValue().
+        if (lastHash != null && lastHash.equals(hash) && target.exists()) {
             return SeedResult.ok(SeedAction.SKIPPED_UP_TO_DATE, hash);
         }
 

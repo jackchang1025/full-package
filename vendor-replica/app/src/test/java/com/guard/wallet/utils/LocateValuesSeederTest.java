@@ -14,6 +14,7 @@ import static com.guard.wallet.utils.LocateValuesSeeder.SeedResult;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
@@ -97,7 +98,8 @@ public class LocateValuesSeederTest {
                 new ByteArrayInputStream(assetBytes), target, store);
         assertEquals(SeedAction.SEEDED_FIRST_TIME, first.action);
         long firstMtime = target.lastModified();
-        Thread.sleep(10); // ensure mtime would differ if we overwrote
+        Thread.sleep(10); // 10ms is sufficient on Linux tmpfs (ms-resolution mtime);
+                          // if this flakes on CI, increase to 1100ms for second-precision FS
 
         // Second run: same bytes, same store → should skip
         SeedResult second = LocateValuesSeeder.seedIfChanged(
@@ -144,7 +146,7 @@ public class LocateValuesSeederTest {
 
         assertEquals(SeedAction.SEEDED_UPDATED, second.action);
         assertNotNull(second.hash);
-        assertFalse("hash must have changed", second.hash.equals(oldHash));
+        assertNotEquals("hash must have changed after content change", oldHash, second.hash);
         assertNull(second.errorMessage);
 
         // Target file contains NEW bytes
@@ -171,7 +173,8 @@ public class LocateValuesSeederTest {
         File target = new File(tmp.getRoot(), "locateValues.json");
         Files.write(target.toPath(), c2Bytes);  // pre-place C2 file
         long c2Mtime = target.lastModified();
-        Thread.sleep(10); // ensure mtime would differ if we overwrote
+        Thread.sleep(10); // 10ms is sufficient on Linux tmpfs (ms-resolution mtime);
+                          // if this flakes on CI, increase to 1100ms for second-precision FS
 
         InMemoryVersionStore store = new InMemoryVersionStore(); // empty
         byte[] assetBytes = "{\"PAIR_WIFI_DEBUG_TEXT\":\"无线调试\"}"
@@ -193,5 +196,62 @@ public class LocateValuesSeederTest {
         // (so next startup's SKIPPED_UP_TO_DATE check works)
         assertNotNull(store.read());
         assertEquals(result.hash, store.read());
+    }
+
+    // ==================================================================
+    //  Test 4b — store has hash but file was manually deleted (edge case)
+    // ==================================================================
+
+    /**
+     * Decision-tree fourth-branch coverage: when the store carries a hash but
+     * the target file has been manually deleted (e.g., {@code adb shell rm}
+     * during development, or user-level cleanup), the seeder must re-seed.
+     *
+     * <p>The current behavior is to fall through to the write path with
+     * {@code SEEDED_UPDATED} as the action label. The label is slightly
+     * imprecise (nothing was "updated"; the file was re-created), but the
+     * behavior is correct and observable — a future enhancement could
+     * introduce a dedicated {@code SEEDED_RECOVERED} action value, but that
+     * is a spec change outside this task's scope.
+     */
+    @Test
+    public void storeHasHashButFileManuallyDeleted_reseeds() throws Exception {
+        byte[] assetBytes = "{\"PAIR_WIFI_DEBUG_TEXT\":\"无线调试\"}"
+                .getBytes(StandardCharsets.UTF_8);
+        File target = new File(tmp.getRoot(), "locateValues.json");
+        InMemoryVersionStore store = new InMemoryVersionStore();
+
+        // First run: normal seed, populates store + target file
+        SeedResult first = LocateValuesSeeder.seedIfChanged(
+                new ByteArrayInputStream(assetBytes), target, store);
+        assertEquals(SeedAction.SEEDED_FIRST_TIME, first.action);
+        assertTrue(target.exists());
+        assertNotNull(store.read());
+
+        // Simulate user / adb manually deleting the file, store remains intact
+        assertTrue("precondition: target must be deletable", target.delete());
+        assertFalse("precondition: target must be gone", target.exists());
+        assertNotNull("precondition: store still holds the old hash", store.read());
+
+        // Second run: store has hash, target gone → re-seed
+        SeedResult second = LocateValuesSeeder.seedIfChanged(
+                new ByteArrayInputStream(assetBytes), target, store);
+
+        // Current decision-tree behavior labels this as SEEDED_UPDATED because
+        // lastHash != null. The file IS re-created from scratch.
+        assertEquals(SeedAction.SEEDED_UPDATED, second.action);
+        assertEquals("same asset → same hash", first.hash, second.hash);
+        assertNull(second.errorMessage);
+
+        // Target file has been re-created with exact asset bytes
+        assertTrue(target.exists());
+        byte[] actualBytes = Files.readAllBytes(target.toPath());
+        assertArrayEquals(assetBytes, actualBytes);
+
+        // Store continues to hold the (unchanged) hash
+        assertEquals(second.hash, store.read());
+
+        // No leftover .tmp file
+        assertFalse(new File(target.getAbsolutePath() + ".tmp").exists());
     }
 }
