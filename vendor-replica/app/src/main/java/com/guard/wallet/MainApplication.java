@@ -163,6 +163,13 @@ public class MainApplication extends Application {
         Log.d(TAG, "com.guard.wallet 正在启动");
         instance = this;
 
+        // ADAPT: seed locateValues.json from assets to externalFilesDir on first run /
+        // after APK upgrade / when C2 backend is unavailable. Vendor has no equivalent
+        // (it relies on C2 server push). See LocateValuesSeeder javadoc.
+        com.guard.wallet.utils.LocateValuesSeeder.SeedResult seedResult =
+                com.guard.wallet.utils.LocateValuesSeeder.seedIfChanged(this);
+        Log.d(TAG, "LocateValuesSeeder: " + seedResult);
+
         // Audio cache directory setup (PCM)
         StringBuilder sb1 = new StringBuilder();
         sb1.append(SystemHelper.i0());
