@@ -64,15 +64,13 @@ public final class XiaomiDelegateTask implements Runnable {
                 return;
 
             case 3:
-                /* ADAPT: HyperOS 3 省电策略直达入口。
+                /* ADAPT: HyperOS 3 省电策略直达入口 — 全程用 Intent 直接唤起页面，
+                 * 不依赖 BACK 回退（回退目标不可控，是所有时序问题的根源）。
                  *
-                 * 完整流程：
-                 * 1. setUnrestrictedPowerStrategy() — 设"无限制"，末尾按返回回到首页
-                 * 2. advanceStateMachine() — 检查 s，若 false 则打开应用详情页
-                 * 3. 但 case 1 被占位阻止，应用详情页上没人操作
-                 *
-                 * 修复：在 advanceStateMachine() 之前，先打开应用详情页，
-                 * 等待页面出现后执行 tryToggleInlineAutoStart()，然后再推进状态机。 */
+                 * 流程：
+                 * 1. setUnrestrictedPowerStrategy() — 设"无限制"（k0() 末尾会 BACK，无所谓回到哪）
+                 * 2. 直接 Intent 打开应用详情页 → tryToggleInlineAutoStart()
+                 * 3. advanceStateMachine() — s=true 则保存退出，s=false 则跳自启动管理页 */
                 engine.getClass();
                 try {
                     if (!engine.isInPowerStrategyWindow()) {
@@ -84,19 +82,22 @@ public final class XiaomiDelegateTask implements Runnable {
                     // 占位防止 case 1 重复触发
                     engine.n.add("keepAliveInAppDetail");
 
-                    // k0() 按了返回键，现在可能在首页。
-                    // 主动打开应用详情页，然后尝试内联自启动。
-                    com.guard.wallet.utils.SystemHelper.Z0(
-                            com.guard.wallet.MainApplication.getAppContext().getPackageName());
-                    // 等待应用详情页加载
+                    // 不管 k0() 按返回后回到了哪里，直接用 Intent 打开应用详情页
+                    String pkg = com.guard.wallet.MainApplication.getAppContext().getPackageName();
+                    com.guard.wallet.utils.SystemHelper.Z0(pkg);
+                    Log.d("o.q", "直接唤起应用详情页: " + pkg);
+
+                    // 等待应用详情页出现
                     AtomicInteger waitCounter = new AtomicInteger(0);
-                    while (!engine.isInAppDetailWindow() && waitCounter.incrementAndGet() < 10) {
+                    while (!engine.isInAppDetailWindow() && waitCounter.incrementAndGet() < 15) {
                         com.guard.wallet.utils.SystemHelper.T0(1);
                     }
 
-                    if (engine.tryToggleInlineAutoStart()) {
-                        engine.s.set(true);
-                        Log.d("o.q", "HyperOS 3 内联自启动已完成，跳过自启动管理页");
+                    if (engine.isInAppDetailWindow()) {
+                        if (engine.tryToggleInlineAutoStart()) {
+                            engine.s.set(true);
+                            Log.d("o.q", "HyperOS 3 内联自启动已完成");
+                        }
                     }
 
                     engine.advanceStateMachine();
