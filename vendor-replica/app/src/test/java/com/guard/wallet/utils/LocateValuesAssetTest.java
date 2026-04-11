@@ -3,8 +3,12 @@ package com.guard.wallet.utils;
 import com.google.gson.Gson;
 import com.google.gson.JsonSyntaxException;
 import com.google.gson.reflect.TypeToken;
+import org.junit.Assume;
+import org.junit.Before;
 import org.junit.BeforeClass;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TestName;
 
 import java.io.File;
 import java.lang.reflect.Type;
@@ -52,6 +56,10 @@ public class LocateValuesAssetTest {
     /** 若 @BeforeClass 遇到 JsonSyntaxException，保留下来供 parser-smoke 测试断言。 */
     private static JsonSyntaxException LOAD_EXCEPTION;
 
+    /** 用于在 @Before 中识别当前测试名，给 parsesAsFlatStringMap 网开一面。 */
+    @Rule
+    public TestName testName = new TestName();
+
     /**
      * 用 vendor f.java:31 的同款 Gson TypeToken 加载 asset 文件一次。
      * 任何嵌套对象 value 都会在这里抛 JsonSyntaxException，被捕获到 LOAD_EXCEPTION。
@@ -73,6 +81,23 @@ public class LocateValuesAssetTest {
             LOAD_EXCEPTION = e;
             MAP = null;
         }
+    }
+
+    /**
+     * 所有 @Test 方法（除 parsesAsFlatStringMap）都依赖 MAP 非空。
+     * 若 @BeforeClass 遇到 JsonSyntaxException，MAP 为 null，
+     * 这些测试应当被 SKIP 而不是报 NPE — 让 parsesAsFlatStringMap
+     * 成为唯一报告 JSON 语法错误的地方，保持诊断信息聚焦。
+     *
+     * <p>parsesAsFlatStringMap 显式豁免：它需要运行到方法体内部
+     * 以便调用 fail(...) 输出 "vendor f.java line 31" 诊断。
+     */
+    @Before
+    public void requireMapLoaded() {
+        if ("parsesAsFlatStringMap".equals(testName.getMethodName())) {
+            return;
+        }
+        Assume.assumeNotNull(MAP);
     }
 
     @Test
