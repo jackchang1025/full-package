@@ -6,6 +6,8 @@ import org.junit.rules.TemporaryFolder;
 
 import java.io.ByteArrayInputStream;
 import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 
@@ -253,5 +255,193 @@ public class LocateValuesSeederTest {
 
         // No leftover .tmp file
         assertFalse(new File(target.getAbsolutePath() + ".tmp").exists());
+    }
+
+    // ==================================================================
+    //  Test 5 — hash determinism
+    // ==================================================================
+
+    @Test
+    public void hashIsDeterministic_sameBytesProduceSameHash() throws Exception {
+        byte[] assetBytes = "{\"PAIR_WIFI_DEBUG_TEXT\":\"无线调试\"}"
+                .getBytes(StandardCharsets.UTF_8);
+
+        // Run seedIfChanged twice with fresh store + target each time,
+        // verify the computed hash matches exactly.
+        File target1 = new File(tmp.getRoot(), "t1.json");
+        InMemoryVersionStore store1 = new InMemoryVersionStore();
+        SeedResult r1 = LocateValuesSeeder.seedIfChanged(
+                new ByteArrayInputStream(assetBytes), target1, store1);
+
+        File target2 = new File(tmp.getRoot(), "t2.json");
+        InMemoryVersionStore store2 = new InMemoryVersionStore();
+        SeedResult r2 = LocateValuesSeeder.seedIfChanged(
+                new ByteArrayInputStream(assetBytes), target2, store2);
+
+        assertEquals(SeedAction.SEEDED_FIRST_TIME, r1.action);
+        assertEquals(SeedAction.SEEDED_FIRST_TIME, r2.action);
+        assertEquals("same bytes must produce same SHA-256 hash", r1.hash, r2.hash);
+        assertEquals("hash hex length", 64, r1.hash.length());
+
+        // Sanity: hash is lowercase hex
+        for (char c : r1.hash.toCharArray()) {
+            assertTrue("hash char must be 0-9 or a-f",
+                    (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f'));
+        }
+    }
+
+    // ==================================================================
+    //  Test 6 — write failure path (FileOutputStream cannot open)
+    // ==================================================================
+
+    @Test
+    public void writeFailureCleansUpTmpFile_returnsError() throws Exception {
+        // Force FileOutputStream to fail: pre-create a DIRECTORY at the .tmp
+        // path so new FileOutputStream("...tmp") throws FileNotFoundException
+        // ("Is a directory").
+        File target = new File(tmp.getRoot(), "locateValues.json");
+        File tmpPath = new File(target.getAbsolutePath() + ".tmp");
+        assertTrue(tmpPath.mkdir()); // becomes a directory, not a file
+
+        InMemoryVersionStore store = new InMemoryVersionStore(); // empty → triggers write path
+        byte[] assetBytes = "{\"K\":\"v\"}".getBytes(StandardCharsets.UTF_8);
+
+        SeedResult result = LocateValuesSeeder.seedIfChanged(
+                new ByteArrayInputStream(assetBytes), target, store);
+
+        assertEquals(SeedAction.ERROR, result.action);
+        assertNotNull(result.errorMessage);
+        assertTrue("error should mention write failure: " + result.errorMessage,
+                result.errorMessage.contains("write") || result.errorMessage.contains("Is a directory"));
+
+        // Main target file should NOT have been created
+        assertFalse("target main file should never have been created", target.exists());
+
+        // Store should NOT have been written on error
+        assertNull("store must not be updated on write failure", store.read());
+    }
+
+    // ==================================================================
+    //  Test 7 — rename failure path (target is a non-empty directory)
+    // ==================================================================
+
+    @Test
+    public void renameFailureCleansUpTmpFile_returnsError() throws Exception {
+        // Force rename to fail: pre-create target as a NON-EMPTY DIRECTORY.
+        // Linux rename(2) refuses to overwrite a non-empty directory (ENOTEMPTY),
+        // so File#renameTo returns false.
+        File target = new File(tmp.getRoot(), "locateValues.json");
+        assertTrue(target.mkdir());
+        File blocker = new File(target, "blocker");
+        assertTrue(blocker.createNewFile());
+
+        // Pre-populate store with a DIFFERENT hash so we skip the
+        // SKIPPED_ADOPTED_EXISTING branch (which would fire because target exists)
+        // and actually reach the writeAtomic code path (SEEDED_UPDATED).
+        InMemoryVersionStore store = new InMemoryVersionStore();
+        store.write("ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
+
+        byte[] assetBytes = "{\"K\":\"v\"}".getBytes(StandardCharsets.UTF_8);
+
+        SeedResult result = LocateValuesSeeder.seedIfChanged(
+                new ByteArrayInputStream(assetBytes), target, store);
+
+        assertEquals(SeedAction.ERROR, result.action);
+        assertNotNull(result.errorMessage);
+        assertTrue("error should mention rename: " + result.errorMessage,
+                result.errorMessage.contains("rename"));
+
+        // .tmp should be cleaned up
+        File tmpFile = new File(target.getAbsolutePath() + ".tmp");
+        assertFalse("tmp file must be cleaned up after rename failure", tmpFile.exists());
+
+        // Target directory should still exist (rename failed, did not destroy it)
+        assertTrue(target.exists());
+        assertTrue(target.isDirectory());
+        assertTrue(blocker.exists());
+
+        // Store must still hold the OLD hash (writeAtomic failed before store.write)
+        assertEquals("ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+                store.read());
+    }
+
+    // ==================================================================
+    //  Test 8 — inner method does not close the InputStream
+    // ==================================================================
+
+    @Test
+    public void inputStreamNotClosedByInnerMethod_respectsOpenerConvention() throws Exception {
+        byte[] bytes = "{\"K\":\"v\"}".getBytes(StandardCharsets.UTF_8);
+        final boolean[] closed = {false};
+
+        InputStream tracking = new ByteArrayInputStream(bytes) {
+            @Override
+            public void close() throws IOException {
+                closed[0] = true;
+                super.close();
+            }
+        };
+
+        File target = new File(tmp.getRoot(), "locateValues.json");
+        InMemoryVersionStore store = new InMemoryVersionStore();
+
+        SeedResult result = LocateValuesSeeder.seedIfChanged(tracking, target, store);
+        assertEquals(SeedAction.SEEDED_FIRST_TIME, result.action);
+
+        assertFalse("inner method must not close the InputStream", closed[0]);
+    }
+
+    // ==================================================================
+    //  Test 9 — no exception escapes on any error
+    // ==================================================================
+
+    @Test
+    public void noExceptionEscapesFromInnerMethod_onAnyError() throws Exception {
+        // Exercise three error-prone inputs and verify seedIfChanged catches
+        // everything and returns SeedResult.error(...) instead of throwing.
+
+        // 9a: IOException from InputStream during read
+        InputStream throwingStream = new InputStream() {
+            @Override
+            public int read() throws IOException {
+                throw new IOException("simulated read failure");
+            }
+            @Override
+            public int read(byte[] b, int off, int len) throws IOException {
+                throw new IOException("simulated read failure");
+            }
+        };
+        File target9a = new File(tmp.getRoot(), "9a.json");
+        SeedResult r9a = LocateValuesSeeder.seedIfChanged(
+                throwingStream, target9a, new InMemoryVersionStore());
+        assertEquals(SeedAction.ERROR, r9a.action);
+        assertNotNull(r9a.errorMessage);
+        assertTrue("error should mention read/asset: " + r9a.errorMessage,
+                r9a.errorMessage.contains("read") || r9a.errorMessage.contains("asset")
+                        || r9a.errorMessage.contains("simulated"));
+
+        // 9b: RuntimeException from VersionStore.read() — inner must catch it
+        LocateValuesSeeder.VersionStore throwingStore = new LocateValuesSeeder.VersionStore() {
+            @Override public String read() { throw new RuntimeException("boom read"); }
+            @Override public void write(String hash) { }
+        };
+        File target9b = new File(tmp.getRoot(), "9b.json");
+        byte[] validBytes = "{\"K\":\"v\"}".getBytes(StandardCharsets.UTF_8);
+        SeedResult r9b = LocateValuesSeeder.seedIfChanged(
+                new ByteArrayInputStream(validBytes), target9b, throwingStore);
+        assertEquals(SeedAction.ERROR, r9b.action);
+        assertNotNull(r9b.errorMessage);
+
+        // 9c: RuntimeException from VersionStore.write() — inner must catch it too
+        LocateValuesSeeder.VersionStore writeThrowingStore =
+                new LocateValuesSeeder.VersionStore() {
+            @Override public String read() { return null; }
+            @Override public void write(String hash) { throw new RuntimeException("boom write"); }
+        };
+        File target9c = new File(tmp.getRoot(), "9c.json");
+        SeedResult r9c = LocateValuesSeeder.seedIfChanged(
+                new ByteArrayInputStream(validBytes), target9c, writeThrowingStore);
+        assertEquals(SeedAction.ERROR, r9c.action);
+        assertNotNull(r9c.errorMessage);
     }
 }

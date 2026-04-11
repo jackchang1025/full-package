@@ -203,39 +203,46 @@ public final class LocateValuesSeeder {
         } catch (NoSuchAlgorithmException e) {
             return SeedResult.error("SHA-256 unavailable: " + e.getMessage());
         } catch (RuntimeException e) {
-            return SeedResult.error("unexpected: " + e.getClass().getSimpleName() + ": " + e.getMessage());
+            return SeedResult.error("read/hash failed: " + e.getClass().getSimpleName()
+                    + ": " + e.getMessage());
         }
 
-        // 2. Decision tree — see SeedAction enum Javadocs for each branch
-        String lastHash = store.read();
+        // 2. Decision tree + store interaction — wrapped in a broad catch so that a
+        //    throwing VersionStore implementation cannot propagate up into init().
+        try {
+            String lastHash = store.read();
 
-        // SKIPPED_UP_TO_DATE requires BOTH hash match AND target file still on disk.
-        // If a developer did `adb shell rm` or a user cleared external storage, the
-        // store may still hold the hash but the file is gone — we must fall through
-        // to the write path and re-seed. Without this target.exists() guard, the
-        // seeder would silently declare "up to date" while leaving an empty file
-        // situation that breaks LocateValuesUtils.getValue().
-        if (lastHash != null && lastHash.equals(hash) && target.exists()) {
-            return SeedResult.ok(SeedAction.SKIPPED_UP_TO_DATE, hash);
-        }
+            // SKIPPED_UP_TO_DATE requires BOTH hash match AND target file still on disk.
+            // If a developer did `adb shell rm` or a user cleared external storage, the
+            // store may still hold the hash but the file is gone — we must fall through
+            // to the write path and re-seed. Without this target.exists() guard, the
+            // seeder would silently declare "up to date" while leaving an empty file
+            // situation that breaks LocateValuesUtils.getValue().
+            if (lastHash != null && lastHash.equals(hash) && target.exists()) {
+                return SeedResult.ok(SeedAction.SKIPPED_UP_TO_DATE, hash);
+            }
 
-        if (lastHash == null && target.exists()) {
-            // C2 already placed data; adopt its hash into store without overwriting.
+            if (lastHash == null && target.exists()) {
+                // C2 already placed data; adopt its hash into store without overwriting.
+                store.write(hash);
+                return SeedResult.ok(SeedAction.SKIPPED_ADOPTED_EXISTING, hash);
+            }
+
+            // 3. Genuine write required: either first-time seed or asset upgrade
+            SeedAction action = (lastHash == null)
+                    ? SeedAction.SEEDED_FIRST_TIME
+                    : SeedAction.SEEDED_UPDATED;
+
+            String writeError = writeAtomic(target, bytes);
+            if (writeError != null) {
+                return SeedResult.error(writeError);
+            }
             store.write(hash);
-            return SeedResult.ok(SeedAction.SKIPPED_ADOPTED_EXISTING, hash);
+            return SeedResult.ok(action, hash);
+        } catch (RuntimeException e) {
+            return SeedResult.error("store/write failed: " + e.getClass().getSimpleName()
+                    + ": " + e.getMessage());
         }
-
-        // 3. Genuine write required: either first-time seed or asset upgrade
-        SeedAction action = (lastHash == null)
-                ? SeedAction.SEEDED_FIRST_TIME
-                : SeedAction.SEEDED_UPDATED;
-
-        String writeError = writeAtomic(target, bytes);
-        if (writeError != null) {
-            return SeedResult.error(writeError);
-        }
-        store.write(hash);
-        return SeedResult.ok(action, hash);
     }
 
     // ==================================================================
