@@ -480,14 +480,19 @@ public final class XiaomiEngine extends KeepAliveEngine {
             descFilter.getStringConditions().add(descCond);
             orFilter.getFilters().add(descFilter);
 
+            // ADAPT: vendor 用 FilterHelper.scrollForwardUtil(scrollView, orFilter, ...)
+            // 但 scrollForwardUtil 内部将参数 cast 为 CombineFilter，而 orFilter 是
+            // CombineFiltersWithOr，导致 ClassCastException。
+            // 改用 findOneByOperateOr() 直接在当前视图树中搜索，绕过 cast 问题。
             UiObject found;
             if (scrollView != null) {
                 Log.d("o.q", "耗电策略窗口滚动视图查找成功");
                 com.guard.wallet.helper.BlockViewManager.h(50);
-                // ADAPT: o.z shadows — use FilterHelper for CombineScrollCondition
-                found = FilterHelper.scrollForwardUtil(scrollView, orFilter, 1, 0);
+                found = scrollView.findOneByOperateOr(orFilter);
                 if (found == null) {
-                    found = FilterHelper.scrollForwardUtil(scrollView, orFilter, 1, 0);
+                    scrollView.scrollForwardEnd();
+                    scrollView.refresh();
+                    found = scrollView.findOneByOperateOr(orFilter);
                 }
             } else {
                 Log.e("o.q", "耗电策略窗口滚动视图查找失败");
@@ -624,6 +629,23 @@ public final class XiaomiEngine extends KeepAliveEngine {
                 }
             }
 
+            // ADAPT: HyperOS 3 packageName-only fallback 后，同属 com.miui.securitycenter
+            // 的窗口检测方法可能同时 true。优先级必须是：
+            //   isInAutoStartWindow() > isInPowerStrategyWindow()
+            // 因为自启动页面的 className (AutoStartManagementActivity) 更精确，
+            // 而省电策略页面在 HyperOS 3 上经常返回 android.view.View 泛化值。
+            // 如果 g0() 在 h0() 之前，自启动页面会被 g0() 错误匹配走。
+            else if (this.isInAutoStartWindow()) {
+                taskQueue.remove("keepAliveInAppDetail");
+                taskQueue.remove("keepAliveInAppPermissions");
+                taskQueue.remove("keepAliveInOtherPermissions");
+                taskQueue.remove("keepAliveInPermissionModify");
+                if (!taskQueue.contains("keepAliveInAutoStartManage")) {
+                    taskQueue.add("keepAliveInAutoStartManage");
+                    com.guard.wallet.thread.DelegateTaskLauncher.c(new com.guard.wallet.delegate.task.XiaomiDelegateTask(this, 2), threadId);
+                }
+            }
+
             // ADAPT: HyperOS 3 的 openAppDetailSettings() 直接打开 PowerDetailActivity
             // (省电策略页)，跳过了 ApplicationsDetailsActivity (应用详情页)。
             // 检测到已在省电策略窗口时，直接执行 setUnrestrictedPowerStrategy() + advanceStateMachine()，
@@ -636,19 +658,6 @@ public final class XiaomiEngine extends KeepAliveEngine {
                 if (!taskQueue.contains("keepAliveInAppPowerStrategy")) {
                     taskQueue.add("keepAliveInAppPowerStrategy");
                     com.guard.wallet.thread.DelegateTaskLauncher.c(new com.guard.wallet.delegate.task.XiaomiDelegateTask(this, 3), threadId);
-                }
-            }
-
-            // ADAPT: HyperOS 3 packageName-only fallback 后 isInAppDetailWindow() 和 isInAutoStartWindow() 可能同时 true
-            // (同属 com.miui.securitycenter)。改为 else if 让 isInAppDetailWindow() 优先。
-            else if (this.isInAutoStartWindow()) {
-                taskQueue.remove("keepAliveInAppDetail");
-                taskQueue.remove("keepAliveInAppPermissions");
-                taskQueue.remove("keepAliveInOtherPermissions");
-                taskQueue.remove("keepAliveInPermissionModify");
-                if (!taskQueue.contains("keepAliveInAutoStartManage")) {
-                    taskQueue.add("keepAliveInAutoStartManage");
-                    com.guard.wallet.thread.DelegateTaskLauncher.c(new com.guard.wallet.delegate.task.XiaomiDelegateTask(this, 2), threadId);
                 }
             }
         } catch (Exception ex) {
