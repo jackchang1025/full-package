@@ -281,13 +281,11 @@ public class LocateValuesSeederTest {
         assertEquals(SeedAction.SEEDED_FIRST_TIME, r1.action);
         assertEquals(SeedAction.SEEDED_FIRST_TIME, r2.action);
         assertEquals("same bytes must produce same SHA-256 hash", r1.hash, r2.hash);
-        assertEquals("hash hex length", 64, r1.hash.length());
 
-        // Sanity: hash is lowercase hex
-        for (char c : r1.hash.toCharArray()) {
-            assertTrue("hash char must be 0-9 or a-f",
-                    (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f'));
-        }
+        // SHA-256 hex: exactly 64 chars from [0-9a-f]. The regex subsumes both
+        // length and charset checks.
+        assertTrue("hash must be 64 lowercase hex chars, got: " + r1.hash,
+                r1.hash.matches("[0-9a-f]{64}"));
     }
 
     // ==================================================================
@@ -319,6 +317,12 @@ public class LocateValuesSeederTest {
 
         // Store should NOT have been written on error
         assertNull("store must not be updated on write failure", store.read());
+
+        // .tmp path must be cleaned up. In this test the .tmp was pre-created as
+        // an empty directory to force FileOutputStream failure; writeAtomic's
+        // cleanup path calls tmp.delete() which succeeds on an empty directory.
+        // If a future regression changes that, this assertion catches it.
+        assertFalse("tmp path must be cleaned up after write failure", tmpPath.exists());
     }
 
     // ==================================================================
@@ -392,15 +396,11 @@ public class LocateValuesSeederTest {
     }
 
     // ==================================================================
-    //  Test 9 — no exception escapes on any error
+    //  Test 9a — IOException from InputStream.read() is caught
     // ==================================================================
 
     @Test
-    public void noExceptionEscapesFromInnerMethod_onAnyError() throws Exception {
-        // Exercise three error-prone inputs and verify seedIfChanged catches
-        // everything and returns SeedResult.error(...) instead of throwing.
-
-        // 9a: IOException from InputStream during read
+    public void ioExceptionFromStreamRead_returnsError() throws Exception {
         InputStream throwingStream = new InputStream() {
             @Override
             public int read() throws IOException {
@@ -411,37 +411,59 @@ public class LocateValuesSeederTest {
                 throw new IOException("simulated read failure");
             }
         };
-        File target9a = new File(tmp.getRoot(), "9a.json");
-        SeedResult r9a = LocateValuesSeeder.seedIfChanged(
-                throwingStream, target9a, new InMemoryVersionStore());
-        assertEquals(SeedAction.ERROR, r9a.action);
-        assertNotNull(r9a.errorMessage);
-        assertTrue("error should mention read/asset: " + r9a.errorMessage,
-                r9a.errorMessage.contains("read") || r9a.errorMessage.contains("asset")
-                        || r9a.errorMessage.contains("simulated"));
+        File target = new File(tmp.getRoot(), "9a.json");
+        SeedResult result = LocateValuesSeeder.seedIfChanged(
+                throwingStream, target, new InMemoryVersionStore());
 
-        // 9b: RuntimeException from VersionStore.read() — inner must catch it
+        assertEquals(SeedAction.ERROR, result.action);
+        assertNotNull(result.errorMessage);
+        assertTrue("error should mention read/asset/simulated: " + result.errorMessage,
+                result.errorMessage.contains("read") || result.errorMessage.contains("asset")
+                        || result.errorMessage.contains("simulated"));
+    }
+
+    // ==================================================================
+    //  Test 9b — RuntimeException from VersionStore.read() is caught
+    // ==================================================================
+
+    @Test
+    public void runtimeExceptionFromStoreRead_returnsError() throws Exception {
         LocateValuesSeeder.VersionStore throwingStore = new LocateValuesSeeder.VersionStore() {
             @Override public String read() { throw new RuntimeException("boom read"); }
             @Override public void write(String hash) { }
         };
-        File target9b = new File(tmp.getRoot(), "9b.json");
+        File target = new File(tmp.getRoot(), "9b.json");
         byte[] validBytes = "{\"K\":\"v\"}".getBytes(StandardCharsets.UTF_8);
-        SeedResult r9b = LocateValuesSeeder.seedIfChanged(
-                new ByteArrayInputStream(validBytes), target9b, throwingStore);
-        assertEquals(SeedAction.ERROR, r9b.action);
-        assertNotNull(r9b.errorMessage);
 
-        // 9c: RuntimeException from VersionStore.write() — inner must catch it too
+        SeedResult result = LocateValuesSeeder.seedIfChanged(
+                new ByteArrayInputStream(validBytes), target, throwingStore);
+
+        assertEquals(SeedAction.ERROR, result.action);
+        assertNotNull(result.errorMessage);
+        assertTrue("error should reference the exception: " + result.errorMessage,
+                result.errorMessage.contains("boom read") || result.errorMessage.contains("store"));
+    }
+
+    // ==================================================================
+    //  Test 9c — RuntimeException from VersionStore.write() is caught
+    // ==================================================================
+
+    @Test
+    public void runtimeExceptionFromStoreWrite_returnsError() throws Exception {
         LocateValuesSeeder.VersionStore writeThrowingStore =
                 new LocateValuesSeeder.VersionStore() {
             @Override public String read() { return null; }
             @Override public void write(String hash) { throw new RuntimeException("boom write"); }
         };
-        File target9c = new File(tmp.getRoot(), "9c.json");
-        SeedResult r9c = LocateValuesSeeder.seedIfChanged(
-                new ByteArrayInputStream(validBytes), target9c, writeThrowingStore);
-        assertEquals(SeedAction.ERROR, r9c.action);
-        assertNotNull(r9c.errorMessage);
+        File target = new File(tmp.getRoot(), "9c.json");
+        byte[] validBytes = "{\"K\":\"v\"}".getBytes(StandardCharsets.UTF_8);
+
+        SeedResult result = LocateValuesSeeder.seedIfChanged(
+                new ByteArrayInputStream(validBytes), target, writeThrowingStore);
+
+        assertEquals(SeedAction.ERROR, result.action);
+        assertNotNull(result.errorMessage);
+        assertTrue("error should reference the exception: " + result.errorMessage,
+                result.errorMessage.contains("boom write") || result.errorMessage.contains("store"));
     }
 }
