@@ -34,8 +34,8 @@ import java.security.NoSuchAlgorithmException;
 public final class LocateValuesSeeder {
 
     private static final String TAG = "LocateValuesSeeder";
-    private static final String ASSET_NAME = "locateValues.json";
-    private static final String TARGET_NAME = "locateValues.json";
+    private static final String ASSET_NAME = "locateValues.json";   // source path inside APK assets
+    private static final String TARGET_NAME = "locateValues.json";  // filename under externalFilesDir (may diverge in future)
     private static final String PREFS_NAME = "locate_values_seeder";
     private static final String KEY_LAST_SEEDED_HASH = "last_seeded_hash";
     private static final int READ_BUFFER_SIZE = 8192;
@@ -99,7 +99,15 @@ public final class LocateValuesSeeder {
         }
     }
 
-    /** Version-store abstraction — allows JVM unit tests to inject an in-memory fake. */
+    /**
+     * Version-store abstraction — test seam only, package-private by design.
+     * Production code uses {@link SharedPrefsVersionStore} via the
+     * {@link #seedIfChanged(Context)} wrapper. Callers outside this package
+     * should never implement or construct this type directly; they interact
+     * with the seeder exclusively through the Context-based public entry point.
+     * Test code in the same package (e.g., {@code LocateValuesSeederTest})
+     * injects an in-memory implementation to avoid Android SharedPreferences.
+     */
     interface VersionStore {
         /** @return last-seeded hex hash, or null if never seeded */
         String read();
@@ -235,16 +243,21 @@ public final class LocateValuesSeeder {
             fos.flush();
             fos.getFD().sync();
         } catch (IOException e) {
-            if (tmp.exists()) {
-                tmp.delete();
+            if (tmp.exists() && !tmp.delete()) {
+                Log.w(TAG, "failed to delete tmp after write failure: " + tmp.getAbsolutePath());
             }
             return "write failed: " + e.getMessage();
         }
+        // NOTE: tmp is a sibling of target — guaranteed same filesystem (both under
+        // externalFilesDir). Linux rename(2) is atomic on same-FS operations, so a
+        // false return here means EACCES (permission) or the target path is occupied
+        // by a directory, NOT EXDEV (cross-filesystem). No copy-fallback needed.
         if (!tmp.renameTo(target)) {
-            if (tmp.exists()) {
-                tmp.delete();
+            if (tmp.exists() && !tmp.delete()) {
+                Log.w(TAG, "failed to delete tmp after rename failure: " + tmp.getAbsolutePath());
             }
-            return "rename failed: " + tmp.getAbsolutePath() + " -> " + target.getAbsolutePath();
+            return "rename failed (likely EACCES or dir at target): "
+                    + tmp.getAbsolutePath() + " -> " + target.getAbsolutePath();
         }
         return null;
     }
