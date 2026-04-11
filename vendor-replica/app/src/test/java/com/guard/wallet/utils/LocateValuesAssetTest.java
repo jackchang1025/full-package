@@ -243,9 +243,10 @@ public class LocateValuesAssetTest {
             "HUA_WEI_CONFIRM_TEXT",
             "HUA_WEI_VERSION_TEXT",
 
-            // MIUI_* (4) — Xiaomi MIUI keep-alive + install — vendor o/q.java
+            // MIUI_* (5) — Xiaomi MIUI keep-alive + install — vendor o/q.java
             "MIUI_APP_POWER_CONSUME_TEXT",
             "MIUI_SETTINGS_POWER_SAVING_STRATEGY_TEXT",
+            "MIUI_SETTINGS_UNRESTRICTED_TEXT",
             "MIUI_VERSION_TEXT",
             "MIUI_CONTINUE_INSTALL_BTN_TEXT",
 
@@ -291,7 +292,7 @@ public class LocateValuesAssetTest {
 
         assertEquals(
             "Required-key list size drift — update the array above when you add or remove keys",
-            80,
+            81,
             required.length
         );
 
