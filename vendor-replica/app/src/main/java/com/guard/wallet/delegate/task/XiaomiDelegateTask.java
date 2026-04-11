@@ -40,7 +40,7 @@ public final class XiaomiDelegateTask implements Runnable {
                 return;
 
             case 1:
-                /* Poll loop: wait for keepalive switch, then click and finish */
+                /* Poll loop: wait for app detail window, set power strategy, then autostart */
                 engine.getClass();
                 try {
                     AtomicInteger counter = new AtomicInteger(0);
@@ -48,6 +48,15 @@ public final class XiaomiDelegateTask implements Runnable {
                         com.guard.wallet.utils.SystemHelper.T0(1);
                     }
                     engine.navigateAndSetPowerStrategy();
+
+                    // ADAPT: HyperOS 3 在应用详情页内联了"自启动" Switch。
+                    // 尝试直接 toggle，成功则标记 s=true 并跳过 advanceStateMachine()
+                    // 的 AutoStartManagementActivity 跳转。
+                    if (engine.tryToggleInlineAutoStart()) {
+                        engine.s.set(true);
+                        Log.d("o.q", "HyperOS 3 内联自启动已完成，跳过自启动管理页");
+                    }
+
                     engine.advanceStateMachine();
                 } catch (Exception ex) {
                     AppUtils.s("o.q", ex);
