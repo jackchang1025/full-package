@@ -350,6 +350,77 @@ public final class XiaomiEngine extends KeepAliveEngine {
         return false;
     }
 
+    /**
+     * ADAPT: HyperOS 3 在应用详情页 (ApplicationsDetailsActivity) 内联了"自启动" Switch。
+     * 无需跳转到 AutoStartManagementActivity 再滚动查找。
+     *
+     * 搜索 content-desc="自启动" 的 Switch 节点，若找到且未勾选则点击 toggle。
+     *
+     * @return true 若找到并成功 toggle（或已经是勾选状态）
+     */
+    public final boolean tryToggleInlineAutoStart() {
+        try {
+            if (this.k() == null) return false;
+
+            // 构建 filter: class=Switch + content-desc 包含 "自启动"
+            CombineFilter filter = new CombineFilter();
+            filter.setStringConditions(new LinkedList<>());
+            StringCondition classCond = new StringCondition();
+            classCond.setProperty("className");
+            classCond.setEquals("android.widget.Switch");
+            filter.getStringConditions().add(classCond);
+            StringCondition descCond = new StringCondition();
+            descCond.setProperty("desc");
+            descCond.setContains("自启动");
+            filter.getStringConditions().add(descCond);
+
+            UiObject switchNode = this.k().findOneByCombine(filter);
+            if (switchNode == null) {
+                Log.d("o.q", "应用详情页未找到内联自启动 Switch (非 HyperOS 3?)");
+                return false;
+            }
+
+            Log.d("o.q", "HyperOS 3 应用详情页内联自启动 Switch 已找到");
+            boolean checked = switchNode.checked();
+            if (checked) {
+                Log.d("o.q", "内联自启动 Switch 已勾选，无需操作");
+                return true;
+            }
+
+            // 点击 toggle
+            if (switchNode.click()) {
+                Log.d("o.q", "已点击内联自启动 Switch");
+                com.guard.wallet.utils.SystemHelper.T0(3);
+                switchNode.refresh();
+                checked = switchNode.checked();
+                if (checked) {
+                    Log.d("o.q", "内联自启动 Switch 已成功勾选");
+                    return true;
+                }
+            }
+
+            // fallback: 手势点击 Switch 右侧
+            int tapX = switchNode.boundsInScreen().right - 50;
+            int tapY = (int) switchNode.centerInScreen().getY();
+            if (com.guard.wallet.utils.SystemHelper.s(tapX, tapY)) {
+                Log.d("o.q", "已手势点击内联自启动 Switch");
+                com.guard.wallet.utils.SystemHelper.T0(3);
+                switchNode.refresh();
+                checked = switchNode.checked();
+                if (checked) {
+                    Log.d("o.q", "内联自启动 Switch 手势勾选成功");
+                    return true;
+                }
+            }
+
+            Log.e("o.q", "内联自启动 Switch 点击后仍未勾选");
+            return false;
+        } catch (Exception ex) {
+            AppUtils.s("o.q", ex);
+            return false;
+        }
+    }
+
     /** vendor i0(String) → toggleAutoStart(String) */
     public final boolean toggleAutoStart(String appLabel) {
         try {
