@@ -103,8 +103,8 @@ public abstract class KeepAliveEngine extends AccessibilityDelegate {
 
     // ═══════ Constructor ═══════
 
-    public KeepAliveEngine(LinkedList var1, String var2) {
-        super(var1, var2);
+    public KeepAliveEngine(LinkedList listenWindows, String targetPackage) {
+        super(listenWindows, targetPackage);
     }
 
     // ═══════ 静态过滤器/UI 辅助方法 ═══════
@@ -113,15 +113,15 @@ public abstract class KeepAliveEngine extends AccessibilityDelegate {
      * vendor H() → buildTextContainsFilter() — 构建匹配包含指定文本的 TextView 的 CombineFilter。
      * 用于在设置 UI 中查找文本标签。
      */
-    public static CombineFilter buildTextContainsFilter(String var0) {
-        CombineFilter var1 = new CombineFilter();
-        StringCondition var2 = initFilterCondition(var1, "className", "android.widget.TextView");
-        var1.getStringConditions().add(var2);
-        var2 = new StringCondition();
-        var2.setProperty("text");
-        var2.setContains(var0);
-        var1.getStringConditions().add(var2);
-        return var1;
+    public static CombineFilter buildTextContainsFilter(String text) {
+        CombineFilter filter = new CombineFilter();
+        StringCondition condition = initFilterCondition(filter, "className", "android.widget.TextView");
+        filter.getStringConditions().add(condition);
+        condition = new StringCondition();
+        condition.setProperty("text");
+        condition.setContains(text);
+        filter.getStringConditions().add(condition);
+        return filter;
     }
 
     /**
@@ -129,22 +129,22 @@ public abstract class KeepAliveEngine extends AccessibilityDelegate {
      * 匹配 "android:id/button1" 或 "com.android.settings:id/btn_positive"。
      */
     public static CombineFiltersWithOr buildBatteryDialogAllowFilter() {
-        CombineFiltersWithOr var0 = new CombineFiltersWithOr(new LinkedList<>());
-        List var1 = var0.getFilters();
-        CombineFilter var3 = new CombineFilter();
-        StringCondition var2 = chainFilterCondition(var3,
-                initFilterCondition(var3, "className", "android.widget.Button"),
+        CombineFiltersWithOr orFilter = new CombineFiltersWithOr(new LinkedList<>());
+        List filters = orFilter.getFilters();
+        CombineFilter filter = new CombineFilter();
+        StringCondition condition = chainFilterCondition(filter,
+                initFilterCondition(filter, "className", "android.widget.Button"),
                 "id", "android:id/button1");
-        var3.getStringConditions().add(var2);
-        var1.add(var3);
-        var1 = var0.getFilters();
-        var3 = new CombineFilter();
-        var2 = chainFilterCondition(var3,
-                initFilterCondition(var3, "className", "android.widget.Button"),
+        filter.getStringConditions().add(condition);
+        filters.add(filter);
+        filters = orFilter.getFilters();
+        filter = new CombineFilter();
+        condition = chainFilterCondition(filter,
+                initFilterCondition(filter, "className", "android.widget.Button"),
                 "id", "com.android.settings:id/btn_positive");
-        var3.getStringConditions().add(var2);
-        var1.add(var3);
-        return var0;
+        filter.getStringConditions().add(condition);
+        filters.add(filter);
+        return orFilter;
     }
 
     /**
@@ -153,9 +153,9 @@ public abstract class KeepAliveEngine extends AccessibilityDelegate {
      * eventTypes: 32 (VIEW_SCROLLED), 16384 (WINDOW_STATE_CHANGED)。
      */
     public static ListenWindow buildBatteryDialogListenWindow() {
-        ListenWindow var0 = new ListenWindow("com.android.settings", "android.app.Dialog");
-        addEventType(32, initEventTypes(var0), var0).add(16384);
-        return var0;
+        ListenWindow listenWindow = new ListenWindow("com.android.settings", "android.app.Dialog");
+        addEventType(32, initEventTypes(listenWindow), listenWindow).add(16384);
+        return listenWindow;
     }
 
     /**
@@ -163,12 +163,12 @@ public abstract class KeepAliveEngine extends AccessibilityDelegate {
      * 用于在设置中查找可点击的列表项。
      */
     public static CombineFilter buildClickableLinearLayoutFilter() {
-        CombineFilter var0 = new CombineFilter();
-        StringCondition var1 = initFilterCondition(var0, "className", "android.widget.LinearLayout");
-        var0.getStringConditions().add(var1);
-        var0.setBoolConditions(new LinkedList<>());
-        var0.getBoolConditions().add(new BoolCondition("clickable", true, true));
-        return var0;
+        CombineFilter filter = new CombineFilter();
+        StringCondition condition = initFilterCondition(filter, "className", "android.widget.LinearLayout");
+        filter.getStringConditions().add(condition);
+        filter.setBoolConditions(new LinkedList<>());
+        filter.getBoolConditions().add(new BoolCondition("clickable", true, true));
+        return filter;
     }
 
     /**
@@ -176,11 +176,11 @@ public abstract class KeepAliveEngine extends AccessibilityDelegate {
      * 当直接切换点击失败时用作父节点回退搜索。
      */
     public static CombineFilter buildClickableNodeFilter() {
-        CombineFilter var0 = new CombineFilter();
-        var0.setBoolConditions(new LinkedList<>());
-        BoolCondition var1 = new BoolCondition("clickable", true, true);
-        var0.getBoolConditions().add(var1);
-        return var0;
+        CombineFilter filter = new CombineFilter();
+        filter.setBoolConditions(new LinkedList<>());
+        BoolCondition condition = new BoolCondition("clickable", true, true);
+        filter.getBoolConditions().add(condition);
+        return filter;
     }
 
     /**
@@ -192,32 +192,32 @@ public abstract class KeepAliveEngine extends AccessibilityDelegate {
         if (MyAccessibilityService.P() == null) {
             return;
         }
-        AtomicReference var0 = MyAccessibilityService.v2;
-        if (!Objects.equals((String) var0.get(), "android.app.Dialog")) {
-            MyAccessibilityService var1 = MyAccessibilityService.P();
-            var1.getClass();
-            String var6;
+        AtomicReference windowClassRef = MyAccessibilityService.v2;
+        if (!Objects.equals((String) windowClassRef.get(), "android.app.Dialog")) {
+            MyAccessibilityService service = MyAccessibilityService.P();
+            service.getClass();
+            String currentClass;
             try {
-                AccessibilityNodeInfo var9 = var1.getRootInActiveWindow();
-                if (var9 != null && var9.getClassName() != null) {
-                    var6 = var9.getClassName().toString();
+                AccessibilityNodeInfo rootNode = service.getRootInActiveWindow();
+                if (rootNode != null && rootNode.getClassName() != null) {
+                    currentClass = rootNode.getClassName().toString();
                 } else {
-                    var6 = (String) var0.get();
+                    currentClass = (String) windowClassRef.get();
                 }
-            } catch (Exception var5) {
-                AppUtils.s("MyAccessibilityService", var5);
-                var6 = null;
+            } catch (Exception ex) {
+                AppUtils.s("MyAccessibilityService", ex);
+                currentClass = null;
             }
-            if (!Objects.equals(var6, "android.app.Dialog")) {
+            if (!Objects.equals(currentClass, "android.app.Dialog")) {
                 return;
             }
         }
-        MyAccessibilityService var10 = MyAccessibilityService.P();
-        CombineFilter var7 = buildDialogCancelButtonFilter();
-        var10.getClass();
-        UiObject var8 = MyAccessibilityService.M(var7);
-        if (var8 != null && var8.click()) {
-            Log.d("o.c", "\u5DF2\u70B9\u51FB\u5BF9\u8BDD\u6846\u53D6\u6D88\u6309\u94AE");
+        MyAccessibilityService svc = MyAccessibilityService.P();
+        CombineFilter cancelFilter = buildDialogCancelButtonFilter();
+        svc.getClass();
+        UiObject cancelButton = MyAccessibilityService.M(cancelFilter);
+        if (cancelButton != null && cancelButton.click()) {
+            Log.d("o.c", "已点击对话框取消按钮");
             com.guard.wallet.utils.SystemHelper.T0(5);
         }
     }
@@ -226,12 +226,12 @@ public abstract class KeepAliveEngine extends AccessibilityDelegate {
      * vendor N() → buildDialogCancelButtonFilter() — 构建对话框取消按钮的 CombineFilter ("android:id/button1")。
      */
     public static CombineFilter buildDialogCancelButtonFilter() {
-        CombineFilter var0 = new CombineFilter();
-        StringCondition var1 = chainFilterCondition(var0,
-                initFilterCondition(var0, "className", "android.widget.Button"),
+        CombineFilter filter = new CombineFilter();
+        StringCondition condition = chainFilterCondition(filter,
+                initFilterCondition(filter, "className", "android.widget.Button"),
                 "id", "android:id/button1");
-        var0.getStringConditions().add(var1);
-        return var0;
+        filter.getStringConditions().add(condition);
+        return filter;
     }
 
     /**
@@ -243,35 +243,35 @@ public abstract class KeepAliveEngine extends AccessibilityDelegate {
      *
      * @return CheckedResult 包含最终选中状态和是否执行了点击
      */
-    public static CheckedResult toggleCompoundButton(UiObject var0) {
-        CheckedResult var8 = new CheckedResult();
+    public static CheckedResult toggleCompoundButton(UiObject startNode) {
+        CheckedResult result = new CheckedResult();
         boolean checked = false;
         try {
             // Build filter for CompoundButton
-            CombineFilter var9 = new CombineFilter();
-            LinkedList var6 = new LinkedList();
-            var9.setStringConditions(var6);
-            StringCondition var35 = new StringCondition();
-            var35.setProperty("className");
-            var35.setEquals("android.widget.CompoundButton");
-            var9.getStringConditions().add(var35);
+            CombineFilter filter = new CombineFilter();
+            LinkedList conditions = new LinkedList();
+            filter.setStringConditions(conditions);
+            StringCondition condition = new StringCondition();
+            condition.setProperty("className");
+            condition.setEquals("android.widget.CompoundButton");
+            filter.getStringConditions().add(condition);
 
             // Refresh accessibility cache
-            MyAccessibilityService.I(var0);
+            MyAccessibilityService.I(startNode);
 
             // Search up to 2 parent levels for CompoundButton
             UiObject toggleNode = null;
             int depth = 0;
-            UiObject current = var0;
+            UiObject current = startNode;
             while (current != null && toggleNode == null && depth <= 2) {
-                toggleNode = current.findOneByCombine(var9);
+                toggleNode = current.findOneByCombine(filter);
                 current = current.parent();
                 depth++;
             }
 
             if (toggleNode == null) {
-                var8.setChecked(false);
-                return var8;
+                result.setChecked(false);
+                return result;
             }
 
             checked = toggleNode.checked();
@@ -280,7 +280,7 @@ public abstract class KeepAliveEngine extends AccessibilityDelegate {
             // Strategy 1: direct click on toggle
             if (!checked) {
                 if (toggleNode.click()) {
-                    var8.setClicked(true);
+                    result.setClicked(true);
                     toggleNode.refresh();
                     checked = toggleNode.checked();
                     while (retries > 0 && !checked) {
@@ -296,7 +296,7 @@ public abstract class KeepAliveEngine extends AccessibilityDelegate {
             if (!checked) {
                 UiObject clickableParent = toggleNode.findParentUtilCombine(buildClickableNodeFilter());
                 if (clickableParent != null && clickableParent.click()) {
-                    var8.setClicked(true);
+                    result.setClicked(true);
                     toggleNode.refresh();
                     checked = toggleNode.checked();
                     while (retries > 0 && !checked) {
@@ -307,11 +307,11 @@ public abstract class KeepAliveEngine extends AccessibilityDelegate {
                     }
                 }
             }
-        } catch (Exception var29) {
-            AppUtils.s("o.c", var29);
+        } catch (Exception ex) {
+            AppUtils.s("o.c", ex);
         }
-        var8.setChecked(checked);
-        return var8;
+        result.setChecked(checked);
+        return result;
     }
 
     /**
@@ -322,42 +322,42 @@ public abstract class KeepAliveEngine extends AccessibilityDelegate {
      *
      * @return CheckedResult 包含最终选中状态和是否执行了点击
      */
-    public static CheckedResult toggleSwitchByGesture(UiObject var0) {
-        CheckedResult var5 = new CheckedResult();
+    public static CheckedResult toggleSwitchByGesture(UiObject startNode) {
+        CheckedResult result = new CheckedResult();
         try {
-            CombineFilter var6 = buildSwitchFilter();
-            MyAccessibilityService.I(var0);
+            CombineFilter filter = buildSwitchFilter();
+            MyAccessibilityService.I(startNode);
 
             // Search up to 2 parent levels for Switch
             int depth = 0;
             UiObject switchNode = null;
-            while (var0 != null && switchNode == null && depth <= 2) {
-                switchNode = var0.findOneByCombine(var6);
-                UiObject next = var0;
+            while (startNode != null && switchNode == null && depth <= 2) {
+                switchNode = startNode.findOneByCombine(filter);
+                UiObject next = startNode;
                 if (switchNode == null) {
-                    next = var0.parent();
+                    next = startNode.parent();
                 }
                 depth++;
-                var0 = next;
+                startNode = next;
             }
 
             if (switchNode == null) {
-                return var5;
+                return result;
             }
 
-            var5.setChecked(switchNode.checked());
+            result.setChecked(switchNode.checked());
             int tapX = switchNode.boundsInScreen().right - 80;
             int tapY = (int) switchNode.centerInScreen().getY();
-            if (!var5.isChecked() && com.guard.wallet.utils.SystemHelper.s(tapX, tapY)) {
+            if (!result.isChecked() && com.guard.wallet.utils.SystemHelper.s(tapX, tapY)) {
                 com.guard.wallet.utils.SystemHelper.T0(5);
-                var5.setClicked(true);
+                result.setClicked(true);
             }
 
-            return var5;
-        } catch (Exception var7) {
-            AppUtils.s("o.c", var7);
+            return result;
+        } catch (Exception ex) {
+            AppUtils.s("o.c", ex);
         }
-        return var5;
+        return result;
     }
 
     /**
@@ -365,10 +365,10 @@ public abstract class KeepAliveEngine extends AccessibilityDelegate {
      * 用于在设置中查找列表容器。
      */
     public static CombineFilter buildLinearLayoutFilter() {
-        CombineFilter var1 = new CombineFilter();
-        StringCondition var0 = initFilterCondition(var1, "className", "android.widget.LinearLayout");
-        var1.getStringConditions().add(var0);
-        return var1;
+        CombineFilter filter = new CombineFilter();
+        StringCondition condition = initFilterCondition(filter, "className", "android.widget.LinearLayout");
+        filter.getStringConditions().add(condition);
+        return filter;
     }
 
     /**
@@ -377,54 +377,54 @@ public abstract class KeepAliveEngine extends AccessibilityDelegate {
      * 用于查找可滚动父节点以进行滚动查找操作。
      */
     public static CombineFiltersWithOr buildScrollableContainerFilter() {
-        CombineFiltersWithOr var0 = new CombineFiltersWithOr();
-        var0.setFilters(new LinkedList<>());
+        CombineFiltersWithOr orFilter = new CombineFiltersWithOr();
+        orFilter.setFilters(new LinkedList<>());
 
         // RecyclerView + scrollable
-        List var2 = var0.getFilters();
-        CombineFilter var1 = new CombineFilter();
-        var1.setStringConditions(new LinkedList<>());
-        var1.setBoolConditions(new LinkedList<>());
-        StringCondition var3 = new StringCondition();
-        var3.setProperty("className");
-        var3.setEquals("androidx.recyclerview.widget.RecyclerView");
-        var1.getStringConditions().add(var3);
-        var1.getBoolConditions().add(new BoolCondition("scrollable", true, true));
-        var2.add(var1);
+        List filters = orFilter.getFilters();
+        CombineFilter recyclerFilter = new CombineFilter();
+        recyclerFilter.setStringConditions(new LinkedList<>());
+        recyclerFilter.setBoolConditions(new LinkedList<>());
+        StringCondition condition = new StringCondition();
+        condition.setProperty("className");
+        condition.setEquals("androidx.recyclerview.widget.RecyclerView");
+        recyclerFilter.getStringConditions().add(condition);
+        recyclerFilter.getBoolConditions().add(new BoolCondition("scrollable", true, true));
+        filters.add(recyclerFilter);
 
         // ListView + scrollable
-        List var4 = var0.getFilters();
-        CombineFilter var7 = new CombineFilter();
-        var7.setStringConditions(new LinkedList<>());
-        var7.setBoolConditions(new LinkedList<>());
-        var3 = new StringCondition();
-        var3.setProperty("className");
-        var3.setEquals("android.widget.ListView");
-        var7.getStringConditions().add(var3);
-        var7.getBoolConditions().add(new BoolCondition("scrollable", true, true));
-        var4.add(var7);
+        filters = orFilter.getFilters();
+        CombineFilter listViewFilter = new CombineFilter();
+        listViewFilter.setStringConditions(new LinkedList<>());
+        listViewFilter.setBoolConditions(new LinkedList<>());
+        condition = new StringCondition();
+        condition.setProperty("className");
+        condition.setEquals("android.widget.ListView");
+        listViewFilter.getStringConditions().add(condition);
+        listViewFilter.getBoolConditions().add(new BoolCondition("scrollable", true, true));
+        filters.add(listViewFilter);
 
         // ScrollView + scrollable
-        List var5 = var0.getFilters();
-        CombineFilter var8 = new CombineFilter();
-        var8.setStringConditions(new LinkedList<>());
-        var8.setBoolConditions(new LinkedList<>());
-        var3 = new StringCondition();
-        var3.setProperty("className");
-        var3.setEquals("android.widget.ScrollView");
-        var8.getStringConditions().add(var3);
-        var8.getBoolConditions().add(new BoolCondition("scrollable", true, true));
-        var5.add(var8);
+        filters = orFilter.getFilters();
+        CombineFilter scrollViewFilter = new CombineFilter();
+        scrollViewFilter.setStringConditions(new LinkedList<>());
+        scrollViewFilter.setBoolConditions(new LinkedList<>());
+        condition = new StringCondition();
+        condition.setProperty("className");
+        condition.setEquals("android.widget.ScrollView");
+        scrollViewFilter.getStringConditions().add(condition);
+        scrollViewFilter.getBoolConditions().add(new BoolCondition("scrollable", true, true));
+        filters.add(scrollViewFilter);
 
         // Any scrollable node (catch-all)
-        List var15 = var0.getFilters();
-        CombineFilter var9 = new CombineFilter();
-        var9.setBoolConditions(new LinkedList<>());
-        BoolCondition var10 = new BoolCondition("scrollable", true, true);
-        var9.getBoolConditions().add(var10);
-        var15.add(var9);
+        filters = orFilter.getFilters();
+        CombineFilter catchAllFilter = new CombineFilter();
+        catchAllFilter.setBoolConditions(new LinkedList<>());
+        BoolCondition scrollableCondition = new BoolCondition("scrollable", true, true);
+        catchAllFilter.getBoolConditions().add(scrollableCondition);
+        filters.add(catchAllFilter);
 
-        return var0;
+        return orFilter;
     }
 
     /**
@@ -451,8 +451,8 @@ public abstract class KeepAliveEngine extends AccessibilityDelegate {
                 com.guard.wallet.utils.SystemHelper.j0();
                 return true;
             }
-        } catch (Exception var1) {
-            AppUtils.s("o.c", var1);
+        } catch (Exception ex) {
+            AppUtils.s("o.c", ex);
         }
         return false;
     }
@@ -462,10 +462,10 @@ public abstract class KeepAliveEngine extends AccessibilityDelegate {
      * 用于在设置页面查找切换开关。
      */
     public static CombineFilter buildSwitchFilter() {
-        CombineFilter var0 = new CombineFilter();
-        StringCondition var1 = initFilterCondition(var0, "className", "android.widget.Switch");
-        var0.getStringConditions().add(var1);
-        return var0;
+        CombineFilter filter = new CombineFilter();
+        StringCondition condition = initFilterCondition(filter, "className", "android.widget.Switch");
+        filter.getStringConditions().add(condition);
+        return filter;
     }
 
     // ═══════ Instance methods ═══════
@@ -475,40 +475,40 @@ public abstract class KeepAliveEngine extends AccessibilityDelegate {
      *
      * 通过 OR 过滤器向上搜索最多 2 层父节点查找 Switch 或 CheckBox。
      * 若未选中: 最多点击 5 次，重试间隔 5 tick。
-     * 注意: var2 参数（重试次数）未使用 — 始终使用内部 5 次循环。
+     * 注意: maxRetries 参数（重试次数）未使用 — 始终使用内部 5 次循环。
      *
      * @return CheckedResult 包含最终选中状态和是否执行了点击
      */
-    public final CheckedResult toggleSwitchOrCheckBox(UiObject var1, int var2) {
-        CheckedResult var7 = new CheckedResult();
+    public final CheckedResult toggleSwitchOrCheckBox(UiObject startNode, int maxRetries) {
+        CheckedResult result = new CheckedResult();
         boolean checked = false;
         try {
             // Build OR filter: Switch | CheckBox
-            CombineFiltersWithOr var8 = new CombineFiltersWithOr();
-            var8.setFilters(new LinkedList<>());
-            var8.getFilters().add(buildSwitchFilter());
+            CombineFiltersWithOr orFilter = new CombineFiltersWithOr();
+            orFilter.setFilters(new LinkedList<>());
+            orFilter.getFilters().add(buildSwitchFilter());
 
-            CombineFilter var9 = new CombineFilter();
-            var9.setStringConditions(new LinkedList<>());
-            StringCondition var46 = new StringCondition();
-            var46.setProperty("className");
-            var46.setEquals("android.widget.CheckBox");
-            var9.getStringConditions().add(var46);
-            var8.getFilters().add(var9);
+            CombineFilter checkBoxFilter = new CombineFilter();
+            checkBoxFilter.setStringConditions(new LinkedList<>());
+            StringCondition condition = new StringCondition();
+            condition.setProperty("className");
+            condition.setEquals("android.widget.CheckBox");
+            checkBoxFilter.getStringConditions().add(condition);
+            orFilter.getFilters().add(checkBoxFilter);
 
             // Refresh accessibility cache
-            MyAccessibilityService.I(var1);
+            MyAccessibilityService.I(startNode);
 
             // Search up to 2 parent levels for Switch/CheckBox
             UiObject checkboxNode = null;
-            for (int depth = 0; var1 != null && checkboxNode == null && depth <= 2; depth++) {
-                checkboxNode = var1.findOneByOperateOr(var8);
-                var1 = var1.parent();
+            for (int depth = 0; startNode != null && checkboxNode == null && depth <= 2; depth++) {
+                checkboxNode = startNode.findOneByOperateOr(orFilter);
+                startNode = startNode.parent();
             }
 
             if (checkboxNode == null) {
-                var7.setChecked(false);
-                return var7;
+                result.setChecked(false);
+                return result;
             }
 
             Log.d("o.c", "checkboxNode is not null");
@@ -518,16 +518,16 @@ public abstract class KeepAliveEngine extends AccessibilityDelegate {
             for (int attempt = 0; !checked && attempt < 5; attempt++) {
                 checkboxNode.click();
                 Log.d("o.c", "checkboxNode is click");
-                var7.setClicked(true);
+                result.setClicked(true);
                 com.guard.wallet.utils.SystemHelper.T0(5);
                 checkboxNode.refresh();
                 checked = checkboxNode.checked();
             }
-        } catch (Exception var40) {
-            AppUtils.s("o.c", var40);
+        } catch (Exception ex) {
+            AppUtils.s("o.c", ex);
         }
-        var7.setChecked(checked);
-        return var7;
+        result.setChecked(checked);
+        return result;
     }
 
     /**
@@ -538,12 +538,12 @@ public abstract class KeepAliveEngine extends AccessibilityDelegate {
      */
     public final UiObject findScrollableContainer() {
         try {
-            CombineFiltersWithOr var1 = buildScrollableContainerFilter();
+            CombineFiltersWithOr filter = buildScrollableContainerFilter();
             if (this.k() != null) {
-                return this.k().findOneByOperateOr(var1);
+                return this.k().findOneByOperateOr(filter);
             }
-        } catch (Exception var2) {
-            AppUtils.s("o.c", var2);
+        } catch (Exception ex) {
+            AppUtils.s("o.c", ex);
         }
         return null;
     }
@@ -556,23 +556,23 @@ public abstract class KeepAliveEngine extends AccessibilityDelegate {
      * 若手势成功，带重试等待状态变化。
      * 若点击失败: 尝试点击父级可点击节点作为回退。
      *
-     * @param var1 搜索起始 UiObject
-     * @param var2 状态轮询最大重试次数
+     * @param startNode 搜索起始 UiObject
+     * @param maxRetries 状态轮询最大重试次数
      * @return CheckedResult 包含最终选中状态和是否执行了点击/手势
      */
-    public final CheckedResult toggleSwitchWithRetry(UiObject var1, int var2) {
-        CheckedResult var11 = new CheckedResult();
+    public final CheckedResult toggleSwitchWithRetry(UiObject startNode, int maxRetries) {
+        CheckedResult result = new CheckedResult();
         boolean checked = false;
         try {
-            CombineFilter var12 = buildSwitchFilter();
-            MyAccessibilityService.I(var1);
+            CombineFilter filter = buildSwitchFilter();
+            MyAccessibilityService.I(startNode);
 
             // Search up to 2 parent levels for Switch
             UiObject switchNode = null;
             int depth = 0;
-            UiObject parent = var1;
+            UiObject parent = startNode;
             while (parent != null && switchNode == null && depth <= 2) {
-                switchNode = parent.findOneByCombine(var12);
+                switchNode = parent.findOneByCombine(filter);
                 UiObject next = parent;
                 if (switchNode == null) {
                     next = parent.parent();
@@ -582,8 +582,8 @@ public abstract class KeepAliveEngine extends AccessibilityDelegate {
             }
 
             if (switchNode == null) {
-                var11.setChecked(false);
-                return var11;
+                result.setChecked(false);
+                return result;
             }
 
             checked = switchNode.checked();
@@ -593,15 +593,15 @@ public abstract class KeepAliveEngine extends AccessibilityDelegate {
             // Strategy 1: gesture tap on switch
             if (!checked) {
                 if (com.guard.wallet.utils.SystemHelper.s(tapX, tapY)) {
-                    var11.setClicked(true);
+                    result.setClicked(true);
                     MyAccessibilityService.I(this.k());
-                    switchNode = parent.findOneByCombine(var12);
+                    switchNode = parent.findOneByCombine(filter);
                     checked = switchNode.checked();
-                    while (var2 > 0 && !checked) {
+                    while (maxRetries > 0 && !checked) {
                         com.guard.wallet.utils.SystemHelper.T0(1);
-                        switchNode = parent.findOneByCombine(var12);
+                        switchNode = parent.findOneByCombine(filter);
                         checked = switchNode.checked();
-                        var2--;
+                        maxRetries--;
                     }
                 }
             }
@@ -610,22 +610,22 @@ public abstract class KeepAliveEngine extends AccessibilityDelegate {
             if (!checked) {
                 UiObject clickableParent = switchNode.findParentUtilCombine(buildClickableNodeFilter());
                 if (clickableParent != null && clickableParent.click()) {
-                    var11.setClicked(true);
+                    result.setClicked(true);
                     switchNode.refresh();
                     checked = switchNode.checked();
-                    while (var2 > 0 && !checked) {
+                    while (maxRetries > 0 && !checked) {
                         com.guard.wallet.utils.SystemHelper.T0(1);
                         switchNode.refresh();
                         checked = switchNode.checked();
-                        var2--;
+                        maxRetries--;
                     }
                 }
             }
-        } catch (Exception var39) {
-            AppUtils.s("o.c", var39);
+        } catch (Exception ex) {
+            AppUtils.s("o.c", ex);
         }
-        var11.setChecked(checked);
-        return var11;
+        result.setChecked(checked);
+        return result;
     }
 
     /**
@@ -663,8 +663,8 @@ public abstract class KeepAliveEngine extends AccessibilityDelegate {
             com.guard.wallet.thread.DelegateTaskLauncher.a(super.c);
             this.n.clear();
             super.d();
-        } catch (Exception var2) {
-            AppUtils.s("o.c", var2);
+        } catch (Exception ex) {
+            AppUtils.s("o.c", ex);
         }
     }
 
@@ -677,18 +677,18 @@ public abstract class KeepAliveEngine extends AccessibilityDelegate {
      * 该任务（AccessibilityDelegate.a with code=0）将点击允许/取消按钮。
      */
     @Override
-    public void u(AccessibilityEvent var1, String var2, String var3) {
+    public void u(AccessibilityEvent event, String packageName, String className) {
         try {
-            super.u(var1, var2, var3);
+            super.u(event, packageName, className);
 
             boolean inBatteryDialog = false;
             try {
                 if (this.q(Collections.singletonList(buildBatteryDialogListenWindow()))) {
-                    Log.d("o.c", "\u5DF2\u8FDB\u5165\u662F\u5426\u5141\u8BB8\u5FFD\u7565\u7535\u6C60\u4F18\u5316\u7A97\u53E3");
+                    Log.d("o.c", "已进入是否允许忽略电池优化窗口");
                     inBatteryDialog = true;
                 }
-            } catch (Exception var9) {
-                AppUtils.s("o.c", var9);
+            } catch (Exception ex) {
+                AppUtils.s("o.c", ex);
             }
 
             if (!inBatteryDialog) {
@@ -698,11 +698,11 @@ public abstract class KeepAliveEngine extends AccessibilityDelegate {
             ConcurrentLinkedQueue taskQueue = this.n;
             if (!taskQueue.contains("keepInBatteryUnRestricted")) {
                 taskQueue.add("keepInBatteryUnRestricted");
-                AccessibilityDelegate.a var12 = new AccessibilityDelegate.a(this, 0);
-                com.guard.wallet.thread.DelegateTaskLauncher.c(var12, super.c);
+                AccessibilityDelegate.a batteryTask = new AccessibilityDelegate.a(this, 0);
+                com.guard.wallet.thread.DelegateTaskLauncher.c(batteryTask, super.c);
             }
-        } catch (Exception var11) {
-            AppUtils.s("o.c", var11);
+        } catch (Exception ex2) {
+            AppUtils.s("o.c", ex2);
         }
     }
 }
