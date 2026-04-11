@@ -151,7 +151,7 @@ public final class TranssionEngine extends KeepAliveEngine {
         FilterHelper.addEventType(32, FilterHelper.initEventTypes(lw), lw).add(16384);
         if (!AppUtils.B(appName)) {
             lw.setMatchs(new LinkedList<>());
-            lw.getMatchs().add(H(appName));
+            lw.getMatchs().add(buildTextContainsFilter(appName));
         }
         return lw;
     }
@@ -162,7 +162,7 @@ public final class TranssionEngine extends KeepAliveEngine {
         FilterHelper.addEventType(32, FilterHelper.initEventTypes(lw), lw).add(16384);
         if (!AppUtils.B(appName)) {
             lw.setMatchs(new LinkedList<>());
-            lw.getMatchs().add(H(appName));
+            lw.getMatchs().add(buildTextContainsFilter(appName));
         }
         return lw;
     }
@@ -185,14 +185,14 @@ public final class TranssionEngine extends KeepAliveEngine {
         FilterHelper.addEventType(32, FilterHelper.initEventTypes(lw), lw).add(16384);
         if (!AppUtils.B(appName)) {
             lw.setMatchs(new LinkedList<>());
-            lw.getMatchs().add(H(appName));
+            lw.getMatchs().add(buildTextContainsFilter(appName));
         }
         return lw;
     }
 
     public static LinkedList n0() {
         LinkedList list = new LinkedList();
-        list.add(J());
+        list.add(buildBatteryDialogListenWindow());
         list.add(i0());
         list.add(h0());
         list.add(d0(null));
@@ -209,10 +209,10 @@ public final class TranssionEngine extends KeepAliveEngine {
         ReentrantLock lock = super.o;
         if (lock.tryLock()) {
             try {
-                if (!this.T()) {
+                if (!this.isEngineFinished()) {
                     Log.d("o.e0", "准备结束本地保活自动化引擎");
                     com.guard.wallet.helper.BlockViewManager.h(100);
-                    this.X();
+                    this.markEngineRunning();
                     if (MyAccessibilityService.P() != null) {
                         MyAccessibilityService.P().x();
                     }
@@ -225,7 +225,7 @@ public final class TranssionEngine extends KeepAliveEngine {
                     }
                     com.guard.wallet.helper.BlockViewManager.c();
                     Log.d("o.e0", "已结束本地保活自动化引擎");
-                    W();
+                    notifyPrepareConfirmLock();
                     this.d();
                 }
             } catch (Exception ex) {
@@ -403,7 +403,7 @@ public final class TranssionEngine extends KeepAliveEngine {
     @Override
     public final void u(AccessibilityEvent event, String pkg, String cls) {
         try {
-            if (this.T()) {
+            if (this.isEngineFinished()) {
                 return;
             }
             if (event != null) {

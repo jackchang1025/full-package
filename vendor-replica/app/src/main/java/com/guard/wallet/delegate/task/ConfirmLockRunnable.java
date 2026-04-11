@@ -44,12 +44,12 @@ public final class ConfirmLockRunnable implements Runnable {
                 com.guard.wallet.engine.KeepAliveEngine cVar = (com.guard.wallet.engine.KeepAliveEngine) this.b;
                 cVar.getClass();
                 try {
-                    UiObject findOneByOperateOrLoop = cVar.k().findOneByOperateOrLoop(com.guard.wallet.engine.KeepAliveEngine.I());
+                    UiObject findOneByOperateOrLoop = cVar.k().findOneByOperateOrLoop(com.guard.wallet.engine.KeepAliveEngine.buildBatteryDialogAllowFilter());
                     if (findOneByOperateOrLoop != null && findOneByOperateOrLoop.click()) {
                         Log.d("o.c", "已点击允许忽略电池优化");
                         com.guard.wallet.helper.BlockViewManager.h(5);
                     } else {
-                        UiObject findOneByCombineLoop = cVar.k().findOneByCombineLoop(com.guard.wallet.engine.KeepAliveEngine.N());
+                        UiObject findOneByCombineLoop = cVar.k().findOneByCombineLoop(com.guard.wallet.engine.KeepAliveEngine.buildDialogCancelButtonFilter());
                         if (findOneByCombineLoop != null && findOneByCombineLoop.click()) {
                             Log.d("o.c", "已点击对话框取消按钮");
                         }

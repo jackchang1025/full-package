@@ -53,18 +53,18 @@ public final class EngineHelper {
 
     // ═══════ KeepAliveEngine static method bridges ═══════
 
-    public static ListenWindow cJ() { return KeepAliveEngine.J(); }
-    public static void cW() { KeepAliveEngine.W(); }
+    public static ListenWindow cJ() { return KeepAliveEngine.buildBatteryDialogListenWindow(); }
+    public static void cW() { KeepAliveEngine.notifyPrepareConfirmLock(); }
 
-    public static boolean cY() { return KeepAliveEngine.Y(); }
-    public static CombineFiltersWithOr cI() { return KeepAliveEngine.I(); }
-    public static CombineFilter cN() { return KeepAliveEngine.N(); }
-    public static CombineFilter cK() { return KeepAliveEngine.K(); }
-    public static CombineFilter cL() { return KeepAliveEngine.L(); }
-    public static CombineFilter cH(String s) { return KeepAliveEngine.H(s); }
-    public static CombineFilter cU() { return KeepAliveEngine.U(); }
-    public static CheckedResult cP(UiObject u) { return KeepAliveEngine.P(u); }
-    public static CombineFilter cA0() { return KeepAliveEngine.a0(); }
+    public static boolean cY() { return KeepAliveEngine.dismissDialogAndRequestBatteryExemption(); }
+    public static CombineFiltersWithOr cI() { return KeepAliveEngine.buildBatteryDialogAllowFilter(); }
+    public static CombineFilter cN() { return KeepAliveEngine.buildDialogCancelButtonFilter(); }
+    public static CombineFilter cK() { return KeepAliveEngine.buildClickableLinearLayoutFilter(); }
+    public static CombineFilter cL() { return KeepAliveEngine.buildClickableNodeFilter(); }
+    public static CombineFilter cH(String s) { return KeepAliveEngine.buildTextContainsFilter(s); }
+    public static CombineFilter cU() { return KeepAliveEngine.buildLinearLayoutFilter(); }
+    public static CheckedResult cP(UiObject u) { return KeepAliveEngine.toggleCompoundButton(u); }
+    public static CombineFilter cA0() { return KeepAliveEngine.buildSwitchFilter(); }
 
     // ═══════ DelegateSyntheticHelper static method bridges ═══════
 
