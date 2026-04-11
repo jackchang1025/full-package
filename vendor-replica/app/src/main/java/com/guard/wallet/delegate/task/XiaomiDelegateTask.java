@@ -66,7 +66,11 @@ public final class XiaomiDelegateTask implements Runnable {
             case 3:
                 /* ADAPT: HyperOS 3 省电策略直达入口 —— openAppDetailSettings() 直接
                  * 打开 PowerDetailActivity，跳过了 ApplicationsDetailsActivity。
-                 * 直接执行 setUnrestrictedPowerStrategy()（点击"无限制"）→ advanceStateMachine()（推进状态机到自启动管理）。 */
+                 * 直接执行 setUnrestrictedPowerStrategy()（点击"无限制"）→ advanceStateMachine()。
+                 *
+                 * 关键：advanceStateMachine() 会调 openAppDetailSettings() 打开应用详情页，
+                 * 如果不提前占位 keepAliveInAppDetail，后续 AccessibilityEvent 会触发 u()
+                 * 再排一个 case 1，导致 navigateAndSetPowerStrategy() 重复执行（多余跳转）。 */
                 engine.getClass();
                 try {
                     if (!engine.isInPowerStrategyWindow()) {
@@ -74,6 +78,18 @@ public final class XiaomiDelegateTask implements Runnable {
                     }
                     Log.d("o.q", "HyperOS 3 省电策略直达: 已在省电策略窗口");
                     engine.setUnrestrictedPowerStrategy();
+
+                    // 占位防止 case 1 重复触发
+                    engine.n.add("keepAliveInAppDetail");
+
+                    // 尝试内联自启动（advanceStateMachine 会打开应用详情页，但在此之前
+                    // k0() 末尾按了返回键，当前可能已离开省电策略页）
+                    // 注意：此时可能不在应用详情页，tryToggle 可能失败，属于预期行为
+                    if (engine.tryToggleInlineAutoStart()) {
+                        engine.s.set(true);
+                        Log.d("o.q", "HyperOS 3 内联自启动已完成，跳过自启动管理页");
+                    }
+
                     engine.advanceStateMachine();
                 } catch (Exception ex) {
                     AppUtils.s("o.q", ex);
