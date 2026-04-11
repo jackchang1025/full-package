@@ -94,12 +94,32 @@ public class LocateValuesAssetTest {
      */
     @Before
     public void requireMapLoaded() {
+        // 豁免 parsesAsFlatStringMap — 这是唯一允许在 MAP==null 时仍然运行的测试
+        // （它本身检查 LOAD_EXCEPTION 并 fail() 报告 JSON 语法错误诊断）。
+        // ⚠️ 如果你重命名 parsesAsFlatStringMap 方法，必须同步更新下面的字符串字面量，
+        // 否则重命名后的方法在 MAP==null 时会被跳过，丢失核心诊断。
+        // 参见 parsesAsFlatStringMap 的 Javadoc。
         if ("parsesAsFlatStringMap".equals(testName.getMethodName())) {
             return;
         }
         Assume.assumeNotNull(MAP);
     }
 
+    /**
+     * Parser 冒烟测试 — 校验 locateValues.json 能被 vendor f.java 同款
+     * Gson TypeToken 解析为扁平 HashMap&lt;String,String&gt;。
+     *
+     * <p><b>⚠️ 重命名危险：</b>此方法名被 {@link #requireMapLoaded()} 中的字符串
+     * 字面量 <code>"parsesAsFlatStringMap"</code> 显式引用，用于在 JSON
+     * 解析失败时豁免跳过逻辑，让本方法成为唯一报告 {@code JsonSyntaxException}
+     * 诊断的出口。如果你重命名本方法，<b>必须同步更新</b>
+     * {@code requireMapLoaded()} 中的字符串字面量 — 否则重命名后的
+     * 方法会在 JSON 损坏时被静默跳过，丢失 "vendor f.java line 31"
+     * 诊断信息，且不会有任何编译错误提示此耦合断裂。
+     *
+     * <p>更健壮的长期方案：把本方法抽到一个不继承 @Before 的独立测试类。
+     * 目前耦合通过本 Javadoc + {@code requireMapLoaded()} 内的注释显式标注。
+     */
     @Test
     public void parsesAsFlatStringMap() {
         if (LOAD_EXCEPTION != null) {
