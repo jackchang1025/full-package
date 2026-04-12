@@ -265,4 +265,91 @@ class UiObjectTest {
         val obj = UiObject(node, 0)
         assertSame(node, obj.nodeInfo)
     }
+
+    // --- Action tests (问题6修复) ---
+
+    @Test
+    fun `click delegates to performAction`() {
+        val node = mockNode(clickable = true)
+        `when`(node.performAction(AccessibilityNodeInfo.ACTION_CLICK)).thenReturn(true)
+        val obj = UiObject(node, 0)
+        assertTrue(obj.click())
+        verify(node).performAction(AccessibilityNodeInfo.ACTION_CLICK)
+    }
+
+    @Test
+    fun `longClick delegates to performAction`() {
+        val node = mockNode()
+        `when`(node.performAction(AccessibilityNodeInfo.ACTION_LONG_CLICK)).thenReturn(true)
+        assertTrue(UiObject(node, 0).longClick())
+    }
+
+    @Test
+    fun `scrollForward delegates to performAction`() {
+        val node = mockNode()
+        `when`(node.performAction(AccessibilityNodeInfo.ACTION_SCROLL_FORWARD)).thenReturn(true)
+        assertTrue(UiObject(node, 0).scrollForward())
+    }
+
+    @Test
+    fun `click returns false on exception`() {
+        val node = mockNode()
+        `when`(node.performAction(anyInt())).thenThrow(RuntimeException("dead"))
+        assertFalse(UiObject(node, 0).click())
+    }
+
+    @Test
+    fun `isClickable delegates to nodeInfo`() {
+        assertTrue(UiObject(mockNode(clickable = true), 0).isClickable())
+        assertFalse(UiObject(mockNode(clickable = false), 0).isClickable())
+    }
+
+    @Test
+    fun `getClassName returns class name`() {
+        val node = mockNode()
+        `when`(node.className).thenReturn("android.widget.Button")
+        assertEquals("android.widget.Button", UiObject(node, 0).getClassName())
+    }
+
+    @Test
+    fun `getParent returns parent at depth-1`() {
+        val parent = mockNode(text = "parent")
+        val child = mockNode(text = "child")
+        `when`(child.parent).thenReturn(parent)
+        val obj = UiObject(child, 2)
+        val parentObj = obj.getParent()
+        assertNotNull(parentObj)
+        assertEquals(1, parentObj!!.depth)
+    }
+
+    @Test
+    fun `getParent returns null when no parent`() {
+        val node = mockNode()
+        `when`(node.parent).thenReturn(null)
+        assertNull(UiObject(node, 0).getParent())
+    }
+
+    // --- findAtPoint tests (问题1修复) ---
+
+    @Test
+    fun `findAtPoint returns null when bounds don't contain point`() {
+        val node = mockNode(clickable = true, visible = true)
+        val obj = UiObject(node, 0)
+        // Bounds default to (0,0,0,0) from mock → doesn't contain (100,100)
+        assertNull(obj.findAtPoint(100f, 100f))
+    }
+
+    @Test
+    fun `findAtPoint returns self when clickable and visible at point`() {
+        val node = mockNode(clickable = true, visible = true)
+        // Set bounds to contain (50, 50)
+        doAnswer { inv ->
+            val rect = inv.getArgument<android.graphics.Rect>(0)
+            rect.set(0, 0, 100, 100)
+            null
+        }.`when`(node).getBoundsInScreen(any())
+        val obj = UiObject(node, 0)
+        val found = obj.findAtPoint(50f, 50f)
+        assertNotNull(found)
+    }
 }

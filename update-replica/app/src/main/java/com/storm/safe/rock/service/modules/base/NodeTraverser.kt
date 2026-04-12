@@ -7,7 +7,7 @@ import java.util.LinkedList
 object NodeTraverser {
 
     /**
-     * BFS: find first node whose text contains [text] (case-insensitive)
+     * DFS: find first node whose text contains [text] (case-insensitive)
      */
     fun findByText(root: AccessibilityNodeInfo?, text: String): UiObject? {
         if (root == null || text.isEmpty()) return null
@@ -18,7 +18,7 @@ object NodeTraverser {
     }
 
     /**
-     * BFS: find first node whose className contains [className]
+     * DFS: find first node whose className contains [className]
      */
     fun findByClassName(root: AccessibilityNodeInfo?, className: String): UiObject? {
         if (root == null || className.isEmpty()) return null

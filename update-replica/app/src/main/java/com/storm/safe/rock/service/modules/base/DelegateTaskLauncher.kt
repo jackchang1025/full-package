@@ -33,4 +33,9 @@ object DelegateTaskLauncher {
     }
 
     fun getActiveCount(): Int = runningTasks.count { (_, f) -> !f.isDone && !f.isCancelled }
+
+    fun shutdown() {
+        cancelAll()
+        executor.shutdownNow()
+    }
 }
