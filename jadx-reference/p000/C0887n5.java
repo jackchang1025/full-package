@@ -1,0 +1,25 @@
+package p000;
+
+/* compiled from: r8-map-id-6aa8c380066ac34eca52ba03819884bf743dac35e85c6cbaefaab30e4b90b459 */
+/* renamed from: n5 */
+/* loaded from: classes.dex */
+public final class C0887n5 extends va0 {
+
+    /* renamed from: a0 */
+    public boolean f58448a0;
+
+    /* renamed from: a1 */
+    public int f58449a1;
+
+    /* renamed from: a2 */
+    public int f58450a2;
+
+    /* renamed from: a3 */
+    public boolean f58451a3;
+
+    /* renamed from: a4 */
+    public boolean f58452a4;
+
+    /* renamed from: a5 */
+    public boolean f58453a5;
+}

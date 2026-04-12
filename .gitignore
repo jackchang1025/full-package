@@ -6,4 +6,22 @@ CLAUDE.md
 .claude
 assists
 AutoJs6
-gkd
+/gkd
+docs/research/
+
+# Root-level one-off analysis artifacts (reverse engineering drafts, etc.)
+# Keep the repo root clean to avoid polluting Claude Code context window.
+/*_ANALYSIS_*.md
+/*_ANALYSIS_*.txt
+/*_ANALYSIS_*.csv
+/ANALYSIS_*.md
+/ANALYSIS_*.txt
+/METHOD_CHECKLIST.md
+/README_ANALYSIS.md
+/O_PACKAGE_*
+/DEPENDENCY_ANALYSIS_*
+
+# JADX reference - binary files (decompiled source is tracked)
+jadx-reference/update-original.apk
+jadx-reference/update-fixed.apk
+jadx-reference/native/

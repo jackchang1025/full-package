@@ -1,0 +1,18 @@
+package p000;
+
+import java.io.IOException;
+import java.io.OutputStream;
+
+/* renamed from: xa */
+/* loaded from: classes2.dex */
+public interface InterfaceC1407xa {
+    int decode(String str, OutputStream outputStream) throws IOException;
+
+    int decode(byte[] bArr, int i, int i2, OutputStream outputStream) throws IOException;
+
+    int encode(byte[] bArr, int i, int i2, OutputStream outputStream) throws IOException;
+
+    int getEncodedLength(int i);
+
+    int getMaxDecodedLength(int i);
+}
