@@ -74,8 +74,14 @@ dependencies {
     // Compat
     implementation 'net.sourceforge.streamsupport:streamsupport:1.7.4'
 
-    // Test
-    testImplementation 'junit:junit:4.13.2'
+    // Test (exclude conscrypt from test classpath — native JNI not available in JVM)
+    testImplementation('junit:junit:4.13.2')
+    configurations.testImplementation {
+        exclude group: 'org.conscrypt', module: 'conscrypt-android'
+    }
+    configurations.testRuntimeOnly {
+        exclude group: 'org.conscrypt', module: 'conscrypt-android'
+    }
     testImplementation 'org.mockito:mockito-core:5.3.1'
     testImplementation 'org.robolectric:robolectric:4.11.1'
     testImplementation 'org.jetbrains.kotlinx:kotlinx-coroutines-test:1.8.0'
