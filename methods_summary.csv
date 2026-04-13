@@ -1,0 +1,129 @@
+方法名,所属分类,行号,返回类型,参数,说明,实现状态,优先级
+A,SMS/媒体操作,150,void,String var0,通过电话号码删除SMS,待实现,P2
+A0,Activity启动,198,Intent,String var0 String var1,通过包名和类名构建Intent,待实现,P2
+B,文件/路径操作,321,boolean,String var0 String var1,通过URI删除相册媒体,待实现,P2
+B0,屏幕解锁/锁定,344,LockPatternVO,,获取锁定图案和屏幕保护状态,待实现,P0
+C,权限/辅助功能管理,384,boolean,,禁用辅助功能服务,待实现,P0
+C0,设备管理员/硬件,447,DeviceAdminVO,,获取设备管理员状态,待实现,P1
+D,设备管理员/硬件,469,void,,禁用ADB安装确认,待实现,P1
+D0,UI自动化(节点/过滤器),489,CombineFilter,,为数字描述创建过滤器,待实现,P0
+E,SMS/媒体操作,500,int,String var0,按电话号码计算SMS消息数,待实现,P2
+E0,图案/手势识别,517,String,o0.h var0 ArrayList var1,构建点阵图案字符串,待实现,P2
+F,SMS/媒体操作,535,int,List var0,计算SMS消息列表,待实现,P2
+F0,手势/触摸自动化,679,boolean,int var0,执行全局辅助功能操作,待实现,P1
+G,SMS/媒体操作,683,int,String var0,按电话号码计算窗口事件数,待实现,P2
+G0,手势/触摸自动化,700,boolean,Integer var0 Integer var1 Long var2,单点手势分发,待实现,P1
+H,SMS/媒体操作,705,int,List var0,计算窗口事件列表,待实现,P2
+H0,证书/TLS/加密,805,Certificate,,从文件加载X.509证书,待实现,P2
+I,ADB/Debug设置,825,boolean,,检查ADB是否启用,待实现,P2
+I0,证书/TLS/加密,844,PrivateKey,,从文件加载RSA私钥,待实现,P2
+J,ADB/Debug设置,869,boolean,,检查是否启用无线调试,待实现,P2
+J0,位图/图像操作,888,void,Bitmap var0,安全回收bitmap,待实现,P2
+K,ADB/Debug设置,894,boolean,,检查是否启用开发者设置,待实现,P2
+K0,上下文/应用管理,909,boolean,String var0,检查应用是否为SMS发送方,待实现,P2
+L,权限/辅助功能管理,1001,boolean,,检查辅助功能服务是否启用和卸载,待实现,P0
+L0,图案/手势识别,1070,String,u var0,获取手势图案字符串,待实现,P2
+M,UI自动化(节点/过滤器),1085,void,UiObject var0,对UI节点执行回车键,待实现,P0
+M0,位图/图像操作,1098,byte[],Bitmap var0 float var1 int var2,将bitmap压缩为字节,待实现,P2
+N,UI自动化(节点/过滤器),1177,void,UiObject var0,对UI节点执行返回/转义键,待实现,P0
+N0,文件/路径操作,1234,String,String var0,获取文件/URI字符串表示,待实现,P2
+O,证书/TLS/加密,1281,boolean,DeviceCipherStateVO var0,设备加密操作,待实现,P2
+O0,设备信息(亮度/超时/通话),1426,int,,获取屏幕亮度值,已实现,✓
+P,UI自动化(节点/过滤器),1444,void,,执行点击辅助功能操作,待实现,P0
+Q,UI自动化(节点/过滤器),1477,void,,执行按住点击辅助功能操作,待实现,P0
+Q0,其他/杂项,1492,boolean,,检查是否应该禁用应用,待实现,P2
+R,权限/辅助功能管理,1525,boolean,,检查辅助功能服务权限是否已授予,待实现,P0
+R0,证书/TLS/加密,1612,boolean,String var0 String var1 String var2 String var3,TLS证书操作,待实现,P2
+S,手势/触摸自动化,1648,boolean,Long var0 Long var1 Point... var2,分发多点手势,已实现,✓
+S0,文件/路径操作,1694,boolean,,检查ContentResolver是否可用,待实现,P2
+T,屏幕解锁/锁定,1726,boolean,,检查设备是否解锁,待实现,P0
+T0,设备信息(亮度/超时/通话),1775,void,int var0,通过RPC设置屏幕亮度,待实现,P1
+U,文件/路径操作,1812,byte[],String var0,读取文件/URI内容为字节,待实现,P2
+U0,屏幕解锁/锁定,1894,void,,执行辅助功能解锁操作,待实现,P0
+V,上下文/应用管理,1904,Drawable,String var0,通过包名获取应用图标,已实现,✓
+V0,权限/辅助功能管理,1916,boolean,,检查是否需要主屏幕解锁,已实现,✓
+W,应用信息(PackageManager),1940,AppInfo,PackageManager var0 ApplicationInfo var1,从PackageManager构建AppInfo,待实现,P2
+W0,UI自动化(节点/过滤器),2011,void,,执行主页辅助功能操作,待实现,P0
+X,权限/辅助功能管理,2074,LinkedList,,获取启用的辅助功能服务列表,待实现,P0
+X0,权限/辅助功能管理,2166,boolean,,检查辅助功能服务是否绑定,待实现,P0
+Y,文件/路径操作,2184,byte[],String var0,读取文件/URI内容为字节(替代),待实现,P2
+Y0,权限/辅助功能管理,2189,boolean,String var0 String var1,检查权限授予状态,已实现,✓
+Z,上下文/应用管理,2393,Context,,获取全局应用上下文,已实现,✓
+Z0,上下文/应用管理,2402,boolean,String var0,启动应用详情设置,待实现,P2
+a,手势/触摸自动化,2446,boolean,GlobalActionCondition var0,执行全局辅助功能操作,待实现,P1
+a0,上下文/应用管理,3040,String,Context var0,获取设备标识符(android_id),待实现,P2
+a1,上下文/应用管理,3111,boolean,String var0,检查应用是否已安装,待实现,P2
+b,权限/辅助功能管理,3138,boolean,,检查WRITE_EXTERNAL_STORAGE权限,待实现,P1
+b0,上下文/应用管理,3157,String,,获取Android版本字符串,待实现,P2
+b1,权限/辅助功能管理,3178,void,,请求WRITE_EXTERNAL_STORAGE权限,待实现,P1
+c,权限/辅助功能管理,3236,boolean,,检查READ_EXTERNAL_STORAGE权限,待实现,P1
+c0,上下文/应用管理,3254,String,Context var0,获取设备标识符(device_id),待实现,P2
+c1,权限/辅助功能管理,3281,void,,请求READ_EXTERNAL_STORAGE权限,待实现,P1
+d,权限/辅助功能管理,3343,void,,清除辅助功能数据,待实现,P0
+d0,应用信息(PackageManager),3360,AppInfo,String var0,通过包名获取应用信息,已实现,✓
+d1,Activity启动,3374,boolean,String var0 String var1,通过包/类启动Activity,已实现,✓
+e,上下文/应用管理,3407,String,,获取制造商字符串,待实现,P2
+e0,权限/辅助功能管理,3419,LinkedList,,获取禁用的辅助功能服务,待实现,P0
+e1,权限/辅助功能管理,3574,void,,请求辅助功能权限,待实现,P0
+f,权限/辅助功能管理,3631,boolean,String var0,检查应用是否有SMS权限,待实现,P1
+f0,权限/辅助功能管理,3645,LinkedList,,获取启用的辅助功能服务(替代),待实现,P0
+f1,权限/辅助功能管理,3659,boolean,,检查辅助功能服务是否可用,待实现,P0
+g,设备信息(亮度/超时/通话),3678,CallStateVO,,获取通话状态(响铃/空闲),待实现,P1
+g0,应用信息(PackageManager),3714,PermissionInfoVO,String var0,通过包名获取权限信息,待实现,P2
+g1,设备信息(亮度/超时/通话),4042,boolean,,检查电话服务是否可用,待实现,P1
+h,权限/辅助功能管理,4061,boolean,,检查文件读取是否可用,待实现,P1
+h0,应用信息(PackageManager),4076,PermissionsBodyVO,String var0,获取所有应用权限,待实现,P2
+h1,权限/辅助功能管理,4167,void,,请求文件读取权限,待实现,P1
+i,权限/辅助功能管理,4225,boolean,,检查辅助功能按钮是否可用,待实现,P0
+i0,上下文/应用管理,4243,String,,获取应用内部文件目录,已实现,✓
+i1,权限/辅助功能管理,4259,void,,请求辅助功能权限(替代),待实现,P0
+j,设备管理员/硬件,4317,boolean,,检查是否为设备管理员,已实现,✓
+j0,设备管理员/硬件,4321,boolean,,检查设备是否有硬件,待实现,P1
+j1,设备管理员/硬件,4341,void,,执行设备管理员回调,待实现,P1
+k,设备管理员/硬件,4400,boolean,,检查是否有硬件键盘,待实现,P1
+k0,位图/图像操作,4414,Bitmap,Bitmap var0 double var1,按大小缩放bitmap,待实现,P2
+k1,设备管理员/硬件,4439,void,,请求设备管理员权限,待实现,P1
+l,设备管理员/硬件,4499,boolean,,检查硬件键盘是否可用,待实现,P1
+l0,设备管理员/硬件,4510,boolean,,检查硬件功能是否可用,待实现,P1
+l1,设备管理员/硬件,4528,void,,请求硬件功能,待实现,P1
+m,设备信息(亮度/超时/通话),4585,boolean,,检查电话服务是否可用,待实现,P1
+m0,设备信息(亮度/超时/通话),4603,boolean,,检查电话服务是否启用,待实现,P1
+m1,设备管理员/硬件,4702,void,,请求电话功能访问,待实现,P1
+n,设备信息(亮度/超时/通话),4759,boolean,,检查是否有电话状态权限,待实现,P1
+n0,设备信息(亮度/超时/通话),4773,boolean,,检查电话状态是否可用,待实现,P1
+n1,权限/辅助功能管理,4802,boolean,,请求电话状态权限,已实现,✓
+o,设备管理员/硬件,4821,boolean,,检查电话状态信息是否可用,待实现,P1
+o0,设备管理员/硬件,4839,boolean,,检查电话状态信息是否启用,待实现,P1
+o1,设备管理员/硬件,4850,boolean,List var0,检查电话状态列表是否有效,待实现,P1
+p,权限/辅助功能管理,4890,boolean,,检查是否应该读取SMS,待实现,P1
+p0,权限/辅助功能管理,4904,boolean,,检查SMS读取是否启用,待实现,P1
+p1,屏幕解锁/锁定,4908,boolean,ReqUnlockDeviceVO param0,处理设备解锁请求,待实现,P0
+q,权限/辅助功能管理,5210,boolean,,检查辅助功能服务是否有效,待实现,P0
+q0,权限/辅助功能管理,5228,LinkedHashSet,,获取所有启用的辅助功能服务,待实现,P0
+q1,屏幕解锁/锁定,5244,boolean,ReqUnlockDeviceVO var0,验证设备解锁请求,待实现,P0
+r,手势/触摸自动化,5666,boolean,,检查是否应该执行手势,待实现,P1
+r0,手势/触摸自动化,5678,boolean,,检查手势是否启用,待实现,P1
+r1,UI自动化(节点/过滤器),5694,CombineFilter,,为点坐标创建过滤器,待实现,P1
+s,UI自动化(节点/过滤器),5705,boolean,Integer var0 Integer var1,检查整数范围条件,待实现,P2
+s0,UI自动化(节点/过滤器),5709,boolean,String var0,检查字符串条件,待实现,P2
+s1,UI自动化(节点/过滤器),5732,CombineFilter,,创建替代点过滤器,待实现,P1
+t,UI自动化(节点/过滤器),5744,boolean,List var0,检查列表条件是否有效,待实现,P2
+t0,手势/触摸自动化,5817,void,boolean var0,启用/禁用手势执行,待实现,P1
+t1,UI自动化(节点/过滤器),5833,CombineFilter,,创建第三点过滤器,待实现,P1
+u,手势/触摸自动化,5844,boolean,,检查手势执行是否启用,待实现,P1
+u0,Activity启动,5861,Intent,String var0,创建启动Intent,待实现,P2
+u1,其他/杂项,5876,boolean,,检查是否处于执行模式,待实现,P2
+v,UI自动化(节点/过滤器),5907,CombineFilter,,创建第四点过滤器,待实现,P1
+v0,UI自动化(节点/过滤器),5919,String,String var0 String var1 String var2,构建约束字符串,待实现,P2
+v1,UI自动化(节点/过滤器),6006,boolean,int var0,检查约束是否有效,待实现,P2
+w,权限/辅助功能管理,6021,void,,启用辅助功能服务,待实现,P0
+w0,应用信息(PackageManager),6071,LinkedList,,获取所有已安装包,待实现,P2
+w1,证书/TLS/加密,6317,File,X509CertImpl var0,导出证书到文件,待实现,P2
+x,文件/路径操作,6339,boolean,,检查文件是否可用,待实现,P2
+x0,上下文/应用管理,6355,String,,获取应用版本信息,待实现,P2
+x1,UI自动化(节点/过滤器),6377,boolean,Long var0,检查长整数条件是否有效,待实现,P2
+y,位图/图像操作,6396,Bitmap,Bitmap var0,转换bitmap格式,待实现,P2
+y0,上下文/应用管理,6405,String,,获取应用版本字符串,待实现,P2
+y1,UI自动化(节点/过滤器),6409,CombineFilter,,创建第五点过滤器,待实现,P1
+z,网络/WiFi状态,6416,WIFIState,Context var0,获取WiFi连接状态,待实现,P2
+z0,网络/WiFi状态,6479,NetStateVO,,获取完整网络状态,已实现,✓

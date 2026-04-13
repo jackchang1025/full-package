@@ -1,0 +1,19 @@
+ ▐▛███▜▌   Claude Code v2.1.92
+▝▜█████▛▘  Sonnet 4.6 · API Usage Billing
+  ▘▘ ▝▝    /home/code/php/project/full-package/vendor-replica
+
+✻ Conversation compacted (ctrl+o for history)
+
+
+❯ /compact                                                                      
+  ⎿  Compacted (ctrl+o to see full summary)
+  ⎿  Read app/src/main/java/o/n.java (506 lines)
+  ⎿  Referenced file app/src/main/java/o/v.java
+  ⎿  Read app/src/main/java/com/guard/wallet/utils/g.java (394 lines)
+  ⎿  Read 
+     app/src/main/java/com/guard/wallet/service/CustomNotificationService.java 
+     (208 lines)
+  ⎿  Referenced file app/src/main/java/o/a0.java
+  ⎿  Plan file referenced (~/.claude/plans/melodic-finding-galaxy.md)
+  ⎿  Skills restored (superpowers:subagent-driven-development, 
+     superpowers:writing-plans)

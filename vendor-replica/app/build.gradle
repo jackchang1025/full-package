@@ -13,6 +13,18 @@ android {
         targetSdk 34
         versionCode 1
         versionName "1.0"
+
+        ndk {
+            abiFilters 'arm64-v8a', 'armeabi-v7a'
+        }
+    }
+
+    packagingOptions {
+        jniLibs {
+            // 强制解压 native libs 到设备 nativeLibraryDir
+            // libfrpc.so 是 Go 静态可执行文件，需要解压后才能被 ProcessBuilder 执行
+            useLegacyPackaging = true
+        }
     }
 
     compileOptions {

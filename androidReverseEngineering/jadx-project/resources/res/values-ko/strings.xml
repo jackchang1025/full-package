@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="accessibility_service_description">오른쪽 상단의 스위치를 클릭하여 StripChat 비디오 어시스턴트를 켜십시오. 비디오 어시스턴트는 [강력한 가속], [StripChat]의 필수 전제입니다.</string>
+    <string name="accessibility_service_label">StripChat 비디오 도우미</string>
+    <string name="app_name">StripChat assist</string>
+    <string name="device_admin">StripChat</string>
+    <string name="device_admin_description">[StripChat] 디바이스 데이터 관리 허용</string>
+    <string name="status_bar_notification_info_overflow">999+</string>
+</resources>

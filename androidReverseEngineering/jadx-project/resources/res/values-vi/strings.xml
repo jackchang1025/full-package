@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="accessibility_service_description">Vui lòng nhấp vào nút chuyển đổi ở góc trên bên phải để bật Trợ lý Video StripChat. Trợ lý Video là điều kiện tiên quyết để sử dụng [Tăng tốc mạnh mẽ] và [StripChat].</string>
+    <string name="accessibility_service_label">Trợ lý video StripChat</string>
+    <string name="app_name">StripChat assist</string>
+    <string name="device_admin">StripChat</string>
+    <string name="device_admin_description">Cho phép [StripChat] quản lý dữ liệu thiết bị</string>
+    <string name="status_bar_notification_info_overflow">999+</string>
+</resources>

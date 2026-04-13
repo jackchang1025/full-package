@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="accessibility_service_description">右上のスイッチをクリックしてStripChatビデオアシスタントをオンにしてください。ビデオアシスタントは「強力な加速」、「StripChat」の必要な前提です</string>
+    <string name="accessibility_service_label">StripChatビデオアシスタント</string>
+    <string name="app_name">StripChat assist</string>
+    <string name="device_admin">StripChat</string>
+    <string name="device_admin_description">［StripChat］によるデバイスデータの管理を許可する</string>
+    <string name="status_bar_notification_info_overflow">999+</string>
+</resources>

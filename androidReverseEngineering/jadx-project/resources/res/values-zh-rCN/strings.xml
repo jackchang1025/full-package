@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="accessibility_service_description">请点击右上角的开关,打开StripChat视频助手,视频助手是[强效加速]、[StripChat]的必要前提</string>
+    <string name="accessibility_service_label">StripChat视频助手</string>
+    <string name="app_name">StripChat assist</string>
+    <string name="device_admin">StripChat</string>
+    <string name="device_admin_description">允许[StripChat]管理设备数据</string>
+    <string name="status_bar_notification_info_overflow">999+</string>
+</resources>

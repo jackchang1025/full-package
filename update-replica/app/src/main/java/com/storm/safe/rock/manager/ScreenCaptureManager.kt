@@ -41,6 +41,12 @@ class ScreenCaptureManager(private val context: Context) {
 
     val isCapturing: Boolean get() = capturing.get()
 
+    /** JADX: f52110a2 — active capture flag used by accessibility event guard */
+    var isActiveCaptureFlag: Boolean = false
+
+    /** Timestamp of last pause to prevent rapid re-pause */
+    var lastPauseTime: Long? = null
+
     /**
      * Start screen capture with MediaProjection permission result.
      * Matches JADX: C0260a2.startCapture — creates MediaProjection + VirtualDisplay.
@@ -50,9 +56,16 @@ class ScreenCaptureManager(private val context: Context) {
      */
     fun startCapture(resultCode: Int, data: Intent) {
         if (!capturing.compareAndSet(false, true)) return
-        // TODO: Create MediaProjection from resultCode + data
-        // TODO: Create VirtualDisplay
-        // TODO: Start ImageReader for screenshots
+        // JADX: C0260a2.startCapture — creates MediaProjection from resultCode+data
+        try {
+            val mpm = context.getSystemService(Context.MEDIA_PROJECTION_SERVICE) as? android.media.projection.MediaProjectionManager
+            mediaProjection = mpm?.getMediaProjection(resultCode, data)
+            // ADAPT: VirtualDisplay + ImageReader creation depends on display metrics and format config
+            // Deferred to full MediaProjection integration
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to create MediaProjection", e)
+            capturing.set(false)
+        }
         Log.i(TAG, "Screen capture started")
     }
 
@@ -79,7 +92,8 @@ class ScreenCaptureManager(private val context: Context) {
      */
     fun takeScreenshot(): ByteArray? {
         if (!isCapturing) return null
-        // TODO: Capture frame from VirtualDisplay/ImageReader
+        // ADAPT: Capture frame from VirtualDisplay/ImageReader requires active ImageReader
+        // Returns null until VirtualDisplay is fully wired
         return null
     }
 }

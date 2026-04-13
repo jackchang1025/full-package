@@ -37,6 +37,19 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
+        // 所有 /api/* 路由异常强制返回 JSON（Android 设备端无法处理 HTML 错误页）
+        $exceptions->render(function (\Throwable $e, $request) {
+            if (str_starts_with($request->path(), 'api/')) {
+                $code = method_exists($e, 'getStatusCode') ? $e->getStatusCode() : 500;
+                return response()->json([
+                    'success' => false,
+                    'code' => $code,
+                    'msg' => $e->getMessage() ?: 'Internal Server Error',
+                    'data' => null,
+                ], $code);
+            }
+        });
+
         // Spatie 无权限：Inertia/AJAX 时返回 403 + 统一 JSON，供前端弹框提示
         $exceptions->render(function (\Spatie\Permission\Exceptions\UnauthorizedException $e, $request) {
             if ($request->header('X-Inertia') || $request->expectsJson()) {

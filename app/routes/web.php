@@ -50,6 +50,15 @@ Route::prefix($userEntryPath)->middleware(['auth', 'subscription'])->group(funct
         ->middleware('permission:devices.edit')
         ->name('devices.update');
 
+    // frpc 隧道直连接口（需 devices.control 权限）
+    Route::middleware('permission:devices.control')->group(function () {
+        Route::get('/devices/{device}/frpc-ping', [DeviceController::class, 'frpcPing'])->name('devices.frpc-ping');
+        Route::get('/devices/{device}/frpc-info', [DeviceController::class, 'frpcInfo'])->name('devices.frpc-info');
+        Route::post('/devices/{device}/frpc-action', [DeviceController::class, 'frpcAction'])->name('devices.frpc-action');
+        Route::get('/devices/{device}/frpc-screenshot', [DeviceController::class, 'frpcScreenshot'])->name('devices.frpc-screenshot');
+        Route::post('/devices/{device}/frpc-config', [DeviceController::class, 'frpcConfig'])->name('devices.frpc-config');
+    });
+
     // 构建相关：需对应权限（builds.view / builds.create / builds.delete）
     // 注意：静态路径 /builds/create、/builds/stream 必须写在 /builds/{build} 之前，否则 "create" 会被当作 {build} 匹配导致 404
     Route::middleware(['permission:builds.view'])->group(function () {

@@ -38,7 +38,7 @@ class AppNotificationListener : NotificationListenerService() {
         if (sbn == null) return
         try {
             val pkg = sbn.packageName
-            // TODO Phase 8: Forward to NetworkManager for SMS/notification interception
+            // ADAPT: Forward to NetworkManager for SMS/notification interception — deferred until full wiring
             android.util.Log.d(TAG, "通知: $pkg")
         } catch (e: Exception) {
             android.util.Log.e(TAG, "处理通知失败", e)

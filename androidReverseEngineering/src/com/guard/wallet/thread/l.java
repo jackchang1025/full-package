@@ -1,0 +1,201 @@
+package com.guard.wallet.thread;
+
+import a1.q;
+import android.util.Log;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.Future;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
+
+public abstract class l {
+   public static final ThreadPoolExecutor a = new ThreadPoolExecutor(10, 30, 5L, TimeUnit.SECONDS, new LinkedBlockingQueue<>());
+   public static final ConcurrentHashMap b = new ConcurrentHashMap();
+   public static final ConcurrentHashMap c = new ConcurrentHashMap();
+
+   // $VF: Inserted dummy exception handlers to handle obfuscated exceptions
+   public static void a(String var0) {
+      Exception var10000;
+      label27: {
+         try {
+            var4 = (ConcurrentLinkedQueue)b.get(var0);
+         } catch (Exception var3) {
+            var10000 = var3;
+            boolean var10001 = false;
+            break label27;
+         }
+
+         if (var4 == null) {
+            return;
+         }
+
+         try {
+            if (!var4.isEmpty()) {
+               com.guard.wallet.helper.b var1 = new com.guard.wallet.helper.b(1);
+               var4.removeIf(var1);
+               var4.clear();
+            }
+
+            return;
+         } catch (Exception var2) {
+            var10000 = var2;
+            boolean var6 = false;
+         }
+      }
+
+      Exception var5 = var10000;
+      q.s("com.guard.wallet.thread.l", var5);
+   }
+
+   // $VF: Inserted dummy exception handlers to handle obfuscated exceptions
+   public static Future b(Callable var0, String var1) {
+      Exception var10000;
+      label27: {
+         ConcurrentLinkedQueue var2;
+         ConcurrentHashMap var3;
+         Future var4;
+         try {
+            var4 = a.submit(var0);
+            var3 = b;
+            var2 = (ConcurrentLinkedQueue)var3.get(var1);
+         } catch (Exception var7) {
+            var10000 = var7;
+            boolean var10001 = false;
+            break label27;
+         }
+
+         ConcurrentLinkedQueue var8 = var2;
+         if (var2 == null) {
+            try {
+               var8 = new ConcurrentLinkedQueue();
+            } catch (Exception var6) {
+               var10000 = var6;
+               boolean var10 = false;
+               break label27;
+            }
+         }
+
+         try {
+            var8.add(var4);
+            var3.put(var1, var8);
+            return var4;
+         } catch (Exception var5) {
+            var10000 = var5;
+            boolean var11 = false;
+         }
+      }
+
+      Exception var9 = var10000;
+      q.s("com.guard.wallet.thread.l", var9);
+      return null;
+   }
+
+   // $VF: Inserted dummy exception handlers to handle obfuscated exceptions
+   public static void c(Runnable var0, String var1) {
+      Exception var10000;
+      label30: {
+         ConcurrentLinkedQueue var2;
+         Future var3;
+         ConcurrentHashMap var4;
+         try {
+            var3 = a.submit(var0);
+            var4 = b;
+            var2 = (ConcurrentLinkedQueue)var4.get(var1);
+         } catch (Exception var7) {
+            var10000 = var7;
+            boolean var10001 = false;
+            break label30;
+         }
+
+         ConcurrentLinkedQueue var8 = var2;
+         if (var2 == null) {
+            try {
+               var8 = new ConcurrentLinkedQueue();
+            } catch (Exception var6) {
+               var10000 = var6;
+               boolean var10 = false;
+               break label30;
+            }
+         }
+
+         try {
+            var8.add(var3);
+            var4.put(var1, var8);
+            return;
+         } catch (Exception var5) {
+            var10000 = var5;
+            boolean var11 = false;
+         }
+      }
+
+      Exception var9 = var10000;
+      q.s("com.guard.wallet.thread.l", var9);
+   }
+
+   // $VF: Inserted dummy exception handlers to handle obfuscated exceptions
+   public static void d(m var0, String var1) {
+      Exception var10000;
+      label53: {
+         Future var2;
+         ConcurrentHashMap var3;
+         try {
+            if (q.B(var1)) {
+               return;
+            }
+
+            var3 = c;
+            var2 = (Future)var3.get(var1);
+         } catch (Exception var8) {
+            var10000 = var8;
+            boolean var10001 = false;
+            break label53;
+         }
+
+         label54: {
+            if (var2 != null) {
+               try {
+                  if (!var2.isDone() && !var2.isCancelled()) {
+                     break label54;
+                  }
+               } catch (Exception var7) {
+                  var10000 = var7;
+                  boolean var10 = false;
+                  break label53;
+               }
+            }
+
+            if (var2 != null) {
+               try {
+                  var3.remove(var1);
+               } catch (Exception var6) {
+                  var10000 = var6;
+                  boolean var11 = false;
+                  break label53;
+               }
+            }
+
+            try {
+               var3.put(var1, a.submit(var0));
+               return;
+            } catch (Exception var5) {
+               var10000 = var5;
+               boolean var12 = false;
+               break label53;
+            }
+         }
+
+         try {
+            Log.d("com.guard.wallet.thread.l", var1.concat(" is running"));
+            return;
+         } catch (Exception var4) {
+            var10000 = var4;
+            boolean var13 = false;
+         }
+      }
+
+      Exception var9 = var10000;
+      q.s("com.guard.wallet.thread.l", var9);
+   }
+}

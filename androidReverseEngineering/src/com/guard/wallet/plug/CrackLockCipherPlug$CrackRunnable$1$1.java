@@ -1,0 +1,9 @@
+package com.guard.wallet.plug;
+
+import android.graphics.Rect;
+import com.google.json.reflect.TypeToken;
+
+class CrackLockCipherPlug$CrackRunnable$1$1 extends TypeToken<Rect> {
+   public CrackLockCipherPlug$CrackRunnable$1$1() {
+   }
+}

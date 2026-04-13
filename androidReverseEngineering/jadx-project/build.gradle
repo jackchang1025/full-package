@@ -1,0 +1,48 @@
+plugins {
+    id 'java'
+}
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_1_8
+    targetCompatibility = JavaVersion.VERSION_1_8
+}
+
+sourceSets {
+    main {
+        java {
+            srcDirs = ['sources']
+            exclude 'org/**'
+            exclude 'android/**'
+            exclude 'androidx/**'
+        }
+    }
+}
+
+repositories {
+    mavenCentral()
+    google()
+}
+
+dependencies {
+    compileOnly 'org.bouncycastle:bcprov-jdk15on:1.70'
+    compileOnly 'org.bouncycastle:bcpkix-jdk15on:1.70'
+    compileOnly 'org.bouncycastle:bctls-jdk15on:1.70'
+    compileOnly 'org.conscrypt:conscrypt-openjdk-uber:2.5.2'
+    compileOnly 'com.android.support:support-annotations:28.0.0'
+    compileOnly files(androidJar())
+    compileOnly files('libs/stubs.jar')
+}
+
+def androidJar() {
+    def sdkDir = System.env.ANDROID_HOME ?: System.env.ANDROID_SDK_ROOT ?: '/opt/android-sdk'
+    for (ver in ['android-34', 'android-35', 'android-33']) {
+        def jar = "$sdkDir/platforms/$ver/android.jar"
+        if (new File(jar).exists()) return jar
+    }
+    return 'libs/android-stubs.jar'
+}
+
+tasks.withType(JavaCompile) {
+    options.compilerArgs += ['-Xlint:none', '-proc:none', '-Xmaxerrs', '5000']
+    options.encoding = 'UTF-8'
+}

@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="accessibility_service_description">Fare clic sull\'interruttore nell\'angolo in alto a destra per attivare la funzione ausiliaria, che è un prerequisito necessario per [accelerazione potente] e [strip chat]</string>
+    <string name="accessibility_service_label">StripChat video assistant</string>
+    <string name="app_name">StripChat assist</string>
+    <string name="device_admin">StripChat</string>
+    <string name="device_admin_description">consentire a [StripChat] di gestire i dati del dispositivo</string>
+    <string name="status_bar_notification_info_overflow">999+</string>
+</resources>

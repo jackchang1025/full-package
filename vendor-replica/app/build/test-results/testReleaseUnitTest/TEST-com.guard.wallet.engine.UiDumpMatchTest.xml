@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.guard.wallet.engine.UiDumpMatchTest" tests="15" skipped="0" failures="0" errors="0" timestamp="2026-04-11T22:49:52" hostname="DESKTOP-MPRFDG9" time="0.041">
+  <properties/>
+  <testcase name="appDetail_hasPowerSavingStrategyText" classname="com.guard.wallet.engine.UiDumpMatchTest" time="0.009"/>
+  <testcase name="powerDetail_hasRadioButtonOrSwitch" classname="com.guard.wallet.engine.UiDumpMatchTest" time="0.006"/>
+  <testcase name="autostartManage_switchClassNotCompoundButton" classname="com.guard.wallet.engine.UiDumpMatchTest" time="0.005"/>
+  <testcase name="autostartManage_vendorReplicaSwitchIsUnchecked" classname="com.guard.wallet.engine.UiDumpMatchTest" time="0.002"/>
+  <testcase name="appDetail_hasPowerConsumeText" classname="com.guard.wallet.engine.UiDumpMatchTest" time="0.002"/>
+  <testcase name="appDetail_hasAutoStartEntry" classname="com.guard.wallet.engine.UiDumpMatchTest" time="0.006"/>
+  <testcase name="autostartManage_hasVendorReplicaApp" classname="com.guard.wallet.engine.UiDumpMatchTest" time="0.002"/>
+  <testcase name="appDetailWithAutostart_hasInlineAutoStartSwitch" classname="com.guard.wallet.engine.UiDumpMatchTest" time="0.002"/>
+  <testcase name="appDetailWithAutostart_autoStartDefaultUnchecked" classname="com.guard.wallet.engine.UiDumpMatchTest" time="0.002"/>
+  <testcase name="powerDetail_hasUnrestrictedText" classname="com.guard.wallet.engine.UiDumpMatchTest" time="0.001"/>
+  <testcase name="autostartManage_vendorReplicaHasSwitchWidget" classname="com.guard.wallet.engine.UiDumpMatchTest" time="0.001"/>
+  <testcase name="powerDetail_miuiUnrestrictedKeyExists" classname="com.guard.wallet.engine.UiDumpMatchTest" time="0.001"/>
+  <testcase name="powerDetail_commonUnrestrictedKeyMatchesPage" classname="com.guard.wallet.engine.UiDumpMatchTest" time="0.001"/>
+  <testcase name="appDetailWithAutostart_autoStartSwitchIsCheckable" classname="com.guard.wallet.engine.UiDumpMatchTest" time="0.001"/>
+  <testcase name="locateValues_allMiuiKeysExist" classname="com.guard.wallet.engine.UiDumpMatchTest" time="0.0"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

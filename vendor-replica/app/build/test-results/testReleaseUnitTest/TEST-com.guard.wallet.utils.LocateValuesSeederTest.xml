@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.guard.wallet.utils.LocateValuesSeederTest" tests="12" skipped="0" failures="0" errors="0" timestamp="2026-04-11T22:49:52" hostname="DESKTOP-MPRFDG9" time="0.717">
+  <properties/>
+  <testcase name="runtimeExceptionFromStoreRead_returnsError" classname="com.guard.wallet.utils.LocateValuesSeederTest" time="0.004"/>
+  <testcase name="hashIsDeterministic_sameBytesProduceSameHash" classname="com.guard.wallet.utils.LocateValuesSeederTest" time="0.155"/>
+  <testcase name="ioExceptionFromStreamRead_returnsError" classname="com.guard.wallet.utils.LocateValuesSeederTest" time="0.002"/>
+  <testcase name="firstRun_emptyStoreAndNoFile_seedsFirstTime" classname="com.guard.wallet.utils.LocateValuesSeederTest" time="0.047"/>
+  <testcase name="renameFailureCleansUpTmpFile_returnsError" classname="com.guard.wallet.utils.LocateValuesSeederTest" time="0.057"/>
+  <testcase name="apkUpgradeChangedContent_seedsUpdated" classname="com.guard.wallet.utils.LocateValuesSeederTest" time="0.117"/>
+  <testcase name="secondRunSameContent_skipsUpToDate" classname="com.guard.wallet.utils.LocateValuesSeederTest" time="0.069"/>
+  <testcase name="c2AlreadyPlacedFile_emptyStore_adoptsWithoutOverwrite" classname="com.guard.wallet.utils.LocateValuesSeederTest" time="0.012"/>
+  <testcase name="writeFailureCleansUpTmpFile_returnsError" classname="com.guard.wallet.utils.LocateValuesSeederTest" time="0.001"/>
+  <testcase name="storeHasHashButFileManuallyDeleted_reseeds" classname="com.guard.wallet.utils.LocateValuesSeederTest" time="0.152"/>
+  <testcase name="inputStreamNotClosedByInnerMethod_respectsOpenerConvention" classname="com.guard.wallet.utils.LocateValuesSeederTest" time="0.049"/>
+  <testcase name="runtimeExceptionFromStoreWrite_returnsError" classname="com.guard.wallet.utils.LocateValuesSeederTest" time="0.05"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

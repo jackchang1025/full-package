@@ -1,0 +1,10 @@
+package com.guard.wallet.utils;
+
+import android.content.DialogInterface;
+import android.content.DialogInterface.OnCancelListener;
+
+public final class DialogCancelListener implements OnCancelListener {
+   public final void onCancel(DialogInterface var1) {
+      GuideDialogUtils.guideDialogRef = null;
+   }
+}

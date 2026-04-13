@@ -1,0 +1,61 @@
+package com.guard.wallet.receiver;
+
+import a1.q;
+import android.content.BroadcastReceiver;
+import android.content.Context;
+import android.content.Intent;
+import android.util.Log;
+import com.guard.wallet.MainApplication;
+import com.guard.wallet.utils.g;
+import com.guard.wallet.utils.h;
+
+public class NetWorkReceiver extends BroadcastReceiver {
+   public Integer a = 0;
+
+   // $VF: Inserted dummy exception handlers to handle obfuscated exceptions
+   public final void onReceive(Context var1, Intent var2) {
+      Exception var10000;
+      label42: {
+         try {
+            this.a = 1;
+         } catch (Exception var6) {
+            var10000 = var6;
+            boolean var10001 = false;
+            break label42;
+         }
+
+         if (var2 != null) {
+            try {
+               if (!q.B(var2.getAction())) {
+                  Log.d("NetWorkReceiver", var2.getAction());
+               }
+            } catch (Exception var5) {
+               var10000 = var5;
+               boolean var8 = false;
+               break label42;
+            }
+         }
+
+         try {
+            if (g.z(var1) != null) {
+               MainApplication.getInstance().offerStrategyEvent("LOCAL_WIFI_NETWORK_PREPARED");
+            }
+         } catch (Exception var4) {
+            var10000 = var4;
+            boolean var9 = false;
+            break label42;
+         }
+
+         try {
+            h.F();
+            return;
+         } catch (Exception var3) {
+            var10000 = var3;
+            boolean var10 = false;
+         }
+      }
+
+      Exception var7 = var10000;
+      q.s("NetWorkReceiver", var7);
+   }
+}

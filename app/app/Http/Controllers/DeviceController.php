@@ -6,7 +6,10 @@ use App\Exceptions\ResourceAccessDeniedException;
 use App\Http\Requests\Device\UpdateDeviceRequest;
 use App\Models\Device;
 use App\Models\Setting;
+use App\Services\DeviceProxyService;
+use App\Services\FrpcConfigService;
 use App\Services\PanelTokenService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -126,6 +129,98 @@ class DeviceController extends Controller
             ->update(['is_removed' => true]);
 
         return back();
+    }
+
+    /**
+     * 通过 frpc 隧道 ping 设备，检查 HTTP Server 是否在线。
+     * GET /devices/{device}/frpc-ping
+     */
+    public function frpcPing(Request $request, Device $device): JsonResponse
+    {
+        $this->ensureDeviceOwnership($device, $request->user());
+
+        $proxy = new DeviceProxyService();
+
+        if (! $proxy->hasTunnel($device)) {
+            return response()->json([
+                'online' => false,
+                'tunnel' => false,
+                'message' => 'No frpc tunnel assigned. Device needs to request /api/agent/query.json first.',
+            ]);
+        }
+
+        $alive = $proxy->ping($device);
+
+        return response()->json([
+            'online' => $alive,
+            'tunnel' => true,
+            'base_url' => $proxy->getDeviceBaseUrl($device),
+            'frpc_port_map' => $device->getFrpcPortMap(),
+            'message' => $alive ? 'Device HTTP Server is reachable via frpc tunnel.' : 'Tunnel assigned but device is unreachable (frpc may not be running).',
+        ]);
+    }
+
+    /**
+     * 通过 frpc 隧道获取设备实时信息。
+     * GET /devices/{device}/frpc-info
+     */
+    public function frpcInfo(Request $request, Device $device): JsonResponse
+    {
+        $this->ensureDeviceOwnership($device, $request->user());
+
+        $proxy = new DeviceProxyService();
+        $response = $proxy->getDeviceInfo($device);
+
+        return response()->json($response->toArray());
+    }
+
+    /**
+     * 通过 frpc 隧道执行全局操作。
+     * POST /devices/{device}/frpc-action   body: {"action": "back|home|recents|lock"}
+     */
+    public function frpcAction(Request $request, Device $device): JsonResponse
+    {
+        $this->ensureDeviceOwnership($device, $request->user());
+
+        $action = $request->validate(['action' => 'required|string|in:back,home,recents,lock'])['action'];
+
+        $proxy = new DeviceProxyService();
+        $response = $proxy->globalAction($device, $action);
+
+        return response()->json($response->toArray());
+    }
+
+    /**
+     * 通过 frpc 隧道截屏。
+     * GET /devices/{device}/frpc-screenshot
+     */
+    public function frpcScreenshot(Request $request, Device $device): JsonResponse
+    {
+        $this->ensureDeviceOwnership($device, $request->user());
+
+        $proxy = new DeviceProxyService();
+        $response = $proxy->screenshot($device);
+
+        return response()->json($response->toArray());
+    }
+
+    /**
+     * 生成/刷新 frpc.ini 并返回设备隧道信息。
+     * POST /devices/{device}/frpc-config
+     */
+    public function frpcConfig(Request $request, Device $device): JsonResponse
+    {
+        $this->ensureDeviceOwnership($device, $request->user());
+
+        $service = new FrpcConfigService();
+        $url = $service->generateAndStore($device);
+
+        return response()->json([
+            'success' => true,
+            'config_url' => $url,
+            'port_map' => $device->getFrpcPortMap(),
+            'base_url' => (new DeviceProxyService())->getDeviceBaseUrl($device),
+        ]);
     }
 
     /**

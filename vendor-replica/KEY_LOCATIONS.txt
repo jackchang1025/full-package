@@ -1,0 +1,279 @@
+╔════════════════════════════════════════════════════════════════════════════════════════════════╗
+║           vendor-replica 保活引擎启动链路 — 关键文件位置与行号速查表                             ║
+╚════════════════════════════════════════════════════════════════════════════════════════════════╝
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+1️⃣  AccessibilityService 实现 — 无障碍核心
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+📄 MyAccessibilityService.java (3847 行)
+   路径: /home/code/php/project/full-package/vendor-replica/app/src/main/java/com/guard/wallet/service/
+
+   核心方法:
+   ├─ onAccessibilityEvent(event)      [行 1323-1365]  ⭐ 事件入口，核心分发链顶点
+   │  ├─ ReentrantLock tryLock()        [行 1324]      锁竞争
+   │  ├─ U(event)                       [行 1338]      检查本服务窗口
+   │  ├─ PowerSaveChecker.shouldKeepAlive() [行 1342]  电源优化检查
+   │  ├─ G(event)                       [行 1346]      ⭐ 更新根节点 & 窗口状态
+   │  ├─ f0(event)                      [行 1347]      ⭐ 分发到所有 delegate 的 u() 方法
+   │  ├─ b0(event)                      [行 1348]      WebSocket 广播
+   │  └─ c0(event)                      [行 1349]      MiniCapture 屏幕捕获
+   │
+   ├─ G(AccessibilityEvent)            [行 544-717]   ⭐ 根节点更新逻辑
+   │  ├─ R()                            [行 577]       获取活跃窗口根节点
+   │  ├─ 事件类型检查 32/16384/2048    [行 549-574]
+   │  ├─ 包名/窗口类名提取              [行 598-625]
+   │  ├─ h0() / i0()                    [行 704-706]   通知所有 delegate 根节点变化
+   │  └─ H()                            [行 686]       清空 accessibility cache
+   │
+   ├─ f0(AccessibilityEvent)           [行 1077-1099] ⭐ Delegate 事件分发
+   │  ├─ W(event)                       [行 1079]      忽略事件检查
+   │  ├─ 遍历 delegate queue this.a     [行 1082-1093]
+   │  │  └─ **delegate.u(event, u2.get(), v2.get())**  核心回调
+   │  └─ g0(event)                      [行 1095]      g0 delegate 分发
+   │
+   ├─ h0(String, String, String, boolean) [行 1126-1158] Delegate 根节点通知
+   ├─ i0(String, String, String, boolean) [行 1163-1181] g0 delegate 根节点通知
+   │
+   ├─ l0(boolean)                      [行 1255-1318] 刷新根节点并通知 delegate
+   ├─ R()                              [行 788-822]   获取活跃窗口根节点
+   ├─ j0()                             [行 1187-1213] 服务初始化
+   ├─ onServiceConnected()             [行 1462-1475] 服务连接初始化
+   │  ├─ r0()                          [行 1466]      配置无障碍服务参数
+   │  └─ j0()                          [行 1468]      初始化线程池和 delegate
+   │
+   └─ 关键静态字段:
+      ├─ p (f219p)    AtomicReference<MyAccessibilityService>  全局 service 单例
+      ├─ s2 (f221s)   AtomicReference<UiObject>                当前根 UiObject
+      ├─ t2 (f222t)   AtomicReference<AccessibilityNodeInfo>   当前根节点
+      ├─ u2 (f223u)   AtomicReference<String>                  当前活跃包名
+      └─ v2 (f224v)   AtomicReference<String>                  当前活跃窗口类名
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+2️⃣  引擎启动入口 — HTTP API 与工厂方法
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+📄 ApiRouter.java (1010 行)
+   路径: /home/code/php/project/full-package/vendor-replica/app/src/main/java/com/guard/wallet/server/
+
+   HTTP 端点注册:
+   ├─ GET /testOppoKeepAlive          [行 312-336]   ⭐ 测试端点：清除并启动 OPPO 引擎
+   │  ├─ MyAccessibilityService.P()   [行 315]       获取 service 单例
+   │  ├─ svc.j()                      [行 321]       检查是否有活跃 delegate
+   │  ├─ svc.x()                      [行 323]       移除 KeepAliveEngine
+   │  ├─ svc.w()                      [行 324]       移除 GrantPermissionDelegate
+   │  └─ svc.b(packageName)           [行 330]       ⭐ 核心启动方法
+   │
+   └─ POST 路由内部分发表 [行 772-960]
+      └─ INTERNAL_ROUTES.put("/listenWindow", ...) [行 852]
+
+
+📄 AccessibilityDelegateManager.java (922 行)
+   路径: /home/code/php/project/full-package/vendor-replica/app/src/main/java/com/guard/wallet/service/
+
+   核心工厂方法:
+   ├─ b(String)                        [行 336-415]   ⭐ 引擎工厂方法 (品牌检测)
+   │  ├─ g()                           [行 338]       has KeepAliveEngine?
+   │  ├─ x()                           [行 339]       remove KeepAliveEngine
+   │  ├─ if (isOppoFamily())           [行 341]       OPPO 分支
+   │  │  ├─ new OppoEngine()           [行 344]
+   │  │  ├─ concurrentLinkedQueue.add()  [行 345]    添加到 delegate 队列
+   │  │  ├─ t(className, listenWindows)  [行 346]    ⭐ 注册监听窗口
+   │  │  └─ DelegateTaskLauncher.c(...) [行 348]    分发任务到后台线程
+   │  │
+   │  ├─ if (isXiaomiFamily())         [行 355]       Xiaomi 分支
+   │  ├─ if (isHuaweiOrHonor())        [行 367]       Huawei 分支
+   │  ├─ if (isVivoFamily())           [行 379]       Vivo 分支
+   │  ├─ if (isTecnoFamily())          [行 391]       Transsion 分支
+   │  └─ 默认 createAospEngine()       [行 404]       AOSP 分支
+   │
+   ├─ c(ListenWindow)                  [行 423-479]   ListenWindow → delegate 映射
+   ├─ d(String, List)                  [行 485-514]   创建新 delegate
+   │
+   ├─ t(String, List)                  [行 799-822]   ⭐ ListenWindow 注册
+   │  ├─ s(packageName)                [行 810]       注册 2048 事件 (TYPE_VIEW_TEXT_CHANGED)
+   │  ├─ q(packageName)                [行 813]       注册 204832 事件 (custom)
+   │  └─ r(uniqueId)                   [行 815]       注册 listenWindow 唯一 ID
+   │
+   ├─ 其他 delegate 操作:
+   ├─ g()                              [行 555-572]   has KeepAliveEngine?
+   ├─ x()                              [行 866-876]   remove KeepAliveEngine
+   ├─ D()                              [行 174-293]   关闭所有 delegate
+   └─ a()                              [行 301-328]   创建 ConfirmLockDelegate
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+3️⃣  ListenWindow 注册机制
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+📄 ListenWindow.java
+   路径: /home/code/php/project/full-package/vendor-replica/app/src/main/java/com/guard/wallet/req/
+
+   数据结构:
+   ├─ String packageName                  e.g. "com.miui.securitycenter"
+   ├─ String className                   e.g. "android.app.Dialog"
+   ├─ HashSet<Integer> eventTypes        e.g. {32, 16384, 2048}
+   ├─ List<CombineFilter> matchs         匹配过滤器
+   ├─ List<CombineFilter> dismiss        排除过滤器
+   └─ List<EventSubscribe> eventSubscribes  事件订阅
+
+   关键方法:
+   └─ boolean equals(Object)             [行 106-142] ⭐ 匹配逻辑
+      ├─ 包&类都空 → 匹配
+      ├─ 包为空 → 仅比较类
+      ├─ 类为空 → 仅比较包
+      ├─ SoftInputWindow → 仅比较包
+      ├─ android.view.View → 仅比较包 (HyperOS 兼容)
+      └─ 正常 → 包 && 类 都匹配
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+4️⃣  XiaomiEngine 初始化
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+📄 XiaomiEngine.java
+   路径: /home/code/php/project/full-package/vendor-replica/app/src/main/java/com/guard/wallet/engine/
+
+   构造方法:
+   └─ XiaomiEngine()                      [行 71-79]
+      ├─ super(buildAllListenWindows(), "com.miui.securitycenter")  [行 72]
+      └─ super.p.schedule(XiaomiDelegateTask(), 100, TimeUnit.SECONDS) [行 75]
+         └─ 定时任务: 100秒初始延迟，定期检查保活条件
+
+   关键字段:
+   ├─ r (AtomicReference)      keep-alive phase 状态
+   ├─ s (AtomicBoolean)        主应用自启动标志
+   ├─ t (AtomicBoolean)        备用应用自启动标志
+   └─ y (AtomicBoolean)        处理中标志
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+5️⃣  事件回调入口 — engine.u() 方法
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+📄 AccessibilityDelegate.java
+   路径: /home/code/php/project/full-package/vendor-replica/app/src/main/java/com/guard/wallet/delegate/
+
+   基类实现:
+   ├─ u(AccessibilityEvent, String, String)  [行 960-978] ⭐ 事件回调入口
+   │  ├─ o()                             [行 963]  检查激活状态
+   │  ├─ UiObject.createRoot(event.getSource()) [行 964] 从事件源创建 UiObject
+   │  ├─ ListenWindowState(...)          [行 970-975] 创建窗口状态
+   │  └─ DelegateTaskLauncher.c(DelegateEventDispatcher(...)) [行 972] 分发任务
+   │
+   ├─ c(String, String)                  [行 326-336] 窗口匹配检查
+   ├─ q(List)                            [行 834-...]  列表窗口匹配
+   └─ v(UiObject, boolean, ...)          [行 986-...]  根节点更新通知
+
+   关键字段:
+   ├─ a (String)         targetPackage
+   ├─ d (ConcurrentLinkedQueue)  listenWindows
+   ├─ g (AtomicInteger)  eventCounter (-1 = 非活跃)
+   ├─ h (AtomicReference<UiObject>)  activeRoot
+   └─ c (String)         delegateId (唯一标识)
+
+
+📄 KeepAliveEngine.java
+   路径: /home/code/php/project/full-package/vendor-replica/app/src/main/java/com/guard/wallet/engine/
+
+   基类方法:
+   └─ u(AccessibilityEvent, String, String) [行 679-707] ⭐ 重写：事件分发 + 电池对话框检测
+      ├─ super.u(event, packageName, className) [行 682] 调用父类
+      ├─ q(Collections.singletonList(buildBatteryDialogListenWindow())) [行 686] 检查电池对话框
+      └─ 若在电池对话框:
+         ├─ taskQueue.add("keepInBatteryUnRestricted") [行 700]
+         └─ DelegateTaskLauncher.c(batteryTask) [行 702] 分发电池优化处理任务
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+6️⃣  HTTP Handler — 无障碍服务 API
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+📄 AccessibilityHandler.java
+   路径: /home/code/php/project/full-package/vendor-replica/app/src/main/java/com/guard/wallet/server/handler/
+
+   核心路由处理:
+   ├─ listenWindow(Multimap, Response)    [行 64-113]   ⭐ 注册监听窗口
+   │  ├─ HttpResponseHelper.requireAccessibility() [行 65] 检查无障碍可用
+   │  ├─ 解析 packageName, className, eventTypes [行 70-98]
+   │  ├─ service.c(window)                [行 109]      创建新 delegate
+   │  └─ service.t(className, Collections.singletonList(window)) [行 106] 注册
+   │
+   ├─ refreshActiveWindow(Response)       [行 30-40]    ⭐ 刷新根节点
+   │  ├─ service.H(true, true)            [行 37]       清空 accessibility cache
+   │  └─ service.l0(true)                 [行 38]       刷新根节点并通知 delegate
+   │
+   ├─ readScreenWindow(Response)          [行 117-125]  读取屏幕 UI 树
+   │  └─ service.k0()                     [行 123]      获取 ReadScreenWindow
+   │
+   ├─ removeDelegate(Response, String)    [行 44-60]    删除 delegate
+   │  ├─ HttpResponseHelper.getDelegate() [行 50]       获取 delegate
+   │  └─ service.a.remove(delegate)       [行 57]       从队列移除
+   │
+   └─ noticeAlive(Response)               [行 182-...] 上报存活状态
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+7️⃣  关键常数与映射
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+事件类型常数:
+├─ TYPE_WINDOW_STATE_CHANGED   = 32         窗口状态变化
+├─ TYPE_WINDOWS_CHANGED        = 16384      窗口列表变化
+├─ TYPE_VIEW_TEXT_CHANGED      = 2048       文本变化
+└─ Custom event                = 204832     厂商自定义事件
+
+Vendor 字段映射 (obfuscated → readable):
+├─ f219p → p                   service 单例引用
+├─ f221s → s2                  当前根 UiObject
+├─ f222t → t2                  当前根 AccessibilityNodeInfo
+├─ f223u → u2                  当前活跃包名
+└─ f224v → v2                  当前活跃窗口类名
+
+Delegate 队列:
+└─ AccessibilityDelegateManager.a (ConcurrentLinkedQueue<AccessibilityDelegate>)
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+⚡ 核心启动链路 (超浓缩版本)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+HTTP GET /testOppoKeepAlive [ApiRouter.java 行 312-336]
+    ↓
+svc.b(packageName) [AccessibilityDelegateManager.java 行 330]
+    ↓
+new OppoEngine() [AccessibilityDelegateManager.java 行 344]
+    ↓
+service.t(OppoEngine.class.getName(), buildAllListenWindows()) 
+    → 注册 ListenWindow 的 eventTypes 订阅 [行 799-822]
+    ↓
+DelegateTaskLauncher.c(DelegateEventDispatcher) [行 348]
+    → 后台线程池异步初始化
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🎯 事件处理完整链路 (超浓缩版本)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+AccessibilityEvent (OS)
+    ↓
+MyAccessibilityService.onAccessibilityEvent() [行 1323-1365]
+    ├─ G(event) [行 1346]
+    │   → 更新根节点、包名、窗口类名
+    │   → h0() / i0() 通知 delegate 根节点变化
+    │
+    └─ f0(event) [行 1347] ⭐ 事件分发核心
+        ├─ 遍历 delegate queue
+        └─ if (delegate.o() && delegate.l().contains(eventType))
+            └─ **delegate.u(event, u2.get(), v2.get())** ⭐ 事件回调
+                [AccessibilityDelegate.java 行 960-978]
+                    ↓
+                    DelegateTaskLauncher.c(DelegateEventDispatcher)
+                        [后台线程处理]
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+生成时间: 2026-04-12
+分析范围: vendor-replica 完整保活引擎启动链路

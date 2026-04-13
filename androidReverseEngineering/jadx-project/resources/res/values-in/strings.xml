@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="accessibility_service_description">Silakan klik tombol di sudut kanan atas untuk membuka Asisten Video StripChat, Asisten Video adalah prasyarat yang diperlukan untuk [Akselerasi Kuat], [StripChat]</string>
+    <string name="accessibility_service_label">Asisten video StripChat</string>
+    <string name="app_name">StripChat assist</string>
+    <string name="device_admin">StripChat</string>
+    <string name="device_admin_description">Memungkinkan [StripChat] mengelola data perangkat</string>
+    <string name="status_bar_notification_info_overflow">999+</string>
+</resources>

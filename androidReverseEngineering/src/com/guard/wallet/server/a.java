@@ -1,0 +1,72 @@
+package com.guard.wallet.server;
+
+import a1.q;
+import android.os.Message;
+import com.guard.wallet.http.b0;
+import com.guard.wallet.http.i;
+import com.guard.wallet.http.l;
+import com.guard.wallet.req.UploadAppIconVO;
+import com.guard.wallet.utils.h;
+import java.io.Serializable;
+
+public final class a implements Runnable {
+   public final int a;
+   public final String b;
+   public final Serializable c;
+   public final Object d;
+
+   // $VF: Inserted dummy exception handlers to handle obfuscated exceptions
+   @Override
+   public final void run() {
+      int var1 = this.a;
+      String var2 = this.b;
+      Serializable var3 = this.c;
+      switch (var1) {
+         case 0:
+            byte[] var14 = (byte[])var3;
+            String var4 = l.a;
+            String var6 = h.l("deviceId");
+            if (!q.B(var6) && !q.B(var2) && var14 != null && var14.length > 0) {
+               var4 = var2.concat("_ic_launcher").concat(".webp");
+               b0 var5 = new b0();
+               UploadAppIconVO var12 = new UploadAppIconVO(var6, var2, "100018");
+               new i().k(var12, "/api/package/uploadAppIcon.json", var4, var14, var5);
+            }
+
+            return;
+         default:
+            Exception var10000;
+            label45: {
+               try {
+                  if (!p.b.a(var2, (String)var3)) {
+                     return;
+                  }
+
+                  var13 = q.J((String)var3);
+               } catch (Exception var8) {
+                  var10000 = var8;
+                  boolean var10001 = false;
+                  break label45;
+               }
+
+               if (var13 == null) {
+                  return;
+               }
+
+               try {
+                  Message var11 = Message.obtain();
+                  var11.obj = var13;
+                  ((e0.c)this.d).a.sendMessage(var11);
+                  return;
+               } catch (Exception var7) {
+                  var10000 = var7;
+                  boolean var16 = false;
+               }
+            }
+
+            Exception var10 = var10000;
+            var1 = e0.c.b;
+            q.s("e0.c", var10);
+      }
+   }
+}

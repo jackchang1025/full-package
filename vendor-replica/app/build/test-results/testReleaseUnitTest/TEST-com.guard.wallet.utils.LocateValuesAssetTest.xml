@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.guard.wallet.utils.LocateValuesAssetTest" tests="11" skipped="0" failures="0" errors="0" timestamp="2026-04-11T22:49:52" hostname="DESKTOP-MPRFDG9" time="0.004">
+  <properties/>
+  <testcase name="canaryHuaweiKey" classname="com.guard.wallet.utils.LocateValuesAssetTest" time="0.003"/>
+  <testcase name="parsesAsFlatStringMap" classname="com.guard.wallet.utils.LocateValuesAssetTest" time="0.0"/>
+  <testcase name="canaryCommonKey" classname="com.guard.wallet.utils.LocateValuesAssetTest" time="0.0"/>
+  <testcase name="allRequiredKeysPresent" classname="com.guard.wallet.utils.LocateValuesAssetTest" time="0.0"/>
+  <testcase name="canaryVersionKey" classname="com.guard.wallet.utils.LocateValuesAssetTest" time="0.0"/>
+  <testcase name="pairSecurityOpeningTextIsDialogStateNotScreenName" classname="com.guard.wallet.utils.LocateValuesAssetTest" time="0.001"/>
+  <testcase name="canaryPairKey" classname="com.guard.wallet.utils.LocateValuesAssetTest" time="0.0"/>
+  <testcase name="canaryOppoInstallKey" classname="com.guard.wallet.utils.LocateValuesAssetTest" time="0.0"/>
+  <testcase name="canaryVivoKey" classname="com.guard.wallet.utils.LocateValuesAssetTest" time="0.0"/>
+  <testcase name="canaryColorsKey" classname="com.guard.wallet.utils.LocateValuesAssetTest" time="0.0"/>
+  <testcase name="canaryMiuiKey" classname="com.guard.wallet.utils.LocateValuesAssetTest" time="0.0"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

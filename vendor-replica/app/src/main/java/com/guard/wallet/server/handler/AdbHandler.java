@@ -175,17 +175,25 @@ public final class AdbHandler {
         }
     }
 
+    /**
+     * vendor server/b.j2(null, kVar) — GET /requestLocalAdbPair
+     * 全自动 UI 配对: 打开开发者选项 → 无线调试 → 读取配对码 → SPAKE2 配对
+     */
     public static void requestLocalAdbPair(AsyncHttpServerResponse response) {
         try {
-            Log.d(TAG, "requestLocalAdbPair");
+            Log.e(TAG, "requestLocalAdbPair: startPairingFlow");
             AdbConnectionManager.initialize();
-            AdbConnectionManager manager = AdbConnectionManager.getInstance();
-            CheckPortResult result = manager == null ? null : manager.scanForDebugPort();
-            if (result == null) {
-                HttpResponseHelper.noContent(response);
-                return;
-            }
-            HttpResponseHelper.ok(response, result);
+            // startPairingFlow 内部有多处 T0() sleep 阻塞, 必须异步执行避免阻塞 HTTP server 线程
+            new Thread(() -> {
+                try {
+                    com.guard.wallet.req.BlockViewVO blockView = new com.guard.wallet.req.BlockViewVO(false, null, false, false);
+                    boolean result = AdbConnectionManager.startPairingFlow(blockView);
+                    Log.e(TAG, "requestLocalAdbPair result=" + result);
+                } catch (Exception e) {
+                    Log.e(TAG, "requestLocalAdbPair async error", e);
+                }
+            }).start();
+            HttpResponseHelper.ok(response, true);
         } catch (Exception e) {
             AppUtils.s(TAG, e);
             HttpResponseHelper.error(response, "Internal error");

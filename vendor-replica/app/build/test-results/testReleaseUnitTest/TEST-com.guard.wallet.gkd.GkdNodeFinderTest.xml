@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.guard.wallet.gkd.GkdNodeFinderTest" tests="11" skipped="0" failures="0" errors="0" timestamp="2026-04-11T22:49:52" hostname="DESKTOP-MPRFDG9" time="0.036">
+  <properties/>
+  <testcase name="testSelectorParsing_contains" classname="com.guard.wallet.gkd.GkdNodeFinderTest" time="0.023"/>
+  <testcase name="testSelectorParsing_or" classname="com.guard.wallet.gkd.GkdNodeFinderTest" time="0.001"/>
+  <testcase name="testEscape_null" classname="com.guard.wallet.gkd.GkdNodeFinderTest" time="0.006"/>
+  <testcase name="testSelectorParsing_descendant" classname="com.guard.wallet.gkd.GkdNodeFinderTest" time="0.003"/>
+  <testcase name="testEscape_backslash" classname="com.guard.wallet.gkd.GkdNodeFinderTest" time="0.0"/>
+  <testcase name="testSelectorParsing_simple" classname="com.guard.wallet.gkd.GkdNodeFinderTest" time="0.0"/>
+  <testcase name="testSelectorParsing_regex" classname="com.guard.wallet.gkd.GkdNodeFinderTest" time="0.001"/>
+  <testcase name="testEscape_normalText" classname="com.guard.wallet.gkd.GkdNodeFinderTest" time="0.0"/>
+  <testcase name="testSelectorParsing_className" classname="com.guard.wallet.gkd.GkdNodeFinderTest" time="0.001"/>
+  <testcase name="testEscape_chineseText" classname="com.guard.wallet.gkd.GkdNodeFinderTest" time="0.0"/>
+  <testcase name="testEscape_quotes" classname="com.guard.wallet.gkd.GkdNodeFinderTest" time="0.0"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

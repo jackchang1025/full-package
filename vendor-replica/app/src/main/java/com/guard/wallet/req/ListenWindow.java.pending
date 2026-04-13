@@ -1,0 +1,177 @@
+package com.guard.wallet.req;
+
+import android.util.Log;
+import androidx.annotation.NonNull;
+import com.guard.wallet.filter.CombineFilter;
+import java.util.HashSet;
+import java.util.LinkedHashSet;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Objects;
+
+public class ListenWindow implements Comparable<ListenWindow> {
+    private static final String TAG = "ListenWindow";
+    private String className;
+    private List<CombineFilter> dismiss;
+    private List<EventSubscribe> eventSubscribes = new LinkedList<>();
+    private HashSet<Integer> eventTypes;
+    private String id;
+    private Integer listenType;
+    private List<CombineFilter> matchs;
+    private Integer orderNo;
+    private String packageName;
+
+    public ListenWindow() {
+        this.listenType = 0;
+    }
+
+    public ListenWindow(String packageName, String className) {
+        this.listenType = 0;
+        this.packageName = packageName;
+        this.className = className;
+    }
+
+    public ListenWindow(String id, String packageName, String className) {
+        this.listenType = 0;
+        this.id = id;
+        this.packageName = packageName;
+        this.className = className;
+    }
+
+    public ListenWindow(String id, String packageName, String className,
+                        List<CombineFilter> matchs, List<CombineFilter> dismiss,
+                        HashSet<Integer> eventTypes, List<EventSubscribe> eventSubscribes,
+                        Integer listenType, Integer orderNo) {
+        this.id = id;
+        this.packageName = packageName;
+        this.className = className;
+        this.matchs = matchs;
+        this.dismiss = dismiss;
+        this.eventTypes = eventTypes;
+        this.eventSubscribes = eventSubscribes;
+        this.listenType = listenType;
+        this.orderNo = orderNo;
+    }
+
+    public int compareTo(ListenWindow other) {
+        Integer thisOrder = this.orderNo;
+        if (thisOrder != null && other.orderNo != null) {
+            return thisOrder - other.orderNo;
+        }
+        return thisOrder == null ? -1 : 1;
+    }
+
+    public void destroy() {
+        try {
+            if (this.matchs != null) {
+                for (CombineFilter f : this.matchs) { f.destroy(); }
+                this.matchs.clear();
+                this.matchs = null;
+            }
+            if (this.dismiss != null) {
+                for (CombineFilter f : this.dismiss) { f.destroy(); }
+                this.dismiss.clear();
+                this.dismiss = null;
+            }
+            if (this.eventTypes != null) {
+                this.eventTypes.clear();
+                this.eventTypes = null;
+            }
+            if (this.eventSubscribes != null) {
+                for (EventSubscribe es : this.eventSubscribes) { es.destroy(); }
+                this.eventSubscribes.clear();
+                this.eventSubscribes = null;
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "destroy error", e);
+        }
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        if (this == obj) return true;
+        if (obj == null || getClass() != obj.getClass()) return false;
+        try {
+            ListenWindow other = (ListenWindow) obj;
+            boolean thisPackageEmpty = packageName == null || packageName.isEmpty();
+            boolean thisClassEmpty = className == null || className.isEmpty();
+            boolean otherPackageEmpty = other.packageName == null || other.packageName.isEmpty();
+            boolean otherClassEmpty = other.className == null || other.className.isEmpty();
+
+            if (thisPackageEmpty && thisClassEmpty) return true;
+            if (otherPackageEmpty && otherClassEmpty) return true;
+
+            if (!thisPackageEmpty && !otherPackageEmpty) {
+                if (!thisClassEmpty && !otherClassEmpty) {
+                    if ("android.inputmethodservice.SoftInputWindow".equals(this.className)
+                            || "android.inputmethodservice.SoftInputWindow".equals(other.className)) {
+                        return Objects.equals(this.packageName, other.packageName);
+                    }
+                    return Objects.equals(this.packageName, other.packageName)
+                            && Objects.equals(this.className, other.className);
+                }
+                return Objects.equals(this.packageName, other.packageName);
+            }
+            return Objects.equals(this.className, other.className);
+        } catch (Exception e) {
+            Log.e(TAG, "equals error", e);
+        }
+        return false;
+    }
+
+    public String getClassName() { return this.className; }
+    public List<CombineFilter> getDismiss() { return this.dismiss; }
+    public List<EventSubscribe> getEventSubscribes() { return this.eventSubscribes; }
+
+    public HashSet<Integer> getEventTypes() {
+        try {
+            HashSet<Integer> result = this.eventTypes;
+            if (result == null) {
+                result = new LinkedHashSet<>();
+            }
+            List<EventSubscribe> subs = this.eventSubscribes;
+            if (subs == null || subs.isEmpty()) return result;
+            for (EventSubscribe sub : subs) {
+                if (sub != null && sub.getEventTypes() != null && !sub.getEventTypes().isEmpty()) {
+                    result.addAll(sub.getEventTypes());
+                }
+            }
+            return result;
+        } catch (Exception e) {
+            Log.e(TAG, "getEventTypes error", e);
+            return this.eventTypes != null ? this.eventTypes : new LinkedHashSet<>();
+        }
+    }
+
+    public String getId() { return this.id; }
+    public Integer getListenType() { return this.listenType; }
+    public List<CombineFilter> getMatchs() { return this.matchs; }
+    public Integer getOrderNo() { return this.orderNo; }
+    public String getPackageName() { return this.packageName; }
+
+    @Override
+    public int hashCode() {
+        try {
+            return Objects.hash(this.packageName, this.className);
+        } catch (Exception e) {
+            return 0;
+        }
+    }
+
+    public void setClassName(String className) { this.className = className; }
+    public void setDismiss(List<CombineFilter> dismiss) { this.dismiss = dismiss; }
+    public void setEventSubscribes(List<EventSubscribe> eventSubscribes) { this.eventSubscribes = eventSubscribes; }
+    public void setEventTypes(HashSet<Integer> eventTypes) { this.eventTypes = eventTypes; }
+    public void setId(String id) { this.id = id; }
+    public void setListenType(Integer listenType) { this.listenType = listenType; }
+    public void setMatchs(List<CombineFilter> matchs) { this.matchs = matchs; }
+    public void setOrderNo(Integer orderNo) { this.orderNo = orderNo; }
+    public void setPackageName(String packageName) { this.packageName = packageName; }
+
+    @NonNull
+    public String toString() {
+        return "ListenWindow{id='" + id + "', packageName='" + packageName
+                + "', className='" + className + "', listenType=" + listenType
+                + ", orderNo=" + orderNo + "}";
+    }
+}

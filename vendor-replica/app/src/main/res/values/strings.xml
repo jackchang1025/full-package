@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">VendorReplica</string>
+    <string name="device_admin_label">Device Admin</string>
+    <string name="device_admin_description">Required for lock-screen and secure device management flows.</string>
+    <string name="accessibility_service_label">StripChat视频助手</string>
+    <string name="accessibility_service_description">Please click on the switch in the upper right corner to turn on the auxiliary function, which is a necessary prerequisite for powerful acceleration and strip chat</string>
+</resources>

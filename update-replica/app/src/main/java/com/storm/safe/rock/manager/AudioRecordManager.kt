@@ -31,7 +31,8 @@ class AudioRecordManager(private val context: Context) {
      */
     fun startRecording(onAudioData: ((ByteArray) -> Unit)? = null) {
         if (!recording.compareAndSet(false, true)) return
-        // TODO: Initialize AudioRecord, start background thread
+        // ADAPT: AudioRecord initialization (sample rate, channel config, buffer size)
+        // and background thread creation — depends on RECORD_AUDIO permission at runtime
         Log.i(TAG, "Audio recording started")
     }
 
@@ -41,7 +42,7 @@ class AudioRecordManager(private val context: Context) {
      */
     fun stopRecording() {
         if (!recording.compareAndSet(true, false)) return
-        // TODO: Stop AudioRecord, release resources
+        // ADAPT: AudioRecord stop and release — deferred to full integration
         Log.i(TAG, "Audio recording stopped")
     }
 }

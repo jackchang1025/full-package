@@ -1,0 +1,175 @@
+package com.guard.wallet.receiver;
+
+import a1.q;
+import android.content.BroadcastReceiver;
+import android.content.Context;
+import android.content.Intent;
+import com.guard.wallet.req.BatteryLevelVO;
+import com.guard.wallet.req.MessageRecordVO;
+import com.guard.wallet.utils.h;
+import java.util.concurrent.atomic.AtomicBoolean;
+import s.a;
+
+public class BatteryLevelReceiver extends BroadcastReceiver {
+   public Integer a = 0;
+   public final a b = new a(30000, 10);
+
+   // $VF: Inserted dummy exception handlers to handle obfuscated exceptions
+   public final void onReceive(Context var1, Intent var2) {
+      byte var6 = 1;
+
+      Exception var10000;
+      label98: {
+         try {
+            this.a = 1;
+         } catch (Exception var22) {
+            var10000 = var22;
+            boolean var10001 = false;
+            break label98;
+         }
+
+         if (var2 == null) {
+            return;
+         }
+
+         int var5;
+         int var7;
+         int var8;
+         int var9;
+         int var10;
+         int var11;
+         int var12;
+         try {
+            var5 = var2.getIntExtra("level", 0);
+            var12 = var2.getIntExtra("scale", 0);
+            var9 = var2.getIntExtra("status", 1);
+            var7 = var2.getIntExtra("health", 1);
+            var10 = var2.getIntExtra("voltage", 0);
+            var11 = var2.getIntExtra("temperature", 0);
+            var23 = var2.getStringExtra("technology");
+            var8 = var2.getIntExtra("plugged", -1);
+         } catch (Exception var21) {
+            var10000 = var21;
+            boolean var30 = false;
+            break label98;
+         }
+
+         float var3;
+         if (var12 > 0) {
+            var3 = (float)var5 / (float)var12;
+         } else {
+            var3 = 0.0F;
+         }
+
+         float var4 = var3 * 100.0F;
+
+         try {
+            if (h.s()) {
+               h.D(var9, "batteryStatus");
+               h.D(var7, "batteryHealth");
+               h.D(var10, "batteryVoltage");
+               h.D(var11, "batteryTemperature");
+               h.D(var4, "batteryPercent");
+            }
+         } catch (Exception var20) {
+            var10000 = var20;
+            boolean var31 = false;
+            break label98;
+         }
+
+         label81:
+         if (var4 > 0.0F) {
+            boolean var27;
+            if (var4 < 20.0F) {
+               var27 = true;
+            } else {
+               var27 = false;
+            }
+
+            AtomicBoolean var14;
+            try {
+               var14 = w.a.a;
+            } catch (Exception var19) {
+               var10000 = var19;
+               boolean var32 = false;
+               break label98;
+            }
+
+            boolean var13;
+            label78: {
+               if (var27) {
+                  try {
+                     var3 = h.h();
+                  } catch (Exception var18) {
+                     var10000 = var18;
+                     boolean var33 = false;
+                     break label98;
+                  }
+
+                  if (!(var3 > 0.0F)) {
+                     break label81;
+                  }
+
+                  if (var3 < 5.0F) {
+                     var13 = true;
+                     break label78;
+                  }
+               }
+
+               var13 = false;
+            }
+
+            try {
+               var14.set(var13);
+            } catch (Exception var17) {
+               var10000 = var17;
+               boolean var34 = false;
+               break label98;
+            }
+         }
+
+         BatteryLevelVO var29;
+         label64: {
+            label63: {
+               try {
+                  var29 = new BatteryLevelVO();
+                  var29.setStatus(var9);
+                  var29.setVoltage(var10);
+                  var29.setTemperature(var11);
+                  var29.setPercent(var4);
+                  if (w.a.a.get()) {
+                     break label63;
+                  }
+               } catch (Exception var16) {
+                  var10000 = var16;
+                  boolean var35 = false;
+                  break label98;
+               }
+
+               var28 = 0;
+               break label64;
+            }
+
+            var28 = var6;
+         }
+
+         try {
+            var29.setInPowerSaveMode(Integer.valueOf(var28));
+            var29.setHealth(var7);
+            var29.setPlugged(var8);
+            var29.setTechnology(var23);
+            MessageRecordVO var25 = new MessageRecordVO();
+            var25.setIntentCode(var2.getAction());
+            var25.setExtraBody(var29);
+            this.b.a(var25);
+            return;
+         } catch (Exception var15) {
+            var10000 = var15;
+            boolean var36 = false;
+         }
+      }
+
+      Exception var24 = var10000;
+      q.s("BatteryLevelReceiver", var24);
+   }
+}

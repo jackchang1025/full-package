@@ -67,6 +67,18 @@ services:
                 - ping
             retries: 3
             timeout: 5s
+    frps:
+        image: 'snowdreamtech/frps:0.51.3'
+        container_name: feiying-frps
+        restart: unless-stopped
+        ports:
+            - '${FRPS_BIND_PORT:-7000}:7000'        # frp 协议端口
+            - '${FRPS_DASHBOARD_PORT:-7500}:7500'    # Dashboard 管理面板
+            - '20000-20100:20000-20100'               # 设备隧道端口 (开发环境仅开放 100 个)
+        volumes:
+            - './docker/frps/frps.ini:/etc/frp/frps.ini:ro'
+        networks:
+            - sail
 networks:
     sail:
         driver: bridge

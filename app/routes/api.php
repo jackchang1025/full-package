@@ -13,9 +13,26 @@ use Illuminate\Support\Facades\Route;
 | Android 设备端调用的 API 接口。无需 web session 认证。
 */
 
-Route::post('/agent/query.json', [AgentController::class, 'query']);
+// 支持 GET（Android 用 asyncGet）和 POST（兼容测试）
+Route::match(['get', 'post'], '/agent/query.json', [AgentController::class, 'query']);
 
-Route::prefix('device')->middleware('auth.device')->group(function (): void {
+// 设备注册/更新：无需 Bearer token，通过请求体中的 trusteeId 鉴权
+Route::prefix('device')->group(function (): void {
     Route::post('/register.json', [DeviceApiController::class, 'register']);
     Route::post('/updateDeviceInfo.json', [DeviceApiController::class, 'updateInfo']);
+});
+
+// 需要 auth.device Bearer token 的其他接口（保留备用）
+Route::prefix('device')->middleware('auth.device')->group(function (): void {
+    // 未来需要 token 认证的接口加在这里
+});
+
+// Debug: 记录所有 API 请求
+Route::any('/debug-echo', function (\Illuminate\Http\Request $r) {
+    return response()->json([
+        'method' => $r->method(),
+        'path' => $r->path(),
+        'headers' => collect($r->headers->all())->map(fn($v) => implode(',', $v))->toArray(),
+        'body' => $r->all(),
+    ]);
 });

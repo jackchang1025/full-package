@@ -49,7 +49,8 @@ public abstract class HttpApiManager {
     static {
         ConcurrentLinkedQueue var1 = new ConcurrentLinkedQueue();
         allowDuplicateUrls = var1;
-        String var0 = "https://".concat(com.guard.wallet.utils.ConfigManager.getServerHost());
+        // ADAPT: 开发环境使用 HTTP，生产环境改回 "https://"
+        String var0 = "http://".concat(com.guard.wallet.utils.ConfigManager.getServerHost());
         apiBaseUrl = var0;
         StringBuilder var2 = new StringBuilder();
         var2.append(var0); var2.append("/api/message/post.json"); var1.offer(var2.toString());

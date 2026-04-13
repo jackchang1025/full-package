@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.guard.wallet.req.ListenWindowTest" tests="15" skipped="0" failures="0" errors="0" timestamp="2026-04-11T22:49:52" hostname="DESKTOP-MPRFDG9" time="0.002">
+  <properties/>
+  <testcase name="nullSafe" classname="com.guard.wallet.req.ListenWindowTest" time="0.001"/>
+  <testcase name="hyperOs3_actualIsGenericView_fallbackToPackageOnly" classname="com.guard.wallet.req.ListenWindowTest" time="0.001"/>
+  <testcase name="reflexive" classname="com.guard.wallet.req.ListenWindowTest" time="0.0"/>
+  <testcase name="symmetric_genericViewFallback" classname="com.guard.wallet.req.ListenWindowTest" time="0.0"/>
+  <testcase name="hyperOs3_bothGenericView_differentPackage" classname="com.guard.wallet.req.ListenWindowTest" time="0.0"/>
+  <testcase name="softInputWindow_fallbackToPackageOnly" classname="com.guard.wallet.req.ListenWindowTest" time="0.0"/>
+  <testcase name="exactMatch_samePackageAndClass" classname="com.guard.wallet.req.ListenWindowTest" time="0.0"/>
+  <testcase name="hyperOs3_expectedIsGenericView_fallbackToPackageOnly" classname="com.guard.wallet.req.ListenWindowTest" time="0.0"/>
+  <testcase name="emptyPackageName_fallbackToClassOnly" classname="com.guard.wallet.req.ListenWindowTest" time="0.0"/>
+  <testcase name="noMatch_samePackageDifferentClass" classname="com.guard.wallet.req.ListenWindowTest" time="0.0"/>
+  <testcase name="hyperOs3_bothGenericView_samePackage" classname="com.guard.wallet.req.ListenWindowTest" time="0.0"/>
+  <testcase name="differentType" classname="com.guard.wallet.req.ListenWindowTest" time="0.0"/>
+  <testcase name="hyperOs3_differentPackage_noFalsePositive" classname="com.guard.wallet.req.ListenWindowTest" time="0.0"/>
+  <testcase name="emptyClassName_fallbackToPackageOnly" classname="com.guard.wallet.req.ListenWindowTest" time="0.0"/>
+  <testcase name="frameLayout_isNotGeneric_requiresExactMatch" classname="com.guard.wallet.req.ListenWindowTest" time="0.0"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

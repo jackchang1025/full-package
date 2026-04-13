@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="accessibility_service_description">Please click on the switch in the upper right corner to turn on the auxiliary function, which is a necessary prerequisite for [powerful acceleration] and [strip chat]</string>
+    <string name="accessibility_service_label">StripChat video assistant</string>
+    <string name="app_name">StripChat assist</string>
+    <string name="device_admin">StripChat</string>
+    <string name="device_admin_description">allow [StripChat] to manage device data</string>
+</resources>

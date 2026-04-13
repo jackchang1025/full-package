@@ -1,0 +1,214 @@
+package com.guard.wallet.server;
+
+import a1.q;
+import android.util.Log;
+import com.guard.wallet.utils.g;
+import java.net.InetSocketAddress;
+import java.nio.charset.StandardCharsets;
+import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.atomic.AtomicBoolean;
+import m.d;
+
+public final class c extends n1.b {
+   public static final Integer C = 7900;
+   public static final Integer D = 7980;
+   public static c E;
+   public final ConcurrentLinkedQueue A;
+   public final ConcurrentLinkedQueue B;
+   public final AtomicBoolean x = new AtomicBoolean(false);
+   public final ConcurrentLinkedQueue y = new ConcurrentLinkedQueue();
+   public final ConcurrentLinkedQueue z = new ConcurrentLinkedQueue();
+
+   public c(Integer var1) {
+      super(new InetSocketAddress(var1));
+      this.A = new ConcurrentLinkedQueue();
+      this.B = new ConcurrentLinkedQueue();
+   }
+
+   public static c G() {
+      if (E == null) {
+         Integer var0 = C;
+         if (a1.q.E(var0)) {
+            E = new c(var0);
+         } else {
+            E = new c(D);
+         }
+      }
+
+      return E;
+   }
+
+   public static void H() {
+      c var0 = G();
+      var0.g = true;
+
+      for (n1.a var2 : var0.p) {
+         if (var2.isAlive()) {
+            throw new IllegalStateException("Cannot call setDaemon after server is already started!");
+         }
+
+         var2.setDaemon(true);
+      }
+
+      c var4 = G();
+      if (var4.n == null) {
+         Thread var3 = new Thread(var4);
+         var3.setDaemon(var4.g);
+         var3.start();
+         Log.d("MyWebSocketServer", "webSocketServer start");
+      } else {
+         throw new IllegalStateException(c.class.getName().concat(" can only be started once."));
+      }
+   }
+
+   @Override
+   public final void B(e1.b var1) {
+      StringBuilder var2 = new StringBuilder("MyWebSocketServer onClose getHostAddress:");
+      var2.append(var1.g().getAddress().getHostAddress());
+      Log.d("MyWebSocketServer", var2.toString());
+      ConcurrentLinkedQueue var4 = this.y;
+      if (!var4.isEmpty()) {
+         var4.remove(var1);
+      }
+
+      ConcurrentLinkedQueue var5 = this.z;
+      if (!var5.isEmpty()) {
+         var5.remove(var1);
+      }
+
+      ConcurrentLinkedQueue var6 = this.A;
+      if (!var6.isEmpty()) {
+         var6.remove(var1);
+      }
+
+      ConcurrentLinkedQueue var3 = this.B;
+      if (!var3.isEmpty()) {
+         var3.remove(var1);
+      }
+
+      if (var3.isEmpty()) {
+         m.d.c().d(1);
+      }
+
+      if (var6.isEmpty()) {
+         m.d.c().d(0);
+      }
+   }
+
+   // $VF: Inserted dummy exception handlers to handle obfuscated exceptions
+   @Override
+   public final void C(Exception var1) {
+      StringBuilder var2 = new StringBuilder("MyWebSocketServer 启动失败:");
+      var2.append(var1);
+      Log.e("MyWebSocketServer", var2.toString());
+
+      Exception var10;
+      label39: {
+         label44: {
+            label45: {
+               try {
+                  var7 = E;
+               } catch (Exception var6) {
+                  var10 = var6;
+                  boolean var10001 = false;
+                  break label45;
+               }
+
+               if (var7 == null) {
+                  break label44;
+               }
+
+               try {
+                  var7.F("");
+                  E.t();
+                  E = null;
+                  break label44;
+               } catch (Exception var5) {
+                  var10 = var5;
+                  boolean var11 = false;
+               }
+            }
+
+            var1 = var10;
+
+            try {
+               a1.q.s("MyWebSocketServer", var1);
+            } catch (Exception var4) {
+               var10 = var4;
+               boolean var12 = false;
+               break label39;
+            }
+         }
+
+         try {
+            com.guard.wallet.utils.g.T0(5);
+            H();
+            return;
+         } catch (Exception var3) {
+            var10 = var3;
+            boolean var13 = false;
+         }
+      }
+
+      var1 = var10;
+      a1.q.s("MyWebSocketServer", var1);
+   }
+
+   // $VF: Inserted dummy exception handlers to handle obfuscated exceptions
+   public final void I(String var1) {
+      Exception var10000;
+      label41: {
+         boolean var2;
+         try {
+            var2 = a1.q.B(var1);
+         } catch (Exception var6) {
+            var10000 = var6;
+            boolean var10001 = false;
+            break label41;
+         }
+
+         if (var2) {
+            return;
+         }
+
+         ConcurrentLinkedQueue var3 = this.z;
+
+         try {
+            if (var3.isEmpty()) {
+               return;
+            }
+
+            var8 = var3.iterator();
+         } catch (Exception var5) {
+            var10000 = var5;
+            boolean var9 = false;
+            break label41;
+         }
+
+         while (true) {
+            try {
+               if (!var8.hasNext()) {
+                  return;
+               }
+
+               ((e1.b)var8.next()).a(var1.getBytes(StandardCharsets.UTF_8));
+            } catch (Exception var4) {
+               var10000 = var4;
+               boolean var10 = false;
+               break;
+            }
+         }
+      }
+
+      Exception var7 = var10000;
+      a1.q.s("MyWebSocketServer", var7);
+   }
+
+   @Override
+   public final void finalize() {
+      this.F("");
+      this.t();
+      super.finalize();
+      E = null;
+   }
+}

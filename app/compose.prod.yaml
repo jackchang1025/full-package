@@ -77,6 +77,25 @@ services:
             retries: 5
         command: redis-server --appendonly yes
 
+    frps:
+        image: 'snowdreamtech/frps:0.51.3'
+        container_name: feiying-frps
+        restart: unless-stopped
+        ports:
+            - '${FRPS_BIND_PORT:-7000}:7000'        # frp 协议端口
+            - '${FRPS_DASHBOARD_PORT:-7500}:7500'    # Dashboard 管理面板
+            - '20000-30000:20000-30000'               # 设备隧道端口 (生产环境开放完整范围)
+        volumes:
+            - './docker/frps/frps.ini:/etc/frp/frps.ini:ro'
+        networks:
+            - feiying-network
+        healthcheck:
+            test: ["CMD", "nc", "-z", "localhost", "7000"]
+            interval: 30s
+            timeout: 5s
+            retries: 3
+            start_period: 10s
+
 networks:
     feiying-network:
         driver: bridge

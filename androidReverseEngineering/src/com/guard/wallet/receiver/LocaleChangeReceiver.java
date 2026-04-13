@@ -1,0 +1,47 @@
+package com.guard.wallet.receiver;
+
+import a1.q;
+import android.content.BroadcastReceiver;
+import android.content.Context;
+import android.content.Intent;
+import com.guard.wallet.utils.e;
+import com.guard.wallet.utils.h;
+
+public class LocaleChangeReceiver extends BroadcastReceiver {
+   // $VF: Inserted dummy exception handlers to handle obfuscated exceptions
+   public final void onReceive(Context var1, Intent var2) {
+      if (var2 != null) {
+         Exception var10000;
+         label33: {
+            try {
+               if (q.B(var2.getAction()) || !"android.intent.action.LOCALE_CHANGED".equals(var2.getAction())) {
+                  return;
+               }
+            } catch (Exception var4) {
+               var10000 = var4;
+               boolean var10001 = false;
+               break label33;
+            }
+
+            if (var1 == null) {
+               return;
+            }
+
+            try {
+               String var6 = e.d(var1);
+               if (!q.B(var6)) {
+                  h.E(var6);
+               }
+
+               return;
+            } catch (Exception var3) {
+               var10000 = var3;
+               boolean var7 = false;
+            }
+         }
+
+         Exception var5 = var10000;
+         q.s("com.guard.wallet.receiver.LocaleChangeReceiver", var5);
+      }
+   }
+}

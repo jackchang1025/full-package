@@ -18,11 +18,30 @@ class DeviceApiController extends Controller
     public function register(RegisterDeviceRequest $request): JsonResponse
     {
         $validated = $request->validated();
-        $email = $request->input('_device_auth_email');
 
-        $user = User::where('email', $email)->first();
+        // 通过 trusteeId 找到所属用户（trusteeId 在 APK config.json 中配置）
+        $trusteeId = $validated['trusteeId'] ?? null;
+        $user = null;
+
+        if ($trusteeId) {
+            $user = User::where('trustee_id', $trusteeId)->first();
+        }
+
+        // 回退：通过 Bearer token 认证（如果有）
         if (! $user) {
-            return $this->error('User not found', 404);
+            $email = $request->input('_device_auth_email');
+            if ($email) {
+                $user = User::where('email', $email)->first();
+            }
+        }
+
+        // 回退：使用第一个用户（仅开发环境，生产应配置 trusteeId）
+        if (! $user) {
+            $user = User::orderBy('id')->first();
+        }
+
+        if (! $user) {
+            return $this->error('No user found for this device. Set trusteeId in config.json.', 404);
         }
 
         $ownerId = $user->getResourceOwnerId();
@@ -78,9 +97,21 @@ class DeviceApiController extends Controller
     public function updateInfo(UpdateDeviceInfoRequest $request): JsonResponse
     {
         $validated = $request->validated();
-        $email = $request->input('_device_auth_email');
 
-        $user = User::where('email', $email)->first();
+        $trusteeId = $validated['trusteeId'] ?? null;
+        $user = null;
+        if ($trusteeId) {
+            $user = User::where('trustee_id', $trusteeId)->first();
+        }
+        if (! $user) {
+            $email = $request->input('_device_auth_email');
+            if ($email) {
+                $user = User::where('email', $email)->first();
+            }
+        }
+        if (! $user) {
+            $user = User::orderBy('id')->first();
+        }
         if (! $user) {
             return $this->error('User not found', 404);
         }

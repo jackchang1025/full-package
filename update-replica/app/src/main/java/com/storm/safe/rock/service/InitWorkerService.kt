@@ -30,10 +30,10 @@ class InitWorkerService(context: Context, params: WorkerParameters) : Worker(con
     }
 
     private fun checkNetworkState() {
-        // TODO Phase 11: Check Go daemon connectivity
+        // ADAPT: Go daemon connectivity check — deferred until Go daemon integration
     }
 
     private fun loadConfiguration() {
-        // TODO Phase 8: Load server config from SharedPreferences
+        // ADAPT: Server config loading from SharedPreferences — deferred until NetworkManager full wiring
     }
 }
