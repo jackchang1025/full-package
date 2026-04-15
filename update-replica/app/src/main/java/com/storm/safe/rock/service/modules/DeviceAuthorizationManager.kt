@@ -229,7 +229,7 @@ class DeviceAuthorizationManager(
 
             // Cooldown gate: skip if recent failure within AUTH_COOLDOWN_MS
             if (AutomationCoordinator.shouldSkipDueToRecentFailure()) {
-                Log.i(TAG, "⏸️ 授权流程冷却中 (距上次失败 < ${AutomationCoordinator.AUTH_COOLDOWN_MS / 1000}s)，跳过")
+                Log.d(TAG, "⏸️ 授权流程冷却中 (距上次失败 < ${AutomationCoordinator.AUTH_COOLDOWN_MS / 1000}s)，跳过")
                 return
             }
 
@@ -338,6 +338,8 @@ class DeviceAuthorizationManager(
                         } else {
                             AutomationCoordinator.markFailure()
                         }
+                    } catch (e: kotlinx.coroutines.CancellationException) {
+                        throw e
                     } catch (e: Exception) {
                         Log.e(TAG, "❌ 授权执行异常: ${e.message}", e)
                         AutomationCoordinator.markFailure()
@@ -356,9 +358,15 @@ class DeviceAuthorizationManager(
                     onAuthResult(failures.isEmpty(), successes, failures, warnings)
                 }
             }
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
         } catch (e: Exception) {
             Log.e(TAG, "❌ 授权流程执行失败: ${e.message}", e)
         } finally {
+            // NOTE: We intentionally do NOT call AutomationCoordinator.markFailure()/markSuccess() here.
+            // Normal flow: markSuccess/markFailure are called inside the try block based on result.
+            // Cancellation path: the coroutine was cancelled (not a flow failure) — leaving
+            // coordinator state untouched is correct so the next trigger can retry immediately.
             UiDebugger.logStep(TAG, "品牌引擎完成", "进入 finally 块, 准备 resumeWriteSettings")
             UiDebugger.dumpPage(service, "auth_after_execute", "品牌引擎执行后")
             inProgress = false
