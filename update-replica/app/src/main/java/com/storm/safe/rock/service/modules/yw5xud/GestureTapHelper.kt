@@ -55,13 +55,14 @@ object GestureTapHelper {
                 Log.w(TAG, "⚠️ dispatchGesture returned false for tap ($x,$y)")
                 return false
             }
-            var elapsed = 0
-            while (!completed && !cancelled && elapsed < 600) {
+            val deadline = System.currentTimeMillis() + 600L
+            while (!completed && !cancelled && System.currentTimeMillis() < deadline) {
                 delay(50)
-                elapsed += 50
             }
             if (cancelled) Log.w(TAG, "⚠️ tap cancelled at ($x,$y)")
             completed
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
         } catch (e: Exception) {
             Log.e(TAG, "❌ performTap failed at ($x,$y)", e)
             false

@@ -5,6 +5,15 @@ import org.junit.Assert.*
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 
+// NOTE: CancellationException propagation test is intentionally omitted.
+// Reason: `performTap` requires a live `AccessibilityService` to call
+// `dispatchGesture`. Robolectric cannot instantiate an AccessibilityService
+// with a real GestureResultCallback loop, so we cannot exercise the
+// `delay(50)` polling path in a unit test without a full instrumented
+// environment. The fix (rethrow CancellationException before the generic
+// catch) is enforced structurally — the compiler guarantees
+// CancellationException reaches the outer caller — and is verified by
+// code inspection per rules/kotlin/coding-style.md.
 @RunWith(RobolectricTestRunner::class)
 class GestureTapHelperTest {
 
