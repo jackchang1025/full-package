@@ -102,6 +102,20 @@ class GenericSteps(
             "com.android.settings:id/switch_text",
             "com.samsung.android.settings:id/switch_widget"
         )
+
+        /** All-files-access toggle keywords. MIUI: 允许管理所有文件. AOSP: Allow access to manage all files. */
+        val ALL_FILES_ALLOW_KEYWORDS: List<String> = listOf(
+            "允许管理所有文件", "允许访问全部", "允許管理所有檔案", "允許存取所有檔案",
+            "允许所有文件访问", "允許所有檔案存取",
+            "Allow access to manage all files", "Allow management of all files",
+            "Permit all files access"
+        )
+
+        /** Max iterations for autoToggleAllFilesAccess. */
+        const val ALL_FILES_TOGGLE_MAX_ITERATIONS: Int = 10
+
+        /** Interval between iterations (ms). */
+        const val ALL_FILES_TOGGLE_INTERVAL_MS: Long = 1000L
     }
 
     /** Flow types matching vendor GenericSteps$FlowType. */
@@ -218,8 +232,12 @@ class GenericSteps(
     /**
      * All files access (MANAGE_EXTERNAL_STORAGE, API 30+).
      * Matches vendor a9/a7: for API 30+, check Environment.isExternalStorageManager().
+     *
+     * ADAPT: removed FLAG_ACTIVITY_NO_HISTORY (MIUI MiuiFreeFormGestureController finishes
+     * the Activity 0.5s after it leaves foreground when NO_HISTORY is set, making auto-click
+     * impossible).
      */
-    fun executeAllFilesAccess(
+    suspend fun executeAllFilesAccess(
         successes: MutableList<String>,
         failures: MutableList<String>,
         logs: MutableList<String>
@@ -236,16 +254,31 @@ class GenericSteps(
             }
             val intent = Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION).apply {
                 data = Uri.parse("package:${context.packageName}")
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_MULTIPLE_TASK or Intent.FLAG_ACTIVITY_NO_HISTORY or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_MULTIPLE_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
             }
             (service ?: context).startActivity(intent)
             logs.add("已发送所有文件访问权限请求")
-            UiDebugger.dumpPage(service, "generic_all_files_before", "文件访问权限页面")
+            // Wait for intent to actually switch pages, then dump + auto-toggle
+            waitForPageStable()
+            interruptibleDelay(1500L)
+            UiDebugger.dumpPage(service, "generic_all_files_before", "文件访问权限页面(已切换)")
+
+            val toggled = autoToggleAllFilesAccess(logs)
+            if (toggled) {
+                successes.add("所有文件访问已授权")
+            } else if (android.os.Environment.isExternalStorageManager()) {
+                successes.add("所有文件访问已授权(延迟确认)")
+            } else {
+                failures.add("所有文件访问: 自动点击失败，需要用户手动开启")
+            }
+            UiDebugger.dumpPage(service, "generic_all_files_after", "文件访问权限页面(尝试点击后)")
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
         } catch (e: Exception) {
             // Fallback to general manage storage (vendor a7 fallback)
             try {
                 val fallback = Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION).apply {
-                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_MULTIPLE_TASK or Intent.FLAG_ACTIVITY_NO_HISTORY or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_MULTIPLE_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
                 }
                 (service ?: context).startActivity(fallback)
                 logs.add("已发送所有文件访问权限请求(回退)")
@@ -253,6 +286,105 @@ class GenericSteps(
                 failures.add("所有文件访问配置失败: ${e2.message}")
             }
         }
+    }
+
+    /**
+     * Auto-toggle the "Allow management of all files" switch in the system settings page.
+     * Loops up to ALL_FILES_TOGGLE_MAX_ITERATIONS, polling isExternalStorageManager.
+     *
+     * Strategy per iteration:
+     *   1. If Environment.isExternalStorageManager() already true → done
+     *   2. Get fresh rootInActiveWindow (old root is stale after page switch)
+     *   3. Find Switch/CompoundButton node → performClick
+     *   4. Find "允许管理所有文件" text row → climb parent chain for clickable container
+     *   5. Fallback: GestureTapHelper.performTap to right-side Switch coordinates
+     */
+    private suspend fun autoToggleAllFilesAccess(logs: MutableList<String>): Boolean {
+        val svc = service ?: run {
+            logs.add("[文件权限] service 为 null，无法自动点击")
+            return false
+        }
+        for (iter in 0 until ALL_FILES_TOGGLE_MAX_ITERATIONS) {
+            if (android.os.Environment.isExternalStorageManager()) {
+                logs.add("[文件权限] 已授权 (iter=$iter)")
+                return true
+            }
+            val root = try { svc.rootInActiveWindow } catch (_: Exception) { null }
+            if (root == null) {
+                interruptibleDelay(ALL_FILES_TOGGLE_INTERVAL_MS)
+                continue
+            }
+            val pkg = root.packageName?.toString() ?: ""
+            UiDebugger.logStep(TAG, "[文件权限] iter=$iter pkg=$pkg")
+
+            // Strategy 1: find Switch/CompoundButton directly
+            val switchNode = findFirstToggleNode(root)
+            if (switchNode != null) {
+                UiDebugger.logStep(TAG, "[文件权限] strategy1 找到 Switch class=${switchNode.className}")
+                switchNode.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK)
+                interruptibleDelay(ALL_FILES_TOGGLE_INTERVAL_MS)
+                continue
+            }
+
+            // Strategy 2: find allow-keyword text → climb parent chain for clickable row
+            var clickedRow = false
+            for (keyword in ALL_FILES_ALLOW_KEYWORDS) {
+                val matches = try { root.findAccessibilityNodeInfosByText(keyword) } catch (_: Exception) { null }
+                if (matches.isNullOrEmpty()) continue
+                for (textNode in matches) {
+                    if (!textNode.isVisibleToUser) continue
+                    var current: android.view.accessibility.AccessibilityNodeInfo? = textNode.parent
+                    var depth = 0
+                    while (current != null && depth < 8) {
+                        if (current.isClickable && current.isVisibleToUser) {
+                            UiDebugger.logStep(TAG, "[文件权限] strategy2 点击父容器「$keyword」depth=$depth")
+                            current.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK)
+                            clickedRow = true
+                            break
+                        }
+                        current = current.parent
+                        depth++
+                    }
+                    if (clickedRow) break
+
+                    // Strategy 3: gesture tap on right-side Switch area
+                    val rect = android.graphics.Rect()
+                    textNode.getBoundsInScreen(rect)
+                    if (rect.width() > 0 && rect.height() > 0) {
+                        val dm = context.resources.displayMetrics
+                        val switchX = (dm.widthPixels - 120).toFloat()
+                        val switchY = rect.centerY().toFloat()
+                        UiDebugger.logStep(TAG, "[文件权限] strategy3 gesture tap right-switch at ($switchX,$switchY)")
+                        val tapped = GestureTapHelper.performTap(svc, switchX, switchY)
+                        if (tapped) { clickedRow = true; break }
+                    }
+                }
+                if (clickedRow) break
+            }
+            if (!clickedRow) {
+                UiDebugger.dumpPage(svc, "generic_all_files_iter${iter}_no_click",
+                    "iter=$iter 未找到 Switch 也未找到匹配文本")
+            }
+            interruptibleDelay(ALL_FILES_TOGGLE_INTERVAL_MS)
+        }
+        val finalState = android.os.Environment.isExternalStorageManager()
+        logs.add("[文件权限] 10 次循环结束，isExternalStorageManager=$finalState")
+        return finalState
+    }
+
+    /** DFS find first toggle/switch-like node (Switch/CompoundButton/ToggleButton). */
+    private fun findFirstToggleNode(node: android.view.accessibility.AccessibilityNodeInfo?): android.view.accessibility.AccessibilityNodeInfo? {
+        if (node == null) return null
+        val className = node.className?.toString() ?: ""
+        val isToggle = listOf("Switch", "Toggle", "CompoundButton", "SwitchCompat")
+            .any { className.contains(it, ignoreCase = true) }
+        if (isToggle && node.isClickable && node.isVisibleToUser && node.isEnabled) return node
+        for (i in 0 until node.childCount) {
+            val child = try { node.getChild(i) } catch (_: Exception) { null } ?: continue
+            val found = findFirstToggleNode(child)
+            if (found != null) return found
+        }
+        return null
     }
 
     // ── Flow 3: Basic Permissions (vendor m212130b0) ─────────────────

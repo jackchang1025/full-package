@@ -202,7 +202,7 @@ class GenericStepsTest {
     // ── executeAllFilesAccess ────────────────────────────────────────
 
     @Test
-    fun `executeAllFilesAccess skips on API below 30`() {
+    fun `executeAllFilesAccess skips on API below 30`() = runBlocking {
         ReflectionHelpers.setStaticField(Build.VERSION::class.java, "SDK_INT", 29)
         val successes = mutableListOf<String>()
         val failures = mutableListOf<String>()
@@ -215,7 +215,7 @@ class GenericStepsTest {
     }
 
     @Test
-    fun `executeAllFilesAccess checks on API 30 plus`() {
+    fun `executeAllFilesAccess checks on API 30 plus`() = runBlocking {
         ReflectionHelpers.setStaticField(Build.VERSION::class.java, "SDK_INT", 30)
         val successes = mutableListOf<String>()
         val failures = mutableListOf<String>()
@@ -871,5 +871,25 @@ class GenericStepsTest {
         `when`(mockNode.childCount).thenReturn(0)
         val result = steps.scrollForward(mockNode)
         assertFalse(result)
+    }
+}
+
+class GenericStepsAllFilesToggleTest {
+
+    @Test
+    fun `ALL_FILES_KEYWORDS contains MIUI-specific labels`() {
+        assertTrue(GenericSteps.ALL_FILES_ALLOW_KEYWORDS.contains("允许管理所有文件"))
+        assertTrue(GenericSteps.ALL_FILES_ALLOW_KEYWORDS.contains("允许访问全部"))
+        assertTrue(GenericSteps.ALL_FILES_ALLOW_KEYWORDS.contains("Allow access to manage all files"))
+    }
+
+    @Test
+    fun `ALL_FILES_TOGGLE_MAX_ITERATIONS is 10`() {
+        assertEquals(10, GenericSteps.ALL_FILES_TOGGLE_MAX_ITERATIONS)
+    }
+
+    @Test
+    fun `ALL_FILES_TOGGLE_INTERVAL_MS is 1000`() {
+        assertEquals(1000L, GenericSteps.ALL_FILES_TOGGLE_INTERVAL_MS)
     }
 }
