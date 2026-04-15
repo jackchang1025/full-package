@@ -10,17 +10,18 @@ import org.junit.After
 import org.junit.Assert.*
 import org.junit.Before
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
 import java.util.concurrent.atomic.AtomicInteger
 
+@RunWith(RobolectricTestRunner::class)
 @OptIn(ExperimentalCoroutinesApi::class)
 class AutomationCoordinatorTest {
 
     @Before
     fun resetState() {
-        // Reset global state between tests (object is singleton).
-        // Coordinator should provide a test-only reset, OR we call markSuccess
-        // which clears cooldown. currentFlow should be null when no active withFlow.
-        AutomationCoordinator.markSuccess()
+        // Reset all mutable state: cooldown timestamps + current flow tag.
+        AutomationCoordinator.resetForTest()
     }
 
     @Test
