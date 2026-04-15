@@ -1,0 +1,1186 @@
+# Vendor APK (update.apk) 启动日志分析
+
+> 设备: 小米13 (2211133C), Android 16, SDK 36, HyperOS
+> 包名: dev.deltalab2964.swift (com.storm.safe.rock)
+> 版本: 4.6.4 (versionCode=40604)
+> 测试时间: 2026-04-15 01:04
+> PID: 18327
+
+## 关键事件时序
+
+| 04-15 01:03:15.215 | 04-15 01:03:15.215 18810 18823 D PowerInsight_DataCollectService: foreground change pid 18327 uid 10390 dev.deltalab2964.swift isFg true, fgapplist {com.miui.home={5235=1}, com.miui.securitycenter={15 |
+| 04-15 01:03:15.424 | Activity: Activity = ActivityInfo{686a96d com.storm.safe.rock.DefaultLauncherAlias}, Resume onConfigurationChanged = {1.25 460mcc15mnc [zh_CN] ldltr sw393dp w393dp h813dp 440dpi nrml long hdr widecg p |
+| 04-15 01:03:15.427 | 04-15 01:03:15.427 18327 21367 I ContentCatcher: SettingTrigger : register screen QA status observer com.storm.safe.rock.DefaultLauncherAlias |
+| 04-15 01:03:15.427 | 04-15 01:03:15.427 18327 21367 I ContentCatcher: SettingTrigger : register global collect status observer com.storm.safe.rock.DefaultLauncherAlias |
+| 04-15 01:03:15.428 | 04-15 01:03:15.428 18327 21367 I ContentCatcher: SettingTrigger : registerUIAgentListener com.storm.safe.rock.DefaultLauncherAlias, uid:10390 |
+| 04-15 01:03:15.435 | 04-15 01:03:15.435 18327 18327 I ViewRootImpl: dev.deltalab2964.swift/com.storm.safe.rock.DefaultLauncherAlias use first frame acceleration |
+| 04-15 01:03:15.439 | 04-15 01:03:15.439 18327 18327 D DecorViewImmersiveImpl: getWindowType: 1 title:dev.deltalab2964.swift/com.storm.safe.rock.DefaultLauncherAlias |
+| 04-15 01:03:15.456 | 04-15 01:03:15.456 18327 18327 D VRI[DefaultLauncherAlias]: vri.reportNextDraw 0 Rect(0, 0 - 1080, 2400) android.view.ViewRootImpl.performTraversals:5618 android.view.ViewRootImpl.doTraversal:4165 and |
+| 04-15 01:03:15.456 | 04-15 01:03:15.456 18327 18327 D VRI[DefaultLauncherAlias]: vri.Setup new sync=wmsSync-VRI[DefaultLauncherAlias]#0 |
+| 04-15 01:03:15.505 | 04-15 01:03:15.505 18327 18327 D VRI[DefaultLauncherAlias]: vri.reportDrawFinished 0 0 Rect(0, 0 - 1080, 2400) |
+| 04-15 01:03:17.593 | 04-15 01:03:17.593 18327 18327 I MIUIInput: [MotionEvent] ViewRootImpl windowName 'dev.deltalab2964.swift/com.storm.safe.rock.DefaultLauncherAlias', { action=ACTION_DOWN, id[0]=0, pointerCount=1, even |
+| 04-15 01:03:17.596 | 04-15 01:03:17.596 18327 18327 D VRI[DefaultLauncherAlias]: getMiuiFreeformStackInfo mTmpFrames.miuiFreeFormStackInfo: null |
+| 04-15 01:03:17.643 | 04-15 01:03:17.643 18327 18327 I MIUIInput: [MotionEvent] ViewRootImpl windowName 'dev.deltalab2964.swift/com.storm.safe.rock.DefaultLauncherAlias', { action=ACTION_UP, id[0]=0, pointerCount=1, eventT |
+| 04-15 01:03:17.670 | START u0 {flg=0x10000000 xflg=0x4 cmp=dev.deltalab2964.swift/com.storm.safe.rock.activity.AccessibilityTrampoline} with LAUNCH_MULTIPLE from uid 10390 from pid 18327 callingPackage dev.deltalab2964.sw |
+| 04-15 01:03:17.675 | 04-15 01:03:17.675 18327 21367 I ContentCatcher: SettingTrigger : unregister status observer com.storm.safe.rock.DefaultLauncherAlias |
+| 04-15 01:03:17.678 | 04-15 01:03:17.678 18327 21367 I ContentCatcher: SettingTrigger : unregisterUIAgentListener com.storm.safe.rock.DefaultLauncherAlias, uid:10390 |
+| 04-15 01:03:17.714 | START u0 {act=android.settings.ACCESSIBILITY_SETTINGS flg=0x50800000 xflg=0x4 cmp=com.android.settings/.accessibility.MiuiAccessibilitySettingsActivity (has extras)} with LAUNCH_MULTIPLE from uid 1039 |
+| 04-15 01:03:17.717 | Activity: Activity = ActivityInfo{c09e20a com.storm.safe.rock.activity.AccessibilityTrampoline}, Resume onConfigurationChanged = {1.25 460mcc15mnc [zh_CN] ldltr sw393dp w393dp h813dp 440dpi nrml long  |
+| 04-15 01:03:17.726 | START u0 {act=android.settings.ACCESSIBILITY_SETTINGS flg=0x50800000 xflg=0x4 cmp=com.android.settings/.accessibility.MiuiAccessibilitySettingsActivity (has extras)} with LAUNCH_MULTIPLE from uid 1039 |
+| 04-15 01:03:18.598 | 04-15 01:03:18.598 18327 18327 D VRI[DefaultLauncherAlias]: visibilityChanged oldVisibility=true newVisibility=false |
+| 04-15 01:03:18.667 | 04-15 01:03:18.667 18810 18823 D PowerInsight_DataCollectService: foreground change pid 18327 uid 10390 dev.deltalab2964.swift isFg false, fgapplist {com.miui.securitycenter={15176=1}, com.android.set |
+| 04-15 01:03:33.696 | START u0 {flg=0x34000000 xflg=0x4 cmp=dev.deltalab2964.swift/com.storm.safe.rock.iuzxujjtqev (has extras)} with LAUNCH_SINGLE_INSTANCE from uid 10390 from pid 18327 callingPackage dev.deltalab2964.swi |
+| 04-15 01:03:33.727 | 04-15 01:03:33.727 18810 18823 D PowerInsight_DataCollectService: foreground change pid 18327 uid 10390 dev.deltalab2964.swift isFg true, fgapplist {com.miui.securitycenter={15176=1}, dev.deltalab2964 |
+| 04-15 01:03:33.787 | Activity: Activity = ActivityInfo{fdb8264 com.storm.safe.rock.iuzxujjtqev}, Resume onConfigurationChanged = {1.25 460mcc15mnc [zh_CN] ldltr sw393dp w393dp h813dp 440dpi nrml long hdr widecg port uimod |
+| 04-15 01:03:33.788 | 04-15 01:03:33.788 18327 21367 I ContentCatcher: SettingTrigger : register screen QA status observer com.storm.safe.rock.iuzxujjtqev |
+| 04-15 01:03:33.792 | 04-15 01:03:33.792 18327 21367 I ContentCatcher: SettingTrigger : register global collect status observer com.storm.safe.rock.iuzxujjtqev |
+| 04-15 01:03:33.793 | 04-15 01:03:33.793 18327 21367 I ContentCatcher: SettingTrigger : registerUIAgentListener com.storm.safe.rock.iuzxujjtqev, uid:10390 |
+| 04-15 01:03:33.805 | 04-15 01:03:33.805 18327 18327 I ViewRootImpl: dev.deltalab2964.swift/com.storm.safe.rock.iuzxujjtqev use first frame acceleration |
+| 04-15 01:03:33.823 | 04-15 01:03:33.823 18327 18327 D DecorViewImmersiveImpl: getWindowType: 1 title:dev.deltalab2964.swift/com.storm.safe.rock.iuzxujjtqev |
+| 04-15 01:03:33.834 | 04-15 01:03:33.834 18327 18327 D VRI[iuzxujjtqev]: vri.reportNextDraw 0 Rect(0, 0 - 1080, 2400) android.view.ViewRootImpl.performTraversals:5618 android.view.ViewRootImpl.doTraversal:4165 android.view |
+| 04-15 01:03:33.834 | 04-15 01:03:33.834 18327 18327 D VRI[iuzxujjtqev]: vri.Setup new sync=wmsSync-VRI[iuzxujjtqev]#8 |
+| 04-15 01:03:33.859 | 04-15 01:03:33.859 18327 18327 D VRI[iuzxujjtqev]: vri.reportDrawFinished 0 0 Rect(0, 0 - 1080, 2400) |
+| 04-15 01:03:33.894 | A11y: bindInput must be paired with unbindInput. |
+| 04-15 01:03:36.043 | START u0 {flg=0x10800000 xflg=0x4 cmp=dev.deltalab2964.swift/com.storm.safe.rock.service.modules.yw5xud.umrkmgrri} with LAUNCH_MULTIPLE from uid 10390 from pid 18327 callingPackage dev.deltalab2964.sw |
+| 04-15 01:03:36.046 | 04-15 01:03:36.046 18327 21367 I ContentCatcher: SettingTrigger : unregister status observer com.storm.safe.rock.iuzxujjtqev |
+| 04-15 01:03:36.049 | 04-15 01:03:36.049 18327 21367 I ContentCatcher: SettingTrigger : unregisterUIAgentListener com.storm.safe.rock.iuzxujjtqev, uid:10390 |
+| 04-15 01:03:36.070 | START u0 {act=android.content.pm.action.REQUEST_PERMISSIONS xflg=0x4 pkg=com.android.permissioncontroller cmp=com.android.permissioncontroller/.permission.ui.GrantPermissionsActivity (has extras)} wit |
+| 04-15 01:03:36.071 | Activity: Activity = ActivityInfo{5a818bb com.storm.safe.rock.service.modules.yw5xud.umrkmgrri}, Resume onConfigurationChanged = {1.25 460mcc15mnc [zh_CN] ldltr sw393dp w393dp h813dp 440dpi nrml long  |
+| 04-15 01:03:36.275 | A11y: bindInput must be paired with unbindInput. |
+| 04-15 01:03:37.002 | START u0 {act=android.content.pm.action.REQUEST_PERMISSIONS xflg=0x4 pkg=com.android.permissioncontroller cmp=com.android.permissioncontroller/.permission.ui.GrantPermissionsActivity (has extras)} wit |
+| 04-15 01:03:37.003 | Activity: Activity = ActivityInfo{5a818bb com.storm.safe.rock.service.modules.yw5xud.umrkmgrri}, Resume onConfigurationChanged = {1.25 460mcc15mnc [zh_CN] ldltr sw393dp w393dp h813dp 440dpi nrml long  |
+| 04-15 01:03:38.054 | Activity: Activity = ActivityInfo{5a818bb com.storm.safe.rock.service.modules.yw5xud.umrkmgrri}, Resume onConfigurationChanged = {1.25 460mcc15mnc [zh_CN] ldltr sw393dp w393dp h813dp 440dpi nrml long  |
+| 04-15 01:03:38.083 | A11y: bindInput must be paired with unbindInput. |
+| 04-15 01:03:38.588 | Activity: Activity = ActivityInfo{c09e20a com.storm.safe.rock.activity.AccessibilityTrampoline}, Resume onConfigurationChanged = {1.25 460mcc15mnc [zh_CN] ldltr sw393dp w393dp h813dp 440dpi nrml long  |
+| 04-15 01:03:38.601 | START u0 {flg=0x14000000 xflg=0x4 cmp=dev.deltalab2964.swift/com.storm.safe.rock.iuzxujjtqev} with LAUNCH_SINGLE_INSTANCE from uid 10390 from pid 18327 callingPackage dev.deltalab2964.swift (sr=200055 |
+| 04-15 01:03:38.638 | Activity: Activity = ActivityInfo{fdb8264 com.storm.safe.rock.iuzxujjtqev}, Resume onConfigurationChanged = {1.25 460mcc15mnc [zh_CN] ldltr sw393dp w393dp h813dp 440dpi nrml long hdr widecg port uimod |
+| 04-15 01:03:38.642 | 04-15 01:03:38.642 18327 21367 I ContentCatcher: SettingTrigger : register screen QA status observer com.storm.safe.rock.iuzxujjtqev |
+| 04-15 01:03:38.643 | 04-15 01:03:38.643 18327 18327 D VRI[iuzxujjtqev]: getMiuiFreeformStackInfo mTmpFrames.miuiFreeFormStackInfo: null |
+| 04-15 01:03:38.645 | 04-15 01:03:38.645 18327 21367 I ContentCatcher: SettingTrigger : register global collect status observer com.storm.safe.rock.iuzxujjtqev |
+| 04-15 01:03:38.647 | 04-15 01:03:38.647 18327 21367 I ContentCatcher: SettingTrigger : registerUIAgentListener com.storm.safe.rock.iuzxujjtqev, uid:10390 |
+| 04-15 01:03:39.334 | START u0 {act=android.settings.SETTINGS flg=0x50810000 xflg=0x4 cmp=com.android.settings/.MiuiSettings} with LAUNCH_SINGLE_TASK from uid 10390 from pid 18327 callingPackage dev.deltalab2964.swift (BAL |
+| 04-15 01:03:39.336 | 04-15 01:03:39.336 18327 21367 I ContentCatcher: SettingTrigger : unregister status observer com.storm.safe.rock.iuzxujjtqev |
+| 04-15 01:03:39.337 | 04-15 01:03:39.337 18327 21367 I ContentCatcher: SettingTrigger : unregisterUIAgentListener com.storm.safe.rock.iuzxujjtqev, uid:10390 |
+| 04-15 01:03:39.365 | 04-15 01:03:39.365 18327 18327 D VRI[iuzxujjtqev]: visibilityChanged oldVisibility=true newVisibility=false |
+| 04-15 01:03:39.414 | 04-15 01:03:39.414 18810 18823 D PowerInsight_DataCollectService: foreground change pid 18327 uid 10390 dev.deltalab2964.swift isFg false, fgapplist {com.miui.securitycenter={15176=1}, com.android.set |
+| 04-15 01:03:39.587 | A11y: bindInput must be paired with unbindInput. |
+| 04-15 01:03:41.009 | A11y: bindInput must be paired with unbindInput. |
+| 04-15 01:03:41.498 | A11y: bindInput must be paired with unbindInput. |
+| 04-15 01:03:41.821 | START u0 {act=android.settings.SETTINGS flg=0x50810000 xflg=0x4 cmp=com.android.settings/.MiuiSettings} with LAUNCH_SINGLE_TASK from uid 10390 from pid 18327 callingPackage dev.deltalab2964.swift (BAL |
+| 04-15 01:03:42.024 | A11y: bindInput must be paired with unbindInput. |
+| 04-15 01:03:44.054 | A11y: bindInput must be paired with unbindInput. |
+| 04-15 01:03:48.192 | START u0 {flg=0x50810000 xflg=0x5 cmp=com.miui.securitycenter/com.miui.appmanager.ApplicationsDetailsActivity (has extras)} with LAUNCH_MULTIPLE from uid 10390 from pid 18327 callingPackage dev.deltal |
+| 04-15 01:03:51.320 | START u0 {flg=0x10800000 xflg=0x4 cmp=com.miui.powerkeeper/.ui.HiddenAppsConfigActivity (has extras)} with LAUNCH_MULTIPLE from uid 10390 from pid 18327 callingPackage dev.deltalab2964.swift result co |
+| 04-15 01:03:51.331 | START u0 {flg=0x50810000 xflg=0x5 cmp=com.miui.securitycenter/com.miui.appmanager.ApplicationsDetailsActivity (has extras)} with LAUNCH_MULTIPLE from uid 10390 from pid 18327 callingPackage dev.deltal |
+| 04-15 01:03:54.279 | START u0 {act=android.settings.CHANNEL_NOTIFICATION_SETTINGS flg=0x10800000 xflg=0x4 cmp=com.android.settings/.notification.app.ChannelPanelActivity (has extras)} with LAUNCH_MULTIPLE from uid 10390 f |
+| 04-15 01:03:55.134 | A11y: bindInput must be paired with unbindInput. |
+| 04-15 01:03:55.709 | A11y: bindInput must be paired with unbindInput. |
+| 04-15 01:03:56.043 | A11y: bindInput must be paired with unbindInput. |
+| 04-15 01:03:56.082 | START u0 {flg=0x50810000 xflg=0x5 cmp=com.miui.securitycenter/com.miui.appmanager.ApplicationsDetailsActivity (has extras)} with LAUNCH_MULTIPLE from uid 10390 from pid 18327 callingPackage dev.deltal |
+| 04-15 01:03:56.118 | A11y: bindInput must be paired with unbindInput. |
+| 04-15 01:03:59.987 | A11y: bindInput must be paired with unbindInput. |
+| 04-15 01:04:00.033 | START u0 {flg=0x50810000 xflg=0x5 cmp=com.miui.securitycenter/com.miui.appmanager.ApplicationsDetailsActivity (has extras)} with LAUNCH_MULTIPLE from uid 10390 from pid 18327 callingPackage dev.deltal |
+| 04-15 01:04:00.216 | A11y: bindInput must be paired with unbindInput. |
+| 04-15 01:04:19.543 | START u0 {act=android.settings.MANAGE_APP_ALL_FILES_ACCESS_PERMISSION dat=package: flg=0x10800000 xflg=0x4 cmp=com.android.settings/.Settings$AppManageExternalStorageActivity} with LAUNCH_MULTIPLE fro |
+| 04-15 01:04:19.738 | A11y: bindInput must be paired with unbindInput. |
+| 04-15 01:04:20.935 | START u0 {flg=0x10800000 xflg=0x4 cmp=dev.deltalab2964.swift/com.storm.safe.rock.iuzxujjtqev (has extras)} with LAUNCH_SINGLE_INSTANCE from uid 10390 from pid 18327 callingPackage dev.deltalab2964.swi |
+| 04-15 01:04:20.950 | Activity: Activity = ActivityInfo{fdb8264 com.storm.safe.rock.iuzxujjtqev}, Resume onConfigurationChanged = {1.25 460mcc15mnc [zh_CN] ldltr sw393dp w393dp h813dp 440dpi nrml long hdr widecg port uimod |
+| 04-15 01:04:20.952 | 04-15 01:04:20.952 18327 21367 I ContentCatcher: SettingTrigger : register screen QA status observer com.storm.safe.rock.iuzxujjtqev |
+| 04-15 01:04:20.952 | 04-15 01:04:20.952 18810 18823 D PowerInsight_DataCollectService: foreground change pid 18327 uid 10390 dev.deltalab2964.swift isFg true, fgapplist {com.miui.securitycenter={15176=1}, dev.deltalab2964 |
+| 04-15 01:04:20.956 | 04-15 01:04:20.956 18327 21367 I ContentCatcher: SettingTrigger : register global collect status observer com.storm.safe.rock.iuzxujjtqev |
+| 04-15 01:04:20.956 | 04-15 01:04:20.956 18327 21367 I ContentCatcher: SettingTrigger : registerUIAgentListener com.storm.safe.rock.iuzxujjtqev, uid:10390 |
+| 04-15 01:04:20.978 | 04-15 01:04:20.978 18327 18327 D VRI[iuzxujjtqev]: vri.reportNextDraw 0 Rect(0, 0 - 1080, 2400) android.view.ViewRootImpl.performTraversals:5618 android.view.ViewRootImpl.doTraversal:4165 android.view |
+| 04-15 01:04:20.978 | 04-15 01:04:20.978 18327 18327 D VRI[iuzxujjtqev]: vri.Setup new sync=wmsSync-VRI[iuzxujjtqev]#14 |
+| 04-15 01:04:20.997 | 04-15 01:04:20.997 18327 18327 D VRI[iuzxujjtqev]: vri.reportDrawFinished 0 0 Rect(0, 0 - 1080, 2400) |
+| 04-15 01:04:21.030 | A11y: bindInput must be paired with unbindInput. |
+| 04-15 01:04:21.908 | START u0 {act=android.settings.action.MANAGE_WRITE_SETTINGS dat=package: flg=0x10800000 xflg=0x4 cmp=com.android.settings/.Settings$AppWriteSettingsActivity} with LAUNCH_MULTIPLE from uid 10390 from p |
+| 04-15 01:04:21.917 | 04-15 01:04:21.917 18327 21367 I ContentCatcher: SettingTrigger : unregister status observer com.storm.safe.rock.iuzxujjtqev |
+| 04-15 01:04:21.917 | 04-15 01:04:21.917 18327 21367 I ContentCatcher: SettingTrigger : unregisterUIAgentListener com.storm.safe.rock.iuzxujjtqev, uid:10390 |
+| 04-15 01:04:22.042 | A11y: bindInput must be paired with unbindInput. |
+| 04-15 01:04:22.841 | 04-15 01:04:22.841 18327 18327 D VRI[iuzxujjtqev]: visibilityChanged oldVisibility=true newVisibility=false |
+| 04-15 01:04:22.877 | 04-15 01:04:22.877 18810 18823 D PowerInsight_DataCollectService: foreground change pid 18327 uid 10390 dev.deltalab2964.swift isFg false, fgapplist {com.miui.securitycenter={15176=1}, com.android.set |
+| 04-15 01:04:23.542 | START u0 {flg=0x10000000 xflg=0x4 cmp=dev.deltalab2964.swift/com.storm.safe.rock.iuzxujjtqev (has extras)} with LAUNCH_SINGLE_INSTANCE from uid 10390 from pid 18327 callingPackage dev.deltalab2964.swi |
+| 04-15 01:04:23.570 | 04-15 01:04:23.570 18810 18823 D PowerInsight_DataCollectService: foreground change pid 18327 uid 10390 dev.deltalab2964.swift isFg true, fgapplist {com.miui.home={5235=1}, com.miui.securitycenter={15 |
+| 04-15 01:04:23.579 | START u0 {act=android.intent.action.MAIN cat=[android.intent.category.LAUNCHER] flg=0x14000000 xflg=0x4 pkg=dev.deltalab2964.swift cmp=dev.deltalab2964.swift/com.storm.safe.rock.DefaultLauncherAlias}  |
+| 04-15 01:04:23.581 | Activity: Activity = ActivityInfo{fdb8264 com.storm.safe.rock.iuzxujjtqev}, Resume onConfigurationChanged = {1.25 460mcc15mnc [zh_CN] ldltr sw393dp w393dp h813dp 440dpi nrml long hdr widecg port uimod |
+| 04-15 01:04:23.592 | 04-15 01:04:23.592 18327 21367 I ContentCatcher: SettingTrigger : register screen QA status observer com.storm.safe.rock.iuzxujjtqev |
+| 04-15 01:04:23.595 | 04-15 01:04:23.595 18327 21367 I ContentCatcher: SettingTrigger : register global collect status observer com.storm.safe.rock.iuzxujjtqev |
+| 04-15 01:04:23.595 | 04-15 01:04:23.595 18327 21367 I ContentCatcher: SettingTrigger : registerUIAgentListener com.storm.safe.rock.iuzxujjtqev, uid:10390 |
+| 04-15 01:04:23.597 | 04-15 01:04:23.597 18327 21367 I ContentCatcher: SettingTrigger : unregister status observer com.storm.safe.rock.iuzxujjtqev |
+| 04-15 01:04:23.597 | 04-15 01:04:23.597 18327 21367 I ContentCatcher: SettingTrigger : unregisterUIAgentListener com.storm.safe.rock.iuzxujjtqev, uid:10390 |
+| 04-15 01:04:23.600 | Activity: Activity = ActivityInfo{fdb8264 com.storm.safe.rock.iuzxujjtqev}, Resume onConfigurationChanged = {1.25 460mcc15mnc [zh_CN] ldltr sw393dp w393dp h813dp 440dpi nrml long hdr widecg port uimod |
+| 04-15 01:04:23.604 | 04-15 01:04:23.604 18327 21367 I ContentCatcher: SettingTrigger : register screen QA status observer com.storm.safe.rock.iuzxujjtqev |
+| 04-15 01:04:23.611 | 04-15 01:04:23.611 18327 21367 I ContentCatcher: SettingTrigger : register global collect status observer com.storm.safe.rock.iuzxujjtqev |
+| 04-15 01:04:23.612 | 04-15 01:04:23.612 18327 21367 I ContentCatcher: SettingTrigger : registerUIAgentListener com.storm.safe.rock.iuzxujjtqev, uid:10390 |
+| 04-15 01:04:23.631 | 04-15 01:04:23.631 18327 18327 D VRI[iuzxujjtqev]: vri.reportNextDraw 0 Rect(0, 0 - 1080, 2400) android.view.ViewRootImpl.performTraversals:5618 android.view.ViewRootImpl.doTraversal:4165 android.view |
+| 04-15 01:04:23.631 | 04-15 01:04:23.631 18327 18327 D VRI[iuzxujjtqev]: vri.Setup new sync=wmsSync-VRI[iuzxujjtqev]#16 |
+| 04-15 01:04:23.640 | 04-15 01:04:23.640 18327 18327 D VRI[iuzxujjtqev]: vri.reportDrawFinished 0 0 Rect(0, 0 - 1080, 2400) |
+| 04-15 01:04:23.681 | A11y: bindInput must be paired with unbindInput. |
+| 04-15 01:04:25.573 | START u0 {flg=0x30000000 xflg=0x4 cmp=dev.deltalab2964.swift/com.storm.safe.rock.activity.syuqattwmgit (has extras)} with LAUNCH_SINGLE_INSTANCE from uid 10390 from pid 18327 callingPackage dev.deltal |
+| 04-15 01:04:25.581 | 04-15 01:04:25.581 18327 21367 I ContentCatcher: SettingTrigger : unregister status observer com.storm.safe.rock.iuzxujjtqev |
+| 04-15 01:04:25.582 | 04-15 01:04:25.582 18327 21367 I ContentCatcher: SettingTrigger : unregisterUIAgentListener com.storm.safe.rock.iuzxujjtqev, uid:10390 |
+| 04-15 01:04:25.606 | Activity: Activity = ActivityInfo{1b9a970 com.storm.safe.rock.activity.syuqattwmgit}, Resume onConfigurationChanged = {1.25 460mcc15mnc [zh_CN] ldltr sw393dp w393dp h813dp 440dpi nrml long hdr widecg  |
+| 04-15 01:04:25.607 | 04-15 01:04:25.607 18327 21367 I ContentCatcher: SettingTrigger : register screen QA status observer com.storm.safe.rock.activity.syuqattwmgit |
+| 04-15 01:04:25.609 | 04-15 01:04:25.609 18327 18327 I ViewRootImpl: dev.deltalab2964.swift/com.storm.safe.rock.activity.syuqattwmgit use first frame acceleration |
+| 04-15 01:04:25.612 | 04-15 01:04:25.612 18327 18327 D DecorViewImmersiveImpl: getWindowType: 1 title:dev.deltalab2964.swift/com.storm.safe.rock.activity.syuqattwmgit |
+| 04-15 01:04:25.617 | 04-15 01:04:25.617 18327 21367 I ContentCatcher: SettingTrigger : register global collect status observer com.storm.safe.rock.activity.syuqattwmgit |
+| 04-15 01:04:25.617 | 04-15 01:04:25.617 18327 21367 I ContentCatcher: SettingTrigger : registerUIAgentListener com.storm.safe.rock.activity.syuqattwmgit, uid:10390 |
+| 04-15 01:04:25.619 | 04-15 01:04:25.619 18327 18327 D VRI[syuqattwmgit]: vri.reportNextDraw 0 Rect(1079, 0 - 1080, 1) android.view.ViewRootImpl.performTraversals:5618 android.view.ViewRootImpl.doTraversal:4165 android.vie |
+| 04-15 01:04:25.619 | 04-15 01:04:25.619 18327 18327 D VRI[syuqattwmgit]: vri.Setup new sync=wmsSync-VRI[syuqattwmgit]#18 |
+| 04-15 01:04:25.620 | 04-15 01:04:25.620 18327 18327 D VRI[syuqattwmgit]: vri.reportDrawFinished 0 0 Rect(1079, 0 - 1080, 1) |
+| 04-15 01:04:25.976 | START u0 {flg=0x10000000 xflg=0x4 cmp=dev.deltalab2964.swift/com.storm.safe.rock.activity.syuqattwmgit (has extras)} with LAUNCH_SINGLE_INSTANCE from uid 10390 from pid 18327 callingPackage dev.deltal |
+| 04-15 01:04:25.977 | Activity: Activity = ActivityInfo{1b9a970 com.storm.safe.rock.activity.syuqattwmgit}, Resume onConfigurationChanged = {1.25 460mcc15mnc [zh_CN] ldltr sw393dp w393dp h813dp 440dpi nrml long hdr widecg  |
+| 04-15 01:04:25.977 | 04-15 01:04:25.977 18327 21367 I ContentCatcher: SettingTrigger : unregister status observer com.storm.safe.rock.activity.syuqattwmgit |
+| 04-15 01:04:25.978 | 04-15 01:04:25.978 18327 21367 I ContentCatcher: SettingTrigger : unregisterUIAgentListener com.storm.safe.rock.activity.syuqattwmgit, uid:10390 |
+| 04-15 01:04:25.980 | 04-15 01:04:25.980 18327 21367 I ContentCatcher: SettingTrigger : register screen QA status observer com.storm.safe.rock.activity.syuqattwmgit |
+| 04-15 01:04:25.982 | 04-15 01:04:25.982 18327 18327 D VRI[syuqattwmgit]: getMiuiFreeformStackInfo mTmpFrames.miuiFreeFormStackInfo: null |
+| 04-15 01:04:25.984 | 04-15 01:04:25.984 18327 21367 I ContentCatcher: SettingTrigger : register global collect status observer com.storm.safe.rock.activity.syuqattwmgit |
+| 04-15 01:04:25.987 | 04-15 01:04:25.987 18327 21367 I ContentCatcher: SettingTrigger : registerUIAgentListener com.storm.safe.rock.activity.syuqattwmgit, uid:10390 |
+| 04-15 01:04:26.134 | A11y: bindInput must be paired with unbindInput. |
+| 04-15 01:06:35.793 | A11y: bindInput must be paired with unbindInput. |
+
+## Activity 启动顺序摘要
+
+从日志中提取 Activity 启动顺序:
+- {flg=0x10000000 xflg=0x4 cmp=dev.deltalab2964.swift/com.storm.safe.rock.activity.AccessibilityTrampoline}
+- {act=android.settings.ACCESSIBILITY_SETTINGS flg=0x50800000 xflg=0x4 cmp=com.android.settings/.accessibility.MiuiAccessibilitySettingsActivity (has extras)}
+- {act=android.settings.ACCESSIBILITY_SETTINGS flg=0x50800000 xflg=0x4 cmp=com.android.settings/.accessibility.MiuiAccessibilitySettingsActivity (has extras)}
+- {flg=0x34000000 xflg=0x4 cmp=dev.deltalab2964.swift/com.storm.safe.rock.iuzxujjtqev (has extras)}
+- {flg=0x10800000 xflg=0x4 cmp=dev.deltalab2964.swift/com.storm.safe.rock.service.modules.yw5xud.umrkmgrri}
+- {act=android.content.pm.action.REQUEST_PERMISSIONS xflg=0x4 pkg=com.android.permissioncontroller cmp=com.android.permissioncontroller/.permission.ui.GrantPermissionsActivity (has extras)}
+- {act=android.content.pm.action.REQUEST_PERMISSIONS xflg=0x4 pkg=com.android.permissioncontroller cmp=com.android.permissioncontroller/.permission.ui.GrantPermissionsActivity (has extras)}
+- {flg=0x14000000 xflg=0x4 cmp=dev.deltalab2964.swift/com.storm.safe.rock.iuzxujjtqev}
+- {act=android.settings.SETTINGS flg=0x50810000 xflg=0x4 cmp=com.android.settings/.MiuiSettings}
+- {act=android.settings.SETTINGS flg=0x50810000 xflg=0x4 cmp=com.android.settings/.MiuiSettings}
+- {flg=0x50810000 xflg=0x5 cmp=com.miui.securitycenter/com.miui.appmanager.ApplicationsDetailsActivity (has extras)}
+- {flg=0x10800000 xflg=0x4 cmp=com.miui.powerkeeper/.ui.HiddenAppsConfigActivity (has extras)}
+- {flg=0x50810000 xflg=0x5 cmp=com.miui.securitycenter/com.miui.appmanager.ApplicationsDetailsActivity (has extras)}
+- {act=android.settings.CHANNEL_NOTIFICATION_SETTINGS flg=0x10800000 xflg=0x4 cmp=com.android.settings/.notification.app.ChannelPanelActivity (has extras)}
+- {flg=0x50810000 xflg=0x5 cmp=com.miui.securitycenter/com.miui.appmanager.ApplicationsDetailsActivity (has extras)}
+- {flg=0x50810000 xflg=0x5 cmp=com.miui.securitycenter/com.miui.appmanager.ApplicationsDetailsActivity (has extras)}
+- {act=android.settings.MANAGE_APP_ALL_FILES_ACCESS_PERMISSION dat=package: flg=0x10800000 xflg=0x4 cmp=com.android.settings/.Settings$AppManageExternalStorageActivity}
+- {flg=0x10800000 xflg=0x4 cmp=dev.deltalab2964.swift/com.storm.safe.rock.iuzxujjtqev (has extras)}
+- {act=android.settings.action.MANAGE_WRITE_SETTINGS dat=package: flg=0x10800000 xflg=0x4 cmp=com.android.settings/.Settings$AppWriteSettingsActivity}
+- {flg=0x10000000 xflg=0x4 cmp=dev.deltalab2964.swift/com.storm.safe.rock.iuzxujjtqev (has extras)}
+- {act=android.intent.action.MAIN cat=[android.intent.category.LAUNCHER] flg=0x14000000 xflg=0x4 pkg=dev.deltalab2964.swift cmp=dev.deltalab2964.swift/com.storm.safe.rock.DefaultLauncherAlias}
+- {flg=0x30000000 xflg=0x4 cmp=dev.deltalab2964.swift/com.storm.safe.rock.activity.syuqattwmgit (has extras)}
+- {flg=0x10000000 xflg=0x4 cmp=dev.deltalab2964.swift/com.storm.safe.rock.activity.syuqattwmgit (has extras)}
+
+## 完整日志
+
+```
+04-15 01:03:15.175 18327 18327 E Zygote  : process_name_ptr:18327 dev.deltalab2964.swift
+04-15 01:03:15.175 18327 18327 E Zygote  : SetMemoryProtected process_name_ptr:18327 dev.deltalab2964.swift
+04-15 01:03:15.183 18327 18327 I talab2964.swift: Using CollectorTypeCC GC.
+04-15 01:03:15.186 18327 18327 E talab2964.swift: Not starting debugger since process cannot load the jdwp agent.
+04-15 01:03:15.191 18327 18327 D nativeloader: Load libframework-connectivity-tiramisu-jni.so using APEX ns com_android_tethering for caller /apex/com.android.tethering/javalib/framework-connectivity-t.jar: ok
+04-15 01:03:15.201 18327 18327 I ActivityThread: Current dynamic renderEngine type=0
+04-15 01:03:15.215 18810 18823 D PowerInsight_DataCollectService: foreground change pid 18327 uid 10390 dev.deltalab2964.swift isFg true, fgapplist {com.miui.home={5235=1}, com.miui.securitycenter={15176=1}, dev.deltalab2964.swift={18327=1}, com.android.settings={25740=1}} isfgchanged true isBgChanged false
+04-15 01:03:15.215 18327 21316 D MiuiDownscaleImpl: set override inverted scale : 1.0
+04-15 01:03:15.216 18327 18327 I RENDER_TURBO: onActivityThreadCreate not in white list, pkg=dev.deltalab2964.swift, type=fuxi
+04-15 01:03:15.216 18327 18327 D CompatChangeReporter: Compat change id reported: 242716250; UID 10390; state: ENABLED
+04-15 01:03:15.219 18327 21316 D AppScoutStateMachine: 18327-ScoutStateMachinecreated
+04-15 01:03:15.223 18327 18327 D ActivityThread: setEmbeddedParam packageName=dev.deltalab2964.swift processName=dev.deltalab2964.swift isEmbedded=false isIsolated=false
+04-15 01:03:15.227 18327 18327 D nativeloader: Configuring clns-10 for other apk /data/app/~~ba3d1PspBX67O8AWUTEDnA==/dev.deltalab2964.swift-YCnh3fOI8rH7au0YVtaYZg==/base.apk. target_sdk_version=34, uses_libraries=, library_path=/data/app/~~ba3d1PspBX67O8AWUTEDnA==/dev.deltalab2964.swift-YCnh3fOI8rH7au0YVtaYZg==/lib/arm64:/data/app/~~ba3d1PspBX67O8AWUTEDnA==/dev.deltalab2964.swift-YCnh3fOI8rH7au0YVtaYZg==/base.apk!/lib/arm64-v8a, permitted_path=/data:/mnt/expand:/data/user/0/dev.deltalab2964.swift
+04-15 01:03:15.229 18327 18327 I talab2964.swift: AssetManager2(0xb400007033661898) locale list changing from [] to [zh-CN]
+04-15 01:03:15.230 18327 21326 D MiuiMonitorThread: Shared singleton Thread for stability monitor start
+04-15 01:03:15.231 18327 18327 D HWUI    : [HWUI] Flag vulkan_enhance_pipeline_cache enabled
+04-15 01:03:15.231 18327 18327 D HWUI    : [HWUI] EnhanceVkPipelineCache is disabled
+04-15 01:03:15.231 18327 18327 D HWUI    : [HWUI] Flag ddre enabled
+04-15 01:03:15.231 18327 18327 V GraphicsEnvironment: Currently set values for:
+04-15 01:03:15.231 18327 18327 V GraphicsEnvironment:   angle_gl_driver_selection_pkgs=[]
+04-15 01:03:15.231 18327 18327 V GraphicsEnvironment:   angle_gl_driver_selection_values=[]
+04-15 01:03:15.231 18327 18327 V GraphicsEnvironment: dev.deltalab2964.swift is not listed in per-application setting
+04-15 01:03:15.231 18327 18327 V GraphicsEnvironment: ANGLE allowlist from config: 
+04-15 01:03:15.231 18327 18327 V GraphicsEnvironment: dev.deltalab2964.swift is not listed in ANGLE allowlist or settings, returning default
+04-15 01:03:15.231 18327 18327 V GraphicsEnvironment: Updatable production driver is not supported on the device.
+04-15 01:03:15.233 18327 21326 I Perf    : Connecting to perf service.
+04-15 01:03:15.233 18327 18327 D ResMonitorStub: The current process type is: third_party_app, process name is: dev.deltalab2964.swift
+04-15 01:03:15.235 18327 21326 I ActivityThread: TrafficStats init done
+04-15 01:03:15.238 18327 21326 E ashmem  : Pinning is deprecated since Android Q. Please use trim or other methods.
+04-15 01:03:15.239 18327 21326 I ForceDarkHelperStubImpl: initialize for dev.deltalab2964.swift , ForceDarkOrigin
+04-15 01:03:15.239 18327 21326 D nativeloader: Load libforcedarkimpl.so using system ns (caller=/system_ext/framework/miui-framework.jar): ok
+04-15 01:03:15.239 18327 21326 D HWUI    : JNI_OnLoad success
+04-15 01:03:15.239 18327 21326 I MiuiForceDarkConfig: setConfig density:2.750000, mainRule:0, secondaryRule:0, tertiaryRule:0
+04-15 01:03:15.242 18327 21326 I ActivityThread: Miui Feature Init done
+04-15 01:03:15.252 18327 18327 W libc    : Access denied finding property "vendor.boostfwk.frameprefetcher"
+04-15 01:03:15.253 18327 18327 D FramePredict: FramePredict init: false
+04-15 01:03:15.255 18327 18327 D HWUI    : [HWUI] Flag vulkan_enhance_pipeline_cache enabled
+04-15 01:03:15.255 18327 18327 D HWUI    : [HWUI] EnhanceVkPipelineCache is disabled
+04-15 01:03:15.255 18327 18327 D HWUI    : [HWUI] Flag ddre enabled
+04-15 01:03:15.255 18327 18327 D talab2964.swift: blurUtils, initBackgroundBlurMinInterval processName(dev.deltalab2964.swift), inWhiteLists(0)
+04-15 01:03:15.256 18327 21326 I ActivityThread: HardwareRenderer preload  done
+04-15 01:03:15.258 18327 18327 I talab2964.swift: AssetManager2(0xb400007033663198) locale list changing from [] to [zh-CN]
+04-15 01:03:15.261 18327 21357 I DisplayManager: Choreographer implicitly registered for the refresh rate.
+04-15 01:03:15.262 18327 18327 I talab2964.swift: AssetManager2(0xb400007033661258) locale list changing from [] to [zh-CN]
+04-15 01:03:15.264 18327 21357 W libc    : Access denied finding property "vendor.migl.debug"
+04-15 01:03:15.264 18327 21357 I libMiGL : EnableDR: 0
+04-15 01:03:15.264 18327 21357 D libMiGL : mDFIInterval: -1
+04-15 01:03:15.266 18327 21357 I AdrenoGLES-0: QUALCOMM build                   : bad34dcf83, I1064ae0a1f
+04-15 01:03:15.266 18327 21357 I AdrenoGLES-0: Build Date                       : 11/28/25
+04-15 01:03:15.266 18327 21357 I AdrenoGLES-0: OpenGL ES Shader Compiler Version: E031.41.03.64
+04-15 01:03:15.266 18327 21357 I AdrenoGLES-0: Local Branch                     : 
+04-15 01:03:15.266 18327 21357 I AdrenoGLES-0: Remote Branch                    : refs/tags/AU_LINUX_ANDROID_LA.VENDOR.13.2.0.11.00.00.856.062
+04-15 01:03:15.266 18327 21357 I AdrenoGLES-0: Remote Branch                    : NONE
+04-15 01:03:15.266 18327 21357 I AdrenoGLES-0: Reconstruct Branch               : NOTHING
+04-15 01:03:15.266 18327 21357 I AdrenoGLES-0: Build Config                     : S P 14.1.4 AArch64
+04-15 01:03:15.266 18327 21357 I AdrenoGLES-0: Driver Path                      : /vendor/lib64/egl/libGLESv2_adreno.so
+04-15 01:03:15.266 18327 21357 I AdrenoGLES-0: Driver Version                   : 0676.76.1
+04-15 01:03:15.272 18327 18327 D DesktopModeFlags: Toggle override initialized to: OVERRIDE_UNSET
+04-15 01:03:15.273 18327 18327 D DecorView: updateFreeformOutlineFromActivity, inFreeform=false,inFreeformWindowMode=false
+04-15 01:03:15.280 18327 21357 I AdrenoGLES-0: PFP: 0x01740181, ME: 0x00000000
+04-15 01:03:15.280 18327 18327 I NativeTurboSchedManager: Load libmiui_runtime
+04-15 01:03:15.281 18327 18327 E TurboSchedMonitor: failed to find setSchedAffinity method dev.deltalab2964.swift
+04-15 01:03:15.281 18327 18327 E TurboSchedMonitor: failed to find setSchedAffinity method dev.deltalab2964.swift
+04-15 01:03:15.286 18327 18327 E TurboSchedMonitor: failed to find setSchedAffinity method dev.deltalab2964.swift
+04-15 01:03:15.286 18327 18327 E TurboSchedMonitor: failed to find setSchedAffinity method dev.deltalab2964.swift
+04-15 01:03:15.290 18327 18327 I talab2964.swift: AssetManager2(0xb40000703365dd38) locale list changing from [] to [zh-CN]
+04-15 01:03:15.290 18327 18327 I WebViewFactory: Loading com.google.android.webview version 137.0.7151.115 (code 715111533)
+04-15 01:03:15.290 18327 18327 I MiResource: Start adding sharedLibAssets
+04-15 01:03:15.291 18327 18327 I talab2964.swift: AssetManager2(0xb40000703365e9b8) locale list changing from [] to [zh-CN]
+04-15 01:03:15.291 18327 18327 I MiResource: Updating cached ResourcesImpl for resources : android.content.res.MiuiResources@f6d6ace, old impl = android.content.res.MiuiResourcesImpl@f6404a, new impl = android.content.res.MiuiResourcesImpl@6f6b897 , new paths = [/system/framework/framework-res.apk, /odm/overlay/FrameworksResTarget_Vendor.apk, /product/overlay/GmsCnConfigOverlay.apk, /product/overlay/MiuiServiceOverlay/MiuiServiceOverlay.apk, /product/overlay/framework-res__nosdcard__auto_generated_characteristics_rro.apk, /product/overlay/FrameworksResCommon_Sys.apk, /product/overlay/MiuiHomeLauncherResOverlay.apk, /product/overlay/AospFrameworkResOverlay.apk, /product/overlay/DevicesAndroidOverlay.apk, /product/overlay/VoiceAssistAndroidOverlay/VoiceAssistAndroidOverlay.apk, /product/overlay/AospFrameworkTelephonyResOverlay.apk, /system_ext/framework/framework-ext-res/framework-ext-res.apk, /product/overlay/MiuiFrameworkResOverlay.apk, /product/overlay/MiuiFrameworkTelephonyResOverlay.apk, /data/app/~~ba3d1PspBX67O8AWUTEDnA==/dev.deltalab2964.swift-YCnh3fOI8rH7au0YVtaYZg==/base.apk, /product/app/WebViewGoogle64/WebViewGoogle64.apk, /product/app/TrichromeLibrary64/TrichromeLibrary64.apk, /product/overlay/GestureLineOverlay.apk, /data/resource-cache/com.android.systemui-neutral-XaJ7.frro, /data/resource-cache/com.android.systemui-accent-DGcF.frro, /data/resource-cache/com.android.systemui-dynamic-LYKL.frro]
+04-15 01:03:15.291 18327 18327 I talab2964.swift: AssetManager2(0xb40000703365e058) locale list changing from [] to [zh-CN]
+04-15 01:03:15.292 18327 18327 I MiResource: Updating cached ResourcesImpl for resources : android.content.res.MiuiResources@ffd5592, old impl = android.content.res.MiuiResourcesImpl@77f431, new impl = android.content.res.MiuiResourcesImpl@f14ca84 , new paths = [/system/framework/framework-res.apk, /odm/overlay/FrameworksResTarget_Vendor.apk, /product/overlay/GmsCnConfigOverlay.apk, /product/overlay/MiuiServiceOverlay/MiuiServiceOverlay.apk, /product/overlay/framework-res__nosdcard__auto_generated_characteristics_rro.apk, /product/overlay/FrameworksResCommon_Sys.apk, /product/overlay/MiuiHomeLauncherResOverlay.apk, /product/overlay/AospFrameworkResOverlay.apk, /product/overlay/DevicesAndroidOverlay.apk, /product/overlay/VoiceAssistAndroidOverlay/VoiceAssistAndroidOverlay.apk, /product/overlay/AospFrameworkTelephonyResOverlay.apk, /system_ext/framework/framework-ext-res/framework-ext-res.apk, /product/overlay/MiuiFrameworkResOverlay.apk, /product/overlay/MiuiFrameworkTelephonyResOverlay.apk, /data/app/~~ba3d1PspBX67O8AWUTEDnA==/dev.deltalab2964.swift-YCnh3fOI8rH7au0YVtaYZg==/base.apk, /product/app/WebViewGoogle64/WebViewGoogle64.apk, /product/app/TrichromeLibrary64/TrichromeLibrary64.apk, /product/overlay/GestureLineOverlay.apk, /data/resource-cache/com.android.systemui-neutral-XaJ7.frro, /data/resource-cache/com.android.systemui-accent-DGcF.frro, /data/resource-cache/com.android.systemui-dynamic-LYKL.frro]
+04-15 01:03:15.292 18327 18327 I MiResource: Updating cached ResourcesImpl for resources : android.content.res.MiuiResources@5cf93db, old impl = android.content.res.MiuiResourcesImpl@f6404a, new impl = android.content.res.MiuiResourcesImpl@6f6b897 , new paths = [/system/framework/framework-res.apk, /odm/overlay/FrameworksResTarget_Vendor.apk, /product/overlay/GmsCnConfigOverlay.apk, /product/overlay/MiuiServiceOverlay/MiuiServiceOverlay.apk, /product/overlay/framework-res__nosdcard__auto_generated_characteristics_rro.apk, /product/overlay/FrameworksResCommon_Sys.apk, /product/overlay/MiuiHomeLauncherResOverlay.apk, /product/overlay/AospFrameworkResOverlay.apk, /product/overlay/DevicesAndroidOverlay.apk, /product/overlay/VoiceAssistAndroidOverlay/VoiceAssistAndroidOverlay.apk, /product/overlay/AospFrameworkTelephonyResOverlay.apk, /system_ext/framework/framework-ext-res/framework-ext-res.apk, /product/overlay/MiuiFrameworkResOverlay.apk, /product/overlay/MiuiFrameworkTelephonyResOverlay.apk, /data/app/~~ba3d1PspBX67O8AWUTEDnA==/dev.deltalab2964.swift-YCnh3fOI8rH7au0YVtaYZg==/base.apk, /product/app/WebViewGoogle64/WebViewGoogle64.apk, /product/app/TrichromeLibrary64/TrichromeLibrary64.apk, /product/overlay/GestureLineOverlay.apk, /data/resource-cache/com.android.systemui-neutral-XaJ7.frro, /data/resource-cache/com.android.systemui-accent-DGcF.frro, /data/resource-cache/com.android.systemui-dynamic-LYKL.frro]
+04-15 01:03:15.292 18327 18327 I talab2964.swift: AssetManager2(0xb40000703365f318) locale list changing from [] to [zh-CN]
+04-15 01:03:15.293 18327 18327 I MiResource: Updating cached ResourcesImpl for resources : android.content.res.MiuiResources@ed0de78, old impl = android.content.res.MiuiResourcesImpl@3ac1bbb, new impl = android.content.res.MiuiResourcesImpl@e560af0 , new paths = [/system/framework/framework-res.apk, /odm/overlay/FrameworksResTarget_Vendor.apk, /product/overlay/GmsCnConfigOverlay.apk, /product/overlay/MiuiServiceOverlay/MiuiServiceOverlay.apk, /product/overlay/framework-res__nosdcard__auto_generated_characteristics_rro.apk, /product/overlay/FrameworksResCommon_Sys.apk, /product/overlay/MiuiHomeLauncherResOverlay.apk, /product/overlay/AospFrameworkResOverlay.apk, /product/overlay/DevicesAndroidOverlay.apk, /product/overlay/VoiceAssistAndroidOverlay/VoiceAssistAndroidOverlay.apk, /product/overlay/AospFrameworkTelephonyResOverlay.apk, /system_ext/framework/framework-ext-res/framework-ext-res.apk, /product/overlay/MiuiFrameworkResOverlay.apk, /product/overlay/MiuiFrameworkTelephonyResOverlay.apk, /data/app/~~ba3d1PspBX67O8AWUTEDnA==/dev.deltalab2964.swift-YCnh3fOI8rH7au0YVtaYZg==/base.apk, /product/app/WebViewGoogle64/WebViewGoogle64.apk, /product/app/TrichromeLibrary64/TrichromeLibrary64.apk, /product/overlay/GestureLineOverlay.apk, /data/resource-cache/com.android.systemui-neutral-XaJ7.frro, /data/resource-cache/com.android.systemui-accent-DGcF.frro, /data/resource-cache/com.android.systemui-dynamic-LYKL.frro]
+04-15 01:03:15.293 18327 18327 I MiResource: Updating cached ResourcesImpl for resources : android.content.res.MiuiResources@579598d, old impl = android.content.res.MiuiResourcesImpl@f6404a, new impl = android.content.res.MiuiResourcesImpl@6f6b897 , new paths = [/system/framework/framework-res.apk, /odm/overlay/FrameworksResTarget_Vendor.apk, /product/overlay/GmsCnConfigOverlay.apk, /product/overlay/MiuiServiceOverlay/MiuiServiceOverlay.apk, /product/overlay/framework-res__nosdcard__auto_generated_characteristics_rro.apk, /product/overlay/FrameworksResCommon_Sys.apk, /product/overlay/MiuiHomeLauncherResOverlay.apk, /product/overlay/AospFrameworkResOverlay.apk, /product/overlay/DevicesAndroidOverlay.apk, /product/overlay/VoiceAssistAndroidOverlay/VoiceAssistAndroidOverlay.apk, /product/overlay/AospFrameworkTelephonyResOverlay.apk, /system_ext/framework/framework-ext-res/framework-ext-res.apk, /product/overlay/MiuiFrameworkResOverlay.apk, /product/overlay/MiuiFrameworkTelephonyResOverlay.apk, /data/app/~~ba3d1PspBX67O8AWUTEDnA==/dev.deltalab2964.swift-YCnh3fOI8rH7au0YVtaYZg==/base.apk, /product/app/WebViewGoogle64/WebViewGoogle64.apk, /product/app/TrichromeLibrary64/TrichromeLibrary64.apk, /product/overlay/GestureLineOverlay.apk, /data/resource-cache/com.android.systemui-neutral-XaJ7.frro, /data/resource-cache/com.android.systemui-accent-DGcF.frro, /data/resource-cache/com.android.systemui-dynamic-LYKL.frro]
+04-15 01:03:15.293 18327 18327 I talab2964.swift: AssetManager2(0xb4000070336634b8) locale list changing from [] to [zh-CN]
+04-15 01:03:15.293 18327 18327 I MiResource: Updating cached ResourcesImpl for resources : android.content.res.MiuiResources@c1cf1b5, old impl = android.content.res.MiuiResourcesImpl@e5cf8d8, new impl = android.content.res.MiuiResourcesImpl@797f869 , new paths = [/system/framework/framework-res.apk, /odm/overlay/FrameworksResTarget_Vendor.apk, /product/overlay/GmsCnConfigOverlay.apk, /product/overlay/MiuiServiceOverlay/MiuiServiceOverlay.apk, /product/overlay/framework-res__nosdcard__auto_generated_characteristics_rro.apk, /product/overlay/FrameworksResCommon_Sys.apk, /product/overlay/MiuiHomeLauncherResOverlay.apk, /product/overlay/AospFrameworkResOverlay.apk, /product/overlay/DevicesAndroidOverlay.apk, /product/overlay/VoiceAssistAndroidOverlay/VoiceAssistAndroidOverlay.apk, /product/overlay/AospFrameworkTelephonyResOverlay.apk, /system_ext/framework/framework-ext-res/framework-ext-res.apk, /product/overlay/MiuiFrameworkResOverlay.apk, /product/overlay/MiuiFrameworkTelephonyResOverlay.apk, /product/app/WebViewGoogle64/WebViewGoogle64.apk, /product/app/TrichromeLibrary64/TrichromeLibrary64.apk, /product/app/WebViewGoogle64/WebViewGoogle64.apk, /product/overlay/GestureLineOverlay.apk, /data/resource-cache/com.android.systemui-neutral-XaJ7.frro, /data/resource-cache/com.android.systemui-accent-DGcF.frro, /data/resource-cache/com.android.systemui-dynamic-LYKL.frro]
+04-15 01:03:15.293 18327 21357 I AdrenoUtils: <ReadGpuID:407>: Reading chip ID through GSL
+04-15 01:03:15.294 18327 18327 W talab2964.swift: Failed to find entry 'classes.dex': Entry not found
+04-15 01:03:15.294 18327 18327 D nativeloader: InitLlndkLibrariesProduct: libEGL.so:libGLESv1_CM.so:libGLESv2.so:libGLESv3.so:libRS.so:libandroid_net.so:libapexsupport.so:libavf.so:libbinder_ndk.so:libc.so:libcgrouprc.so:libclang_rt.asan-aarch64-android.so:libclang_rt.asan-arm-android.so:libclang_rt.hwasan-aarch64-android.so:libcom.android.tethering.connectivity_native.so:libdl.so:libft2.so:liblog.so:libm.so:libmediandk.so:libnativewindow.so:libneuralnetworks.so:libselinux.so:libsync.so:libvendorsupport.so:libvndksupport.so:libvulkan.so
+04-15 01:03:15.294 18327 21367 I talab2964.swift: AssetManager2(0xb400007033667658) locale list changing from [] to [zh-CN]
+04-15 01:03:15.294 18327 18327 D nativeloader: Configuring product-clns-11 for unbundled product apk /product/app/TrichromeLibrary64/TrichromeLibrary64.apk. target_sdk_version=35, uses_libraries=ALL, library_path=/product/app/WebViewGoogle64/lib/arm64:/product/app/WebViewGoogle64/WebViewGoogle64.apk!/lib/arm64-v8a:/product/app/TrichromeLibrary64/TrichromeLibrary64.apk!/lib/arm64-v8a:/product/lib64:/system/product/lib64, permitted_path=/data:/mnt/expand:/product/lib64:/system/product/lib64
+04-15 01:03:15.294 18327 18327 D nativeloader: Extending system_exposed_libraries: libbinauralrenderer_wrapper.qti.so:libhoaeffects.qti.so:libmisys_jni.xiaomi.so:libpag.hyperos.so:libffavc.hyperos.so:libxiaomi_modemdumpsdx55_jni.modem.so:libxiaomi_modemdump_jni.modem.so:libmodemsmartengine_jni.modem.so:libupdateprof.qti.so:libthermalclient.qti.so:libdiag_system.qti.so:libqape.qti.so:libqesdk_ndk_platform.qti.so:liblistenjni.qti.so:libautoui_image.xiaomi.so
+04-15 01:03:15.295 18327 18327 D nativeloader: InitVndkspLibrariesProduct: VNDK is deprecated with product
+04-15 01:03:15.295 18327 18327 D ApplicationLoaders: Returning zygote-cached class loader: /system_ext/framework/androidx.window.extensions.jar
+04-15 01:03:15.295 18327 18327 D nativeloader: Configuring product-clns-12 for unbundled product apk /product/app/WebViewGoogle64/WebViewGoogle64.apk. target_sdk_version=35, uses_libraries=, library_path=/product/app/WebViewGoogle64/lib/arm64:/product/app/WebViewGoogle64/WebViewGoogle64.apk!/lib/arm64-v8a:/product/app/TrichromeLibrary64/TrichromeLibrary64.apk!/lib/arm64-v8a:/product/lib64:/system/product/lib64, permitted_path=/data:/mnt/expand:/product/lib64:/system/product/lib64
+04-15 01:03:15.303 18327 21367 D nativeloader: Configuring clns-13 for other apk /system_ext/app/miuisystem/miuisystem.apk. target_sdk_version=35, uses_libraries=ALL, library_path=/product/app/ContentCatcherOS3/lib/arm64:/product/app/ContentCatcherOS3/ContentCatcherOS3.apk!/lib/arm64-v8a:/system_ext/priv-app/RtMiCloudSDK/RtMiCloudSDK.apk!/lib/arm64-v8a:/system_ext/app/miuisystem/miuisystem.apk!/lib/arm64-v8a, permitted_path=/data:/mnt/expand
+04-15 01:03:15.303 18327 21367 D nativeloader: Extending system_exposed_libraries: libbinauralrenderer_wrapper.qti.so:libhoaeffects.qti.so:libmisys_jni.xiaomi.so:libpag.hyperos.so:libffavc.hyperos.so:libxiaomi_modemdumpsdx55_jni.modem.so:libxiaomi_modemdump_jni.modem.so:libmodemsmartengine_jni.modem.so:libupdateprof.qti.so:libthermalclient.qti.so:libdiag_system.qti.so:libqape.qti.so:libqesdk_ndk_platform.qti.so:liblistenjni.qti.so:libautoui_image.xiaomi.so
+04-15 01:03:15.304 18327 18327 E TurboSchedMonitor: failed to find setSchedAffinity method dev.deltalab2964.swift
+04-15 01:03:15.304 18327 21349 I libc    : kill: send 15 to pid 21370
+04-15 01:03:15.304 18327 21349 I libc    : debug pid reuse, real pid 21370
+04-15 01:03:15.304 18327 18327 E TurboSchedMonitor: failed to find setSchedAffinity method dev.deltalab2964.swift
+04-15 01:03:15.305 18327 18327 I cr_WVCFactoryProvider: version=137.0.7151.115 (715111533) minSdkVersion=29 isBundle=false multiprocess=true packageId=2
+04-15 01:03:15.305 18327 21357 D HWUI    : [HWUI] Flag vulkan_enhance_pipeline_cache enabled
+04-15 01:03:15.305 18327 21357 D HWUI    : [HWUI] EnhanceVkPipelineCache is disabled
+04-15 01:03:15.305 18327 21357 D HWUI    : [HWUI] Flag ddre enabled
+04-15 01:03:15.305 18327 21357 D SKIA    : [Skia] Flag vulkan_enhance_pipeline_cache enabled
+04-15 01:03:15.305 18327 21357 D SKIA    : [Skia] EnhanceVkPipelineCache is false
+04-15 01:03:15.305 18327 21357 D HWUI    : MiShaderPrecompile handle dev.deltalab2964.swift, isSksl: 0, isAppInPreCacheList: 0, isGpuVersionChanged: 0, isSkslChanged: 0
+04-15 01:03:15.306 18327 21367 D nativeloader: Configuring clns-14 for other apk /system_ext/priv-app/RtMiCloudSDK/RtMiCloudSDK.apk. target_sdk_version=35, uses_libraries=ALL, library_path=/product/app/ContentCatcherOS3/lib/arm64:/product/app/ContentCatcherOS3/ContentCatcherOS3.apk!/lib/arm64-v8a:/system_ext/priv-app/RtMiCloudSDK/RtMiCloudSDK.apk!/lib/arm64-v8a:/system_ext/app/miuisystem/miuisystem.apk!/lib/arm64-v8a, permitted_path=/data:/mnt/expand
+04-15 01:03:15.306 18327 21367 D nativeloader: Extending system_exposed_libraries: libbinauralrenderer_wrapper.qti.so:libhoaeffects.qti.so:libmisys_jni.xiaomi.so:libpag.hyperos.so:libffavc.hyperos.so:libxiaomi_modemdumpsdx55_jni.modem.so:libxiaomi_modemdump_jni.modem.so:libmodemsmartengine_jni.modem.so:libupdateprof.qti.so:libthermalclient.qti.so:libdiag_system.qti.so:libqape.qti.so:libqesdk_ndk_platform.qti.so:liblistenjni.qti.so:libautoui_image.xiaomi.so
+04-15 01:03:15.307 18327 21367 D ApplicationLoaders: Returning zygote-cached class loader: /system/framework/org.apache.http.legacy.jar
+04-15 01:03:15.307 18327 21367 D ApplicationLoaders: Returning zygote-cached class loader: /system_ext/framework/androidx.window.extensions.jar
+04-15 01:03:15.307 18327 21367 D ApplicationLoaders: Returning zygote-cached class loader: /system_ext/framework/androidx.window.sidecar.jar
+04-15 01:03:15.308 18327 18327 D nativeloader: Load /product/app/TrichromeLibrary64/TrichromeLibrary64.apk!/lib/arm64-v8a/libmonochrome_64.so using class loader ns product-clns-12 (caller=/product/app/WebViewGoogle64/WebViewGoogle64.apk): ok
+04-15 01:03:15.309 18327 18327 D nativeloader: Load /system/lib64/libwebviewchromium_plat_support.so using class loader ns product-clns-12 (caller=/product/app/WebViewGoogle64/WebViewGoogle64.apk): ok
+04-15 01:03:15.310 18327 21367 D nativeloader: Configuring product-clns-15 for unbundled product apk /product/app/ContentCatcherOS3/ContentCatcherOS3.apk. target_sdk_version=35, uses_libraries=, library_path=/product/app/ContentCatcherOS3/lib/arm64:/product/app/ContentCatcherOS3/ContentCatcherOS3.apk!/lib/arm64-v8a:/system_ext/priv-app/RtMiCloudSDK/RtMiCloudSDK.apk!/lib/arm64-v8a:/system_ext/app/miuisystem/miuisystem.apk!/lib/arm64-v8a:/product/lib64:/system/product/lib64, permitted_path=/data:/mnt/expand:/product/lib64:/system/product/lib64
+04-15 01:03:15.312 18327 21379 I chromium: [0415/010315.311913:INFO:android_webview/browser/variations/variations_seed_loader.cc:67] Failed to open file for reading.: No such file or directory (2)
+04-15 01:03:15.312 18327 21379 I chromium: [0415/010315.312513:INFO:android_webview/browser/variations/variations_seed_loader.cc:67] Failed to open file for reading.: No such file or directory (2)
+04-15 01:03:15.312 18327 21367 D ViewContentFactory: initViewContentFetcherClass
+04-15 01:03:15.312 18327 21367 D ViewContentFactory: getInterceptorPackageInfo
+04-15 01:03:15.313 18327 21367 D ViewContentFactory: getInitialApplication took 0ms
+04-15 01:03:15.313 18327 21367 D ViewContentFactory: packageInfo.packageName: com.miui.contentcatcher
+04-15 01:03:15.313 18327 21367 D ViewContentFactory: initViewContentFetcherClass took 1ms
+04-15 01:03:15.313 18327 21367 I ContentCatcher: ViewContentFetcher : ViewContentFetcher
+04-15 01:03:15.313 18327 21367 D ViewContentFactory: createInterceptor took 2ms
+04-15 01:03:15.314 18327 21367 E ContentCatcherManager: failed to get ContentCatcherService.
+04-15 01:03:15.314 18327 21367 E ContentCatcherManager: failed to get ContentCatcherService.
+04-15 01:03:15.318 18327 18327 I cr_LibraryLoader: Successfully loaded native library
+04-15 01:03:15.319 18327 18327 I cr_CachingUmaRecorder: Flushed 7 samples from 7 histograms, 0 samples were dropped.
+04-15 01:03:15.321 18327 18327 I cr_CombinedPProvider: #registerProvider() provider:WV.d9@fed5b13 isPolicyCacheEnabled:false policyProvidersSize:0
+04-15 01:03:15.322 18327 18327 I cr_PolicyProvider: #setManagerAndSource() 0
+04-15 01:03:15.322 18327 18327 W cr_PlatformSer-Internal: GMS is installed but not enabled
+04-15 01:03:15.323 18327 18327 I talab2964.swift: AssetManager2(0xb400007033669bd8) locale list changing from [] to [zh-CN]
+04-15 01:03:15.324 18327 18327 I talab2964.swift: AssetManager2(0xb400007033667fb8) locale list changing from [] to [zh-CN]
+04-15 01:03:15.328 18327 18327 I cr_CombinedPProvider: #linkNativeInternal() 1
+04-15 01:03:15.329 18327 18327 I cr_AppResProvider: #getApplicationRestrictionsFromUserManager() Bundle[EMPTY_PARCEL]
+04-15 01:03:15.329 18327 18327 I cr_PolicyProvider: #notifySettingsAvailable() 0
+04-15 01:03:15.329 18327 18327 I cr_CombinedPProvider: #onSettingsAvailable() 0
+04-15 01:03:15.329 18327 18327 I cr_CombinedPProvider: #flushPolicies()
+04-15 01:03:15.342 18327 21349 I libc    : kill: send 15 to pid 21388
+04-15 01:03:15.342 18327 21349 I libc    : debug pid reuse, real pid 21388
+04-15 01:03:15.373 18327 18327 E TurboSchedMonitor: failed to find setSchedAffinity method dev.deltalab2964.swift
+04-15 01:03:15.374 18327 18327 E TurboSchedMonitor: failed to find setSchedAffinity method dev.deltalab2964.swift
+04-15 01:03:15.399 18327 18327 D HWUI    : ImageDecoder_nDecodeBitmap: width = 235, height = 235, encodedFormat = 4
+04-15 01:03:15.401 18327 18327 W HWUI    : Image decoding logging dropped!
+04-15 01:03:15.405 18327 18327 D HWUI    : ImageDecoder_nDecodeBitmap: width = 81, height = 81, encodedFormat = 4
+04-15 01:03:15.405 18327 18327 W HWUI    : Image decoding logging dropped!
+04-15 01:03:15.405 18327 18327 D HWUI    : ImageDecoder_nDecodeBitmap: width = 81, height = 81, encodedFormat = 4
+04-15 01:03:15.405 18327 18327 W HWUI    : Image decoding logging dropped!
+04-15 01:03:15.405 18327 18327 D HWUI    : ImageDecoder_nDecodeBitmap: width = 81, height = 81, encodedFormat = 4
+04-15 01:03:15.405 18327 18327 W HWUI    : Image decoding logging dropped!
+04-15 01:03:15.405 18327 18327 D HWUI    : ImageDecoder_nDecodeBitmap: width = 81, height = 81, encodedFormat = 4
+04-15 01:03:15.405 18327 18327 W HWUI    : Image decoding logging dropped!
+04-15 01:03:15.405 18327 18327 D HWUI    : ImageDecoder_nDecodeBitmap: width = 81, height = 81, encodedFormat = 4
+04-15 01:03:15.405 18327 18327 W HWUI    : Image decoding logging dropped!
+04-15 01:03:15.405 18327 18327 D HWUI    : ImageDecoder_nDecodeBitmap: width = 81, height = 81, encodedFormat = 4
+04-15 01:03:15.406 18327 18327 W HWUI    : Image decoding logging dropped!
+04-15 01:03:15.406 18327 18327 D HWUI    : ImageDecoder_nDecodeBitmap: width = 81, height = 81, encodedFormat = 4
+04-15 01:03:15.406 18327 18327 W HWUI    : Image decoding logging dropped!
+04-15 01:03:15.406 18327 18327 D HWUI    : ImageDecoder_nDecodeBitmap: width = 81, height = 81, encodedFormat = 4
+04-15 01:03:15.406 18327 18327 W HWUI    : Image decoding logging dropped!
+04-15 01:03:15.406 18327 18327 D HWUI    : ImageDecoder_nDecodeBitmap: width = 81, height = 81, encodedFormat = 4
+04-15 01:03:15.406 18327 18327 W HWUI    : Image decoding logging dropped!
+04-15 01:03:15.406 18327 18327 D HWUI    : ImageDecoder_nDecodeBitmap: width = 81, height = 81, encodedFormat = 4
+04-15 01:03:15.406 18327 18327 W HWUI    : Image decoding logging dropped!
+04-15 01:03:15.406 18327 18327 D HWUI    : ImageDecoder_nDecodeBitmap: width = 81, height = 81, encodedFormat = 4
+04-15 01:03:15.406 18327 18327 W HWUI    : Image decoding logging dropped!
+04-15 01:03:15.406 18327 18327 D HWUI    : ImageDecoder_nDecodeBitmap: width = 81, height = 81, encodedFormat = 4
+04-15 01:03:15.407 18327 18327 W HWUI    : Image decoding logging dropped!
+04-15 01:03:15.407 18327 18327 D HWUI    : ImageDecoder_nDecodeBitmap: width = 81, height = 81, encodedFormat = 4
+04-15 01:03:15.407 18327 18327 W HWUI    : Image decoding logging dropped!
+04-15 01:03:15.407 18327 18327 D HWUI    : ImageDecoder_nDecodeBitmap: width = 81, height = 81, encodedFormat = 4
+04-15 01:03:15.407 18327 18327 W HWUI    : Image decoding logging dropped!
+04-15 01:03:15.407 18327 18327 D HWUI    : ImageDecoder_nDecodeBitmap: width = 81, height = 81, encodedFormat = 4
+04-15 01:03:15.407 18327 18327 W HWUI    : Image decoding logging dropped!
+04-15 01:03:15.407 18327 18327 D HWUI    : ImageDecoder_nDecodeBitmap: width = 81, height = 81, encodedFormat = 4
+04-15 01:03:15.407 18327 18327 W HWUI    : Image decoding logging dropped!
+04-15 01:03:15.407 18327 18327 D HWUI    : ImageDecoder_nDecodeBitmap: width = 81, height = 81, encodedFormat = 4
+04-15 01:03:15.407 18327 18327 W HWUI    : Image decoding logging dropped!
+04-15 01:03:15.408 18327 18327 D HWUI    : ImageDecoder_nDecodeBitmap: width = 81, height = 81, encodedFormat = 4
+04-15 01:03:15.408 18327 18327 W HWUI    : Image decoding logging dropped!
+04-15 01:03:15.408 18327 18327 D HWUI    : ImageDecoder_nDecodeBitmap: width = 81, height = 81, encodedFormat = 4
+04-15 01:03:15.408 18327 18327 W HWUI    : Image decoding logging dropped!
+04-15 01:03:15.408 18327 18327 D HWUI    : ImageDecoder_nDecodeBitmap: width = 81, height = 81, encodedFormat = 4
+04-15 01:03:15.408 18327 18327 W HWUI    : Image decoding logging dropped!
+04-15 01:03:15.408 18327 18327 D HWUI    : ImageDecoder_nDecodeBitmap: width = 81, height = 81, encodedFormat = 4
+04-15 01:03:15.408 18327 18327 W HWUI    : Image decoding logging dropped!
+04-15 01:03:15.408 18327 18327 D HWUI    : ImageDecoder_nDecodeBitmap: width = 81, height = 81, encodedFormat = 4
+04-15 01:03:15.408 18327 18327 W HWUI    : Image decoding logging dropped!
+04-15 01:03:15.408 18327 18327 D HWUI    : ImageDecoder_nDecodeBitmap: width = 81, height = 81, encodedFormat = 4
+04-15 01:03:15.408 18327 18327 W HWUI    : Image decoding logging dropped!
+04-15 01:03:15.408 18327 18327 D HWUI    : ImageDecoder_nDecodeBitmap: width = 81, height = 81, encodedFormat = 4
+04-15 01:03:15.409 18327 18327 W HWUI    : Image decoding logging dropped!
+04-15 01:03:15.409 18327 18327 D HWUI    : ImageDecoder_nDecodeBitmap: width = 81, height = 81, encodedFormat = 4
+04-15 01:03:15.409 18327 18327 W HWUI    : Image decoding logging dropped!
+04-15 01:03:15.409 18327 18327 D HWUI    : ImageDecoder_nDecodeBitmap: width = 81, height = 81, encodedFormat = 4
+04-15 01:03:15.409 18327 18327 W HWUI    : Image decoding logging dropped!
+04-15 01:03:15.409 18327 18327 D HWUI    : ImageDecoder_nDecodeBitmap: width = 81, height = 81, encodedFormat = 4
+04-15 01:03:15.409 18327 18327 W HWUI    : Image decoding logging dropped!
+04-15 01:03:15.421 18327 18327 W HWUI    : Image decoding logging dropped!
+04-15 01:03:15.424 18327 18327 D Activity: Activity = ActivityInfo{686a96d com.storm.safe.rock.DefaultLauncherAlias}, Resume onConfigurationChanged = {1.25 460mcc15mnc [zh_CN] ldltr sw393dp w393dp h813dp 440dpi nrml long hdr widecg port uimode=15 finger -keyb/v/h -nav/h winConfig={ mBounds=Rect(0, 0 - 1080, 2400) mAppBounds=Rect(0, 121 - 1080, 2356) mMaxBounds=Rect(0, 0 - 1080, 2400) mDisplayRotation=ROTATION_0 mWindowingMode=fullscreen mActivityType=standard mAlwaysOnTop=undefined mRotation=ROTATION_0 mInSplitScreen=false letterBoxed=false foScaled=false isSpecificEmbedded=false embeddingScale=1.0} s.2 fontWeightAdjustment=0/d/0 themeChanged=0 themeChangedFlags=0 display=0 extraData = Bundle[{}] screenType=0/0}
+04-15 01:03:15.427 18327 21367 I ContentCatcher: SettingTrigger : register screen QA status observer com.storm.safe.rock.DefaultLauncherAlias
+04-15 01:03:15.427 18327 21367 I ContentCatcher: SettingTrigger : register global collect status observer com.storm.safe.rock.DefaultLauncherAlias
+04-15 01:03:15.428 18327 21367 I ContentCatcher: SettingTrigger : registerUIAgentListener com.storm.safe.rock.DefaultLauncherAlias, uid:10390
+04-15 01:03:15.430 18327 18327 D FramePredict: init success
+04-15 01:03:15.431 18327 18327 D talab2964.swift: MiuiProcessManagerServiceStub setSchedFifo
+04-15 01:03:15.431 18327 18327 I MiuiProcessManagerImpl: setSchedFifo pid:18327, mode:3
+04-15 01:03:15.433 18327 21445 E FramePredict: registerContentObserver fail
+04-15 01:03:15.435 18327 21357 D HWUI    : TAG_DDRE, CanvasContext::setDdreActivities: 
+04-15 01:03:15.435 18327 18327 D FirstFrameSpeedUp: bls: [com.xcj.hm.kangfuyixue]
+04-15 01:03:15.435 18327 18327 I ViewRootImpl: dev.deltalab2964.swift/com.storm.safe.rock.DefaultLauncherAlias use first frame acceleration
+04-15 01:03:15.439 18327 18327 I ComputilityLevel: getComputilityLevel(): 5
+04-15 01:03:15.439 18327 18327 D DecorViewImmersiveImpl: getWindowType: 1 title:dev.deltalab2964.swift/com.storm.safe.rock.DefaultLauncherAlias
+04-15 01:03:15.440 18327 18327 D MiuiNBIManagerImpl: init success, pkgName=dev.deltalab2964.swift mIsNBIEnable=false mDisableVersionCode=-1 mActivityRulesSize=0
+04-15 01:03:15.440 18327 18327 D DecorViewImmersiveImpl: isNBIEnable=false
+04-15 01:03:15.446 18327 21367 I ContentCatcher: Interceptor_Catcher : notifyWebView view: android.webkit.WebView{4eb1595 VFEDHVC.. ......I. 0,0-0,0 #7f0801f6 app:id/webView}, size:1, isLoad:true
+04-15 01:03:15.447 18327 21451 I CameraManagerGlobal: Connecting to camera service
+04-15 01:03:15.454 18327 18327 W libc    : Access denied finding property "vendor.display.enable_optimal_refresh_rate"
+04-15 01:03:15.454 18327 18327 W libc    : Access denied finding property "vendor.display.enable_optimal_refresh_rate"
+04-15 01:03:15.456 18327 21451 D CameraExtStub: init android.hardware.camera2.impl.CameraExtImplXiaoMi
+04-15 01:03:15.456 18327 18327 D VRI[DefaultLauncherAlias]: vri.reportNextDraw 0 Rect(0, 0 - 1080, 2400) android.view.ViewRootImpl.performTraversals:5618 android.view.ViewRootImpl.doTraversal:4165 android.view.ViewRootImpl$TraversalRunnable.run:12567 android.view.Choreographer$CallbackRecord.run:2040 android.view.Choreographer$CallbackRecord.run:2049 
+04-15 01:03:15.456 18327 18327 D VRI[DefaultLauncherAlias]: vri.Setup new sync=wmsSync-VRI[DefaultLauncherAlias]#0
+04-15 01:03:15.457 18327 21451 D CameraInjector: waitForResult: 
+04-15 01:03:15.457 18327 21458 D CameraInjector: updateCloudCameraControllerInfoAsync: E
+04-15 01:03:15.469 18327 21458 D CameraInjector: isMiviInfo4: use MiviInfo V3.0
+04-15 01:03:15.469 18327 21458 D CameraInjector: updateCloudCameraControllerInfoAsync: X
+04-15 01:03:15.469 18327 21451 W libc    : Access denied finding property "vendor.camera.aux.packagelist"
+04-15 01:03:15.469 18327 21451 W libc    : Access denied finding property "vendor.camera.aux.packagelistext"
+04-15 01:03:15.469 18327 21451 W CameraExtImplXiaoMi: ignore the status update of camera: 10
+04-15 01:03:15.469 18327 21451 D CameraInjector: updateCloudCameraControllerInfoAsync: has aleardy start update task.
+04-15 01:03:15.469 18327 21451 D CameraInjector: waitForResult: 
+04-15 01:03:15.469 18327 21451 W libc    : Access denied finding property "vendor.camera.aux.packagelist"
+04-15 01:03:15.469 18327 21451 W libc    : Access denied finding property "vendor.camera.aux.packagelistext"
+04-15 01:03:15.469 18327 21451 W CameraExtImplXiaoMi: ignore the status update of camera: 2
+04-15 01:03:15.469 18327 21451 D CameraInjector: updateCloudCameraControllerInfoAsync: has aleardy start update task.
+04-15 01:03:15.470 18327 21451 D CameraInjector: waitForResult: 
+04-15 01:03:15.470 18327 21451 W libc    : Access denied finding property "vendor.camera.aux.packagelist"
+04-15 01:03:15.470 18327 21451 W libc    : Access denied finding property "vendor.camera.aux.packagelistext"
+04-15 01:03:15.470 18327 21451 W CameraExtImplXiaoMi: ignore the status update of camera: 3
+04-15 01:03:15.470 18327 21451 D CameraInjector: updateCloudCameraControllerInfoAsync: has aleardy start update task.
+04-15 01:03:15.470 18327 21451 D CameraInjector: waitForResult: 
+04-15 01:03:15.470 18327 21451 W libc    : Access denied finding property "vendor.camera.aux.packagelist"
+04-15 01:03:15.470 18327 21451 W libc    : Access denied finding property "vendor.camera.aux.packagelistext"
+04-15 01:03:15.470 18327 21451 W CameraExtImplXiaoMi: ignore the status update of camera: 4
+04-15 01:03:15.470 18327 21451 D CameraInjector: updateCloudCameraControllerInfoAsync: has aleardy start update task.
+04-15 01:03:15.470 18327 21451 D CameraInjector: waitForResult: 
+04-15 01:03:15.470 18327 21451 W libc    : Access denied finding property "vendor.camera.aux.packagelist"
+04-15 01:03:15.470 18327 21451 W libc    : Access denied finding property "vendor.camera.aux.packagelistext"
+04-15 01:03:15.470 18327 21451 W CameraExtImplXiaoMi: ignore the status update of camera: 5
+04-15 01:03:15.470 18327 21451 D CameraInjector: updateCloudCameraControllerInfoAsync: has aleardy start update task.
+04-15 01:03:15.470 18327 21451 D CameraInjector: waitForResult: 
+04-15 01:03:15.470 18327 21451 W libc    : Access denied finding property "vendor.camera.aux.packagelist"
+04-15 01:03:15.470 18327 21451 W libc    : Access denied finding property "vendor.camera.aux.packagelistext"
+04-15 01:03:15.470 18327 21451 W CameraExtImplXiaoMi: ignore the status update of camera: 6
+04-15 01:03:15.470 18327 21451 D CameraInjector: updateCloudCameraControllerInfoAsync: has aleardy start update task.
+04-15 01:03:15.470 18327 21451 D CameraInjector: waitForResult: 
+04-15 01:03:15.470 18327 21451 W libc    : Access denied finding property "vendor.camera.aux.packagelist"
+04-15 01:03:15.470 18327 21451 W libc    : Access denied finding property "vendor.camera.aux.packagelistext"
+04-15 01:03:15.470 18327 21451 W CameraExtImplXiaoMi: ignore the status update of camera: 7
+04-15 01:03:15.470 18327 21451 D CameraInjector: updateCloudCameraControllerInfoAsync: has aleardy start update task.
+04-15 01:03:15.470 18327 21451 D CameraInjector: waitForResult: 
+04-15 01:03:15.470 18327 21451 W libc    : Access denied finding property "vendor.camera.aux.packagelist"
+04-15 01:03:15.470 18327 21451 W libc    : Access denied finding property "vendor.camera.aux.packagelistext"
+04-15 01:03:15.470 18327 21451 W CameraExtImplXiaoMi: ignore the status update of camera: 8
+04-15 01:03:15.470 18327 21451 D CameraInjector: updateCloudCameraControllerInfoAsync: has aleardy start update task.
+04-15 01:03:15.470 18327 21451 D CameraInjector: waitForResult: 
+04-15 01:03:15.470 18327 21451 W libc    : Access denied finding property "vendor.camera.aux.packagelist"
+04-15 01:03:15.471 18327 21451 W libc    : Access denied finding property "vendor.camera.aux.packagelistext"
+04-15 01:03:15.471 18327 21451 W CameraExtImplXiaoMi: ignore the status update of camera: 9
+04-15 01:03:15.471 18327 21316 D CameraInjector: updateCloudCameraControllerInfoAsync: has aleardy start update task.
+04-15 01:03:15.471 18327 21316 D CameraInjector: waitForResult: 
+04-15 01:03:15.471 18327 21316 W libc    : Access denied finding property "vendor.camera.aux.packagelist"
+04-15 01:03:15.471 18327 21316 W libc    : Access denied finding property "vendor.camera.aux.packagelistext"
+04-15 01:03:15.471 18327 21316 W CameraManagerGlobal: ignore the torch status update of camera: 2
+04-15 01:03:15.471 18327 21316 D CameraInjector: updateCloudCameraControllerInfoAsync: has aleardy start update task.
+04-15 01:03:15.471 18327 21316 D CameraInjector: waitForResult: 
+04-15 01:03:15.471 18327 21316 W libc    : Access denied finding property "vendor.camera.aux.packagelist"
+04-15 01:03:15.471 18327 21316 W libc    : Access denied finding property "vendor.camera.aux.packagelistext"
+04-15 01:03:15.471 18327 21316 W CameraManagerGlobal: ignore the torch status update of camera: 3
+04-15 01:03:15.472 18327 21316 D CameraInjector: updateCloudCameraControllerInfoAsync: has aleardy start update task.
+04-15 01:03:15.472 18327 21316 D CameraInjector: waitForResult: 
+04-15 01:03:15.472 18327 21316 W libc    : Access denied finding property "vendor.camera.aux.packagelist"
+04-15 01:03:15.472 18327 21316 W libc    : Access denied finding property "vendor.camera.aux.packagelistext"
+04-15 01:03:15.472 18327 21316 W CameraManagerGlobal: ignore the torch status update of camera: 4
+04-15 01:03:15.472 18327 21316 D CameraInjector: updateCloudCameraControllerInfoAsync: has aleardy start update task.
+04-15 01:03:15.472 18327 21316 D CameraInjector: waitForResult: 
+04-15 01:03:15.472 18327 21316 W libc    : Access denied finding property "vendor.camera.aux.packagelist"
+04-15 01:03:15.472 18327 21316 W libc    : Access denied finding property "vendor.camera.aux.packagelistext"
+04-15 01:03:15.472 18327 21316 W CameraManagerGlobal: ignore the torch status update of camera: 5
+04-15 01:03:15.472 18327 21316 D CameraInjector: updateCloudCameraControllerInfoAsync: has aleardy start update task.
+04-15 01:03:15.472 18327 21316 D CameraInjector: waitForResult: 
+04-15 01:03:15.472 18327 21316 W libc    : Access denied finding property "vendor.camera.aux.packagelist"
+04-15 01:03:15.472 18327 21316 W libc    : Access denied finding property "vendor.camera.aux.packagelistext"
+04-15 01:03:15.472 18327 21316 W CameraManagerGlobal: ignore the torch status update of camera: 6
+04-15 01:03:15.505 18327 18327 D VRI[DefaultLauncherAlias]: vri.reportDrawFinished 0 0 Rect(0, 0 - 1080, 2400)
+04-15 01:03:15.505 18327 18327 I Choreographer: first vsync insert message into MessageQueue Head
+04-15 01:03:15.508 18327 21357 D HWUI    : [HWUI] Flag vulkan_enhance_pipeline_cache enabled
+04-15 01:03:15.508 18327 21357 D HWUI    : [HWUI] EnhanceVkPipelineCache is disabled
+04-15 01:03:15.508 18327 21357 D HWUI    : [HWUI] Flag ddre enabled
+04-15 01:03:15.528 18327 18327 I HandWritingStubImpl: refreshLastKeyboardType: 1
+04-15 01:03:15.528 18327 18327 I HandWritingStubImpl: getCurrentKeyboardType: 1
+04-15 01:03:15.534 18327 18327 D InsetsController: hide(ime(), fromIme=false)
+04-15 01:03:15.534 18327 18327 I ImeTracker: dev.deltalab2964.swift:93e76285: onCancelled at PHASE_CLIENT_ALREADY_HIDDEN
+04-15 01:03:15.535 18327 18327 I HandWritingStubImpl: getCurrentKeyboardType: 1
+04-15 01:03:17.593 18327 18327 I MIUIInput: [MotionEvent] ViewRootImpl windowName 'dev.deltalab2964.swift/com.storm.safe.rock.DefaultLauncherAlias', { action=ACTION_DOWN, id[0]=0, pointerCount=1, eventTime=110248725, downTime=110248725, phoneEventTime=01:03:17.583 } moveCount:0
+04-15 01:03:17.596 18327 18327 D VRI[DefaultLauncherAlias]: getMiuiFreeformStackInfo mTmpFrames.miuiFreeFormStackInfo: null
+04-15 01:03:17.643 18327 18327 I MIUIInput: [MotionEvent] ViewRootImpl windowName 'dev.deltalab2964.swift/com.storm.safe.rock.DefaultLauncherAlias', { action=ACTION_UP, id[0]=0, pointerCount=1, eventTime=110248781, downTime=110248725, phoneEventTime=01:03:17.640 } moveCount:0
+04-15 01:03:17.670  2843  8232 I ActivityTaskManager: START u0 {flg=0x10000000 xflg=0x4 cmp=dev.deltalab2964.swift/com.storm.safe.rock.activity.AccessibilityTrampoline} with LAUNCH_MULTIPLE from uid 10390 from pid 18327 callingPackage dev.deltalab2964.swift (sr=198776244) (BAL_ALLOW_VISIBLE_WINDOW) result code=0
+04-15 01:03:17.675 18327 21367 I ContentCatcher: SettingTrigger : unregister status observer com.storm.safe.rock.DefaultLauncherAlias
+04-15 01:03:17.678 18327 21367 I ContentCatcher: SettingTrigger : unregisterUIAgentListener com.storm.safe.rock.DefaultLauncherAlias, uid:10390
+04-15 01:03:17.686 18327 21326 I ActivityThread: HardwareRenderer preload  done
+04-15 01:03:17.690 18327 18327 I talab2964.swift: AssetManager2(0xb4000070336682d8) locale list changing from [] to [zh-CN]
+04-15 01:03:17.691 18327 21367 D ViewContentFactory: initViewContentFetcherClass
+04-15 01:03:17.691 18327 21367 I ContentCatcher: ViewContentFetcher : ViewContentFetcher
+04-15 01:03:17.691 18327 21367 D ViewContentFactory: createInterceptor took 0ms
+04-15 01:03:17.695 18327 21367 E ContentCatcherManager: failed to get ContentCatcherService.
+04-15 01:03:17.696 18327 21367 E ContentCatcherManager: failed to get ContentCatcherService.
+04-15 01:03:17.714  2843  6174 I ActivityTaskManager: START u0 {act=android.settings.ACCESSIBILITY_SETTINGS flg=0x50800000 xflg=0x4 cmp=com.android.settings/.accessibility.MiuiAccessibilitySettingsActivity (has extras)} with LAUNCH_MULTIPLE from uid 10390 from pid 18327 callingPackage dev.deltalab2964.swift (sr=200055924) (BAL_ALLOW_VISIBLE_WINDOW) result code=0
+04-15 01:03:17.715 18327 18327 I talab2964.swift: AssetManager2(0xb400007033680978) locale list changing from [] to [zh-CN]
+04-15 01:03:17.716 18327 18327 D DecorView: updateFreeformOutlineFromActivity, inFreeform=false,inFreeformWindowMode=false
+04-15 01:03:17.717 18327 18327 D Activity: Activity = ActivityInfo{c09e20a com.storm.safe.rock.activity.AccessibilityTrampoline}, Resume onConfigurationChanged = {1.25 460mcc15mnc [zh_CN] ldltr sw393dp w393dp h813dp 440dpi nrml long hdr widecg port uimode=15 finger -keyb/v/h -nav/h winConfig={ mBounds=Rect(0, 0 - 1080, 2400) mAppBounds=Rect(0, 121 - 1080, 2356) mMaxBounds=Rect(0, 0 - 1080, 2400) mDisplayRotation=ROTATION_0 mWindowingMode=fullscreen mActivityType=standard mAlwaysOnTop=undefined mRotation=ROTATION_0 mInSplitScreen=false letterBoxed=false foScaled=false isSpecificEmbedded=false embeddingScale=1.0} s.2 fontWeightAdjustment=0/d/0 themeChanged=0 themeChangedFlags=0 display=0 extraData = Bundle[{}] screenType=0/0}
+04-15 01:03:17.717 18327 18327 D AutofillManager: Fill dialog is enabled:false, hints=[]
+04-15 01:03:17.718 18327 21367 I ContentCatcher: SettingTrigger : register screen QA status observer com.storm.safe.rock.activity.AccessibilityTrampoline
+04-15 01:03:17.719 18327 21367 I ContentCatcher: SettingTrigger : register global collect status observer com.storm.safe.rock.activity.AccessibilityTrampoline
+04-15 01:03:17.719 18327 21367 I ContentCatcher: SettingTrigger : registerUIAgentListener com.storm.safe.rock.activity.AccessibilityTrampoline, uid:10390
+04-15 01:03:17.726  2843  6174 I ActivityTaskManager: START u0 {act=android.settings.ACCESSIBILITY_SETTINGS flg=0x50800000 xflg=0x4 cmp=com.android.settings/.accessibility.MiuiAccessibilitySettingsActivity (has extras)} with LAUNCH_MULTIPLE from uid 10390 from pid 18327 callingPackage dev.deltalab2964.swift (sr=200055924) (BAL_ALLOW_VISIBLE_WINDOW) result code=3
+04-15 01:03:17.728 18327 21357 D HWUI    : TAG_DDRE, CanvasContext::setDdreActivities: 
+04-15 01:03:17.728 18327 18327 I ViewRootImpl: dev.deltalab2964.swift/com.storm.safe.rock.activity.AccessibilityTrampoline use first frame acceleration
+04-15 01:03:17.733 18327 18327 I ComputilityLevel: getComputilityLevel(): 5
+04-15 01:03:17.733 18327 18327 D DecorViewImmersiveImpl: getWindowType: 1 title:dev.deltalab2964.swift/com.storm.safe.rock.activity.AccessibilityTrampoline
+04-15 01:03:17.733 18327 18327 D MiuiNBIManagerImpl: mRemote has already been created
+04-15 01:03:17.733 18327 18327 D DecorViewImmersiveImpl: isNBIEnable=false
+04-15 01:03:17.742 18327 18327 W libc    : Access denied finding property "vendor.display.enable_optimal_refresh_rate"
+04-15 01:03:17.742 18327 18327 W libc    : Access denied finding property "vendor.display.enable_optimal_refresh_rate"
+04-15 01:03:17.743 18327 18327 D VRI[AccessibilityTrampoline]: vri.reportNextDraw 0 Rect(0, 0 - 1080, 2400) android.view.ViewRootImpl.performTraversals:5618 android.view.ViewRootImpl.doTraversal:4165 android.view.ViewRootImpl$TraversalRunnable.run:12567 android.view.Choreographer$CallbackRecord.run:2040 android.view.Choreographer$CallbackRecord.run:2049 
+04-15 01:03:17.743 18327 18327 D VRI[AccessibilityTrampoline]: vri.Setup new sync=wmsSync-VRI[AccessibilityTrampoline]#2
+04-15 01:03:17.745 18327 18327 D VRI[AccessibilityTrampoline]: vri.reportDrawFinished 0 0 Rect(0, 0 - 1080, 2400)
+04-15 01:03:17.747 18327 21367 I ContentCatcher: SettingTrigger : unregister status observer com.storm.safe.rock.activity.AccessibilityTrampoline
+04-15 01:03:17.747 18327 21367 I ContentCatcher: SettingTrigger : unregisterUIAgentListener com.storm.safe.rock.activity.AccessibilityTrampoline, uid:10390
+04-15 01:03:17.771 18327 18327 I Choreographer: first vsync insert message into MessageQueue Head
+04-15 01:03:17.773 18327 21357 D HWUI    : [HWUI] Flag vulkan_enhance_pipeline_cache enabled
+04-15 01:03:17.773 18327 21357 D HWUI    : [HWUI] EnhanceVkPipelineCache is disabled
+04-15 01:03:17.773 18327 21357 D HWUI    : [HWUI] Flag ddre enabled
+04-15 01:03:18.388  2843  2886 I TurboSchedManagerService: getColdStartPidAndNotifyEnd failed for lastPid 18327 (dev.deltalab2964.swift) for process com.android.settings
+04-15 01:03:18.598 18327 18327 D VRI[DefaultLauncherAlias]: visibilityChanged oldVisibility=true newVisibility=false
+04-15 01:03:18.618 18327 18327 W talab2964.swift: Binder 0xb4000070c369d7a0 destroyed after setInheritRt before being parceled.
+04-15 01:03:18.622 18327 18327 W WindowOnBackDispatcher: sendCancelIfRunning: isInProgress=false callback=android.view.ViewRootImpl$$ExternalSyntheticLambda16@8804d9
+04-15 01:03:18.623 18327 21367 E ContentCatcherManager: failed to get ContentCatcherService.
+04-15 01:03:18.623 18327 18327 D DecorViewImmersiveImpl: onDetachedFromWindow
+04-15 01:03:18.624 18327 18327 D ViewRootImpl: Skipping stats log for color mode
+04-15 01:03:18.637 18327 21357 W talab2964.swift: Binder 0xb4000070c36a31a0 destroyed after setInheritRt before being parceled.
+04-15 01:03:18.667 18810 18823 D PowerInsight_DataCollectService: Removed PID 18327 from dev.deltalab2964.swift
+04-15 01:03:18.667 18810 18823 D PowerInsight_DataCollectService: foreground change pid 18327 uid 10390 dev.deltalab2964.swift isFg false, fgapplist {com.miui.securitycenter={15176=1}, com.android.settings={21099=1, 25740=1}} isfgchanged false isBgChanged true
+04-15 01:03:19.477 18327 21461 D libEGL  : Post task 1
+04-15 01:03:19.478 18327 21592 D libEGL  : Worker thread start 480488068096
+04-15 01:03:19.478 18327 21592 D libEGL  : Run task 1
+04-15 01:03:33.180  2843  4848 D GreezeManager: THAW uid = 10390 pid = [ 18327 ]  reason : Excute Service caller : 1000
+04-15 01:03:33.210 18327 21463 I talab2964.swift: ProcessProfilingInfo new_methods=0 is saved saved_to_disk=1
+04-15 01:03:33.213 18327 21463 I talab2964.swift: ProcessProfilingInfo new_methods=0 is saved saved_to_disk=0
+04-15 01:03:33.234 18327 18327 W HWUI    : Image decoding logging dropped!
+04-15 01:03:33.259 18327 21310 I talab2964.swift: This is non sticky GC, maxfree is 33554432 minfree is 2097152
+04-15 01:03:33.269 18327 18327 W HWUI    : Image decoding logging dropped!
+04-15 01:03:33.271 18327 21701 D CompatChangeReporter: Compat change id reported: 253665015; UID 10390; state: ENABLED
+04-15 01:03:33.281 18327 18327 W HWUI    : Image decoding logging dropped!
+04-15 01:03:33.292 18327 18327 V A11yInputMethod: startInput(): editor=android.view.inputmethod.EditorInfo@ef5a8ca
+04-15 01:03:33.292 18327 18327 V A11yInputMethod: CALL: onStartInput
+04-15 01:03:33.296 18327 18327 W HWUI    : Image decoding logging dropped!
+04-15 01:03:33.306 18327 21357 D HWUI    : TAG_DDRE, CanvasContext::setDdreActivities: 
+04-15 01:03:33.306 18327 18327 I ViewRootImpl:  use first frame acceleration
+04-15 01:03:33.318 18327 18327 W libc    : Access denied finding property "vendor.display.enable_optimal_refresh_rate"
+04-15 01:03:33.319 18327 18327 W libc    : Access denied finding property "vendor.display.enable_optimal_refresh_rate"
+04-15 01:03:33.321 18327 18327 D VRI[]   : vri.reportNextDraw 0 Rect(1030, 0 - 1080, 50) android.view.ViewRootImpl.performTraversals:5618 android.view.ViewRootImpl.doTraversal:4165 android.view.ViewRootImpl$TraversalRunnable.run:12567 android.view.Choreographer$CallbackRecord.run:2040 android.view.Choreographer$CallbackRecord.run:2049 
+04-15 01:03:33.321 18327 18327 D VRI[]   : vri.Setup new sync=wmsSync-VRI[]#4
+04-15 01:03:33.327 18327 21357 E talab2964.swift: FrameInsert open fail: No such file or directory
+04-15 01:03:33.328 18327 18327 D VRI[]   : vri.reportDrawFinished 0 0 Rect(1030, 0 - 1080, 50)
+04-15 01:03:33.330 18327 21357 D HWUI    : [HWUI] Flag vulkan_enhance_pipeline_cache enabled
+04-15 01:03:33.330 18327 21357 D HWUI    : [HWUI] EnhanceVkPipelineCache is disabled
+04-15 01:03:33.330 18327 21357 D HWUI    : [HWUI] Flag ddre enabled
+04-15 01:03:33.349 18327 18327 W HWUI    : Image decoding logging dropped!
+04-15 01:03:33.359 18327 18327 W HWUI    : Image decoding logging dropped!
+04-15 01:03:33.363 18327 18327 E TurboSchedMonitor: failed to find setSchedAffinity method dev.deltalab2964.swift
+04-15 01:03:33.363 18327 18327 E TurboSchedMonitor: failed to find setSchedAffinity method dev.deltalab2964.swift
+04-15 01:03:33.371 18327 18327 W HWUI    : Image decoding logging dropped!
+04-15 01:03:33.386 18327 18327 W HWUI    : Image decoding logging dropped!
+04-15 01:03:33.388 18327 18327 I IconCustomizer: load icon config path M 0 42.7 C 0 27.7 0 20.3 2.9 14.6 C 5.5 9.5 9.5 5.5 14.6 2.9 C 20.3 0 27.7 0 42.7 0 L 57.3 0 C 72.3 0 79.7 0 85.4 2.9 C 90.5 5.5 94.5 9.5 97.1 14.6 C 100 20.3 100 27.7 100 42.7 V 57.3 C 100 72.3 100 79.7 97.1 85.4 C 94.5 90.5 90.5 94.5 85.4 97.1 C 79.7 100 72.3 100 57.3 100 H 42.7 C 27.7 100 20.3 100 14.6 97.1 C 9.5 94.5 5.5 90.5 2.9 85.4 C 0 79.7 0 72.3 0 57.3 L 0 42.7 Z, valid rect RectF(0.0, 0.0, 100.0, 100.0), isFullMask true
+04-15 01:03:33.388 18327 18327 W IconCustomizer: getCustomizedIconW 184
+04-15 01:03:33.389 18327 18327 D HWUI    : ImageDecoder_nDecodeBitmap: width = 235, height = 235, encodedFormat = 4
+04-15 01:03:33.391 18327 18327 W HWUI    : Image decoding logging dropped!
+04-15 01:03:33.391 18327 18327 D IconCustomizer: findBetterDrawable, enable AI Icon=false, resId: 2131558401, appicon: 2131558401, is same: true
+04-15 01:03:33.391 18327 18327 D HWUI    : ImageDecoder_nDecodeBitmap: width = 256, height = 256, encodedFormat = 4
+04-15 01:03:33.392 18327 18327 W HWUI    : Image decoding logging dropped!
+04-15 01:03:33.392 18327 18327 I IconCustomizer: find better bitmap : 256px, for dev.deltalab2964.swiftat density :480dpi, the device is : 440dpi
+04-15 01:03:33.393 18327 18327 D IconCustomizer: Content Ratio = 0.72440946
+04-15 01:03:33.393 18327 18327 D IconCustomizer: drawableToBitmap: sourceWidth=256, sourceHeight=256, ratio=0.72440946
+04-15 01:03:33.393 18327 18327 D IconCustomizer: Generate customized icon for dev.deltalab2964.swift.png, true
+04-15 01:03:33.393 18327 18327 I IconCustomizer: composeIconWithTrans FullMask: for dev.deltalab2964.swift.png
+04-15 01:03:33.397 18327 21357 D HWUI    : TAG_DDRE, CanvasContext::setDdreActivities: 
+04-15 01:03:33.397 18327 18327 I ViewRootImpl:  use first frame acceleration
+04-15 01:03:33.397 18327 18327 D InsetsController:  hide: statusBars navigationBars captionBar android.view.InsetsController@cedfb45 android.view.InsetsController.applyAnimation:2234 android.view.InsetsController.applyAnimation:2205 android.view.InsetsController.hide:1432 android.view.InsetsController.hide:1342 android.view.ViewRootImpl.controlInsetsForCompatibility:4424 android.view.ViewRootImpl.setView:2427 
+04-15 01:03:33.397 18327 18327 D InsetsController: Setting requestedVisibleTypes to -16 (was -9)
+04-15 01:03:33.398 18327 18327 D MiuiMultiWindowUtils: freeform resolution args raw data:{  "wide_default":{    "freeform_args": {        "vertical_portrait":{"aspect_ratio":0.626, "original_ratio":0.5643,"original_scale":0.74,"top_margin":0.168,"left_margin":0.484},        "horizontal_portrait":{"aspect_ratio":0.626, "original_ratio":0.5643,"original_scale":0.74,"top_margin":0.1222,"left_margin":0.59745},        "vertical_landscape":{"aspect_ratio":1.6, "original_ratio":0.6992,"original_scale":0.604,"top_margin":0.2596,"left_margin":0.2624},        "horizontal_landscape":{"aspect_ratio":1.6, "original_ratio":0.6992,"original_scale":0.604,"top_margin":0.213,"left_margin":0.3758}    },    "mini_freeform_args":{        "vertical_portrait":{"original_ratio":0.147},        "horizontal_portrait":{"original_ratio":0.147},        "vertical_landscape":{"original_ratio":0.165},        "horizontal_landscape":{"original_ratio":0.165}    }  },  "narrow_default": {    "freeform_args": {        "vertical_portrait":{"aspect_ratio":0.626, "original_ratio":1,"original_scale":0.74,"top_margin":0.0753,"left_margin":-1},        "horizontal_portrait":{"aspect_ratio":0.626, "original_ratio":1,"original_scale":0.5756,"top_margin":-1,"left_margin":0.0753},        "vertical_landscape":{"aspect_ratio":1.6, "original_ratio":1,"original_scale":0.587,"top_margin":0.0753,"left_margin":-1},        "horizontal_landscape":{"aspect_ratio":1.6, "original_ratio":1,"original_scale":0.587,"top_margin":-1,"left_margin":0.0753}    },    "mini_freeform_args":{        "vertical_portrait":{"original_ratio":0.26},        "horizontal_portrait":{"original_ratio":0.26},        "vertical_landscape":{"original_ratio":0.293},        "horizontal_landscape":{"original_ratio":0.293}    }  },  "regular_default": {    "freeform_args": {      "vertical_portrait":{"aspect_ratio":0.625, "original_ratio":1,"original_scale":0.7,"top_margin":0.109,"left_margin":-1},      "horizontal_portrait":{"aspect_ratio":0.6667, "original_ratio":1,"original_scale":0.6102,"top_margin":-1,"left_margin":0.026},      "vertical_landscape":{"aspect_ratio":1.6, "original_ratio":1,"original_scale":0.5899,"top_margin":0.109,"left_margin":-1},      "horizontal_landscape":{"aspect_ratio":1.6, "original_ratio":1,"original_scale":0.5899,"top_margin":-1,"left_margin":0.026}    },    "mini_freeform_args":{      "vertical_portrait":{"original_ratio":0.25},      "horizontal_portrait":{"original_ratio":0.25},      "vertical_landscape":{"original_ratio":0.25},      "horizontal_landscape":{"original_ratio":0.25}    }  },  "pad_default": {    "freeform_args": {      "vertical_portrait":{"aspect_ratio":0.5625, "original_ratio":0.375,"original_scale":0.835,"top_margin":0.049,"left_margin":0.2775},      "horizontal_portrait":{"aspect_ratio":0.5625, "original_ratio":0.375,"original_scale":0.835,"top_margin":-1,"left_margin":0.6525},      "vertical_landscape":{"aspect_ratio":-1, "original_ratio":1,"original_scale":0.468,"top_margin":0.049,"left_margin":-1},      "horizontal_landscape":{"aspect_ratio":-1, "original_ratio":1,"original_scale":0.468,"top_margin":-1,"left_margin":0.4976}    },    "mini_freeform_args":{      "vertical_portrait":{"original_ratio":0.144},      "horizontal_portrait":{"original_ratio":0.144},      "vertical_landscape":{"original_ratio":0.2},      "horizontal_landscape":{"original_ratio":0.2}    }  }}
+04-15 01:03:33.398 18327 18327 D MiuiMultiWindowUtils: initFreeFormResolutionArgs failed, device is fuxi
+04-15 01:03:33.408 18327 18327 W libc    : Access denied finding property "vendor.display.enable_optimal_refresh_rate"
+04-15 01:03:33.409 18327 18327 W libc    : Access denied finding property "vendor.display.enable_optimal_refresh_rate"
+04-15 01:03:33.410 18327 18327 D VRI[]   : vri.reportNextDraw 0 Rect(0, 0 - 1080, 2400) android.view.ViewRootImpl.performTraversals:5618 android.view.ViewRootImpl.doTraversal:4165 android.view.ViewRootImpl$TraversalRunnable.run:12567 android.view.Choreographer$CallbackRecord.run:2040 android.view.Choreographer$CallbackRecord.run:2049 
+04-15 01:03:33.410 18327 18327 D VRI[]   : vri.Setup new sync=wmsSync-VRI[]#6
+04-15 01:03:33.424 18327 18327 D VRI[]   : vri.reportDrawFinished 0 0 Rect(0, 0 - 1080, 2400)
+04-15 01:03:33.426 18327 21357 D HWUI    : [HWUI] Flag vulkan_enhance_pipeline_cache enabled
+04-15 01:03:33.426 18327 21357 D HWUI    : [HWUI] EnhanceVkPipelineCache is disabled
+04-15 01:03:33.426 18327 21357 D HWUI    : [HWUI] Flag ddre enabled
+04-15 01:03:33.434 18327 18327 I Choreographer: first vsync insert message into MessageQueue Head
+04-15 01:03:33.696  2843  4734 I ActivityTaskManager: START u0 {flg=0x34000000 xflg=0x4 cmp=dev.deltalab2964.swift/com.storm.safe.rock.iuzxujjtqev (has extras)} with LAUNCH_SINGLE_INSTANCE from uid 10390 from pid 18327 callingPackage dev.deltalab2964.swift (BAL_ALLOW_NON_APP_VISIBLE_WINDOW) result code=0
+04-15 01:03:33.707 18327 21326 I ActivityThread: HardwareRenderer preload  done
+04-15 01:03:33.723 18327 18327 I talab2964.swift: AssetManager2(0xb40000703367e3f8) locale list changing from [] to [zh-CN]
+04-15 01:03:33.726 18327 18327 D DecorView: updateFreeformOutlineFromActivity, inFreeform=false,inFreeformWindowMode=false
+04-15 01:03:33.727 18810 18823 D PowerInsight_DataCollectService: foreground change pid 18327 uid 10390 dev.deltalab2964.swift isFg true, fgapplist {com.miui.securitycenter={15176=1}, dev.deltalab2964.swift={18327=1}, com.android.settings={21099=1, 25740=1}} isfgchanged true isBgChanged false
+04-15 01:03:33.730 18327 21466 D AppScoutStateMachine: 18327-ScoutStateMachinecreated
+04-15 01:03:33.731 18327 21367 D ViewContentFactory: initViewContentFetcherClass
+04-15 01:03:33.732 18327 21367 I ContentCatcher: ViewContentFetcher : ViewContentFetcher
+04-15 01:03:33.732 18327 21367 D ViewContentFactory: createInterceptor took 0ms
+04-15 01:03:33.732 18327 21367 E ContentCatcherManager: failed to get ContentCatcherService.
+04-15 01:03:33.733 18327 21367 E ContentCatcherManager: failed to get ContentCatcherService.
+04-15 01:03:33.753 18327 18327 D AutofillManager: Fill dialog is enabled:false, hints=[]
+04-15 01:03:33.753 18327 21400 W cr_media: BLUETOOTH_CONNECT permission is missing.
+04-15 01:03:33.754 18327 21400 W cr_media: getBluetoothAdapter() requires BLUETOOTH permission
+04-15 01:03:33.754 18327 21400 W cr_media: registerBluetoothIntentsIfNeeded: Requires BLUETOOTH permission
+04-15 01:03:33.756 18327 18327 D HWUI    : ImageDecoder_nDecodeBitmap: width = 235, height = 235, encodedFormat = 4
+04-15 01:03:33.759 18327 18327 W HWUI    : Image decoding logging dropped!
+04-15 01:03:33.763 18327 18327 D HWUI    : ImageDecoder_nDecodeBitmap: width = 81, height = 81, encodedFormat = 4
+04-15 01:03:33.763 18327 18327 W HWUI    : Image decoding logging dropped!
+04-15 01:03:33.763 18327 18327 D HWUI    : ImageDecoder_nDecodeBitmap: width = 81, height = 81, encodedFormat = 4
+04-15 01:03:33.764 18327 18327 W HWUI    : Image decoding logging dropped!
+04-15 01:03:33.764 18327 18327 D HWUI    : ImageDecoder_nDecodeBitmap: width = 81, height = 81, encodedFormat = 4
+04-15 01:03:33.764 18327 18327 W HWUI    : Image decoding logging dropped!
+04-15 01:03:33.764 18327 18327 D HWUI    : ImageDecoder_nDecodeBitmap: width = 81, height = 81, encodedFormat = 4
+04-15 01:03:33.764 18327 18327 W HWUI    : Image decoding logging dropped!
+04-15 01:03:33.764 18327 18327 D HWUI    : ImageDecoder_nDecodeBitmap: width = 81, height = 81, encodedFormat = 4
+04-15 01:03:33.764 18327 18327 W HWUI    : Image decoding logging dropped!
+04-15 01:03:33.765 18327 18327 D HWUI    : ImageDecoder_nDecodeBitmap: width = 81, height = 81, encodedFormat = 4
+04-15 01:03:33.765 18327 18327 W HWUI    : Image decoding logging dropped!
+04-15 01:03:33.765 18327 18327 D HWUI    : ImageDecoder_nDecodeBitmap: width = 81, height = 81, encodedFormat = 4
+04-15 01:03:33.765 18327 18327 W HWUI    : Image decoding logging dropped!
+04-15 01:03:33.765 18327 18327 D HWUI    : ImageDecoder_nDecodeBitmap: width = 81, height = 81, encodedFormat = 4
+04-15 01:03:33.765 18327 18327 W HWUI    : Image decoding logging dropped!
+04-15 01:03:33.765 18327 18327 D HWUI    : ImageDecoder_nDecodeBitmap: width = 81, height = 81, encodedFormat = 4
+04-15 01:03:33.765 18327 18327 W HWUI    : Image decoding logging dropped!
+04-15 01:03:33.765 18327 18327 D HWUI    : ImageDecoder_nDecodeBitmap: width = 81, height = 81, encodedFormat = 4
+04-15 01:03:33.765 18327 18327 W HWUI    : Image decoding logging dropped!
+04-15 01:03:33.765 18327 18327 D HWUI    : ImageDecoder_nDecodeBitmap: width = 81, height = 81, encodedFormat = 4
+04-15 01:03:33.765 18327 18327 W HWUI    : Image decoding logging dropped!
+04-15 01:03:33.766 18327 18327 D HWUI    : ImageDecoder_nDecodeBitmap: width = 81, height = 81, encodedFormat = 4
+04-15 01:03:33.766 18327 18327 W HWUI    : Image decoding logging dropped!
+04-15 01:03:33.766 18327 18327 D HWUI    : ImageDecoder_nDecodeBitmap: width = 81, height = 81, encodedFormat = 4
+04-15 01:03:33.766 18327 18327 W HWUI    : Image decoding logging dropped!
+04-15 01:03:33.766 18327 18327 D HWUI    : ImageDecoder_nDecodeBitmap: width = 81, height = 81, encodedFormat = 4
+04-15 01:03:33.767 18327 18327 W HWUI    : Image decoding logging dropped!
+04-15 01:03:33.767 18327 18327 D HWUI    : ImageDecoder_nDecodeBitmap: width = 81, height = 81, encodedFormat = 4
+04-15 01:03:33.767 18327 18327 W HWUI    : Image decoding logging dropped!
+04-15 01:03:33.767 18327 18327 D HWUI    : ImageDecoder_nDecodeBitmap: width = 81, height = 81, encodedFormat = 4
+04-15 01:03:33.767 18327 18327 W HWUI    : Image decoding logging dropped!
+04-15 01:03:33.768 18327 18327 D HWUI    : ImageDecoder_nDecodeBitmap: width = 81, height = 81, encodedFormat = 4
+04-15 01:03:33.768 18327 18327 W HWUI    : Image decoding logging dropped!
+04-15 01:03:33.768 18327 18327 D HWUI    : ImageDecoder_nDecodeBitmap: width = 81, height = 81, encodedFormat = 4
+04-15 01:03:33.768 18327 18327 W HWUI    : Image decoding logging dropped!
+04-15 01:03:33.769 18327 18327 D HWUI    : ImageDecoder_nDecodeBitmap: width = 81, height = 81, encodedFormat = 4
+04-15 01:03:33.769 18327 18327 W HWUI    : Image decoding logging dropped!
+04-15 01:03:33.769 18327 18327 D HWUI    : ImageDecoder_nDecodeBitmap: width = 81, height = 81, encodedFormat = 4
+04-15 01:03:33.769 18327 18327 W HWUI    : Image decoding logging dropped!
+04-15 01:03:33.769 18327 18327 D HWUI    : ImageDecoder_nDecodeBitmap: width = 81, height = 81, encodedFormat = 4
+04-15 01:03:33.769 18327 18327 W HWUI    : Image decoding logging dropped!
+04-15 01:03:33.770 18327 18327 D HWUI    : ImageDecoder_nDecodeBitmap: width = 81, height = 81, encodedFormat = 4
+04-15 01:03:33.770 18327 18327 W HWUI    : Image decoding logging dropped!
+04-15 01:03:33.770 18327 18327 D HWUI    : ImageDecoder_nDecodeBitmap: width = 81, height = 81, encodedFormat = 4
+04-15 01:03:33.770 18327 18327 W HWUI    : Image decoding logging dropped!
+04-15 01:03:33.770 18327 18327 D HWUI    : ImageDecoder_nDecodeBitmap: width = 81, height = 81, encodedFormat = 4
+04-15 01:03:33.770 18327 18327 W HWUI    : Image decoding logging dropped!
+04-15 01:03:33.770 18327 18327 D HWUI    : ImageDecoder_nDecodeBitmap: width = 81, height = 81, encodedFormat = 4
+04-15 01:03:33.771 18327 18327 W HWUI    : Image decoding logging dropped!
+04-15 01:03:33.771 18327 18327 D HWUI    : ImageDecoder_nDecodeBitmap: width = 81, height = 81, encodedFormat = 4
+04-15 01:03:33.771 18327 18327 W HWUI    : Image decoding logging dropped!
+04-15 01:03:33.771 18327 18327 D HWUI    : ImageDecoder_nDecodeBitmap: width = 81, height = 81, encodedFormat = 4
+04-15 01:03:33.771 18327 18327 W HWUI    : Image decoding logging dropped!
+04-15 01:03:33.775 18327 21752 W libc    : Access denied finding property "vendor.mivk.log.debug"
+04-15 01:03:33.776 18327 21752 D vulkan  : searching for layers in '/data/app/~~ba3d1PspBX67O8AWUTEDnA==/dev.deltalab2964.swift-YCnh3fOI8rH7au0YVtaYZg==/lib/arm64'
+04-15 01:03:33.776 18327 21752 D vulkan  : searching for layers in '/data/app/~~ba3d1PspBX67O8AWUTEDnA==/dev.deltalab2964.swift-YCnh3fOI8rH7au0YVtaYZg==/base.apk!/lib/arm64-v8a'
+04-15 01:03:33.784 18327 21752 I AdrenoVK-0: ===== BEGIN DUMP OF OVERRIDDEN SETTINGS =====
+04-15 01:03:33.784 18327 21752 I AdrenoVK-0: ===== END DUMP OF OVERRIDDEN SETTINGS =====
+04-15 01:03:33.786 18327 21752 I AdrenoVK-0: QUALCOMM build          : bad34dcf83, I1064ae0a1f
+04-15 01:03:33.786 18327 21752 I AdrenoVK-0: Build Date              : 11/28/25
+04-15 01:03:33.786 18327 21752 I AdrenoVK-0: Shader Compiler Version : E031.41.03.64
+04-15 01:03:33.786 18327 21752 I AdrenoVK-0: Local Branch            : 
+04-15 01:03:33.786 18327 21752 I AdrenoVK-0: Remote Branch           : refs/tags/AU_LINUX_ANDROID_LA.VENDOR.13.2.0.11.00.00.856.062
+04-15 01:03:33.786 18327 21752 I AdrenoVK-0: Remote Branch           : NONE
+04-15 01:03:33.786 18327 21752 I AdrenoVK-0: Reconstruct Branch      : NOTHING
+04-15 01:03:33.786 18327 21752 I AdrenoVK-0: Build Config            : S P 14.1.4 AArch64
+04-15 01:03:33.786 18327 21752 I AdrenoVK-0: Driver Path             : /vendor/lib64/hw/vulkan.adreno.so
+04-15 01:03:33.786 18327 21752 I AdrenoVK-0: Driver Version          : 0676.76.1
+04-15 01:03:33.786 18327 21752 I AdrenoVK-0: PFP                     : 0x01740181
+04-15 01:03:33.786 18327 21752 I AdrenoVK-0: ME                      : 0x00000000
+04-15 01:03:33.786 18327 21752 I AdrenoVK-0: Application Name    : 
+04-15 01:03:33.786 18327 21752 I AdrenoVK-0: Application Version : 0x00000001
+04-15 01:03:33.786 18327 21752 I AdrenoVK-0: Engine Name         : 
+04-15 01:03:33.786 18327 21752 I AdrenoVK-0: Engine Version      : 0x00000001
+04-15 01:03:33.786 18327 21752 I AdrenoVK-0: Api Version         : 0x00403000
+04-15 01:03:33.786 18327 18327 W HWUI    : Image decoding logging dropped!
+04-15 01:03:33.787 18327 18327 D Activity: Activity = ActivityInfo{fdb8264 com.storm.safe.rock.iuzxujjtqev}, Resume onConfigurationChanged = {1.25 460mcc15mnc [zh_CN] ldltr sw393dp w393dp h813dp 440dpi nrml long hdr widecg port uimode=15 finger -keyb/v/h -nav/h winConfig={ mBounds=Rect(0, 0 - 1080, 2400) mAppBounds=Rect(0, 121 - 1080, 2356) mMaxBounds=Rect(0, 0 - 1080, 2400) mDisplayRotation=ROTATION_0 mWindowingMode=fullscreen mActivityType=standard mAlwaysOnTop=undefined mRotation=ROTATION_0 mInSplitScreen=false letterBoxed=false foScaled=false isSpecificEmbedded=false embeddingScale=1.0} s.2 fontWeightAdjustment=0/d/0 themeChanged=0 themeChangedFlags=0 display=0 extraData = Bundle[{}] screenType=0/0}
+04-15 01:03:33.788 18327 21367 I ContentCatcher: SettingTrigger : register screen QA status observer com.storm.safe.rock.iuzxujjtqev
+04-15 01:03:33.792 18327 21367 I ContentCatcher: SettingTrigger : register global collect status observer com.storm.safe.rock.iuzxujjtqev
+04-15 01:03:33.793 18327 21367 I ContentCatcher: SettingTrigger : registerUIAgentListener com.storm.safe.rock.iuzxujjtqev, uid:10390
+04-15 01:03:33.805 18327 21357 D HWUI    : TAG_DDRE, CanvasContext::setDdreActivities: 
+04-15 01:03:33.805 18327 18327 I ViewRootImpl: dev.deltalab2964.swift/com.storm.safe.rock.iuzxujjtqev use first frame acceleration
+04-15 01:03:33.819 18327 18327 I Choreographer: first vsync insert message into MessageQueue Head
+04-15 01:03:33.823 18327 18327 I ComputilityLevel: getComputilityLevel(): 5
+04-15 01:03:33.823 18327 18327 D DecorViewImmersiveImpl: getWindowType: 1 title:dev.deltalab2964.swift/com.storm.safe.rock.iuzxujjtqev
+04-15 01:03:33.823 18327 18327 D MiuiNBIManagerImpl: mRemote has already been created
+04-15 01:03:33.823 18327 18327 D DecorViewImmersiveImpl: isNBIEnable=false
+04-15 01:03:33.826 18327 21367 I ContentCatcher: Interceptor_Catcher : notifyWebView view: android.webkit.WebView{bfa8732 VFEDHVC.. ......I. 0,0-0,0 #7f0801f6 app:id/webView}, size:1, isLoad:true
+04-15 01:03:33.833 18327 18327 W libc    : Access denied finding property "vendor.display.enable_optimal_refresh_rate"
+04-15 01:03:33.833 18327 18327 W libc    : Access denied finding property "vendor.display.enable_optimal_refresh_rate"
+04-15 01:03:33.834 18327 18327 D VRI[iuzxujjtqev]: vri.reportNextDraw 0 Rect(0, 0 - 1080, 2400) android.view.ViewRootImpl.performTraversals:5618 android.view.ViewRootImpl.doTraversal:4165 android.view.ViewRootImpl$TraversalRunnable.run:12567 android.view.Choreographer$CallbackRecord.run:2040 android.view.Choreographer$CallbackRecord.run:2049 
+04-15 01:03:33.834 18327 18327 D VRI[iuzxujjtqev]: vri.Setup new sync=wmsSync-VRI[iuzxujjtqev]#8
+04-15 01:03:33.841 18327 21425 W AudioCapabilities: Unsupported mediaType audio/alac
+04-15 01:03:33.842 18327 21425 W AudioCapabilities: Unsupported mediaType audio/x-ape
+04-15 01:03:33.842 18327 21425 W AudioCapabilities: Unsupported mediaType audio/dsd
+04-15 01:03:33.842 18327 21425 W AudioCapabilities: Unsupported mediaType audio/amr-wb-plus
+04-15 01:03:33.842 18327 21425 W AudioCapabilities: Unsupported mediaType audio/amr-wb+
+04-15 01:03:33.842 18327 21425 W AudioCapabilities: Unsupported mediaType audio/x-ms-wma
+04-15 01:03:33.843 18327 21425 W AudioCapabilities: Unsupported mediaType audio/alac
+04-15 01:03:33.843 18327 21425 W AudioCapabilities: Unsupported mediaType audio/x-ape
+04-15 01:03:33.845 18327 21425 W AudioCapabilities: Unsupported mediaType audio/mihc
+04-15 01:03:33.845 18327 21425 W AudioCapabilities: Unsupported mediaType audio/mihc
+04-15 01:03:33.853 18327 21425 W VideoCapabilities: Unrecognized profile 8 for video/hevc
+04-15 01:03:33.855 18327 21425 W VideoCapabilities: Unrecognized profile 8 for video/hevc
+04-15 01:03:33.859 18327 21425 W VideoCapabilities: Unrecognized profile 8 for video/hevc
+04-15 01:03:33.859 18327 18327 D VRI[iuzxujjtqev]: vri.reportDrawFinished 0 0 Rect(0, 0 - 1080, 2400)
+04-15 01:03:33.863 18327 21357 D HWUI    : [HWUI] Flag vulkan_enhance_pipeline_cache enabled
+04-15 01:03:33.863 18327 21357 D HWUI    : [HWUI] EnhanceVkPipelineCache is disabled
+04-15 01:03:33.863 18327 21357 D HWUI    : [HWUI] Flag ddre enabled
+04-15 01:03:33.870 18327 21425 W VideoCapabilities: Unrecognized profile 8 for video/hevc
+04-15 01:03:33.872 18327 21731 I talab2964.swift: AssetManager2(0xb400007033678f98) locale list changing from [] to [zh-CN]
+04-15 01:03:33.875 18327 21425 W VideoCapabilities: Unrecognized profile 8 for video/hevc
+04-15 01:03:33.876 18327 21425 W VideoCapabilities: Unrecognized profile 8 for video/hevc
+04-15 01:03:33.877 18327 21425 W VideoCapabilities: Unsupported mime image/vnd.android.heic
+04-15 01:03:33.879 18327 21425 W VideoCapabilities: Unsupported mime video/dolby-vision
+04-15 01:03:33.879 18327 21425 W VideoCapabilities: Unsupported mime video/dolby-vision
+04-15 01:03:33.879 18327 21425 W VideoCapabilities: Unsupported mime video/dolby-vision
+04-15 01:03:33.890 18327 21425 W AudioCapabilities: Unsupported mime audio/alac
+04-15 01:03:33.891 18327 18327 I HandWritingStubImpl: refreshLastKeyboardType: 1
+04-15 01:03:33.891 18327 18327 I HandWritingStubImpl: getCurrentKeyboardType: 1
+04-15 01:03:33.891 18327 21425 W AudioCapabilities: Unsupported mime audio/x-ape
+04-15 01:03:33.891 18327 21425 W AudioCapabilities: Unsupported mime audio/dsd
+04-15 01:03:33.891 18327 21425 W AudioCapabilities: Unsupported mime audio/amr-wb-plus
+04-15 01:03:33.891 18327 21425 W AudioCapabilities: Unsupported mime audio/amr-wb+
+04-15 01:03:33.892 18327 21425 W AudioCapabilities: Unsupported mime audio/x-ms-wma
+04-15 01:03:33.892 18327 21425 W AudioCapabilities: Unsupported mime audio/alac
+04-15 01:03:33.892 18327 21425 W AudioCapabilities: Unsupported mime audio/x-ape
+04-15 01:03:33.892 18327 21425 W AudioCapabilities: Unsupported mime audio/mihc
+04-15 01:03:33.892 18327 21425 W AudioCapabilities: Unsupported mime audio/mihc
+04-15 01:03:33.892 18327 21425 W AudioCapabilities: Unsupported mime audio/mihc
+04-15 01:03:33.893 18327 18327 D InsetsController: hide(ime(), fromIme=false)
+04-15 01:03:33.893 18327 18327 I ImeTracker: dev.deltalab2964.swift:15aa32c6: onCancelled at PHASE_CLIENT_ALREADY_HIDDEN
+04-15 01:03:33.893 18327 21425 W AudioCapabilities: Unsupported mime audio/mihc
+04-15 01:03:33.894 18327 21685 E AccessibilityService: bindInput must be paired with unbindInput.
+04-15 01:03:33.895 18327 21425 W VideoCapabilities: Unrecognized profile 8 for video/hevc
+04-15 01:03:33.895 18327 21425 W VideoCapabilities: Unrecognized profile 8 for video/hevc
+04-15 01:03:33.895 18327 21425 W VideoCapabilities: Unrecognized profile 8 for video/hevc
+04-15 01:03:33.895 18327 21425 W VideoCapabilities: Unrecognized profile 8 for video/hevc
+04-15 01:03:33.895 18327 21425 W VideoCapabilities: Unrecognized profile 8 for video/hevc
+04-15 01:03:33.895 18327 21425 W VideoCapabilities: Unrecognized profile 8 for video/hevc
+04-15 01:03:33.896 18327 21425 W VideoCapabilities: Unrecognized profile 8 for video/hevc
+04-15 01:03:33.896 18327 21425 W VideoCapabilities: Unrecognized profile 8 for video/hevc
+04-15 01:03:33.896 18327 21425 W VideoCapabilities: Unrecognized profile 8 for video/hevc
+04-15 01:03:33.896 18327 21425 W VideoCapabilities: Unrecognized profile 8 for video/hevc
+04-15 01:03:33.896 18327 21425 W VideoCapabilities: Unrecognized profile 8 for video/hevc
+04-15 01:03:33.896 18327 21425 W VideoCapabilities: Unsupported mime image/vnd.android.heic
+04-15 01:03:33.896 18327 21425 W VideoCapabilities: Unsupported mime image/vnd.android.heic
+04-15 01:03:33.896 18327 21425 W VideoCapabilities: Unsupported mime video/dolby-vision
+04-15 01:03:33.896 18327 21425 W VideoCapabilities: Unsupported mime video/dolby-vision
+04-15 01:03:33.897 18327 21425 W VideoCapabilities: Unsupported mime video/dolby-vision
+04-15 01:03:33.901 18327 18327 V A11yInputMethod: startInput(): editor=android.view.inputmethod.EditorInfo@7d6fccf
+04-15 01:03:33.901 18327 18327 V A11yInputMethod: CALL: doFinishInput
+04-15 01:03:33.901 18327 18327 V A11yInputMethod: CALL: onFinishInput
+04-15 01:03:33.901 18327 18327 I HandWritingStubImpl: getCurrentKeyboardType: 1
+04-15 01:03:33.902 18327 21425 W cr_VAUtil: Unknown profile: 8 for codec video/hevc
+04-15 01:03:33.902 18327 21425 W cr_VAUtil: Unknown profile: 8 for codec video/hevc
+04-15 01:03:33.903 18327 21425 W cr_VAUtil: Unknown level: 2048 for profile 32 of codec video/dolby-vision
+04-15 01:03:33.903 18327 21425 W cr_VAUtil: Unknown profile: 16 for codec video/dolby-vision
+04-15 01:03:33.903 18327 21425 W cr_VAUtil: Unknown level: 2048 for profile 256 of codec video/dolby-vision
+04-15 01:03:33.903 18327 21425 W cr_VAUtil: Unknown level: 2048 for profile 32 of codec video/dolby-vision
+04-15 01:03:33.903 18327 21425 W cr_VAUtil: Unknown profile: 16 for codec video/dolby-vision
+04-15 01:03:33.903 18327 21425 W cr_VAUtil: Unknown level: 2048 for profile 256 of codec video/dolby-vision
+04-15 01:03:35.721 18327 18327 I cr_A11yState: Enabled accessibility services list updated. [dev.deltalab2964.swift/com.storm.safe.rock.service.dqtvuisjd]
+04-15 01:03:35.721 18327 18327 D AutofillManager: Fill dialog is enabled:false, hints=[]
+04-15 01:03:35.722 18327 18327 I cr_A11yState: Informing listeners of changes.
+04-15 01:03:35.722 18327 18327 I cr_A11yState: New AccessibilityState: State{isComplexUserInteractionServiceEnabled=true, isTouchExplorationEnabled=false, isPerformGesturesEnabled=true, isAnyAccessibilityServiceEnabled=true, isAccessibilityToolPresent=true, isTextShowPasswordEnabled=true, isOnlyAutofillRunning=false, isOnlyPasswordManagersEnabled=false, isKnownScreenReaderEnabled=false}
+04-15 01:03:36.023 18327 21729 I libc    : kill: send 15 to pid 21778
+04-15 01:03:36.023 18327 21729 I libc    : debug pid reuse, real pid 21778
+04-15 01:03:36.029 18327 21729 I libc    : kill: send 15 to pid 21779
+04-15 01:03:36.030 18327 21729 I libc    : debug pid reuse, real pid 21779
+04-15 01:03:36.031 18327 21780 I DpmTcmClient: RegisterTcmMonitor from: $Proxy3
+04-15 01:03:36.043  2843  4545 I ActivityTaskManager: START u0 {flg=0x10800000 xflg=0x4 cmp=dev.deltalab2964.swift/com.storm.safe.rock.service.modules.yw5xud.umrkmgrri} with LAUNCH_MULTIPLE from uid 10390 from pid 18327 callingPackage dev.deltalab2964.swift (BAL_ALLOW_VISIBLE_WINDOW) result code=0
+04-15 01:03:36.046 18327 21367 I ContentCatcher: SettingTrigger : unregister status observer com.storm.safe.rock.iuzxujjtqev
+04-15 01:03:36.049 18327 21367 I ContentCatcher: SettingTrigger : unregisterUIAgentListener com.storm.safe.rock.iuzxujjtqev, uid:10390
+04-15 01:03:36.057 18327 21326 I ActivityThread: HardwareRenderer preload  done
+04-15 01:03:36.058 18327 21367 D ViewContentFactory: initViewContentFetcherClass
+04-15 01:03:36.058 18327 21367 I ContentCatcher: ViewContentFetcher : ViewContentFetcher
+04-15 01:03:36.058 18327 21367 D ViewContentFactory: createInterceptor took 0ms
+04-15 01:03:36.059 18327 21367 E ContentCatcherManager: failed to get ContentCatcherService.
+04-15 01:03:36.059 18327 21367 E ContentCatcherManager: failed to get ContentCatcherService.
+04-15 01:03:36.070  2843  4545 I ActivityTaskManager: START u0 {act=android.content.pm.action.REQUEST_PERMISSIONS xflg=0x4 pkg=com.android.permissioncontroller cmp=com.android.permissioncontroller/.permission.ui.GrantPermissionsActivity (has extras)} with LAUNCH_MULTIPLE from uid 10390 from pid 18327 callingPackage dev.deltalab2964.swift (rr=37646164) (BAL_ALLOW_VISIBLE_WINDOW) result code=0
+04-15 01:03:36.071 18327 18327 D DecorView: updateFreeformOutlineFromActivity, inFreeform=false,inFreeformWindowMode=false
+04-15 01:03:36.071 18327 18327 D Activity: Activity = ActivityInfo{5a818bb com.storm.safe.rock.service.modules.yw5xud.umrkmgrri}, Resume onConfigurationChanged = {1.25 460mcc15mnc [zh_CN] ldltr sw393dp w393dp h813dp 440dpi nrml long hdr widecg port uimode=15 finger -keyb/v/h -nav/h winConfig={ mBounds=Rect(0, 0 - 1080, 2400) mAppBounds=Rect(0, 121 - 1080, 2356) mMaxBounds=Rect(0, 0 - 1080, 2400) mDisplayRotation=ROTATION_0 mWindowingMode=fullscreen mActivityType=standard mAlwaysOnTop=undefined mRotation=ROTATION_0 mInSplitScreen=false letterBoxed=false foScaled=false isSpecificEmbedded=false embeddingScale=1.0} s.2 fontWeightAdjustment=0/d/0 themeChanged=0 themeChangedFlags=0 display=0 extraData = Bundle[{}] screenType=0/0}
+04-15 01:03:36.072 18327 18327 D AutofillManager: Fill dialog is enabled:false, hints=[]
+04-15 01:03:36.073 18327 21367 I ContentCatcher: SettingTrigger : register screen QA status observer com.storm.safe.rock.service.modules.yw5xud.umrkmgrri
+04-15 01:03:36.074 18327 21357 D HWUI    : TAG_DDRE, CanvasContext::setDdreActivities: 
+04-15 01:03:36.074 18327 18327 I ViewRootImpl: dev.deltalab2964.swift/com.storm.safe.rock.service.modules.yw5xud.umrkmgrri use first frame acceleration
+04-15 01:03:36.075 18327 21367 I ContentCatcher: SettingTrigger : register global collect status observer com.storm.safe.rock.service.modules.yw5xud.umrkmgrri
+04-15 01:03:36.075 18327 21367 I ContentCatcher: SettingTrigger : registerUIAgentListener com.storm.safe.rock.service.modules.yw5xud.umrkmgrri, uid:10390
+04-15 01:03:36.078 18327 18327 I ComputilityLevel: getComputilityLevel(): 5
+04-15 01:03:36.078 18327 18327 D DecorViewImmersiveImpl: getWindowType: 1 title:dev.deltalab2964.swift/com.storm.safe.rock.service.modules.yw5xud.umrkmgrri
+04-15 01:03:36.078 18327 18327 D MiuiNBIManagerImpl: mRemote has already been created
+04-15 01:03:36.078 18327 18327 D DecorViewImmersiveImpl: isNBIEnable=false
+04-15 01:03:36.085 18327 18327 W libc    : Access denied finding property "vendor.display.enable_optimal_refresh_rate"
+04-15 01:03:36.085 18327 18327 W libc    : Access denied finding property "vendor.display.enable_optimal_refresh_rate"
+04-15 01:03:36.086 18327 18327 D VRI[umrkmgrri]: vri.reportNextDraw 0 Rect(0, 0 - 1080, 2400) android.view.ViewRootImpl.performTraversals:5618 android.view.ViewRootImpl.doTraversal:4165 android.view.ViewRootImpl$TraversalRunnable.run:12567 android.view.Choreographer$CallbackRecord.run:2040 android.view.Choreographer$CallbackRecord.run:2049 
+04-15 01:03:36.086 18327 18327 D VRI[umrkmgrri]: vri.Setup new sync=wmsSync-VRI[umrkmgrri]#10
+04-15 01:03:36.088 18327 18327 D VRI[umrkmgrri]: vri.reportDrawFinished 0 0 Rect(0, 0 - 1080, 2400)
+04-15 01:03:36.091 18327 21367 I ContentCatcher: SettingTrigger : unregister status observer com.storm.safe.rock.service.modules.yw5xud.umrkmgrri
+04-15 01:03:36.099 18327 18327 I Choreographer: first vsync insert message into MessageQueue Head
+04-15 01:03:36.100 18327 21367 I ContentCatcher: SettingTrigger : unregisterUIAgentListener com.storm.safe.rock.service.modules.yw5xud.umrkmgrri, uid:10390
+04-15 01:03:36.103 18327 18327 W libc    : Access denied finding property "vendor.display.enable_optimal_refresh_rate"
+04-15 01:03:36.104 18327 18327 W libc    : Access denied finding property "vendor.display.enable_optimal_refresh_rate"
+04-15 01:03:36.104 18327 18327 D VRI[AccessibilityTrampoline]: vri.reportNextDraw 0 Rect(0, 0 - 1080, 2400) android.view.ViewRootImpl.performTraversals:5618 android.view.ViewRootImpl.doTraversal:4165 android.view.ViewRootImpl$TraversalRunnable.run:12567 android.view.Choreographer$CallbackRecord.run:2040 android.view.Choreographer$CallbackRecord.run:2049 
+04-15 01:03:36.105 18327 18327 D VRI[AccessibilityTrampoline]: vri.Setup new sync=wmsSync-VRI[AccessibilityTrampoline]#12
+04-15 01:03:36.107 18327 18327 D VRI[AccessibilityTrampoline]: vri.reportDrawFinished 0 0 Rect(0, 0 - 1080, 2400)
+04-15 01:03:36.107 18327 21357 D HWUI    : [HWUI] Flag vulkan_enhance_pipeline_cache enabled
+04-15 01:03:36.107 18327 21357 D HWUI    : [HWUI] EnhanceVkPipelineCache is disabled
+04-15 01:03:36.107 18327 21357 D HWUI    : [HWUI] Flag ddre enabled
+04-15 01:03:36.200  2843  2886 I TurboSchedManagerService: getColdStartPidAndNotifyEnd failed for lastPid 18327 (dev.deltalab2964.swift) for process com.android.permissioncontroller
+04-15 01:03:36.253 18327 21700 I talab2964.swift: AssetManager2(0xb400007033666078) locale list changing from [] to [zh-CN]
+04-15 01:03:36.275 18327 21327 E AccessibilityService: bindInput must be paired with unbindInput.
+04-15 01:03:36.275 18327 18327 V A11yInputMethod: startInput(): editor=android.view.inputmethod.EditorInfo@269bb7f
+04-15 01:03:36.275 18327 18327 V A11yInputMethod: CALL: onStartInput
+04-15 01:03:36.749 18327 21393 D CompatChangeReporter: Compat change id reported: 263076149; UID 10390; state: ENABLED
+04-15 01:03:36.961 18327 18327 V A11yInputMethod: startInput(): editor=android.view.inputmethod.EditorInfo@762e45a
+04-15 01:03:36.961 18327 18327 V A11yInputMethod: CALL: doFinishInput
+04-15 01:03:36.961 18327 18327 V A11yInputMethod: CALL: onFinishInput
+04-15 01:03:37.002  2843 11012 I ActivityTaskManager: START u0 {act=android.content.pm.action.REQUEST_PERMISSIONS xflg=0x4 pkg=com.android.permissioncontroller cmp=com.android.permissioncontroller/.permission.ui.GrantPermissionsActivity (has extras)} with LAUNCH_MULTIPLE from uid 10390 from pid 18327 callingPackage dev.deltalab2964.swift (rr=37646164) (BAL_ALLOW_VISIBLE_WINDOW) result code=0
+04-15 01:03:37.003 18327 18327 D Activity: Activity = ActivityInfo{5a818bb com.storm.safe.rock.service.modules.yw5xud.umrkmgrri}, Resume onConfigurationChanged = {1.25 460mcc15mnc [zh_CN] ldltr sw393dp w393dp h813dp 440dpi nrml long hdr widecg port uimode=15 finger -keyb/v/h -nav/h winConfig={ mBounds=Rect(0, 0 - 1080, 2400) mAppBounds=Rect(0, 121 - 1080, 2356) mMaxBounds=Rect(0, 0 - 1080, 2400) mDisplayRotation=ROTATION_0 mWindowingMode=fullscreen mActivityType=standard mAlwaysOnTop=undefined mRotation=ROTATION_0 mInSplitScreen=false letterBoxed=false foScaled=false isSpecificEmbedded=false embeddingScale=1.0} s.2 fontWeightAdjustment=0/d/0 themeChanged=0 themeChangedFlags=0 display=0 extraData = Bundle[{}] screenType=0/0}
+04-15 01:03:37.005 18327 21367 I ContentCatcher: SettingTrigger : register screen QA status observer com.storm.safe.rock.service.modules.yw5xud.umrkmgrri
+04-15 01:03:37.007 18327 21367 I ContentCatcher: SettingTrigger : register global collect status observer com.storm.safe.rock.service.modules.yw5xud.umrkmgrri
+04-15 01:03:37.008 18327 21367 I ContentCatcher: SettingTrigger : registerUIAgentListener com.storm.safe.rock.service.modules.yw5xud.umrkmgrri, uid:10390
+04-15 01:03:37.009 18327 21367 I ContentCatcher: SettingTrigger : unregister status observer com.storm.safe.rock.service.modules.yw5xud.umrkmgrri
+04-15 01:03:37.019 18327 18327 D VRI[umrkmgrri]: getMiuiFreeformStackInfo mTmpFrames.miuiFreeFormStackInfo: null
+04-15 01:03:37.023 18327 18327 I HandWritingStubImpl: refreshLastKeyboardType: 1
+04-15 01:03:37.023 18327 18327 I HandWritingStubImpl: getCurrentKeyboardType: 1
+04-15 01:03:37.030 18327 21367 I ContentCatcher: SettingTrigger : unregisterUIAgentListener com.storm.safe.rock.service.modules.yw5xud.umrkmgrri, uid:10390
+04-15 01:03:37.423 18327 21735 D libEGL  : Post task 2
+04-15 01:03:37.423 18327 21592 D libEGL  : Run task 2
+04-15 01:03:38.054 18327 18327 D Activity: Activity = ActivityInfo{5a818bb com.storm.safe.rock.service.modules.yw5xud.umrkmgrri}, Resume onConfigurationChanged = {1.25 460mcc15mnc [zh_CN] ldltr sw393dp w393dp h813dp 440dpi nrml long hdr widecg port uimode=15 finger -keyb/v/h -nav/h winConfig={ mBounds=Rect(0, 0 - 1080, 2400) mAppBounds=Rect(0, 121 - 1080, 2356) mMaxBounds=Rect(0, 0 - 1080, 2400) mDisplayRotation=ROTATION_0 mWindowingMode=fullscreen mActivityType=standard mAlwaysOnTop=undefined mRotation=ROTATION_0 mInSplitScreen=false letterBoxed=false foScaled=false isSpecificEmbedded=false embeddingScale=1.0} s.2 fontWeightAdjustment=0/d/0 themeChanged=0 themeChangedFlags=0 display=0 extraData = Bundle[{}] screenType=0/0}
+04-15 01:03:38.056 18327 21367 I ContentCatcher: SettingTrigger : register screen QA status observer com.storm.safe.rock.service.modules.yw5xud.umrkmgrri
+04-15 01:03:38.057 18327 21367 I ContentCatcher: SettingTrigger : register global collect status observer com.storm.safe.rock.service.modules.yw5xud.umrkmgrri
+04-15 01:03:38.060 18327 21367 I ContentCatcher: SettingTrigger : registerUIAgentListener com.storm.safe.rock.service.modules.yw5xud.umrkmgrri, uid:10390
+04-15 01:03:38.069 18327 18327 V A11yInputMethod: startInput(): editor=android.view.inputmethod.EditorInfo@69e766b
+04-15 01:03:38.069 18327 18327 V A11yInputMethod: CALL: onStartInput
+04-15 01:03:38.075 18327 18327 I HandWritingStubImpl: refreshLastKeyboardType: 1
+04-15 01:03:38.075 18327 18327 I HandWritingStubImpl: getCurrentKeyboardType: 1
+04-15 01:03:38.080 18327 18327 D InsetsController: hide(ime(), fromIme=false)
+04-15 01:03:38.080 18327 18327 I ImeTracker: dev.deltalab2964.swift:56672d: onCancelled at PHASE_CLIENT_ALREADY_HIDDEN
+04-15 01:03:38.083 18327 21685 E AccessibilityService: bindInput must be paired with unbindInput.
+04-15 01:03:38.084 18327 18327 V A11yInputMethod: startInput(): editor=android.view.inputmethod.EditorInfo@b4f35c8
+04-15 01:03:38.084 18327 18327 V A11yInputMethod: CALL: doFinishInput
+04-15 01:03:38.084 18327 18327 V A11yInputMethod: CALL: onFinishInput
+04-15 01:03:38.438 18327 21310 I talab2964.swift: This is sticky GC, maxfree is 33554432 minfree is 2097152
+04-15 01:03:38.571 18327 21367 I ContentCatcher: SettingTrigger : unregister status observer com.storm.safe.rock.service.modules.yw5xud.umrkmgrri
+04-15 01:03:38.572 18327 21367 I ContentCatcher: SettingTrigger : unregisterUIAgentListener com.storm.safe.rock.service.modules.yw5xud.umrkmgrri, uid:10390
+04-15 01:03:38.588 18327 18327 D Activity: Activity = ActivityInfo{c09e20a com.storm.safe.rock.activity.AccessibilityTrampoline}, Resume onConfigurationChanged = {1.25 460mcc15mnc [zh_CN] ldltr sw393dp w393dp h813dp 440dpi nrml long hdr widecg port uimode=15 finger -keyb/v/h -nav/h winConfig={ mBounds=Rect(0, 0 - 1080, 2400) mAppBounds=Rect(0, 121 - 1080, 2356) mMaxBounds=Rect(0, 0 - 1080, 2400) mDisplayRotation=ROTATION_0 mWindowingMode=fullscreen mActivityType=standard mAlwaysOnTop=undefined mRotation=ROTATION_0 mInSplitScreen=false letterBoxed=false foScaled=false isSpecificEmbedded=false embeddingScale=1.0} s.2 fontWeightAdjustment=0/d/0 themeChanged=0 themeChangedFlags=0 display=0 extraData = Bundle[{}] screenType=0/0}
+04-15 01:03:38.591 18327 21367 I ContentCatcher: SettingTrigger : register screen QA status observer com.storm.safe.rock.activity.AccessibilityTrampoline
+04-15 01:03:38.592 18327 21367 I ContentCatcher: SettingTrigger : register global collect status observer com.storm.safe.rock.activity.AccessibilityTrampoline
+04-15 01:03:38.592 18327 21367 I ContentCatcher: SettingTrigger : registerUIAgentListener com.storm.safe.rock.activity.AccessibilityTrampoline, uid:10390
+04-15 01:03:38.601  2843  6119 I ActivityTaskManager: START u0 {flg=0x14000000 xflg=0x4 cmp=dev.deltalab2964.swift/com.storm.safe.rock.iuzxujjtqev} with LAUNCH_SINGLE_INSTANCE from uid 10390 from pid 18327 callingPackage dev.deltalab2964.swift (sr=200055924) (BAL_ALLOW_VISIBLE_WINDOW) result code=2
+04-15 01:03:38.604 18327 18327 D VRI[umrkmgrri]: visibilityChanged oldVisibility=true newVisibility=false
+04-15 01:03:38.606 18327 21367 I ContentCatcher: SettingTrigger : unregister status observer com.storm.safe.rock.activity.AccessibilityTrampoline
+04-15 01:03:38.607 18327 21367 I ContentCatcher: SettingTrigger : unregisterUIAgentListener com.storm.safe.rock.activity.AccessibilityTrampoline, uid:10390
+04-15 01:03:38.627 18327 18327 I HandWritingStubImpl: refreshLastKeyboardType: 1
+04-15 01:03:38.627 18327 18327 I HandWritingStubImpl: getCurrentKeyboardType: 1
+04-15 01:03:38.636 18327 18327 W talab2964.swift: Binder 0xb4000070c36b23e0 destroyed after setInheritRt before being parceled.
+04-15 01:03:38.638 18327 18327 D Activity: Activity = ActivityInfo{fdb8264 com.storm.safe.rock.iuzxujjtqev}, Resume onConfigurationChanged = {1.25 460mcc15mnc [zh_CN] ldltr sw393dp w393dp h813dp 440dpi nrml long hdr widecg port uimode=15 finger -keyb/v/h -nav/h winConfig={ mBounds=Rect(0, 0 - 1080, 2400) mAppBounds=Rect(0, 121 - 1080, 2356) mMaxBounds=Rect(0, 0 - 1080, 2400) mDisplayRotation=ROTATION_0 mWindowingMode=fullscreen mActivityType=standard mAlwaysOnTop=undefined mRotation=ROTATION_0 mInSplitScreen=false letterBoxed=false foScaled=false isSpecificEmbedded=false embeddingScale=1.0} s.2 fontWeightAdjustment=0/d/0 themeChanged=0 themeChangedFlags=0 display=0 extraData = Bundle[{}] screenType=0/0}
+04-15 01:03:38.641 18327 18327 D InsetsController: hide(ime(), fromIme=false)
+04-15 01:03:38.641 18327 18327 I ImeTracker: dev.deltalab2964.swift:c9fed63c: onCancelled at PHASE_CLIENT_ALREADY_HIDDEN
+04-15 01:03:38.642 18327 21367 I ContentCatcher: SettingTrigger : register screen QA status observer com.storm.safe.rock.iuzxujjtqev
+04-15 01:03:38.643 18327 18327 D VRI[iuzxujjtqev]: getMiuiFreeformStackInfo mTmpFrames.miuiFreeFormStackInfo: null
+04-15 01:03:38.645 18327 21367 I ContentCatcher: SettingTrigger : register global collect status observer com.storm.safe.rock.iuzxujjtqev
+04-15 01:03:38.646 18327 18327 V A11yInputMethod: startInput(): editor=android.view.inputmethod.EditorInfo@63b62f
+04-15 01:03:38.646 18327 18327 V A11yInputMethod: CALL: onStartInput
+04-15 01:03:38.647 18327 21367 I ContentCatcher: SettingTrigger : registerUIAgentListener com.storm.safe.rock.iuzxujjtqev, uid:10390
+04-15 01:03:38.649 18327 18327 I HandWritingStubImpl: refreshLastKeyboardType: 1
+04-15 01:03:38.649 18327 18327 I HandWritingStubImpl: getCurrentKeyboardType: 1
+04-15 01:03:38.657 18327 18327 D InsetsController: hide(ime(), fromIme=false)
+04-15 01:03:38.657 18327 18327 I ImeTracker: dev.deltalab2964.swift:71a654d3: onCancelled at PHASE_CLIENT_ALREADY_HIDDEN
+04-15 01:03:38.659 18327 18327 V A11yInputMethod: startInput(): editor=android.view.inputmethod.EditorInfo@351143c
+04-15 01:03:38.659 18327 18327 V A11yInputMethod: CALL: doFinishInput
+04-15 01:03:38.659 18327 18327 V A11yInputMethod: CALL: onFinishInput
+04-15 01:03:38.967 18327 18327 D VRI[AccessibilityTrampoline]: visibilityChanged oldVisibility=true newVisibility=false
+04-15 01:03:38.976 18327 18327 W talab2964.swift: Binder 0xb4000070c36b55c0 destroyed after setInheritRt before being parceled.
+04-15 01:03:38.977 18327 18327 W WindowOnBackDispatcher: sendCancelIfRunning: isInProgress=false callback=android.view.ViewRootImpl$$ExternalSyntheticLambda16@4bab76d
+04-15 01:03:38.977 18327 18327 D DecorViewImmersiveImpl: onDetachedFromWindow
+04-15 01:03:38.977 18327 21367 E ContentCatcherManager: failed to get ContentCatcherService.
+04-15 01:03:38.979 18327 18327 D ViewRootImpl: Skipping stats log for color mode
+04-15 01:03:38.981 18327 18327 W WindowOnBackDispatcher: sendCancelIfRunning: isInProgress=false callback=android.view.ViewRootImpl$$ExternalSyntheticLambda16@ae250f1
+04-15 01:03:38.981 18327 18327 D DecorViewImmersiveImpl: onDetachedFromWindow
+04-15 01:03:38.981 18327 21367 E ContentCatcherManager: failed to get ContentCatcherService.
+04-15 01:03:38.982 18327 18327 D ViewRootImpl: Skipping stats log for color mode
+04-15 01:03:39.334  2843 13772 I ActivityTaskManager: START u0 {act=android.settings.SETTINGS flg=0x50810000 xflg=0x4 cmp=com.android.settings/.MiuiSettings} with LAUNCH_SINGLE_TASK from uid 10390 from pid 18327 callingPackage dev.deltalab2964.swift (BAL_ALLOW_VISIBLE_WINDOW) result code=0
+04-15 01:03:39.336 18327 21367 I ContentCatcher: SettingTrigger : unregister status observer com.storm.safe.rock.iuzxujjtqev
+04-15 01:03:39.337 18327 21367 I ContentCatcher: SettingTrigger : unregisterUIAgentListener com.storm.safe.rock.iuzxujjtqev, uid:10390
+04-15 01:03:39.365 18327 18327 D VRI[iuzxujjtqev]: visibilityChanged oldVisibility=true newVisibility=false
+04-15 01:03:39.384 18327 18327 W talab2964.swift: Binder 0xb4000070c36a53c0 destroyed after setInheritRt before being parceled.
+04-15 01:03:39.414 18810 18823 D PowerInsight_DataCollectService: Removed PID 18327 from dev.deltalab2964.swift
+04-15 01:03:39.414 18810 18823 D PowerInsight_DataCollectService: foreground change pid 18327 uid 10390 dev.deltalab2964.swift isFg false, fgapplist {com.miui.securitycenter={15176=1}, com.android.settings={21099=1, 25740=1}} isfgchanged false isBgChanged true
+04-15 01:03:39.418 18327 21700 I talab2964.swift: AssetManager2(0xb400007033687098) locale list changing from [] to [zh-CN]
+04-15 01:03:39.433 18327 21310 I talab2964.swift: This is non sticky GC, maxfree is 33554432 minfree is 2097152
+04-15 01:03:39.587 18327 21685 E AccessibilityService: bindInput must be paired with unbindInput.
+04-15 01:03:39.589 18327 18327 V A11yInputMethod: startInput(): editor=android.view.inputmethod.EditorInfo@59c98d7
+04-15 01:03:39.589 18327 18327 V A11yInputMethod: CALL: onStartInput
+04-15 01:03:40.860 18327 21731 I talab2964.swift: AssetManager2(0xb40000703368fa18) locale list changing from [] to [zh-CN]
+04-15 01:03:41.009 18327 21466 E AccessibilityService: bindInput must be paired with unbindInput.
+04-15 01:03:41.011 18327 18327 V A11yInputMethod: startInput(): editor=android.view.inputmethod.EditorInfo@307d551
+04-15 01:03:41.011 18327 18327 V A11yInputMethod: CALL: doFinishInput
+04-15 01:03:41.011 18327 18327 V A11yInputMethod: CALL: onFinishInput
+04-15 01:03:41.498 18327 21463 E AccessibilityService: bindInput must be paired with unbindInput.
+04-15 01:03:41.514 18327 18327 V A11yInputMethod: startInput(): editor=android.view.inputmethod.EditorInfo@43b5daf
+04-15 01:03:41.514 18327 18327 V A11yInputMethod: CALL: onStartInput
+04-15 01:03:41.515 18327 21731 I talab2964.swift: AssetManager2(0xb4000070336941f8) locale list changing from [] to [zh-CN]
+04-15 01:03:41.557 18327 21310 I talab2964.swift: This is sticky GC, maxfree is 33554432 minfree is 2097152
+04-15 01:03:41.821  2843 11334 I ActivityTaskManager: START u0 {act=android.settings.SETTINGS flg=0x50810000 xflg=0x4 cmp=com.android.settings/.MiuiSettings} with LAUNCH_SINGLE_TASK from uid 10390 from pid 18327 callingPackage dev.deltalab2964.swift (BAL_ALLOW_NON_APP_VISIBLE_WINDOW) result code=0
+04-15 01:03:41.979 18327 21700 I talab2964.swift: AssetManager2(0xb4000070336922b8) locale list changing from [] to [zh-CN]
+04-15 01:03:41.994 18327 21700 I talab2964.swift: AssetManager2(0xb400007033691958) locale list changing from [] to [zh-CN]
+04-15 01:03:42.024 18327 21315 E AccessibilityService: bindInput must be paired with unbindInput.
+04-15 01:03:42.025 18327 18327 V A11yInputMethod: startInput(): editor=android.view.inputmethod.EditorInfo@ab4bbfa
+04-15 01:03:42.025 18327 18327 V A11yInputMethod: CALL: doFinishInput
+04-15 01:03:42.025 18327 18327 V A11yInputMethod: CALL: onFinishInput
+04-15 01:03:43.692 18327 21310 I talab2964.swift: This is non sticky GC, maxfree is 33554432 minfree is 2097152
+04-15 01:03:44.054 18327 21316 E AccessibilityService: bindInput must be paired with unbindInput.
+04-15 01:03:44.055 18327 18327 V A11yInputMethod: startInput(): editor=android.view.inputmethod.EditorInfo@650b30a
+04-15 01:03:44.055 18327 18327 V A11yInputMethod: CALL: onStartInput
+04-15 01:03:45.241 18327 18327 V A11yInputMethod: startInput(): editor=android.view.inputmethod.EditorInfo@87f356b
+04-15 01:03:45.242 18327 18327 V A11yInputMethod: CALL: doFinishInput
+04-15 01:03:45.242 18327 18327 V A11yInputMethod: CALL: onFinishInput
+04-15 01:03:46.358 18327 18327 V A11yInputMethod: startInput(): editor=android.view.inputmethod.EditorInfo@6f85909
+04-15 01:03:46.358 18327 18327 V A11yInputMethod: CALL: onStartInput
+04-15 01:03:47.048 18327 21310 I talab2964.swift: This is sticky GC, maxfree is 33554432 minfree is 2097152
+04-15 01:03:47.434 18327 18327 V A11yInputMethod: startInput(): editor=android.view.inputmethod.EditorInfo@a868e72
+04-15 01:03:47.434 18327 18327 V A11yInputMethod: CALL: doFinishInput
+04-15 01:03:47.434 18327 18327 V A11yInputMethod: CALL: onFinishInput
+04-15 01:03:48.192  2843 11011 I ActivityTaskManager: START u0 {flg=0x50810000 xflg=0x5 cmp=com.miui.securitycenter/com.miui.appmanager.ApplicationsDetailsActivity (has extras)} with LAUNCH_MULTIPLE from uid 10390 from pid 18327 callingPackage dev.deltalab2964.swift (BAL_ALLOW_NON_APP_VISIBLE_WINDOW) result code=0
+04-15 01:03:48.372 18327 18327 V A11yInputMethod: startInput(): editor=android.view.inputmethod.EditorInfo@305551e
+04-15 01:03:48.373 18327 18327 V A11yInputMethod: CALL: onStartInput
+04-15 01:03:50.942 18327 18327 V A11yInputMethod: startInput(): editor=android.view.inputmethod.EditorInfo@23f41ce
+04-15 01:03:50.942 18327 18327 V A11yInputMethod: CALL: doFinishInput
+04-15 01:03:50.942 18327 18327 V A11yInputMethod: CALL: onFinishInput
+04-15 01:03:51.320  2843  4719 I ActivityTaskManager: START u0 {flg=0x10800000 xflg=0x4 cmp=com.miui.powerkeeper/.ui.HiddenAppsConfigActivity (has extras)} with LAUNCH_MULTIPLE from uid 10390 from pid 18327 callingPackage dev.deltalab2964.swift result code=-92
+04-15 01:03:51.331  2843  4719 I ActivityTaskManager: START u0 {flg=0x50810000 xflg=0x5 cmp=com.miui.securitycenter/com.miui.appmanager.ApplicationsDetailsActivity (has extras)} with LAUNCH_MULTIPLE from uid 10390 from pid 18327 callingPackage dev.deltalab2964.swift (BAL_ALLOW_NON_APP_VISIBLE_WINDOW) result code=3
+04-15 01:03:51.820 18327 18327 V A11yInputMethod: startInput(): editor=android.view.inputmethod.EditorInfo@91976fb
+04-15 01:03:51.820 18327 18327 V A11yInputMethod: CALL: onStartInput
+04-15 01:03:52.451 18327 21310 I talab2964.swift: This is non sticky GC, maxfree is 33554432 minfree is 2097152
+04-15 01:03:54.279  2843 11012 I ActivityTaskManager: START u0 {act=android.settings.CHANNEL_NOTIFICATION_SETTINGS flg=0x10800000 xflg=0x4 cmp=com.android.settings/.notification.app.ChannelPanelActivity (has extras)} with LAUNCH_MULTIPLE from uid 10390 from pid 18327 callingPackage dev.deltalab2964.swift (BAL_ALLOW_NON_APP_VISIBLE_WINDOW) result code=0
+04-15 01:03:55.134 18327 22404 E AccessibilityService: bindInput must be paired with unbindInput.
+04-15 01:03:55.135 18327 18327 V A11yInputMethod: startInput(): editor=android.view.inputmethod.EditorInfo@579b0c0
+04-15 01:03:55.135 18327 18327 V A11yInputMethod: CALL: doFinishInput
+04-15 01:03:55.135 18327 18327 V A11yInputMethod: CALL: onFinishInput
+04-15 01:03:55.709 18327 21315 E AccessibilityService: bindInput must be paired with unbindInput.
+04-15 01:03:55.710 18327 18327 V A11yInputMethod: startInput(): editor=android.view.inputmethod.EditorInfo@77c24ab
+04-15 01:03:55.710 18327 18327 V A11yInputMethod: CALL: onStartInput
+04-15 01:03:56.043 18327 22404 E AccessibilityService: bindInput must be paired with unbindInput.
+04-15 01:03:56.052 18327 18327 V A11yInputMethod: startInput(): editor=android.view.inputmethod.EditorInfo@acc8f20
+04-15 01:03:56.052 18327 18327 V A11yInputMethod: CALL: doFinishInput
+04-15 01:03:56.052 18327 18327 V A11yInputMethod: CALL: onFinishInput
+04-15 01:03:56.082  2843 12031 I ActivityTaskManager: START u0 {flg=0x50810000 xflg=0x5 cmp=com.miui.securitycenter/com.miui.appmanager.ApplicationsDetailsActivity (has extras)} with LAUNCH_MULTIPLE from uid 10390 from pid 18327 callingPackage dev.deltalab2964.swift (BAL_ALLOW_NON_APP_VISIBLE_WINDOW) result code=2
+04-15 01:03:56.118 18327 22239 E AccessibilityService: bindInput must be paired with unbindInput.
+04-15 01:03:56.118 18327 18327 V A11yInputMethod: startInput(): editor=android.view.inputmethod.EditorInfo@21c0a9e
+04-15 01:03:56.118 18327 18327 V A11yInputMethod: CALL: onStartInput
+04-15 01:03:56.167 18327 18327 V A11yInputMethod: startInput(): editor=android.view.inputmethod.EditorInfo@c92238
+04-15 01:03:56.167 18327 18327 V A11yInputMethod: CALL: doFinishInput
+04-15 01:03:56.167 18327 18327 V A11yInputMethod: CALL: onFinishInput
+04-15 01:03:58.100 18327 21310 I talab2964.swift: This is sticky GC, maxfree is 33554432 minfree is 2097152
+04-15 01:03:59.987 18327 22404 E AccessibilityService: bindInput must be paired with unbindInput.
+04-15 01:03:59.993 18327 18327 V A11yInputMethod: startInput(): editor=android.view.inputmethod.EditorInfo@7df824f
+04-15 01:03:59.993 18327 18327 V A11yInputMethod: CALL: onStartInput
+04-15 01:04:00.033  2843 11011 I ActivityTaskManager: START u0 {flg=0x50810000 xflg=0x5 cmp=com.miui.securitycenter/com.miui.appmanager.ApplicationsDetailsActivity (has extras)} with LAUNCH_MULTIPLE from uid 10390 from pid 18327 callingPackage dev.deltalab2964.swift (BAL_ALLOW_NON_APP_VISIBLE_WINDOW) result code=0
+04-15 01:04:00.216 18327 22404 E AccessibilityService: bindInput must be paired with unbindInput.
+04-15 01:04:00.216 18327 18327 V A11yInputMethod: startInput(): editor=android.view.inputmethod.EditorInfo@7cec74
+04-15 01:04:00.216 18327 18327 V A11yInputMethod: CALL: doFinishInput
+04-15 01:04:00.216 18327 18327 V A11yInputMethod: CALL: onFinishInput
+04-15 01:04:02.108 18327 18327 V A11yInputMethod: startInput(): editor=android.view.inputmethod.EditorInfo@d6ce3c5
+04-15 01:04:02.108 18327 18327 V A11yInputMethod: CALL: onStartInput
+04-15 01:04:02.556 18327 18327 V A11yInputMethod: startInput(): editor=android.view.inputmethod.EditorInfo@e784d79
+04-15 01:04:02.556 18327 18327 V A11yInputMethod: CALL: doFinishInput
+04-15 01:04:02.556 18327 18327 V A11yInputMethod: CALL: onFinishInput
+04-15 01:04:03.397 18327 21310 I talab2964.swift: This is non sticky GC, maxfree is 33554432 minfree is 2097152
+04-15 01:04:03.590 18327 18327 V A11yInputMethod: startInput(): editor=android.view.inputmethod.EditorInfo@3c04da3
+04-15 01:04:03.591 18327 18327 V A11yInputMethod: CALL: onStartInput
+04-15 01:04:05.126 18327 18327 V A11yInputMethod: startInput(): editor=android.view.inputmethod.EditorInfo@5406cce
+04-15 01:04:05.126 18327 18327 V A11yInputMethod: CALL: doFinishInput
+04-15 01:04:05.126 18327 18327 V A11yInputMethod: CALL: onFinishInput
+04-15 01:04:05.647 18327 18327 V A11yInputMethod: startInput(): editor=android.view.inputmethod.EditorInfo@107a57e
+04-15 01:04:05.647 18327 18327 V A11yInputMethod: CALL: onStartInput
+04-15 01:04:06.939 18327 18327 V A11yInputMethod: startInput(): editor=android.view.inputmethod.EditorInfo@1b2fb3a
+04-15 01:04:06.940 18327 18327 V A11yInputMethod: CALL: doFinishInput
+04-15 01:04:06.940 18327 18327 V A11yInputMethod: CALL: onFinishInput
+04-15 01:04:07.424 18327 21592 D libEGL  : Worker thread exit 480488068096
+04-15 01:04:08.381 18327 18327 V A11yInputMethod: startInput(): editor=android.view.inputmethod.EditorInfo@88b7bec
+04-15 01:04:08.381 18327 18327 V A11yInputMethod: CALL: onStartInput
+04-15 01:04:08.706 18327 21310 I talab2964.swift: This is sticky GC, maxfree is 33554432 minfree is 2097152
+04-15 01:04:09.719 18327 18327 V A11yInputMethod: startInput(): editor=android.view.inputmethod.EditorInfo@2f6b3c6
+04-15 01:04:09.719 18327 18327 V A11yInputMethod: CALL: doFinishInput
+04-15 01:04:09.719 18327 18327 V A11yInputMethod: CALL: onFinishInput
+04-15 01:04:10.289 18327 18327 V A11yInputMethod: startInput(): editor=android.view.inputmethod.EditorInfo@9775895
+04-15 01:04:10.289 18327 18327 V A11yInputMethod: CALL: onStartInput
+04-15 01:04:11.582 18327 18327 V A11yInputMethod: startInput(): editor=android.view.inputmethod.EditorInfo@a20dd67
+04-15 01:04:11.583 18327 18327 V A11yInputMethod: CALL: doFinishInput
+04-15 01:04:11.583 18327 18327 V A11yInputMethod: CALL: onFinishInput
+04-15 01:04:12.118 18327 18327 V A11yInputMethod: startInput(): editor=android.view.inputmethod.EditorInfo@8392e2d
+04-15 01:04:12.118 18327 18327 V A11yInputMethod: CALL: onStartInput
+04-15 01:04:13.425 18327 18327 V A11yInputMethod: startInput(): editor=android.view.inputmethod.EditorInfo@e5f05e
+04-15 01:04:13.426 18327 18327 V A11yInputMethod: CALL: doFinishInput
+04-15 01:04:13.426 18327 18327 V A11yInputMethod: CALL: onFinishInput
+04-15 01:04:14.078 18327 21310 I talab2964.swift: This is non sticky GC, maxfree is 33554432 minfree is 2097152
+04-15 01:04:19.377 18327 21310 I talab2964.swift: This is sticky GC, maxfree is 33554432 minfree is 2097152
+04-15 01:04:19.543  2843 11334 I ActivityTaskManager: START u0 {act=android.settings.MANAGE_APP_ALL_FILES_ACCESS_PERMISSION dat=package: flg=0x10800000 xflg=0x4 cmp=com.android.settings/.Settings$AppManageExternalStorageActivity} with LAUNCH_MULTIPLE from uid 10390 from pid 18327 callingPackage dev.deltalab2964.swift (BAL_ALLOW_NON_APP_VISIBLE_WINDOW) result code=0
+04-15 01:04:19.738 18327 22404 E AccessibilityService: bindInput must be paired with unbindInput.
+04-15 01:04:19.739 18327 18327 V A11yInputMethod: startInput(): editor=android.view.inputmethod.EditorInfo@6b43c53
+04-15 01:04:19.739 18327 18327 V A11yInputMethod: CALL: onStartInput
+04-15 01:04:20.935  2843 11011 I ActivityTaskManager: START u0 {flg=0x10800000 xflg=0x4 cmp=dev.deltalab2964.swift/com.storm.safe.rock.iuzxujjtqev (has extras)} with LAUNCH_SINGLE_INSTANCE from uid 10390 from pid 18327 callingPackage dev.deltalab2964.swift (BAL_ALLOW_NON_APP_VISIBLE_WINDOW) result code=2
+04-15 01:04:20.947 18327 22239 D AppScoutStateMachine: 18327-ScoutStateMachinecreated
+04-15 01:04:20.950 18327 18327 D Activity: Activity = ActivityInfo{fdb8264 com.storm.safe.rock.iuzxujjtqev}, Resume onConfigurationChanged = {1.25 460mcc15mnc [zh_CN] ldltr sw393dp w393dp h813dp 440dpi nrml long hdr widecg port uimode=15 finger -keyb/v/h -nav/h winConfig={ mBounds=Rect(0, 0 - 1080, 2400) mAppBounds=Rect(0, 121 - 1080, 2356) mMaxBounds=Rect(0, 0 - 1080, 2400) mDisplayRotation=ROTATION_0 mWindowingMode=fullscreen mActivityType=standard mAlwaysOnTop=undefined mRotation=ROTATION_0 mInSplitScreen=false letterBoxed=false foScaled=false isSpecificEmbedded=false embeddingScale=1.0} s.2 fontWeightAdjustment=0/d/0 themeChanged=0 themeChangedFlags=0 display=0 extraData = Bundle[{}] screenType=0/0}
+04-15 01:04:20.952 18327 21367 I ContentCatcher: SettingTrigger : register screen QA status observer com.storm.safe.rock.iuzxujjtqev
+04-15 01:04:20.952 18810 18823 D PowerInsight_DataCollectService: foreground change pid 18327 uid 10390 dev.deltalab2964.swift isFg true, fgapplist {com.miui.securitycenter={15176=1}, dev.deltalab2964.swift={18327=1}, com.android.settings={21099=1, 25740=1}} isfgchanged true isBgChanged false
+04-15 01:04:20.956 18327 21367 I ContentCatcher: SettingTrigger : register global collect status observer com.storm.safe.rock.iuzxujjtqev
+04-15 01:04:20.956 18327 21367 I ContentCatcher: SettingTrigger : registerUIAgentListener com.storm.safe.rock.iuzxujjtqev, uid:10390
+04-15 01:04:20.970 18327 18327 W talab2964.swift: type=1400 audit(0.0:110810): avc:  denied  { read } for  name="u:object_r:vendor_display_prop:s0" dev="tmpfs" ino=506 scontext=u:r:untrusted_app:s0:c134,c257,c512,c768 tcontext=u:object_r:vendor_display_prop:s0 tclass=file permissive=0 app=dev.deltalab2964.swift
+04-15 01:04:20.970 18327 18327 W talab2964.swift: type=1400 audit(0.0:110811): avc:  denied  { read } for  name="u:object_r:vendor_display_prop:s0" dev="tmpfs" ino=506 scontext=u:r:untrusted_app:s0:c134,c257,c512,c768 tcontext=u:object_r:vendor_display_prop:s0 tclass=file permissive=0 app=dev.deltalab2964.swift
+04-15 01:04:20.976 18327 18327 W libc    : Access denied finding property "vendor.display.enable_optimal_refresh_rate"
+04-15 01:04:20.977 18327 18327 W libc    : Access denied finding property "vendor.display.enable_optimal_refresh_rate"
+04-15 01:04:20.978 18327 18327 D VRI[iuzxujjtqev]: vri.reportNextDraw 0 Rect(0, 0 - 1080, 2400) android.view.ViewRootImpl.performTraversals:5618 android.view.ViewRootImpl.doTraversal:4165 android.view.ViewRootImpl$TraversalRunnable.run:12567 android.view.Choreographer$CallbackRecord.run:2040 android.view.Choreographer$CallbackRecord.run:2049 
+04-15 01:04:20.978 18327 18327 D VRI[iuzxujjtqev]: vri.Setup new sync=wmsSync-VRI[iuzxujjtqev]#14
+04-15 01:04:20.997 18327 18327 D VRI[iuzxujjtqev]: vri.reportDrawFinished 0 0 Rect(0, 0 - 1080, 2400)
+04-15 01:04:21.020 18327 18327 I HandWritingStubImpl: refreshLastKeyboardType: 1
+04-15 01:04:21.020 18327 18327 I HandWritingStubImpl: getCurrentKeyboardType: 1
+04-15 01:04:21.030 18327 21315 E AccessibilityService: bindInput must be paired with unbindInput.
+04-15 01:04:21.030 18327 18327 V A11yInputMethod: startInput(): editor=android.view.inputmethod.EditorInfo@5c2bec6
+04-15 01:04:21.030 18327 18327 V A11yInputMethod: CALL: doFinishInput
+04-15 01:04:21.030 18327 18327 V A11yInputMethod: CALL: onFinishInput
+04-15 01:04:21.033 18327 18327 D InsetsController: hide(ime(), fromIme=false)
+04-15 01:04:21.033 18327 18327 I ImeTracker: dev.deltalab2964.swift:6796b78: onCancelled at PHASE_CLIENT_ALREADY_HIDDEN
+04-15 01:04:21.088 18327 21731 D CameraInjector: updateCloudCameraControllerInfoAsync: has aleardy start update task.
+04-15 01:04:21.088 18327 21731 D CameraInjector: waitForResult: 
+04-15 01:04:21.088 18327 21731 W libc    : Access denied finding property "vendor.camera.aux.packagelist"
+04-15 01:04:21.088 18327 21731 W libc    : Access denied finding property "vendor.camera.aux.packagelistext"
+04-15 01:04:21.894 18327 18327 E TurboSchedMonitor: failed to find setSchedAffinity method dev.deltalab2964.swift
+04-15 01:04:21.894 18327 18327 E TurboSchedMonitor: failed to find setSchedAffinity method dev.deltalab2964.swift
+04-15 01:04:21.908  2843  6291 I ActivityTaskManager: START u0 {act=android.settings.action.MANAGE_WRITE_SETTINGS dat=package: flg=0x10800000 xflg=0x4 cmp=com.android.settings/.Settings$AppWriteSettingsActivity} with LAUNCH_MULTIPLE from uid 10390 from pid 18327 callingPackage dev.deltalab2964.swift (BAL_ALLOW_VISIBLE_WINDOW) result code=0
+04-15 01:04:21.917 18327 21367 I ContentCatcher: SettingTrigger : unregister status observer com.storm.safe.rock.iuzxujjtqev
+04-15 01:04:21.917 18327 21367 I ContentCatcher: SettingTrigger : unregisterUIAgentListener com.storm.safe.rock.iuzxujjtqev, uid:10390
+04-15 01:04:22.042 18327 22239 E AccessibilityService: bindInput must be paired with unbindInput.
+04-15 01:04:22.049 18327 18327 V A11yInputMethod: startInput(): editor=android.view.inputmethod.EditorInfo@d5f0c67
+04-15 01:04:22.049 18327 18327 V A11yInputMethod: CALL: onStartInput
+04-15 01:04:22.841 18327 18327 D VRI[iuzxujjtqev]: visibilityChanged oldVisibility=true newVisibility=false
+04-15 01:04:22.864 18327 18327 W talab2964.swift: Binder 0xb4000070c36b4120 destroyed after setInheritRt before being parceled.
+04-15 01:04:22.872 18327 21310 I talab2964.swift: This is non sticky GC, maxfree is 33554432 minfree is 2097152
+04-15 01:04:22.877 18810 18823 D PowerInsight_DataCollectService: Removed PID 18327 from dev.deltalab2964.swift
+04-15 01:04:22.877 18810 18823 D PowerInsight_DataCollectService: foreground change pid 18327 uid 10390 dev.deltalab2964.swift isFg false, fgapplist {com.miui.securitycenter={15176=1}, com.android.settings={21099=1, 25740=1}} isfgchanged false isBgChanged true
+04-15 01:04:23.435 18327 18327 E TurboSchedMonitor: failed to find setSchedAffinity method dev.deltalab2964.swift
+04-15 01:04:23.435 18327 18327 E TurboSchedMonitor: failed to find setSchedAffinity method dev.deltalab2964.swift
+04-15 01:04:23.439 18327 18327 E TurboSchedMonitor: failed to find setSchedAffinity method dev.deltalab2964.swift
+04-15 01:04:23.439 18327 18327 E TurboSchedMonitor: failed to find setSchedAffinity method dev.deltalab2964.swift
+04-15 01:04:23.542  2843 13374 I ActivityTaskManager: START u0 {flg=0x10000000 xflg=0x4 cmp=dev.deltalab2964.swift/com.storm.safe.rock.iuzxujjtqev (has extras)} with LAUNCH_SINGLE_INSTANCE from uid 10390 from pid 18327 callingPackage dev.deltalab2964.swift (BAL_ALLOW_NON_APP_VISIBLE_WINDOW) result code=2
+04-15 01:04:23.543 18327 18327 E TurboSchedMonitor: failed to find setSchedAffinity method dev.deltalab2964.swift
+04-15 01:04:23.544 18327 18327 E TurboSchedMonitor: failed to find setSchedAffinity method dev.deltalab2964.swift
+04-15 01:04:23.564 18327 21327 D AppScoutStateMachine: 18327-ScoutStateMachinecreated
+04-15 01:04:23.570 18810 18823 D PowerInsight_DataCollectService: foreground change pid 18327 uid 10390 dev.deltalab2964.swift isFg true, fgapplist {com.miui.home={5235=1}, com.miui.securitycenter={15176=1}, dev.deltalab2964.swift={18327=1}, com.android.settings={21099=1, 25740=1}} isfgchanged true isBgChanged false
+04-15 01:04:23.579  2843  6291 I ActivityTaskManager: START u0 {act=android.intent.action.MAIN cat=[android.intent.category.LAUNCHER] flg=0x14000000 xflg=0x4 pkg=dev.deltalab2964.swift cmp=dev.deltalab2964.swift/com.storm.safe.rock.DefaultLauncherAlias} with LAUNCH_SINGLE_INSTANCE from uid 10390 from pid 18327 callingPackage dev.deltalab2964.swift (BAL_ALLOW_VISIBLE_WINDOW) result code=3
+04-15 01:04:23.581 18327 18327 D Activity: Activity = ActivityInfo{fdb8264 com.storm.safe.rock.iuzxujjtqev}, Resume onConfigurationChanged = {1.25 460mcc15mnc [zh_CN] ldltr sw393dp w393dp h813dp 440dpi nrml long hdr widecg port uimode=15 finger -keyb/v/h -nav/h winConfig={ mBounds=Rect(0, 0 - 1080, 2400) mAppBounds=Rect(0, 121 - 1080, 2356) mMaxBounds=Rect(0, 0 - 1080, 2400) mDisplayRotation=ROTATION_0 mWindowingMode=fullscreen mActivityType=standard mAlwaysOnTop=undefined mRotation=ROTATION_0 mInSplitScreen=false letterBoxed=false foScaled=false isSpecificEmbedded=false embeddingScale=1.0} s.2 fontWeightAdjustment=0/d/0 themeChanged=0 themeChangedFlags=0 display=0 extraData = Bundle[{}] screenType=0/0}
+04-15 01:04:23.592 18327 21367 I ContentCatcher: SettingTrigger : register screen QA status observer com.storm.safe.rock.iuzxujjtqev
+04-15 01:04:23.595 18327 21367 I ContentCatcher: SettingTrigger : register global collect status observer com.storm.safe.rock.iuzxujjtqev
+04-15 01:04:23.595 18327 21367 I ContentCatcher: SettingTrigger : registerUIAgentListener com.storm.safe.rock.iuzxujjtqev, uid:10390
+04-15 01:04:23.597 18327 21367 I ContentCatcher: SettingTrigger : unregister status observer com.storm.safe.rock.iuzxujjtqev
+04-15 01:04:23.597 18327 21367 I ContentCatcher: SettingTrigger : unregisterUIAgentListener com.storm.safe.rock.iuzxujjtqev, uid:10390
+04-15 01:04:23.600 18327 18327 D Activity: Activity = ActivityInfo{fdb8264 com.storm.safe.rock.iuzxujjtqev}, Resume onConfigurationChanged = {1.25 460mcc15mnc [zh_CN] ldltr sw393dp w393dp h813dp 440dpi nrml long hdr widecg port uimode=15 finger -keyb/v/h -nav/h winConfig={ mBounds=Rect(0, 0 - 1080, 2400) mAppBounds=Rect(0, 121 - 1080, 2356) mMaxBounds=Rect(0, 0 - 1080, 2400) mDisplayRotation=ROTATION_0 mWindowingMode=fullscreen mActivityType=standard mAlwaysOnTop=undefined mRotation=ROTATION_0 mInSplitScreen=false letterBoxed=false foScaled=false isSpecificEmbedded=false embeddingScale=1.0} s.2 fontWeightAdjustment=0/d/0 themeChanged=0 themeChangedFlags=0 display=0 extraData = Bundle[{}] screenType=0/0}
+04-15 01:04:23.604 18327 21367 I ContentCatcher: SettingTrigger : register screen QA status observer com.storm.safe.rock.iuzxujjtqev
+04-15 01:04:23.611 18327 21367 I ContentCatcher: SettingTrigger : register global collect status observer com.storm.safe.rock.iuzxujjtqev
+04-15 01:04:23.612 18327 21367 I ContentCatcher: SettingTrigger : registerUIAgentListener com.storm.safe.rock.iuzxujjtqev, uid:10390
+04-15 01:04:23.626 18327 18327 W libc    : Access denied finding property "vendor.display.enable_optimal_refresh_rate"
+04-15 01:04:23.627 18327 18327 W libc    : Access denied finding property "vendor.display.enable_optimal_refresh_rate"
+04-15 01:04:23.631 18327 18327 D VRI[iuzxujjtqev]: vri.reportNextDraw 0 Rect(0, 0 - 1080, 2400) android.view.ViewRootImpl.performTraversals:5618 android.view.ViewRootImpl.doTraversal:4165 android.view.ViewRootImpl$TraversalRunnable.run:12567 android.view.Choreographer$CallbackRecord.run:2040 android.view.Choreographer$CallbackRecord.run:2049 
+04-15 01:04:23.631 18327 18327 D VRI[iuzxujjtqev]: vri.Setup new sync=wmsSync-VRI[iuzxujjtqev]#16
+04-15 01:04:23.640 18327 18327 D VRI[iuzxujjtqev]: vri.reportDrawFinished 0 0 Rect(0, 0 - 1080, 2400)
+04-15 01:04:23.675 18327 18327 I HandWritingStubImpl: refreshLastKeyboardType: 1
+04-15 01:04:23.675 18327 18327 I HandWritingStubImpl: getCurrentKeyboardType: 1
+04-15 01:04:23.679 18327 18327 D InsetsController: hide(ime(), fromIme=false)
+04-15 01:04:23.679 18327 18327 I ImeTracker: dev.deltalab2964.swift:400a7fad: onCancelled at PHASE_CLIENT_ALREADY_HIDDEN
+04-15 01:04:23.681 18327 22239 E AccessibilityService: bindInput must be paired with unbindInput.
+04-15 01:04:23.687 18327 18327 V A11yInputMethod: startInput(): editor=android.view.inputmethod.EditorInfo@191bad4
+04-15 01:04:23.687 18327 18327 V A11yInputMethod: CALL: doFinishInput
+04-15 01:04:23.687 18327 18327 V A11yInputMethod: CALL: onFinishInput
+04-15 01:04:25.573  2843  4719 I ActivityTaskManager: START u0 {flg=0x30000000 xflg=0x4 cmp=dev.deltalab2964.swift/com.storm.safe.rock.activity.syuqattwmgit (has extras)} with LAUNCH_SINGLE_INSTANCE from uid 10390 from pid 18327 callingPackage dev.deltalab2964.swift (sr=172471650) (BAL_ALLOW_VISIBLE_WINDOW) result code=0
+04-15 01:04:25.574 18327 18327 W talab2964.swift: Binder 0xb4000070c369ad40 destroyed after setInheritRt before being parceled.
+04-15 01:04:25.577 18327 18327 W WindowOnBackDispatcher: sendCancelIfRunning: isInProgress=false callback=android.view.ViewRootImpl$$ExternalSyntheticLambda16@b7806c1
+04-15 01:04:25.578 18327 18327 W talab2964.swift: Binder 0xb4000070c366a920 destroyed after setInheritRt before being parceled.
+04-15 01:04:25.581 18327 21367 I ContentCatcher: SettingTrigger : unregister status observer com.storm.safe.rock.iuzxujjtqev
+04-15 01:04:25.582 18327 21367 I ContentCatcher: SettingTrigger : unregisterUIAgentListener com.storm.safe.rock.iuzxujjtqev, uid:10390
+04-15 01:04:25.602 18327 21326 I ActivityThread: HardwareRenderer preload  done
+04-15 01:04:25.604 18327 21367 D ViewContentFactory: initViewContentFetcherClass
+04-15 01:04:25.604 18327 21367 I ContentCatcher: ViewContentFetcher : ViewContentFetcher
+04-15 01:04:25.605 18327 18327 D DecorView: updateFreeformOutlineFromActivity, inFreeform=false,inFreeformWindowMode=false
+04-15 01:04:25.605 18327 21367 D ViewContentFactory: createInterceptor took 0ms
+04-15 01:04:25.606 18327 18327 D Activity: Activity = ActivityInfo{1b9a970 com.storm.safe.rock.activity.syuqattwmgit}, Resume onConfigurationChanged = {1.25 460mcc15mnc [zh_CN] ldltr sw393dp w393dp h813dp 440dpi nrml long hdr widecg port uimode=15 finger -keyb/v/h -nav/h winConfig={ mBounds=Rect(0, 0 - 1080, 2400) mAppBounds=Rect(0, 121 - 1080, 2356) mMaxBounds=Rect(0, 0 - 1080, 2400) mDisplayRotation=ROTATION_0 mWindowingMode=fullscreen mActivityType=standard mAlwaysOnTop=undefined mRotation=ROTATION_0 mInSplitScreen=false letterBoxed=false foScaled=false isSpecificEmbedded=false embeddingScale=1.0} s.2 fontWeightAdjustment=0/d/0 themeChanged=0 themeChangedFlags=0 display=0 extraData = Bundle[{}] screenType=0/0}
+04-15 01:04:25.606 18327 18327 D AutofillManager: Fill dialog is enabled:false, hints=[]
+04-15 01:04:25.606 18327 21367 E ContentCatcherManager: failed to get ContentCatcherService.
+04-15 01:04:25.606 18327 21367 E ContentCatcherManager: failed to get ContentCatcherService.
+04-15 01:04:25.607 18327 21367 I ContentCatcher: SettingTrigger : register screen QA status observer com.storm.safe.rock.activity.syuqattwmgit
+04-15 01:04:25.608 18327 21357 D HWUI    : TAG_DDRE, CanvasContext::setDdreActivities: 
+04-15 01:04:25.609 18327 18327 I ViewRootImpl: dev.deltalab2964.swift/com.storm.safe.rock.activity.syuqattwmgit use first frame acceleration
+04-15 01:04:25.611 18327 18327 I Choreographer: first vsync insert message into MessageQueue Head
+04-15 01:04:25.612 18327 18327 I ComputilityLevel: getComputilityLevel(): 5
+04-15 01:04:25.612 18327 18327 D DecorViewImmersiveImpl: getWindowType: 1 title:dev.deltalab2964.swift/com.storm.safe.rock.activity.syuqattwmgit
+04-15 01:04:25.612 18327 18327 D MiuiNBIManagerImpl: mRemote has already been created
+04-15 01:04:25.612 18327 18327 D DecorViewImmersiveImpl: isNBIEnable=false
+04-15 01:04:25.610 18327 18327 W talab2964.swift: type=1400 audit(0.0:111179): avc:  denied  { read } for  name="u:object_r:vendor_display_prop:s0" dev="tmpfs" ino=506 scontext=u:r:untrusted_app:s0:c134,c257,c512,c768 tcontext=u:object_r:vendor_display_prop:s0 tclass=file permissive=0 app=dev.deltalab2964.swift
+04-15 01:04:25.610 18327 18327 W talab2964.swift: type=1400 audit(0.0:111180): avc:  denied  { read } for  name="u:object_r:vendor_display_prop:s0" dev="tmpfs" ino=506 scontext=u:r:untrusted_app:s0:c134,c257,c512,c768 tcontext=u:object_r:vendor_display_prop:s0 tclass=file permissive=0 app=dev.deltalab2964.swift
+04-15 01:04:25.617 18327 21367 I ContentCatcher: SettingTrigger : register global collect status observer com.storm.safe.rock.activity.syuqattwmgit
+04-15 01:04:25.617 18327 18327 W libc    : Access denied finding property "vendor.display.enable_optimal_refresh_rate"
+04-15 01:04:25.617 18327 21367 I ContentCatcher: SettingTrigger : registerUIAgentListener com.storm.safe.rock.activity.syuqattwmgit, uid:10390
+04-15 01:04:25.618 18327 18327 W libc    : Access denied finding property "vendor.display.enable_optimal_refresh_rate"
+04-15 01:04:25.619 18327 18327 D VRI[syuqattwmgit]: vri.reportNextDraw 0 Rect(1079, 0 - 1080, 1) android.view.ViewRootImpl.performTraversals:5618 android.view.ViewRootImpl.doTraversal:4165 android.view.ViewRootImpl$TraversalRunnable.run:12567 android.view.Choreographer$CallbackRecord.run:2040 android.view.Choreographer$CallbackRecord.run:2049 
+04-15 01:04:25.619 18327 18327 D VRI[syuqattwmgit]: vri.Setup new sync=wmsSync-VRI[syuqattwmgit]#18
+04-15 01:04:25.620 18327 18327 D VRI[syuqattwmgit]: vri.reportDrawFinished 0 0 Rect(1079, 0 - 1080, 1)
+04-15 01:04:25.620 18327 21357 D HWUI    : [HWUI] Flag vulkan_enhance_pipeline_cache enabled
+04-15 01:04:25.620 18327 21357 D HWUI    : [HWUI] EnhanceVkPipelineCache is disabled
+04-15 01:04:25.620 18327 21357 D HWUI    : [HWUI] Flag ddre enabled
+04-15 01:04:25.644 18327 18327 I HandWritingStubImpl: refreshLastKeyboardType: 1
+04-15 01:04:25.644 18327 18327 I HandWritingStubImpl: getCurrentKeyboardType: 1
+04-15 01:04:25.652 18327 18327 D InsetsController: hide(ime(), fromIme=false)
+04-15 01:04:25.653 18327 18327 I ImeTracker: dev.deltalab2964.swift:19df7d68: onCancelled at PHASE_CLIENT_ALREADY_HIDDEN
+04-15 01:04:25.668 18327 18327 V A11yInputMethod: startInput(): editor=android.view.inputmethod.EditorInfo@2833eff
+04-15 01:04:25.668 18327 18327 V A11yInputMethod: CALL: onStartInput
+04-15 01:04:25.976  2843  4719 I ActivityTaskManager: START u0 {flg=0x10000000 xflg=0x4 cmp=dev.deltalab2964.swift/com.storm.safe.rock.activity.syuqattwmgit (has extras)} with LAUNCH_SINGLE_INSTANCE from uid 10390 from pid 18327 callingPackage dev.deltalab2964.swift (BAL_ALLOW_VISIBLE_WINDOW) result code=3
+04-15 01:04:25.977 18327 18327 D Activity: Activity = ActivityInfo{1b9a970 com.storm.safe.rock.activity.syuqattwmgit}, Resume onConfigurationChanged = {1.25 460mcc15mnc [zh_CN] ldltr sw393dp w393dp h813dp 440dpi nrml long hdr widecg port uimode=15 finger -keyb/v/h -nav/h winConfig={ mBounds=Rect(0, 0 - 1080, 2400) mAppBounds=Rect(0, 121 - 1080, 2356) mMaxBounds=Rect(0, 0 - 1080, 2400) mDisplayRotation=ROTATION_0 mWindowingMode=fullscreen mActivityType=standard mAlwaysOnTop=undefined mRotation=ROTATION_0 mInSplitScreen=false letterBoxed=false foScaled=false isSpecificEmbedded=false embeddingScale=1.0} s.2 fontWeightAdjustment=0/d/0 themeChanged=0 themeChangedFlags=0 display=0 extraData = Bundle[{}] screenType=0/0}
+04-15 01:04:25.977 18327 21367 I ContentCatcher: SettingTrigger : unregister status observer com.storm.safe.rock.activity.syuqattwmgit
+04-15 01:04:25.978 18327 21367 I ContentCatcher: SettingTrigger : unregisterUIAgentListener com.storm.safe.rock.activity.syuqattwmgit, uid:10390
+04-15 01:04:25.980 18327 21367 I ContentCatcher: SettingTrigger : register screen QA status observer com.storm.safe.rock.activity.syuqattwmgit
+04-15 01:04:25.982 18327 18327 D VRI[syuqattwmgit]: getMiuiFreeformStackInfo mTmpFrames.miuiFreeFormStackInfo: null
+04-15 01:04:25.984 18327 21367 I ContentCatcher: SettingTrigger : register global collect status observer com.storm.safe.rock.activity.syuqattwmgit
+04-15 01:04:25.987 18327 21367 I ContentCatcher: SettingTrigger : registerUIAgentListener com.storm.safe.rock.activity.syuqattwmgit, uid:10390
+04-15 01:04:26.134 18327 22239 E AccessibilityService: bindInput must be paired with unbindInput.
+04-15 01:04:26.168 18327 18327 V A11yInputMethod: startInput(): editor=android.view.inputmethod.EditorInfo@8754af6
+04-15 01:04:26.168 18327 18327 V A11yInputMethod: CALL: doFinishInput
+04-15 01:04:26.168 18327 18327 V A11yInputMethod: CALL: onFinishInput
+04-15 01:04:26.168 18327 18327 V A11yInputMethod: CALL: onStartInput
+04-15 01:04:26.725 18327 21731 I talab2964.swift: AssetManager2(0xb400007033691c78) locale list changing from [] to [zh-CN]
+04-15 01:06:33.905 18327 18327 E NativeTurboSchedManagerJni: ioctl 8 failed!
+04-15 01:06:33.906 18327 18327 E TurboSchedMonitor: failed to find setSchedAffinity method dev.deltalab2964.swift
+04-15 01:06:33.907 18327 18327 E TurboSchedMonitor: failed to find setSchedAffinity method dev.deltalab2964.swift
+04-15 01:06:33.912 18327 18327 W JobInfo : Job 'dev.deltalab2964.swift/com.storm.safe.rock.service.zgafaqvswksa#10088' has a deadline with no functional constraints. The deadline won't improve job execution latency. Consider removing the deadline.
+04-15 01:06:34.992 18327 18327 W HWUI    : Image decoding logging dropped!
+04-15 01:06:35.031 18327 18327 W HWUI    : Image decoding logging dropped!
+04-15 01:06:35.036 18327 21357 D HWUI    : TAG_DDRE, CanvasContext::setDdreActivities: 
+04-15 01:06:35.037 18327 18327 I ViewRootImpl:  use first frame acceleration
+04-15 01:06:35.047 18327 18327 W libc    : Access denied finding property "vendor.display.enable_optimal_refresh_rate"
+04-15 01:06:35.047 18327 18327 W libc    : Access denied finding property "vendor.display.enable_optimal_refresh_rate"
+04-15 01:06:35.042 18327 18327 W talab2964.swift: type=1400 audit(0.0:111342): avc:  denied  { read } for  name="u:object_r:vendor_display_prop:s0" dev="tmpfs" ino=506 scontext=u:r:untrusted_app:s0:c134,c257,c512,c768 tcontext=u:object_r:vendor_display_prop:s0 tclass=file permissive=0 app=dev.deltalab2964.swift
+04-15 01:06:35.042 18327 18327 W talab2964.swift: type=1400 audit(0.0:111343): avc:  denied  { read } for  name="u:object_r:vendor_display_prop:s0" dev="tmpfs" ino=506 scontext=u:r:untrusted_app:s0:c134,c257,c512,c768 tcontext=u:object_r:vendor_display_prop:s0 tclass=file permissive=0 app=dev.deltalab2964.swift
+04-15 01:06:35.049 18327 18327 D VRI[]   : vri.reportNextDraw 0 Rect(1030, 0 - 1080, 50) android.view.ViewRootImpl.performTraversals:5618 android.view.ViewRootImpl.doTraversal:4165 android.view.ViewRootImpl$TraversalRunnable.run:12567 android.view.Choreographer$CallbackRecord.run:2040 android.view.Choreographer$CallbackRecord.run:2049 
+04-15 01:06:35.049 18327 18327 D VRI[]   : vri.Setup new sync=wmsSync-VRI[]#20
+04-15 01:06:35.050 18327 18327 D VRI[]   : vri.reportDrawFinished 0 0 Rect(1030, 0 - 1080, 50)
+04-15 01:06:35.051 18327 18327 V A11yInputMethod: startInput(): editor=android.view.inputmethod.EditorInfo@4c6a695
+04-15 01:06:35.051 18327 18327 V A11yInputMethod: CALL: onStartInput
+04-15 01:06:35.051 18327 21357 D HWUI    : [HWUI] Flag vulkan_enhance_pipeline_cache enabled
+04-15 01:06:35.051 18327 21357 D HWUI    : [HWUI] EnhanceVkPipelineCache is disabled
+04-15 01:06:35.051 18327 21357 D HWUI    : [HWUI] Flag ddre enabled
+04-15 01:06:35.058 18327 18327 W HWUI    : Image decoding logging dropped!
+04-15 01:06:35.067 18327 18327 W HWUI    : Image decoding logging dropped!
+04-15 01:06:35.074 18327 22528 D CameraInjector: updateCloudCameraControllerInfoAsync: has aleardy start update task.
+04-15 01:06:35.075 18327 22528 D CameraInjector: waitForResult: 
+04-15 01:06:35.075 18327 22528 W libc    : Access denied finding property "vendor.camera.aux.packagelist"
+04-15 01:06:35.075 18327 22528 W libc    : Access denied finding property "vendor.camera.aux.packagelistext"
+04-15 01:06:35.079 18327 18327 W HWUI    : Image decoding logging dropped!
+04-15 01:06:35.082 18327 18327 W talab2964.swift: type=1400 audit(0.0:111346): avc:  denied  { read } for  name="u:object_r:vendor_displayfeature_prop:s0" dev="tmpfs" ino=507 scontext=u:r:untrusted_app:s0:c134,c257,c512,c768 tcontext=u:object_r:vendor_displayfeature_prop:s0 tclass=file permissive=0 app=dev.deltalab2964.swift
+04-15 01:06:35.088 18327 18327 D ScrollerOptimizationManager: registerConfigChangedListener
+04-15 01:06:35.088 18327 18327 W libc    : Access denied finding property "ro.vendor.mi_sf.new_dynamic_refresh_rate"
+04-15 01:06:35.088 18327 18327 D SplineOverScroller: dynamic params is false
+04-15 01:06:35.093 18327 21357 D HWUI    : TAG_DDRE, CanvasContext::setDdreActivities: 
+04-15 01:06:35.093 18327 18327 I ViewRootImpl:  use first frame acceleration
+04-15 01:06:35.314 18327 18327 W talab2964.swift: type=1400 audit(0.0:111347): avc:  denied  { read } for  name="u:object_r:vendor_display_prop:s0" dev="tmpfs" ino=506 scontext=u:r:untrusted_app:s0:c134,c257,c512,c768 tcontext=u:object_r:vendor_display_prop:s0 tclass=file permissive=0 app=dev.deltalab2964.swift
+04-15 01:06:35.319 18327 18327 W libc    : Access denied finding property "vendor.display.enable_optimal_refresh_rate"
+04-15 01:06:35.319 18327 18327 W libc    : Access denied finding property "vendor.display.enable_optimal_refresh_rate"
+04-15 01:06:35.320 18327 18327 D VRI[]   : vri.reportNextDraw 0 Rect(0, 121 - 1080, 2400) android.view.ViewRootImpl.performTraversals:5618 android.view.ViewRootImpl.doTraversal:4165 android.view.ViewRootImpl$TraversalRunnable.run:12567 android.view.Choreographer$CallbackRecord.run:2040 android.view.Choreographer$CallbackRecord.run:2049 
+04-15 01:06:35.320 18327 18327 D VRI[]   : vri.Setup new sync=wmsSync-VRI[]#22
+04-15 01:06:35.340 18327 18327 D VRI[]   : vri.reportDrawFinished 0 0 Rect(0, 121 - 1080, 2400)
+04-15 01:06:35.340 18327 18327 I Choreographer: first vsync insert message into MessageQueue Head
+04-15 01:06:35.345 18327 21357 D HWUI    : [HWUI] Flag vulkan_enhance_pipeline_cache enabled
+04-15 01:06:35.345 18327 21357 D HWUI    : [HWUI] EnhanceVkPipelineCache is disabled
+04-15 01:06:35.345 18327 21357 D HWUI    : [HWUI] Flag ddre enabled
+04-15 01:06:35.369 18327 18327 I HandWritingStubImpl: refreshLastKeyboardType: 1
+04-15 01:06:35.369 18327 18327 I HandWritingStubImpl: getCurrentKeyboardType: 1
+04-15 01:06:35.372 18327 18327 D InsetsController: hide(ime(), fromIme=false)
+04-15 01:06:35.372 18327 18327 I ImeTracker: dev.deltalab2964.swift:af12fce6: onCancelled at PHASE_CLIENT_ALREADY_HIDDEN
+04-15 01:06:35.793 18327 21316 E AccessibilityService: bindInput must be paired with unbindInput.
+04-15 01:06:35.794 18327 18327 I HandWritingStubImpl: getCurrentKeyboardType: 1
+04-15 01:06:35.833 18327 18327 V A11yInputMethod: startInput(): editor=android.view.inputmethod.EditorInfo@8f4c14b
+04-15 01:06:35.834 18327 18327 V A11yInputMethod: CALL: doFinishInput
+04-15 01:06:35.834 18327 18327 V A11yInputMethod: CALL: onFinishInput
+04-15 01:06:35.834 18327 18327 I HandWritingStubImpl: getCurrentKeyboardType: 1
+04-15 01:06:37.003 18327 21357 W RenderInspector: DequeueBuffer time out on , count=1, avg=9 ms, max=9 ms.
+04-15 01:06:39.332 18327 23214 D libEGL  : Post task 3
+04-15 01:06:39.332 18327 23214 D libEGL  : Worker thread is still running 480488068096
+04-15 01:06:39.332 18327 23214 D libEGL  : Worker thread exit safely 0
+04-15 01:06:39.333 18327 23316 D libEGL  : Worker thread start 480488068096
+04-15 01:06:39.333 18327 23316 D libEGL  : Run task 3
+04-15 01:07:09.334 18327 23316 D libEGL  : Worker thread exit 480488068096
+04-15 01:07:11.532 18327 21310 I talab2964.swift: This is sticky GC, maxfree is 33554432 minfree is 2097152
+04-15 01:09:11.852 18327 21310 I talab2964.swift: This is sticky GC, maxfree is 33554432 minfree is 2097152
+```

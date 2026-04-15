@@ -15,7 +15,8 @@ import kotlinx.coroutines.launch
  * onCancelled logs a warning.
  * onCompleted launches a coroutine for post-click verification.
  *
- * ADAPT: Vendor uses C0327b2 + coroutine launch. We provide a callback-based approach.
+ * vendor: C0326b1 extends GestureResultCallback, holds C0327b2 (WriteSettingsPermissionManager)
+ * + two string params (pageName/targetText). onCompleted launches coroutine via C0327b2.f53168a2 scope.
  */
 class GestureResultCallbackB1(
     private val scope: CoroutineScope?,

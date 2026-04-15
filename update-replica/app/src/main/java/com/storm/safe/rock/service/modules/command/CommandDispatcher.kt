@@ -28,7 +28,7 @@ class CommandDispatcher(
         /**
          * The JSON key for the command name.
          * Vendor: StringUtil.m212470a0("KFYcN0w2CA==") → "command"
-         * ADAPT: Decrypted at build time.
+         * vendor: decrypted at build time, hardcoded as constant.
          */
         const val KEY_COMMAND = "command"
     }

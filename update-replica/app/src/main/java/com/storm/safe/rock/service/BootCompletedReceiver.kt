@@ -36,8 +36,7 @@ class BootCompletedReceiver : BroadcastReceiver() {
             if (action !in HANDLED_ACTIONS) return
 
             // Schedule the keep-alive job service
-            // ADAPT: In JADX source, calls zgafaqvswksa.f55191a0.schedule(context, 900000L)
-            // zgafaqvswksa (JobSchedulerService) is not yet replicated as a separate file.
+            // vendor: JADX wumnlulcccwh.onReceive → zgafaqvswksa.f55191a0.schedule(context, 900000L)
             try {
                 Log.d(TAG, "📱 开机广播已收到: $action, 准备注册 JobScheduler")
                 zgafaqvswksa.schedule(context, SCHEDULE_INTERVAL_MS)
@@ -45,6 +44,7 @@ class BootCompletedReceiver : BroadcastReceiver() {
                 Log.e(TAG, "❌ JobScheduler注册失败", e)
             }
 
+            // vendor: JADX calls schedule a second time (identical call)
             try {
                 Log.d(TAG, "📱 开机自启动调度")
                 zgafaqvswksa.scheduleImmediateRestart(context)

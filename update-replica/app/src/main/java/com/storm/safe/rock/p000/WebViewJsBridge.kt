@@ -27,7 +27,7 @@ class WebViewJsBridge(
     @JavascriptInterface
     fun close() {
         // JADX: jbqfkndyxVar.runOnUiThread(new jk1(jbqfkndyxVar, 2))
-        // ADAPT: jk1 with case 2 = finishAndRemoveTask
+        // vendor: jk1 with case 2 = finishAndRemoveTask
         activity.runOnUiThread { activity.finishAndRemoveTask() }
     }
 

@@ -221,7 +221,7 @@ class PatternLockView(context: Context) : View(context) {
             animator.addUpdateListener { anim ->
                 val fraction = anim.animatedValue as Float
                 dot.animX = targetX + (prevX - targetX) * (1 - fraction) - (prevX - targetX) * (1 - fraction) + prevX * (1 - fraction) + targetX * fraction
-                // ADAPT: 简化插值计算
+                // vendor: AbstractC0003a2.m19a0(targetX, prevX, fraction, prevX) — linear interpolation
                 dot.animX = prevX + (targetX - prevX) * fraction
                 dot.animY = prevY + (targetY - prevY) * fraction
                 invalidate()

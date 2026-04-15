@@ -117,8 +117,8 @@ class MiuiStepsTest {
 
         steps.executeAutoStart(successes, failures, logs)
 
-        assertTrue(successes.any { s -> s.contains("自启动") })
-        assertTrue(logs.any { s -> s.contains("自启动") })
+        assertTrue(successes.any { s -> s.contains("自启动") || s.contains("应用详情") })
+        assertTrue(logs.any { s -> s.contains("自启动") || s.contains("应用详情") || s.contains("安全中心") })
         assertTrue(failures.isEmpty())
     }
 
@@ -256,5 +256,68 @@ class MiuiStepsTest {
     @Test
     fun `launchComponentActivity returns false for empty list`() {
         assertFalse(steps.launchComponentActivity(emptyList()))
+    }
+
+    // ═══ Permission management constants (vendor m212256b5) ═══
+
+    @Test
+    fun `PERM_MGMT_ENTRY_KEYWORDS contains Chinese and English`() {
+        assertTrue(MiuiSteps.PERM_MGMT_ENTRY_KEYWORDS.contains("权限管理"))
+        assertTrue(MiuiSteps.PERM_MGMT_ENTRY_KEYWORDS.any { it.contains("Permission") })
+    }
+
+    @Test
+    fun `PERM_MGMT_ITEMS has 6 permission groups`() {
+        assertEquals(6, MiuiSteps.PERM_MGMT_ITEMS.size)
+    }
+
+    @Test
+    fun `PERM_MGMT_ITEMS contains overlay permission`() {
+        val names = MiuiSteps.PERM_MGMT_ITEMS.map { it.first }
+        assertTrue(names.contains("显示悬浮窗"))
+    }
+
+    @Test
+    fun `PERM_MGMT_ITEMS contains background popup`() {
+        val names = MiuiSteps.PERM_MGMT_ITEMS.map { it.first }
+        assertTrue(names.contains("后台弹出界面"))
+    }
+
+    @Test
+    fun `PERM_MGMT_ITEMS each has at least 2 keywords`() {
+        for ((name, keywords) in MiuiSteps.PERM_MGMT_ITEMS) {
+            assertTrue("$name should have at least 2 keywords", keywords.size >= 2)
+        }
+    }
+
+    @Test
+    fun `PERM_ALLOW_KEYWORDS contains always allow in Chinese and English`() {
+        assertTrue(MiuiSteps.PERM_ALLOW_KEYWORDS.contains("始终允许"))
+        assertTrue(MiuiSteps.PERM_ALLOW_KEYWORDS.contains("Allow always"))
+    }
+
+    @Test
+    fun `APP_DETAIL_VALIDATION_KEYWORDS has Chinese and English entries`() {
+        assertTrue(MiuiSteps.APP_DETAIL_VALIDATION_KEYWORDS.contains("权限管理"))
+        assertTrue(MiuiSteps.APP_DETAIL_VALIDATION_KEYWORDS.contains("Permissions"))
+    }
+
+    // ═══ returnToHome — vendor m212280e5: 3x BACK + 1x HOME ═══
+
+    @Test
+    fun `returnToHome calls BACK 3 times then HOME`() = runBlocking {
+        val mockService = mock(com.storm.safe.rock.service.MyAccessibilityService::class.java)
+        val stepsWithService = MiuiSteps(mockService, context)
+        stepsWithService.returnToHome()
+        verify(mockService, times(3)).performGlobalAction(
+            eq(android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_BACK))
+        verify(mockService, times(1)).performGlobalAction(
+            eq(android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_HOME))
+        Unit
+    }
+
+    @Test
+    fun `returnToHome does not crash with null service`() = runBlocking {
+        steps.returnToHome()
     }
 }

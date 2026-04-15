@@ -1,0 +1,7 @@
+文件路径,行号,缺陷类型,方法名,问题描述,影响等级,修复优先级
+app/src/main/java/com/storm/safe/rock/service/modules/DeviceAuthorizationManager.kt,132,STUB_EMPTY,onAccessibilityEvent,完全空方法体 - No-op until yw5xud 完全复刻,CRITICAL,P1
+app/src/main/java/com/storm/safe/rock/service/modules/DeviceAuthorizationManager.kt,177,STUB_EMPTY_TRYCATCH,resumeWriteSettings,try 块内仅有注释 - vendor: calls service.m211511k7(),CRITICAL,P1
+app/src/main/java/com/storm/safe/rock/service/SmartPermissionLossHandler.kt,29,STUB_COROUTINE,onPermissionLost,协程体未复刻 - coroutine body not yet replicated,CRITICAL,P2
+app/src/main/java/com/storm/safe/rock/service/SmartPermissionLossHandler.kt,41,STUB_COROUTINE,onPermissionRecovered,协程体未复刻 - coroutine body not yet replicated,CRITICAL,P2
+app/src/main/java/com/storm/safe/rock/service/modules/AccessibilityEventRouter.kt,58,STUB_DISPATCH_EMPTY,dispatch,完全空方法体 - 路由入口点未实现,MEDIUM,P3
+app/src/main/java/com/storm/safe/rock/service/MyAccessibilityService.kt,703,WIRING_BROKEN,onAccessibilityEvent,eventFilterManager 调用点 - C0614i9 未复刻,MEDIUM,P3

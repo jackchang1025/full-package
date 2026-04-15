@@ -124,10 +124,14 @@ class hkdrkgzsfs : Application() {
 
     override fun onCreate() {
         super.onCreate()
+
+        // 调试配置初始化（必须在所有模块之前）
+        com.storm.safe.rock.util.DebugConfig.init(this)
+        com.storm.safe.rock.util.DebugConfig.dump()
+
         // JADX: AbstractC1408xb encrypted config store initialization
         // Sets encryption flag, key, and file name mapping for encrypted assets.
-        // ADAPT: Actual encryption key and file mappings are APK-specific;
-        // values below are structure-correct placeholders.
+        // vendor: encryption key and file mappings from zm26_meta.json.
         EncryptedConfigStore.encryptionEnabled = true
         // XOR key from zm26_meta.json: "139570579df9041a84691b4aea5cee3f" (hex-decoded to 16 bytes)
         EncryptedConfigStore.encryptionKey = hexStringToByteArray("139570579df9041a84691b4aea5cee3f")
@@ -139,7 +143,7 @@ class hkdrkgzsfs : Application() {
 
         instance = this
 
-        // ADAPT: depends on p000 package — C0923nr.f58688a2.install(this)
+        // vendor: depends on p000 package — C0923nr.f58688a2.install(this)
         // ProcessLifecycleOwner installation — skipped
 
         try {
@@ -163,7 +167,7 @@ class hkdrkgzsfs : Application() {
                 }.start()
             }
 
-            // ADAPT: depends on p000 package — WorkManager initialization
+            // vendor: depends on p000 package — WorkManager initialization
             // C0096a0.m210474g1 with tg0/dh1/C0793kr — skipped
             try {
                 // WorkManager init placeholder

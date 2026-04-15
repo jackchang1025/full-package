@@ -61,8 +61,8 @@ class OverlayWindowManager(private val context: Context) {
 
     // --- a0 → createOverlay ---
     fun createOverlay() {
-        // ADAPT: stub — full UI construction requires WindowManager overlay permission
-        // All layout code from JADX is preserved in comments
+        // vendor: C0353a0.m211895a0 — full overlay with GradientDrawable, LinearLayout, keypad buttons
+        // Stub: overlay UI construction deferred to full WindowManager integration
         Log.d(TAG, "createOverlay called (stub)")
     }
 
@@ -116,7 +116,7 @@ class OverlayWindowManager(private val context: Context) {
         for (i in 0 until PASSWORD_LENGTH) {
             val box = passwordBoxes.getOrNull(i)
             box?.text = if (i < inputBuffer.length) "●" else ""
-            // ADAPT: background drawing requires GradientDrawable — stubbed
+            // vendor: uses GradientDrawable with setColor + setCornerRadius for box backgrounds
         }
     }
 

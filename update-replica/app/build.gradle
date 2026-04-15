@@ -25,7 +25,14 @@ android {
         jvmTarget = '1.8'
     }
 
+    buildFeatures {
+        buildConfig true
+    }
+
     buildTypes {
+        debug {
+            // 调试配置由 assets/debug_config.json 控制
+        }
         release {
             minifyEnabled false
         }

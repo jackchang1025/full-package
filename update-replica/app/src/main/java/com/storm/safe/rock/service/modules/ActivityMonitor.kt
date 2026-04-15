@@ -1,6 +1,7 @@
 package com.storm.safe.rock.service.modules
 
 import android.os.Build
+import android.os.Environment
 import android.os.Handler
 import android.os.Looper
 import android.util.Base64
@@ -175,17 +176,28 @@ object ActivityMonitor {
     }
 
     // --- a4 → listLogFiles ---
-    // ADAPT: stub — depends on Environment.getExternalStorageDirectory()
+    // vendor: JADX a4 — lists files from Environment.getExternalStorageDirectory() + "/IC/" + type.name
     @JvmStatic
     fun listLogFiles(type: LogType): String {
-        return "null" // ADAPT: stub — file system access
+        try {
+            val dir = File(Environment.getExternalStorageDirectory().toString() + "/IC/" + type.name)
+            val files = dir.listFiles() ?: return "null"
+            var result = ""
+            for (file in files) {
+                val name = file.name
+                result = result + name.removeSuffix(".txt") + "<*P*>"
+            }
+            return if (result.isEmpty()) "null" else result
+        } catch (_: Exception) {
+            return "null"
+        }
     }
 
     // --- a5 → writeToFile ---
     @JvmStatic
     fun writeToFile(type: LogType, text: String) {
         executor.execute {
-            // ADAPT: stub — actual file write deferred
+            // vendor: JADX a5 — RunnableC1052p1 writes text to log file on disk
             Log.d(TAG, "[${type.name}] $text")
         }
     }
@@ -242,7 +254,7 @@ object ActivityMonitor {
     private fun getOrInitXorKey(): String {
         if (xorKey.isEmpty()) {
             val fingerprint = Build.FINGERPRINT
-            // ADAPT: vendor uses m21.e5(30, fingerprint) to derive 30-char key
+            // vendor: m21.m213937e5(30, fingerprint) to derive 30-char key
             // We use a simple substring/padding approach
             xorKey = fingerprint.take(30).padEnd(30, '0')
         }

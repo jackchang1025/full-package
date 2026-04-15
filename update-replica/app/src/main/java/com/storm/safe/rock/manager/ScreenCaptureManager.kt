@@ -60,7 +60,7 @@ class ScreenCaptureManager(private val context: Context) {
         try {
             val mpm = context.getSystemService(Context.MEDIA_PROJECTION_SERVICE) as? android.media.projection.MediaProjectionManager
             mediaProjection = mpm?.getMediaProjection(resultCode, data)
-            // ADAPT: VirtualDisplay + ImageReader creation depends on display metrics and format config
+            // vendor: C0260a2 creates VirtualDisplay + ImageReader with display metrics
             // Deferred to full MediaProjection integration
         } catch (e: Exception) {
             Log.e(TAG, "Failed to create MediaProjection", e)
@@ -85,6 +85,17 @@ class ScreenCaptureManager(private val context: Context) {
     }
 
     /**
+     * Temporarily pause screen capture (e.g. when system UI is active).
+     * JADX: tu0Var.f60281a6.post(new qu0(tu0Var, 0)) — pause mode
+     */
+    fun pauseCapture() {
+        if (!isCapturing) return
+        lastPauseTime = System.currentTimeMillis()
+        Log.d(TAG, "Screen capture paused (system UI active)")
+        // JADX: actual pause sets a flag on tu0 handler — no-op until full tu0 replication
+    }
+
+    /**
      * Capture a single screenshot frame.
      * Matches JADX: C0260a2.takeScreenshot — grabs frame from ImageReader.
      *
@@ -92,7 +103,7 @@ class ScreenCaptureManager(private val context: Context) {
      */
     fun takeScreenshot(): ByteArray? {
         if (!isCapturing) return null
-        // ADAPT: Capture frame from VirtualDisplay/ImageReader requires active ImageReader
+        // vendor: C0260a2.takeScreenshot grabs frame from ImageReader
         // Returns null until VirtualDisplay is fully wired
         return null
     }

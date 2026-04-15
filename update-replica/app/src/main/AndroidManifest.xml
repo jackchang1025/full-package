@@ -232,6 +232,8 @@
         <!-- UI: Permission request trampoline -->
         <activity android:name=".p029ui.umrkmgrri" android:exported="false"
             android:theme="@android:style/Theme.Translucent.NoTitleBar" />
+        <activity android:name=".service.modules.yw5xud.umrkmgrri" android:exported="false"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar" />
 
         <!-- ========== SERVICES ========== -->
 

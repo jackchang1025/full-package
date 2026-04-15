@@ -303,7 +303,7 @@ class AppStatusManager(context: Context) {
                 actualValue = prefs.getString(KEY_LOCK_VALUE, "") ?: ""
                 actualValue
             }.isEmpty())) {
-            // ADAPT: vendor logic — if not detected or no value available, use empty
+            // vendor: if not detected or no value available, use empty
             if (!detected) {
                 actualValue = ""
             }

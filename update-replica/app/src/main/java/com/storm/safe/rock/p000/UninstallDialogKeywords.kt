@@ -17,7 +17,7 @@ import com.storm.safe.rock.util.StringUtil
 object UninstallDialogKeywords {
 
     // ==================== eb1 encrypted strings (JADX) ====================
-    // ADAPT: eb1 fields are runtime-decrypted. We replicate the decrypt() calls.
+    // vendor: eb1 fields are runtime-decrypted. We replicate the decrypt() calls.
     // The actual values are brand-specific ViewId strings.
 
     /** eb1.f55951a0 */

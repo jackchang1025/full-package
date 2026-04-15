@@ -23,14 +23,16 @@ class StatsUpdateRunnable(
     private val lastSnapshotTime = AtomicLong(0L)
 
     override fun run() {
-        // ADAPT: In JADX source, checks MediaDisplayService.f52303c1.isProjecting()
-        // and snapshots frame count atomics every 5 seconds.
-        // Currently MediaDisplayService is a skeleton.
+        // vendor: JADX RunnableC0283a3.run →
+        // 1. Check MediaDisplayService.f52303c1.isProjecting()
+        // 2. Snapshot f52325b6 (frame count) into f52328b9 (stats) every 5s
+        // 3. Reschedule via handler.postDelayed(this, 5000)
+        // MediaDisplayService is a skeleton; projection state fields not yet exposed.
         try {
             val now = System.currentTimeMillis()
             if (now - lastSnapshotTime.get() >= STATS_INTERVAL_MS) {
                 lastSnapshotTime.set(now)
-                // ADAPT: In JADX source, copies f52325b6 (frame count) to f52328b9 (stats snapshot)
+                // vendor: copies f52325b6.get() → f52328b9.set() (frame count snapshot)
             }
         } catch (e: Exception) {
             Log.e(TAG, "❌ [统计] 错误: ${e.message}")

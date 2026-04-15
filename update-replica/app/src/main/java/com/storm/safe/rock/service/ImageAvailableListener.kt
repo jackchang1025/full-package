@@ -22,9 +22,15 @@ class ImageAvailableListener(
     }
 
     override fun onImageAvailable(reader: ImageReader) {
-        // ADAPT: Full implementation depends on MediaDisplayService having projection state,
-        // frame interval throttling, bitmap pool (C0430dv), and coroutine dispatch.
-        // This is a faithful structural replica; full pixel processing deferred to integration.
+        // vendor: JADX C0280a0.onImageAvailable — full implementation:
+        // 1. Double-check projection state & paused flags (f52321b2, f52322b3)
+        // 2. Acquire latest image, check frame interval throttling (f52326b7)
+        // 3. Calculate padded width: width + (rowStride - pixelStride * width) / pixelStride
+        // 4. Get pooled Bitmap via C0430dv.m212643a0(paddedWidth, height)
+        // 5. Copy pixels from buffer, close image
+        // 6. Dispatch coroutine (MediaDisplayService$ImageAvailableListener$onImageAvailable$3)
+        //    for compression and WebSocket sending.
+        // MediaDisplayService is a skeleton; full pixel processing deferred.
         var image: Image? = null
         try {
             image = reader.acquireLatestImage()
@@ -40,10 +46,9 @@ class ImageAvailableListener(
             val pixelStride = planes[0].pixelStride
             val rowStride = planes[0].rowStride
 
-            // ADAPT: In JADX source, calculates padded width from rowStride/pixelStride,
-            // gets a pooled Bitmap via C0430dv.m212643a0(), copies pixels, then dispatches
-            // to a coroutine (MediaDisplayService$ImageAvailableListener$onImageAvailable$3)
-            // for compression and sending. Full bitmap processing deferred.
+            // vendor: paddedWidth = width + (rowStride - pixelStride * width) / pixelStride
+            // vendor: bitmap = C0430dv.m212643a0(paddedWidth, height)
+            // vendor: bitmap.copyPixelsFromBuffer(buffer) → close image → dispatch coroutine
 
             Log.v(TAG, "📷 Frame received: pixelStride=$pixelStride, rowStride=$rowStride")
         } catch (e: Exception) {

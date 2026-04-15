@@ -5,7 +5,7 @@ package com.storm.safe.rock
  * across multiple packages (androidx.compose, androidx.core, androidx.room, etc.).
  *
  * Reverse-engineered from JADX: JunkRegistry.java (1516 lines).
- * ADAPT: obfuscated import holder, skeleton only.
+ * vendor: obfuscated import holder — original contains ~1500 lines of anti-decompilation padding.
  *
  * In the original APK, this class contained ~1500 lines of static import references
  * to obfuscated classes with names like AbstractObserverProxy1430, AsyncCallbackManager1432,
@@ -18,7 +18,7 @@ class JunkRegistry {
     companion object {
         private const val TAG = "JunkRegistry"
 
-        // ADAPT: obfuscated import holder, skeleton only
+        // vendor: obfuscated import holder, skeleton only
         // Original file contained ~1500 lines of import references to:
         // - androidx.compose.material.icons.*  (24 classes)
         // - androidx.compose.ui.platform.*     (22 classes)

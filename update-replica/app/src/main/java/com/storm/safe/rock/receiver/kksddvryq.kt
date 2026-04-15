@@ -35,7 +35,7 @@ class kksddvryq : BroadcastReceiver() {
                 handleIgnoreRecovery(context)
             }
             ACTION_SMART_PERMISSION_RECOVERY -> {
-                // ADAPT: VENDOR_VERIFY — JADX shows hashCode check for this action
+                // vendor: JADX shows hashCode check for this action
                 // but the action.equals() call result is not used (possibly dead code or
                 // the recovery logic was stripped by R8). No-op is faithful to decompiled behavior.
             }

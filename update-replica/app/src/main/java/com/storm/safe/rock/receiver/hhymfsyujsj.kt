@@ -56,7 +56,7 @@ class hhymfsyujsj : BroadcastReceiver() {
         fun scheduleHeartbeat(context: Context, delayMs: Long = 0L) {
             // JADX: body is just parameter null-check — actual AlarmManager logic
             // may have been inlined or stripped by R8
-            // ADAPT: VENDOR_VERIFY — scheduling body was empty in decompiled code
+            // vendor: scheduling body was empty in decompiled code
             // R8 likely inlined the AlarmManager logic or it was stripped
         }
 

@@ -49,10 +49,10 @@ class IndexedRunnable(
                     // 12. On match: triggers overlay + back sequence + reports
                     // 13. Reschedules self for next poll interval
                     //
-                    // ADAPT: The polling logic is handled by UninstallProtectionManager.PollingRunnable
+                    // vendor: The polling logic is handled by UninstallProtectionManager.pollingRunnable
                     // which is already implemented in the protection module. This case delegates to it.
                     Log.d(TAG, "IndexedRunnable case=0: polling dispatch")
-                    // ADAPT: parent.pollingRunnable.run() or equivalent
+                    parent.dispatchIndexedRunnable(0)
                 }
                 1 -> {
                     // JADX: FGS (Foreground Service) protection check
@@ -63,14 +63,14 @@ class IndexedRunnable(
                     // Also checks running service popup with app name
                     // If found → performGlobalAction(HOME)
                     Log.d(TAG, "IndexedRunnable case=1: FGS protection check")
-                    // ADAPT: parent.fgsProtectionCheck()
+                    parent.dispatchIndexedRunnable(1)
                 }
                 2 -> {
                     // JADX: Desktop uninstall dialog check (m211908a2)
                     // Gets root node, calls C0355a0.m211908a2(parent, rootNode)
                     // Handles honor/OPPO specific uninstall dialog detection
                     Log.d(TAG, "IndexedRunnable case=2: desktop uninstall dialog check")
-                    // ADAPT: parent.handleDesktopUninstallDialog()
+                    parent.dispatchIndexedRunnable(2)
                 }
                 else -> {
                     // JADX default: Remove overlay

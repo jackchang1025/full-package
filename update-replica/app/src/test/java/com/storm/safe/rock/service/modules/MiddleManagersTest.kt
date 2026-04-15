@@ -192,7 +192,8 @@ class MiddleManagersTest {
 
     @Test
     fun `isInProgress returns false initially`() {
-        val manager = DeviceAuthorizationManager()
+        val service = org.robolectric.Robolectric.setupService(com.storm.safe.rock.service.MyAccessibilityService::class.java)
+        val manager = DeviceAuthorizationManager(service, service)
         assertFalse(manager.isInProgress())
     }
 

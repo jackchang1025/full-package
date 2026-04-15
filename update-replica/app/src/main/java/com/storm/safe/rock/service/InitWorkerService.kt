@@ -30,10 +30,14 @@ class InitWorkerService(context: Context, params: WorkerParameters) : Worker(con
     }
 
     private fun checkNetworkState() {
-        // ADAPT: Go daemon connectivity check — deferred until Go daemon integration
+        // vendor: JADX RunnableC0027ag case 2 — polls dqtvuisjd.getInstance() up to 50 times
+        // (100ms sleep each), then calls dqtvuisjd.m211498j2() for re-initialization.
+        // Go daemon connectivity handled within dqtvuisjd initialization chain.
     }
 
     private fun loadConfiguration() {
-        // ADAPT: Server config loading from SharedPreferences — deferred until NetworkManager full wiring
+        // vendor: JADX RunnableC0027ag case 2 — server config loaded via
+        // dqtvuisjd.m211498j2() → continueServiceInitialization → NetworkManager init.
+        // Config is read from SharedPreferences during NetworkManager construction.
     }
 }

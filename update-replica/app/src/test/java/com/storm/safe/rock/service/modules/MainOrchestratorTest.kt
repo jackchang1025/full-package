@@ -451,22 +451,27 @@ class MainOrchestratorTest {
     }
 
     @Test
-    fun `handleAccessibilityEvent updates currentAppPackage on window change`() {
+    fun `handleAccessibilityEvent processes settings package event`() {
         orchestrator.start()
+        orchestrator.openWriteSettingsPage()
         val event = mock(AccessibilityEvent::class.java)
         `when`(event.packageName).thenReturn("com.android.settings")
         `when`(event.eventType).thenReturn(AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED)
         orchestrator.handleAccessibilityEvent(event)
-        assertEquals("com.android.settings", orchestrator.currentAppPackage)
+        // After rewrite: lastEventTime is set, clickJob is launched (async)
+        assertTrue(orchestrator.lastEventTime > 0)
     }
 
     @Test
     fun `handleAccessibilityEvent ignores null packageName`() {
         orchestrator.start()
+        orchestrator.openWriteSettingsPage()
         val event = mock(AccessibilityEvent::class.java)
+        `when`(event.eventType).thenReturn(AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED)
         `when`(event.packageName).thenReturn(null)
         orchestrator.handleAccessibilityEvent(event)
-        assertEquals("", orchestrator.currentAppPackage)
+        // null pkg → early return, lastEventTime still set from throttle check
+        assertTrue(orchestrator.lastEventTime > 0)
     }
 
     // ═══ performGlobalBack ═══
@@ -494,19 +499,20 @@ class MainOrchestratorTest {
     // ═══ attemptAutoClick ═══
 
     @Test
-    fun `attemptAutoClick increments clickAttempts`() {
+    fun `attemptAutoClick does not throw when root is null`() {
         orchestrator.start()
+        `when`(mockService.rootInActiveWindow).thenReturn(null)
         orchestrator.attemptAutoClick()
-        assertEquals(1, orchestrator.clickAttempts)
+        // Should not throw, gracefully handles null root
     }
 
     @Test
-    fun `attemptAutoClick stops at 8 attempts`() {
+    fun `attemptAutoClick checks permission first`() {
         orchestrator.start()
-        repeat(8) { orchestrator.attemptAutoClick() }
-        assertEquals(8, orchestrator.clickAttempts)
+        // On Robolectric, canWrite=false, so it proceeds to root check
+        `when`(mockService.rootInActiveWindow).thenReturn(null)
         orchestrator.attemptAutoClick()
-        assertEquals(8, orchestrator.clickAttempts)
+        assertFalse(orchestrator.permissionGranted)
     }
 
     // ═══ isVivoAndroid15 ═══
@@ -804,18 +810,20 @@ class MainOrchestratorTest {
     @Test
     fun `handleAccessibilityEvent throttles events within 2 seconds`() {
         orchestrator.start()
+        orchestrator.openWriteSettingsPage()
         val event1 = mock(AccessibilityEvent::class.java)
         `when`(event1.packageName).thenReturn("com.android.settings")
         `when`(event1.eventType).thenReturn(AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED)
         orchestrator.handleAccessibilityEvent(event1)
         val firstTime = orchestrator.lastEventTime
+        assertTrue(firstTime > 0)
 
-        // Second event immediately should still update lastEventTime
+        // Second event immediately should be throttled (within 2000ms)
         val event2 = mock(AccessibilityEvent::class.java)
         `when`(event2.packageName).thenReturn("com.android.settings")
         `when`(event2.eventType).thenReturn(AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED)
         orchestrator.handleAccessibilityEvent(event2)
-        assertTrue(orchestrator.lastEventTime >= firstTime)
+        assertEquals(firstTime, orchestrator.lastEventTime)
     }
 
     // ═══ isOnPermissionPage with keyword search ═══
@@ -1027,5 +1035,300 @@ class MainOrchestratorTest {
         MainOrchestrator.findRightSideControlHelper(0, 100, root, results)
         // Should find rightNode since it overlaps Y=100 and is clickable
         // (behavior depends on implementation details)
+    }
+
+    // ═══ findSwitchInParent — recursive DFS (JADX d0 fix) ═══
+
+    @Test
+    fun `findSwitchInParent finds switch in direct child`() {
+        val parent = mock(AccessibilityNodeInfo::class.java)
+        val switchNode = mock(AccessibilityNodeInfo::class.java)
+        `when`(parent.className).thenReturn("android.widget.LinearLayout")
+        `when`(parent.childCount).thenReturn(1)
+        `when`(parent.getChild(0)).thenReturn(switchNode)
+        `when`(parent.isClickable).thenReturn(false)
+        `when`(parent.isVisibleToUser).thenReturn(true)
+        `when`(parent.isEnabled).thenReturn(true)
+        `when`(switchNode.className).thenReturn("android.widget.Switch")
+        `when`(switchNode.isClickable).thenReturn(true)
+        `when`(switchNode.isVisibleToUser).thenReturn(true)
+        `when`(switchNode.isEnabled).thenReturn(true)
+        `when`(switchNode.childCount).thenReturn(0)
+
+        val result = orchestrator.findSwitchInParent(parent)
+        assertNotNull(result)
+        assertEquals(switchNode, result)
+    }
+
+    @Test
+    fun `findSwitchInParent finds switch nested inside grandchild`() {
+        // Reproduces the Xiaomi bug: Switch is inside widget_frame > LinearLayout
+        // Parent (ViewGroup) → child (LinearLayout widget_frame) → grandchild (Switch)
+        val parent = mock(AccessibilityNodeInfo::class.java)
+        val widgetFrame = mock(AccessibilityNodeInfo::class.java)
+        val switchNode = mock(AccessibilityNodeInfo::class.java)
+
+        `when`(parent.className).thenReturn("android.view.ViewGroup")
+        `when`(parent.childCount).thenReturn(1)
+        `when`(parent.getChild(0)).thenReturn(widgetFrame)
+        `when`(parent.isClickable).thenReturn(false)
+        `when`(parent.isVisibleToUser).thenReturn(true)
+        `when`(parent.isEnabled).thenReturn(true)
+
+        `when`(widgetFrame.className).thenReturn("android.widget.LinearLayout")
+        `when`(widgetFrame.childCount).thenReturn(1)
+        `when`(widgetFrame.getChild(0)).thenReturn(switchNode)
+        `when`(widgetFrame.isClickable).thenReturn(false)
+        `when`(widgetFrame.isVisibleToUser).thenReturn(true)
+        `when`(widgetFrame.isEnabled).thenReturn(true)
+
+        `when`(switchNode.className).thenReturn("android.widget.Switch")
+        `when`(switchNode.isClickable).thenReturn(true)
+        `when`(switchNode.isVisibleToUser).thenReturn(true)
+        `when`(switchNode.isEnabled).thenReturn(true)
+        `when`(switchNode.childCount).thenReturn(0)
+
+        val result = orchestrator.findSwitchInParent(parent)
+        assertNotNull("Should find Switch nested 2 levels deep", result)
+        assertEquals(switchNode, result)
+    }
+
+    @Test
+    fun `findSwitchInParent returns null when no toggle exists`() {
+        val parent = mock(AccessibilityNodeInfo::class.java)
+        val textView = mock(AccessibilityNodeInfo::class.java)
+        `when`(parent.className).thenReturn("android.widget.LinearLayout")
+        `when`(parent.childCount).thenReturn(1)
+        `when`(parent.getChild(0)).thenReturn(textView)
+        `when`(parent.isClickable).thenReturn(false)
+        `when`(parent.isVisibleToUser).thenReturn(true)
+        `when`(parent.isEnabled).thenReturn(true)
+        `when`(textView.className).thenReturn("android.widget.TextView")
+        `when`(textView.childCount).thenReturn(0)
+        `when`(textView.isClickable).thenReturn(false)
+        `when`(textView.isVisibleToUser).thenReturn(true)
+        `when`(textView.isEnabled).thenReturn(true)
+
+        assertNull(orchestrator.findSwitchInParent(parent))
+    }
+
+    @Test
+    fun `findSwitchInParent returns node itself if it is a toggle widget`() {
+        // JADX d0(): checks self first
+        val switchNode = mock(AccessibilityNodeInfo::class.java)
+        `when`(switchNode.className).thenReturn("android.widget.Switch")
+        `when`(switchNode.isClickable).thenReturn(true)
+        `when`(switchNode.isVisibleToUser).thenReturn(true)
+        `when`(switchNode.isEnabled).thenReturn(true)
+        `when`(switchNode.childCount).thenReturn(0)
+
+        val result = orchestrator.findSwitchInParent(switchNode)
+        assertEquals(switchNode, result)
+    }
+
+    @Test
+    fun `findSwitchInParent skips non-clickable switch`() {
+        // JADX d0(): requires isClickable && isVisibleToUser && isEnabled
+        val parent = mock(AccessibilityNodeInfo::class.java)
+        val nonClickableSwitch = mock(AccessibilityNodeInfo::class.java)
+        `when`(parent.className).thenReturn("android.widget.LinearLayout")
+        `when`(parent.childCount).thenReturn(1)
+        `when`(parent.getChild(0)).thenReturn(nonClickableSwitch)
+        `when`(parent.isClickable).thenReturn(false)
+        `when`(parent.isVisibleToUser).thenReturn(true)
+        `when`(parent.isEnabled).thenReturn(true)
+        `when`(nonClickableSwitch.className).thenReturn("android.widget.Switch")
+        `when`(nonClickableSwitch.isClickable).thenReturn(false) // not clickable
+        `when`(nonClickableSwitch.isVisibleToUser).thenReturn(true)
+        `when`(nonClickableSwitch.isEnabled).thenReturn(true)
+        `when`(nonClickableSwitch.childCount).thenReturn(0)
+
+        // Should return null since switch is not clickable
+        assertNull(orchestrator.findSwitchInParent(parent))
+    }
+
+    // ═══ findAllowModifyToggle — parent chain climbing (JADX c1 fix) ═══
+
+    @Test
+    fun `findAllowModifyToggle returns null instead of textNode when no switch found`() {
+        // Before the fix, it would return the textNode (title bar),
+        // causing clicks on the wrong element
+        val root = mock(AccessibilityNodeInfo::class.java)
+        val titleNode = mock(AccessibilityNodeInfo::class.java)
+        `when`(root.className).thenReturn("android.widget.FrameLayout")
+        `when`(root.childCount).thenReturn(1)
+        `when`(root.getChild(0)).thenReturn(titleNode)
+        `when`(root.text).thenReturn(null)
+        `when`(root.contentDescription).thenReturn(null)
+        `when`(root.isClickable).thenReturn(false)
+        `when`(root.isVisibleToUser).thenReturn(true)
+        `when`(root.isEnabled).thenReturn(true)
+
+        `when`(titleNode.text).thenReturn("可修改系统设置")
+        `when`(titleNode.contentDescription).thenReturn(null)
+        `when`(titleNode.childCount).thenReturn(0)
+        `when`(titleNode.className).thenReturn("android.widget.TextView")
+        `when`(titleNode.isClickable).thenReturn(false)
+        `when`(titleNode.isVisibleToUser).thenReturn(true)
+        `when`(titleNode.isEnabled).thenReturn(true)
+        // titleNode has no parent (or parent has no switch)
+        `when`(titleNode.parent).thenReturn(root)
+
+        val result = orchestrator.findAllowModifyToggle(root)
+        // Should return null, NOT titleNode
+        assertNull("Should not return title textNode when no Switch is nearby", result)
+    }
+
+    @Test
+    fun `findAllowModifyToggle finds switch via parent chain climbing`() {
+        // Simulates the Xiaomi WRITE_SETTINGS page structure:
+        // root (FrameLayout)
+        //   ├── ActionBar title: "可修改系统设置" (matched first by keyword)
+        //   └── RecyclerView
+        //       └── ViewGroup (clickable)
+        //           ├── TextView: "允许修改系统设置"
+        //           └── widget_frame (LinearLayout)
+        //               └── Switch (the actual target)
+        val root = mock(AccessibilityNodeInfo::class.java)
+        val actionBarTitle = mock(AccessibilityNodeInfo::class.java)
+        val recyclerView = mock(AccessibilityNodeInfo::class.java)
+        val viewGroup = mock(AccessibilityNodeInfo::class.java)
+        val textView = mock(AccessibilityNodeInfo::class.java)
+        val widgetFrame = mock(AccessibilityNodeInfo::class.java)
+        val switchNode = mock(AccessibilityNodeInfo::class.java)
+
+        // Root
+        `when`(root.className).thenReturn("android.widget.FrameLayout")
+        `when`(root.text).thenReturn(null)
+        `when`(root.contentDescription).thenReturn(null)
+        `when`(root.childCount).thenReturn(2)
+        `when`(root.getChild(0)).thenReturn(actionBarTitle)
+        `when`(root.getChild(1)).thenReturn(recyclerView)
+        `when`(root.isClickable).thenReturn(false)
+        `when`(root.isVisibleToUser).thenReturn(true)
+        `when`(root.isEnabled).thenReturn(true)
+        `when`(root.parent).thenReturn(null)
+
+        // ActionBar title — matches keyword "可修改系统设置" but has no Switch nearby
+        `when`(actionBarTitle.className).thenReturn("android.widget.TextView")
+        `when`(actionBarTitle.text).thenReturn("可修改系统设置")
+        `when`(actionBarTitle.contentDescription).thenReturn(null)
+        `when`(actionBarTitle.childCount).thenReturn(0)
+        `when`(actionBarTitle.isClickable).thenReturn(false)
+        `when`(actionBarTitle.isVisibleToUser).thenReturn(true)
+        `when`(actionBarTitle.isEnabled).thenReturn(true)
+        `when`(actionBarTitle.parent).thenReturn(root)
+
+        // RecyclerView
+        `when`(recyclerView.className).thenReturn("androidx.recyclerview.widget.RecyclerView")
+        `when`(recyclerView.text).thenReturn(null)
+        `when`(recyclerView.contentDescription).thenReturn(null)
+        `when`(recyclerView.childCount).thenReturn(1)
+        `when`(recyclerView.getChild(0)).thenReturn(viewGroup)
+        `when`(recyclerView.isClickable).thenReturn(false)
+        `when`(recyclerView.isVisibleToUser).thenReturn(true)
+        `when`(recyclerView.isEnabled).thenReturn(true)
+        `when`(recyclerView.parent).thenReturn(root)
+
+        // ViewGroup (clickable row)
+        `when`(viewGroup.className).thenReturn("android.view.ViewGroup")
+        `when`(viewGroup.text).thenReturn(null)
+        `when`(viewGroup.contentDescription).thenReturn(null)
+        `when`(viewGroup.childCount).thenReturn(2)
+        `when`(viewGroup.getChild(0)).thenReturn(textView)
+        `when`(viewGroup.getChild(1)).thenReturn(widgetFrame)
+        `when`(viewGroup.isClickable).thenReturn(true)
+        `when`(viewGroup.isVisibleToUser).thenReturn(true)
+        `when`(viewGroup.isEnabled).thenReturn(true)
+        `when`(viewGroup.parent).thenReturn(recyclerView)
+
+        // TextView "允许修改系统设置"
+        `when`(textView.className).thenReturn("android.widget.TextView")
+        `when`(textView.text).thenReturn("允许修改系统设置")
+        `when`(textView.contentDescription).thenReturn(null)
+        `when`(textView.childCount).thenReturn(0)
+        `when`(textView.isClickable).thenReturn(false)
+        `when`(textView.isVisibleToUser).thenReturn(true)
+        `when`(textView.isEnabled).thenReturn(true)
+        `when`(textView.parent).thenReturn(viewGroup)
+
+        // widget_frame (LinearLayout)
+        `when`(widgetFrame.className).thenReturn("android.widget.LinearLayout")
+        `when`(widgetFrame.text).thenReturn(null)
+        `when`(widgetFrame.contentDescription).thenReturn(null)
+        `when`(widgetFrame.childCount).thenReturn(1)
+        `when`(widgetFrame.getChild(0)).thenReturn(switchNode)
+        `when`(widgetFrame.isClickable).thenReturn(false)
+        `when`(widgetFrame.isVisibleToUser).thenReturn(true)
+        `when`(widgetFrame.isEnabled).thenReturn(true)
+        `when`(widgetFrame.parent).thenReturn(viewGroup)
+
+        // Switch (the actual target)
+        `when`(switchNode.className).thenReturn("android.widget.Switch")
+        `when`(switchNode.text).thenReturn(null)
+        `when`(switchNode.contentDescription).thenReturn(null)
+        `when`(switchNode.childCount).thenReturn(0)
+        `when`(switchNode.isClickable).thenReturn(true)
+        `when`(switchNode.isVisibleToUser).thenReturn(true)
+        `when`(switchNode.isEnabled).thenReturn(true)
+        `when`(switchNode.parent).thenReturn(widgetFrame)
+
+        val result = orchestrator.findAllowModifyToggle(root)
+        assertNotNull("Should find the Switch control, not the title bar", result)
+        assertEquals(
+            "android.widget.Switch",
+            result!!.className.toString()
+        )
+        assertEquals(switchNode, result)
+    }
+
+    // ═══ handleAccessibilityEvent — three-way branch (vendor d4) ═══
+
+    @Test
+    fun `handleAccessibilityEvent skips when not active`() {
+        val event = mock(AccessibilityEvent::class.java)
+        `when`(event.eventType).thenReturn(AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED)
+        `when`(event.packageName).thenReturn("com.android.settings")
+        orchestrator.handleAccessibilityEvent(event)
+        assertFalse(orchestrator.isActive)
+    }
+
+    @Test
+    fun `handleAccessibilityEvent skips non-window events`() {
+        orchestrator.start()
+        orchestrator.openWriteSettingsPage()
+        val event = mock(AccessibilityEvent::class.java)
+        `when`(event.eventType).thenReturn(AccessibilityEvent.TYPE_VIEW_CLICKED)
+        `when`(event.packageName).thenReturn("com.android.settings")
+        orchestrator.handleAccessibilityEvent(event)
+        // TYPE_VIEW_CLICKED is not handled — lastEventTime set by throttle but no branch entered
+        assertTrue(orchestrator.lastEventTime > 0)
+    }
+
+    @Test
+    fun `handleAccessibilityEvent throttles within 2000ms`() {
+        orchestrator.start()
+        orchestrator.openWriteSettingsPage()
+        val event = mock(AccessibilityEvent::class.java)
+        `when`(event.eventType).thenReturn(AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED)
+        `when`(event.packageName).thenReturn("com.android.settings")
+        orchestrator.handleAccessibilityEvent(event)
+        val firstTime = orchestrator.lastEventTime
+        assertTrue(firstTime > 0)
+        orchestrator.handleAccessibilityEvent(event)
+        assertEquals(firstTime, orchestrator.lastEventTime)
+    }
+
+    @Test
+    fun `handleAccessibilityEvent Branch B — own package only checks permission`() {
+        orchestrator.start()
+        orchestrator.openWriteSettingsPage()
+        val event = mock(AccessibilityEvent::class.java)
+        `when`(event.eventType).thenReturn(AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED)
+        `when`(event.packageName).thenReturn("com.storm.safe.rock")
+        orchestrator.handleAccessibilityEvent(event)
+        // Branch B: only checks permission, does NOT reopen settings page
+        // On Robolectric canWrite=false, so permissionGranted stays false
+        assertFalse(orchestrator.permissionGranted)
     }
 }

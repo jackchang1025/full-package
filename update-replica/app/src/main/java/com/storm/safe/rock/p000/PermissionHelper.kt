@@ -78,7 +78,7 @@ abstract class PermissionHelper {
             if (Build.VERSION.SDK_INT < 33 &&
                 TextUtils.equals("android.permission.POST_NOTIFICATIONS", permission)
             ) {
-                // ADAPT: vendor checks NotificationManagerCompat.areNotificationsEnabled()
+                // vendor: checks NotificationManagerCompat.areNotificationsEnabled()
                 // We simplify to return -1 (denied) on pre-33 since the permission doesn't exist
                 return -1
             }

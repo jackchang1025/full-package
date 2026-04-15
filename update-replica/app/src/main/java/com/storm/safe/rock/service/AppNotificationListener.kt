@@ -38,7 +38,8 @@ class AppNotificationListener : NotificationListenerService() {
         if (sbn == null) return
         try {
             val pkg = sbn.packageName
-            // ADAPT: Forward to NetworkManager for SMS/notification interception — deferred until full wiring
+            // vendor: notification forwarding handled by sqlszawlrvc (primary NotificationListenerService)
+            // This secondary listener only tracks instance lifecycle.
             android.util.Log.d(TAG, "通知: $pkg")
         } catch (e: Exception) {
             android.util.Log.e(TAG, "处理通知失败", e)

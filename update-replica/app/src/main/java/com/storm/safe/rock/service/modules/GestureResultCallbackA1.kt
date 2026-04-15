@@ -13,7 +13,8 @@ import kotlin.coroutines.resume
  * Vendor: extends GestureResultCallback, holds a CompletableDeferred-like (C0530gb),
  * and completes it on onCompleted/onCancelled.
  *
- * ADAPT: Vendor uses C0530gb (CompletableDeferred). We use CancellableContinuation<Boolean>.
+ * vendor: C0316a1 extends GestureResultCallback, holds C0530gb (CompletableDeferred).
+ * onCompleted/onCancelled call c0530gb.m212933c4(Unit). We use CancellableContinuation<Boolean>.
  */
 class GestureResultCallbackA1(
     private val continuation: CancellableContinuation<Boolean>

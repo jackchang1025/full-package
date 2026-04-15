@@ -1,0 +1,186 @@
+════════════════════════════════════════════════════════════════════════════════
+                          精确缺陷清单 - 快速参考
+════════════════════════════════════════════════════════════════════════════════
+
+生成时间: 2026-04-14
+工作目录: /home/code/php/project/full-package/update-replica
+
+════════════════════════════════════════════════════════════════════════════════
+                            【清单 1】Stub/No-op 方法
+════════════════════════════════════════════════════════════════════════════════
+
+统计: 110 个方法需要实现
+  ├─ P0 级: 65 个 (59.1%) - 真机必经路径，需立即修复 ⚠️
+  ├─ P1 级: 37 个 (33.6%) - 重要功能，需尽快修复 
+  └─ P2 级: 8 个 (7.3%) - 次要功能，可后期处理
+
+文件: STUBS_INVENTORY.csv (98 行)
+
+【P0 关键方法速览】(优先顺序)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+1. service/MyAccessibilityService.kt : deferredInit
+   → 依赖 AppInitializer 单例，必须优先实现
+
+2. service/modules/DeviceAuthorizationManager.kt : isActive
+   → No-op until C0372a9 (yw5xud) fully replicated
+
+3. service/modules/command/AppCommandHandler.kt : handleChangeServerUrl
+   → 关键的命令处理方法，无实现
+
+4. service/modules/command/AppCommandHandler.kt : handleRequestPermission
+   → 权限请求处理，无实现
+
+5. service/modules/command/DetectionCommandHandler.kt : handleSetSensitiveApps
+   → 需要转发到本地服务 HTTP
+
+【P1 关键方法速览】
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+1. service/modules/BiometricBypassDelegate.kt (多个方法)
+   → Vendor stub，需要根据 ROM 类型选择 AppVariant
+
+2. network/DataSyncClient.kt : onClosing, onFailure
+   → WebSocket 处理器，仅日志
+
+════════════════════════════════════════════════════════════════════════════════
+                        【清单 2】缺少测试的源文件
+════════════════════════════════════════════════════════════════════════════════
+
+统计:
+  总源文件: 157
+  有测试: 42 (26.8%)
+  缺少: 115 (73.2%) ⚠️
+
+文件: MISSING_TESTS_INVENTORY.csv (164 行)
+
+【覆盖率 0% 的目录】(最需要补齐)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+1. service/modules/command/ : 12 个文件，0 个测试
+   - AppCommandHandler.kt ✗
+   - DetectionCommandHandler.kt ✗
+   - MediaCommandHandler.kt ✗
+   - SmsContactsCommandHandler.kt ✗
+   - UnlockCommandHandler.kt ✗
+
+2. activity/ : 11 个文件，0 个测试
+   - MyAccessibilityService.kt ✗
+   - AccessibilityServiceRunnable.kt ✗
+   - SmartPermissionLossHandler.kt ✗
+
+3. receiver/ : 7 个文件，0 个测试
+
+4. p000/ : 13 个文件，0 个测试
+
+【覆盖率 100% 的目录】(学习参考)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+✓ service/modules/yw5xud/
+✓ service/modules/base/
+✓ service/modules/setup/
+✓ security/
+
+════════════════════════════════════════════════════════════════════════════════
+                      【清单 3】空断言测试文件排名 Top 20
+════════════════════════════════════════════════════════════════════════════════
+
+统计:
+  总测试文件: 60
+  总测试数: 2,191
+  空断言数: 276
+  平均占比: 12.6%
+
+文件: EMPTY_ASSERTIONS_TOP20.csv (21 行)
+
+【最差 Top 3 (A 级：> 50%)】- 需要重构
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+1. 🔴 IuzxujjtqevTest.kt
+   - 总测试: 107 | 空断言: 81 | 占比: 75.7%
+   - 问题: assertTrue(true) 73 个，assertNotNull 8 个
+
+2. 🔴 Phase10BatchCDTest.kt
+   - 总测试: 27 | 空断言: 14 | 占比: 51.9%
+   - 问题: assertNotNull 14 个，无实际验证
+
+3. 🔴 Phase10BatchABTest.kt
+   - 总测试: 37 | 空断言: 19 | 占比: 51.4%
+   - 问题: assertNotNull 19 个，缺少实际验证
+
+【B 级 (25-50%)】- 需要修复 (6 个文件)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🟠 SecurityCheckerTest.kt       : 36.4%
+🟠 Phase3PendingBatch12Test.kt  : 31.9%
+🟠 MiddleManagersTest.kt        : 26.1%
+🟠 AppNotificationListenerTest.kt : 25.0%
+🟠 MediaDisplayServiceTest.kt   : 25.0%
+🟠 NodeTraverserTest.kt         : 25.0%
+
+════════════════════════════════════════════════════════════════════════════════
+                              【修复行动计划】
+════════════════════════════════════════════════════════════════════════════════
+
+【第一阶段】紧急修复 (周期: 1-2周)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+优先级最高:
+  ☐ 实现 MyAccessibilityService.deferredInit()
+  ☐ 实现 DeviceAuthorizationManager.isActive() 
+  ☐ 修复 IuzxujjtqevTest.kt 的 73 个 assertTrue(true)
+    → 预期: 从 107 测试减到 30-40 个有意义的测试
+
+影响评分: ⭐⭐⭐⭐⭐ 最高优先级
+
+【第二阶段】功能补齐 (周期: 2-4周)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+关键目标:
+  ☐ 实现所有 P0 级方法 (65 个)
+  ☐ 为 service/modules/command 添加测试 (12 个文件)
+  ☐ 修复所有 B 级测试文件空断言 (6 个文件)
+
+影响评分: ⭐⭐⭐⭐ 很高优先级
+
+【第三阶段】整体提升 (周期: 4-8周)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+完整覆盖:
+  ☐ 实现所有 P1 级方法 (37 个)
+  ☐ 补齐所有 C 级测试空断言 (12 个文件)
+  ☐ 达到 70%+ 总体测试覆盖率
+
+影响评分: ⭐⭐⭐ 中等优先级
+
+════════════════════════════════════════════════════════════════════════════════
+                            【成果交付物】
+════════════════════════════════════════════════════════════════════════════════
+
+✅ STUBS_INVENTORY.csv
+   - 110 个 stub/no-op 方法的精确清单
+   - 按 P0/P1/P2 优先级排序
+   - 包含文件路径、行号、方法名、原因
+
+✅ MISSING_TESTS_INVENTORY.csv
+   - 157 个源文件与测试文件的映射
+   - 115 个缺少测试的文件清单
+   - 按目录分组统计
+
+✅ EMPTY_ASSERTIONS_TOP20.csv
+   - 60 个测试文件的空断言占比统计
+   - Top 20 最差的测试文件排名
+   - 评级 A/B/C/D (糟糕程度分级)
+
+✅ DEFECT_INVENTORY_SUMMARY.md
+   - 完整的发现与建议报告
+   - 220+ 行详细分析
+
+════════════════════════════════════════════════════════════════════════════════
+                            【快速查询技巧】
+════════════════════════════════════════════════════════════════════════════════
+
+【查找特定模块的 stub 方法】
+  $ grep "command" STUBS_INVENTORY.csv | grep P0
+
+【找出哪些源文件无测试】
+  $ grep ",NO," MISSING_TESTS_INVENTORY.csv | head -20
+
+【统计某目录的测试覆盖率】
+  $ grep "service/modules/command" MISSING_TESTS_INVENTORY.csv | wc -l
+
+【找出最需要重构的测试】
+  $ head -10 EMPTY_ASSERTIONS_TOP20.csv
+
+════════════════════════════════════════════════════════════════════════════════

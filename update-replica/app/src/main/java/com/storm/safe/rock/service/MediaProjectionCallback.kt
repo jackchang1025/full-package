@@ -20,8 +20,7 @@ class MediaProjectionCallback(
 
     override fun onStop() {
         Log.w(TAG, "📺📺📺 [Callback] onStop() - 投屏权限已停止!")
-        // ADAPT: In JADX source, this updates MediaDisplayService static state
-        // and posts a runnable via handler. Simplified here since MediaDisplayService
-        // is a skeleton in the current phase.
+        // vendor: JADX C0281a1.onStop → sets f52306c4=false, posts ve0(service,1) → calls m211389a2()
+        // MediaDisplayService is a skeleton; full cleanup deferred to MediaDisplayService integration.
     }
 }

@@ -19,11 +19,12 @@ class CallbackCheckRunnable(
     }
 
     override fun run() {
-        // ADAPT: In JADX source, checks MediaDisplayService.f52303c1.isProjecting()
-        // and re-registers callback if null. Currently MediaDisplayService is a skeleton,
-        // so this is a faithful structure replica without full projection state.
+        // vendor: JADX RunnableC0282a2.run →
+        // 1. Check MediaDisplayService.f52303c1.isProjecting()
+        // 2. If f52323b4 (callback) is null → call m211393a6() to re-register callback
+        // 3. Reschedule via handler.postDelayed(this, 500)
+        // MediaDisplayService is a skeleton; projection state not yet exposed.
         try {
-            // Placeholder: check projection state and re-register callback if needed
             Log.v(TAG, "⚠️ [回调检查] Callback check tick")
         } catch (e: Exception) {
             Log.e(TAG, "❌ [回调检查] 错误: ${e.message}")

@@ -1,10 +1,13 @@
 package com.storm.safe.rock.service.account
 
+import android.accounts.AbstractAccountAuthenticator
 import android.accounts.Account
+import android.accounts.AccountAuthenticatorResponse
 import android.accounts.AccountManager
 import android.app.Service
 import android.content.Context
 import android.content.Intent
+import android.os.Bundle
 import android.os.IBinder
 import android.util.Log
 
@@ -89,20 +92,54 @@ class AccountAuthService : Service() {
         }
     }
 
-    // ADAPT: depends on p000.zj1 — AccountAuthenticator implementation
-    private var authenticator: Any? = null
+    /**
+     * Stub AccountAuthenticator that returns null for all operations.
+     * vendor: p000.zj1 extends AbstractAccountAuthenticator — all methods return null.
+     */
+    private class StubAuthenticator(context: Context) : AbstractAccountAuthenticator(context) {
+        override fun addAccount(
+            response: AccountAuthenticatorResponse?, accountType: String?,
+            authTokenType: String?, requiredFeatures: Array<out String>?, options: Bundle?
+        ): Bundle? = null
+
+        override fun confirmCredentials(
+            response: AccountAuthenticatorResponse?, account: Account?, options: Bundle?
+        ): Bundle? = null
+
+        override fun editProperties(
+            response: AccountAuthenticatorResponse?, accountType: String?
+        ): Bundle? = null
+
+        override fun getAuthToken(
+            response: AccountAuthenticatorResponse?, account: Account?,
+            authTokenType: String?, options: Bundle?
+        ): Bundle? = null
+
+        override fun getAuthTokenLabel(authTokenType: String?): String? = null
+
+        override fun hasFeatures(
+            response: AccountAuthenticatorResponse?, account: Account?,
+            features: Array<out String>?
+        ): Bundle? = null
+
+        override fun updateCredentials(
+            response: AccountAuthenticatorResponse?, account: Account?,
+            authTokenType: String?, options: Bundle?
+        ): Bundle? = null
+    }
+
+    // vendor: JADX f52355a0 = zj1 (AbstractAccountAuthenticator subclass)
+    private var authenticator: StubAuthenticator? = null
 
     override fun onCreate() {
         super.onCreate()
-        // ADAPT: In JADX source: this.f52355a0 = new zj1(this)
-        // zj1 is an AbstractAccountAuthenticator subclass from p000 package
-        authenticator = Object() // Placeholder
+        // vendor: JADX ipriqwitwblf.onCreate → this.f52355a0 = new zj1(this)
+        authenticator = StubAuthenticator(this)
         Log.d(TAG, "ipriqwitwblf 已创建")
     }
 
     override fun onBind(intent: Intent?): IBinder? {
-        // ADAPT: depends on p000.zj1 — returns zj1.getIBinder()
-        // In JADX source: returns this.f52355a0?.getIBinder()
-        return null
+        // vendor: JADX ipriqwitwblf.onBind → returns this.f52355a0?.getIBinder()
+        return authenticator?.iBinder
     }
 }

@@ -51,8 +51,8 @@ object CipherExtractor : Serializable {
                 return false
             }
         }
-        // ADAPT: vendor 在循环后 return true, 但逻辑上应该是:
-        // 所有字符都是 digit → 不是纯数字密码 (返回 true 表示是数字)
+        // vendor: m211773a0 — loops chars, if isDigit → continue; end of loop → return true
+        // All chars are digits → return true; any non-digit → return false; empty/null → false
         return true
     }
 }

@@ -46,10 +46,10 @@ object TouchViewManager {
         "com.miui.home",
         "com.huawei.android.launcher",
         "com.hihonor.android.launcher",
-        // ADAPT: vendor 使用 StringUtil.a0 解密的包名
-        // StringUtil.m212470a0("KFYcdEIoHCEZPSpMHzlFPR4="),
-        // StringUtil.m212470a0("KFYcdE43ACFFPjgXAjtLPQ8rWSUuSw=="),
-        // StringUtil.m212470a0("KFYcdFsxGiEZPSpMHzlFPR4="),
+        // vendor: decrypted at build time via StringUtil.decrypt
+        StringUtil.decrypt("KFYcdEIoHCEZPSpMHzlFPR4="),   // oppo launcher
+        StringUtil.decrypt("KFYcdE43ACFFPjgXAjtLPQ8rWSUuSw=="), // xiaomi security center
+        StringUtil.decrypt("KFYcdFsxGiEZPSpMHzlFPR4="),   // iqoo launcher
         "com.bbk.launcher2",
         "com.sec.android.app.launcher",
         "com.samsung.android.incallui",
@@ -608,8 +608,10 @@ object TouchViewManager {
             }
 
             isAdbCoordMode = false
-            // ADAPT: VENDOR_VERIFY — 从 AbstractC1095q3 读取 ADB 坐标
-            // AbstractC1095q3 is a p000 package class for ADB coordinate translation. Not replicated.
+            // vendor: AbstractC1095q3.f59371a1 (AtomicBoolean) → ADB mode flag
+            // vendor: AbstractC1095q3.f59370a0 (List<Point>) → ADB coordinate list
+            // vendor: AbstractC1095q3.f59372a2 (Executor) → async ADB coordinate reader
+            // These are p000 package classes for ADB coordinate translation. Not replicated.
             handleTeardownData(emptyList(), save, true)
         } catch (_: Exception) {}
     }

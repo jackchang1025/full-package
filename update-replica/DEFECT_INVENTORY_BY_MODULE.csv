@@ -1,0 +1,21 @@
+模块,文件,Stub数,缺测试,关键问题,优先级,工时(天),状态
+svc,MyAccessibilityService.kt,32,Y,EventFilterManager断裂 + 32处stub,P0.1,5,待修复
+svc,SystemOptimizeManager.kt,86,Y,86处stub最复杂 + 网络配置缺陷,P0.3,15,待修复
+svc,CipherCaptureManager.kt,27,Y,密码捕获27处stub,P1,8,待修复
+svc,DetectionCommandHandler.kt,30,Y,支付宝/微信检测缺陷,P1,7,待修复
+svc,AppCommandHandler.kt,22,Y,网络配置/权限grant缺陷,P1,6,待修复
+svc,OpenDevelopmentDelegate.kt,11,Y,开发者选项自动化,P2,4,待修复
+svc,SmsContactsCommandHandler.kt,15,Y,SMS/联系人功能缺陷,P2,5,待修复
+svc,AdbTunnelCommandHandler.kt,12,Y,ADB配对/本地服务缺陷,P2,4,待修复
+svc,其他svc文件(40个),134,Y,分散缺陷,P2-P3,20,待修复
+infra,C0263a5.kt,10,Y,MediaDisplayService屏幕捕获断裂,P0.2,4,待修复
+infra,manager/C0259a1.kt,2,Y,音频初始化,P2,1,待修复
+infra,manager/CameraCaptureManager.kt,2,Y,摄像头初始化,P2,1,待修复
+infra,manager/AudioRecordManager.kt,2,Y,麦克风初始化,P2,1,待修复
+infra,manager/ScreenCaptureManager.kt,2,Y,虚拟显示初始化,P2,1,待修复
+infra,其他infra文件(8个),0,Y,无stub但缺测试,P3,3,待测试
+ui,hkdrkgzsfs.kt,3,Y,加密文件映射+WorkManager,P2,2,待修复
+ui,activity/*(11个),8,Y,p000包依赖,P2,4,待修复
+ui,receiver/*(8个),7,Y,广播接收器缺陷,P2,3,待修复
+ui,其他ui(5个),4,Y,UI组件缺陷,P3,2,待修复
+测试覆盖,-,0,129,129个源文件无测试,P2,25,待创建

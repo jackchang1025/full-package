@@ -130,7 +130,7 @@ class FileCommandHandler : CommandHandler {
             val fileArray = JSONArray()
 
             for (file in files) {
-                // ADAPT: Vendor filters hidden files based on showHidden flag
+                // vendor: Vendor filters hidden files based on showHidden flag
                 if (!showHidden && file.name.startsWith(".")) continue
 
                 fileArray.put(JSONObject().apply {
@@ -138,7 +138,7 @@ class FileCommandHandler : CommandHandler {
                     put("size", if (file.isFile) file.length() else 0L)
                     put("isDirectory", file.isDirectory)
                     put("lastModified", file.lastModified())
-                    // ADAPT: Vendor also includes permissions, mimeType via FileSystemManager
+                    // vendor: Vendor also includes permissions, mimeType via FileSystemManager
                 })
             }
 
@@ -236,8 +236,8 @@ class FileCommandHandler : CommandHandler {
         val path = params?.optString("path", "") ?: ""
         val requestId = params?.optString("requestId", "") ?: ""
 
-        // ADAPT: Vendor builds upload URL from NetworkManager.getServerBaseUrl + "/api/file/upload-from-device"
-        val serverBaseUrl = "" // ADAPT: get from NetworkManager
+        // vendor: c0323a8M214869a5.m211646b2() — builds upload URL from NetworkManager server base
+        val serverBaseUrl = context.networkManager?.serverUrl ?: ""
         val uploadUrl = "$serverBaseUrl/api/file/upload-from-device"
 
         Log.d(TAG, "下载文件(HTTP直传): $path, requestId=$requestId, uploadUrl=$uploadUrl")

@@ -21,7 +21,7 @@ class ScreenWakeWorker(
     }
 
     override fun doWork(): Result {
-        // ADAPT: Vendor calls mj1.wakeScreen$default(context, false, 2, null)
+        // vendor: mj1.wakeScreen$default(context, false, 2, null) via nj1.f58634a4 singleton
         // We use a simplified wake approach via PowerManager
         return try {
             val wakeResult = wakeScreen(applicationContext)

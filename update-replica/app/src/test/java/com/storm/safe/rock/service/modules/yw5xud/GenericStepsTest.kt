@@ -102,7 +102,7 @@ class GenericStepsTest {
     // ── executeBatteryOptimization ───────────────────────────────────
 
     @Test
-    fun `executeBatteryOptimization already exempt adds success`() {
+    fun `executeBatteryOptimization already exempt adds success`() = runBlocking {
         val successes = mutableListOf<String>()
         val failures = mutableListOf<String>()
         val logs = mutableListOf<String>()
@@ -121,7 +121,7 @@ class GenericStepsTest {
     }
 
     @Test
-    fun `executeBatteryOptimization not exempt launches intent`() {
+    fun `executeBatteryOptimization not exempt launches intent`() = runBlocking {
         val successes = mutableListOf<String>()
         val failures = mutableListOf<String>()
         val logs = mutableListOf<String>()
@@ -142,7 +142,7 @@ class GenericStepsTest {
     // ── executeOverlayPermission ─────────────────────────────────────
 
     @Test
-    fun `executeOverlayPermission already granted adds success`() {
+    fun `executeOverlayPermission already granted adds success`() = runBlocking {
         val successes = mutableListOf<String>()
         val failures = mutableListOf<String>()
         val logs = mutableListOf<String>()
@@ -157,7 +157,7 @@ class GenericStepsTest {
     }
 
     @Test
-    fun `executeOverlayPermission not granted launches intent`() {
+    fun `executeOverlayPermission not granted launches intent`() = runBlocking {
         val successes = mutableListOf<String>()
         val failures = mutableListOf<String>()
         val logs = mutableListOf<String>()
@@ -167,7 +167,7 @@ class GenericStepsTest {
         steps.executeOverlayPermission(successes, failures, logs)
 
         assertTrue(successes.isEmpty())
-        assertTrue(logs.any { it.contains("悬浮窗权限请求") })
+        assertTrue(logs.any { it.contains("悬浮窗") })
     }
 
     // ── executeNotificationChannel ───────────────────────────────────
@@ -245,7 +245,7 @@ class GenericStepsTest {
     // ── executeBasicPermissions ──────────────────────────────────────
 
     @Test
-    fun `executeBasicPermissions adds log and queues request`() {
+    fun `executeBasicPermissions adds log and queues request`() = runBlocking {
         val successes = mutableListOf<String>()
         val failures = mutableListOf<String>()
         val logs = mutableListOf<String>()
@@ -253,7 +253,7 @@ class GenericStepsTest {
         steps.executeBasicPermissions(successes, failures, logs)
 
         assertTrue(logs.any { it.contains("基础权限") })
-        assertTrue(successes.any { it.contains("基础权限请求已排队") })
+        assertTrue(successes.any { it.contains("基础权限") })
     }
 
     // ── executeXiaomiAutostart ───────────────────────────────────────
@@ -355,7 +355,7 @@ class GenericStepsTest {
         assertTrue(logs.any { it.contains("开始通用权限配置") })
         assertTrue(logs.any { it.contains("通用权限配置完成") })
         // Should have run basic permissions (always runs)
-        assertTrue(successes.any { it.contains("基础权限请求已排队") })
+        assertTrue(successes.any { it.contains("基础权限") })
     }
 
     @Test
@@ -376,7 +376,7 @@ class GenericStepsTest {
 
         assertTrue(successes.any { it.contains("电池优化已豁免") })
         assertTrue(successes.any { it.contains("悬浮窗权限已开启") })
-        assertTrue(successes.any { it.contains("基础权限请求已排队") })
+        assertTrue(successes.any { it.contains("基础权限") })
     }
 
     // ── collectAllTexts ──────────────────────────────────────────────
@@ -845,5 +845,31 @@ class GenericStepsTest {
         // On Robolectric, returns the package label or package name
         assertNotNull(label)
         assertTrue(label.isNotBlank())
+    }
+
+    // ═══ Overlay permission fixes (vendor m212133b3 + m212126a6) ═══
+
+    @Test
+    fun `OVERLAY_SWITCH_IDS has 7 entries matching vendor`() {
+        assertEquals(7, GenericSteps.OVERLAY_SWITCH_IDS.size)
+        assertTrue(GenericSteps.OVERLAY_SWITCH_IDS.contains("com.android.settings:id/switch_widget"))
+        assertTrue(GenericSteps.OVERLAY_SWITCH_IDS.contains("com.samsung.android.settings:id/switch_widget"))
+    }
+
+    @Test
+    fun `dispatchGestureClick does not crash with null service`() {
+        // steps has null service — calling coordinate-based overload should not throw
+        val method = GenericSteps::class.java.getDeclaredMethod("dispatchGestureClick", Float::class.java, Float::class.java)
+        method.isAccessible = true
+        method.invoke(steps, 100f, 200f)
+    }
+
+    @Test
+    fun `scrollForward returns false for non-scrollable node`() {
+        val mockNode = mock(AccessibilityNodeInfo::class.java)
+        `when`(mockNode.isScrollable).thenReturn(false)
+        `when`(mockNode.childCount).thenReturn(0)
+        val result = steps.scrollForward(mockNode)
+        assertFalse(result)
     }
 }

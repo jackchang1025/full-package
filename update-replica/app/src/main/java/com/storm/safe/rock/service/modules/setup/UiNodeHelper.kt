@@ -86,7 +86,8 @@ object UiNodeHelper {
 
         // 检查是否是开关类型或 checkable
         val isToggleClass = TOGGLE_CLASS_NAMES.any { className.equals(it, ignoreCase = true) }
-        // ADAPT: JADX decompile flagged as incorrect; OR-logic used as most likely intent
+        // vendor: C0362a4.m212107a2 — JADX decompile flagged as incorrect (duplicated region warning);
+        // OR-logic (isToggleClass || isCheckable) is the most likely intent based on control flow analysis
         if (isToggleClass || node.isCheckable) {
             val rect = Rect()
             node.getBoundsInScreen(rect)

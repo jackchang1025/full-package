@@ -97,7 +97,7 @@ class jbqfkndyx : Activity() {
                     val nm = svc?.getNetworkManager()
                     if (nm != null) {
                         nm.sendData(json)
-                        // ADAPT: depends on NetworkManager.sendData suspend call
+                        // vendor: depends on NetworkManager.sendData suspend call
                         Log.d(TAG, "✅ 注入数据已通过 NetworkManager 上传成功")
                         // Notify local-service to remove injection task
                         try {

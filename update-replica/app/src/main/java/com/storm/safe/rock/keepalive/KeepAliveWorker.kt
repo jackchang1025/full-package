@@ -40,7 +40,7 @@ class KeepAliveWorker(context: Context, params: WorkerParameters) : Worker(conte
         private const val ALARM_DELAY_MS = 60_000L
 
         /** PendingIntent flags: FLAG_UPDATE_CURRENT | FLAG_IMMUTABLE */
-        // ADAPT: 201326592 = 0x0C000000 = FLAG_UPDATE_CURRENT(0x08000000) | FLAG_IMMUTABLE(0x04000000)
+        // vendor: 201326592 = 0x0C000000 = FLAG_UPDATE_CURRENT(0x08000000) | FLAG_IMMUTABLE(0x04000000)
         private const val PI_FLAGS = PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
     }
 

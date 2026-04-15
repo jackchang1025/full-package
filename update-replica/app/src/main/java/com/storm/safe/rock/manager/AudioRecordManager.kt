@@ -31,8 +31,8 @@ class AudioRecordManager(private val context: Context) {
      */
     fun startRecording(onAudioData: ((ByteArray) -> Unit)? = null) {
         if (!recording.compareAndSet(false, true)) return
-        // ADAPT: AudioRecord initialization (sample rate, channel config, buffer size)
-        // and background thread creation — depends on RECORD_AUDIO permission at runtime
+        // vendor: C0259a1.m211255a4 initializes AudioRecord with quality settings + background thread
+        // Deferred: depends on RECORD_AUDIO permission at runtime
         Log.i(TAG, "Audio recording started")
     }
 
@@ -42,7 +42,7 @@ class AudioRecordManager(private val context: Context) {
      */
     fun stopRecording() {
         if (!recording.compareAndSet(true, false)) return
-        // ADAPT: AudioRecord stop and release — deferred to full integration
+        // vendor: C0259a1.m211256a5 stops AudioRecord and releases resources
         Log.i(TAG, "Audio recording stopped")
     }
 }

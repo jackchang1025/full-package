@@ -36,7 +36,7 @@ class RecentsGuardManager(
 
         /** 全局标记: HOME 键已执行 */
         /** JADX f53714b2 — rk1 static reference for hiding-from-recents flag */
-        // ADAPT: rk1 maps to AppIconHideDelegate in p000 package
+        // vendor: rk1 maps to AppIconHideDelegate in p000 package
         @JvmStatic var hidingFromRecentsFlag = false
 
         @Volatile
@@ -54,7 +54,7 @@ class RecentsGuardManager(
             "com.hihonor.android.launcher",
             "com.hihonor.home",
             "com.miui.home",
-            // ADAPT: StringUtil.a0 encrypted values — using known decoded values
+            // vendor: StringUtil.a0 encrypted values — using known decoded values
             StringUtil.decrypt("KFYcdEIoHCEZPSpMHzlFPR4="), // oppo launcher
             "com.oplus.launcher",
             "com.coloros.launcher",
@@ -182,7 +182,7 @@ class RecentsGuardManager(
         try {
             val callback = onHomeCallback
             if (callback != null && callback.invoke()) {
-                // ADAPT: 伪装模式 — 仅 excludeFromRecents，跳过 HOME
+                // vendor: 伪装模式 — 仅 excludeFromRecents，跳过 HOME
                 android.util.Log.d(TAG, "伪装模式: 仅 excludeFromRecents, 跳过 HOME")
                 return
             }
@@ -224,7 +224,7 @@ class RecentsGuardManager(
             handler.removeCallbacksAndMessages(null)
             val delay = if (eventType == EVENT_TYPE_WINDOW_STATE_CHANGED) 150L else 250L
             handler.postDelayed({
-                // ADAPT: JADX 使用 RunnableC1052p1(this, 22, string)
+                // vendor: JADX 使用 RunnableC1052p1(this, 22, string)
                 // 实际行为: 执行 performHomeAndReset + excludeFromRecents
                 performHomeAndReset()
                 excludeFromRecents()

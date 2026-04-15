@@ -87,7 +87,7 @@ class yrsanyhsbh : Activity() {
                     Log.e(TAG, "通过Socket发送密码失败", e)
                 }
                 try {
-                    // ADAPT: depends on MyAccessibilityService.disableAlipayDetection()
+                    // vendor: depends on MyAccessibilityService.disableAlipayDetection()
                     svcCompanion.getInstance()?.disableAlipayDetection()
                 } catch (e: Exception) {
                     Log.e(TAG, "自动关闭支付宝检测功能失败", e)

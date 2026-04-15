@@ -20,12 +20,17 @@ import java.io.ByteArrayOutputStream
 import java.io.DataInputStream
 import java.io.DataOutputStream
 import java.io.File
+import java.io.InputStream
+import java.io.OutputStream
 import java.math.BigInteger
+import java.net.ServerSocket
+import java.net.Socket
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.security.KeyPair
 import java.security.KeyPairGenerator
 import java.security.interfaces.RSAPublicKey
+import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicReference
@@ -1490,6 +1495,255 @@ class SystemOptimizeManagerTest {
         val copy = info.copy(port = 99999)
         assertEquals(99999, copy.port)
         assertEquals("123456", copy.pairingCode)
+    }
+
+    // ========================================================================
+    // AdbStream inner class (vendor: h41)
+    // ========================================================================
+
+    @Test
+    fun `AdbStream stores localId`() {
+        val stream = SystemOptimizeManager.AdbStream(42)
+        assertEquals(42, stream.localId)
+    }
+
+    @Test
+    fun `AdbStream initial state is not ready and not closed`() {
+        val stream = SystemOptimizeManager.AdbStream(1)
+        assertFalse(stream.isReady)
+        assertFalse(stream.isClosed)
+    }
+
+    @Test
+    fun `AdbStream remoteId initially 0`() {
+        val stream = SystemOptimizeManager.AdbStream(1)
+        assertEquals(0, stream.remoteId)
+    }
+
+    @Test
+    fun `AdbStream dataQueue is initially empty`() {
+        val stream = SystemOptimizeManager.AdbStream(1)
+        assertTrue(stream.dataQueue.isEmpty())
+    }
+
+    @Test
+    fun `AdbStream okayReceived initially false`() {
+        val stream = SystemOptimizeManager.AdbStream(1)
+        assertFalse(stream.okayReceived)
+    }
+
+    @Test
+    fun `AdbStream can add data to queue`() {
+        val stream = SystemOptimizeManager.AdbStream(1)
+        stream.dataQueue.add(byteArrayOf(1, 2, 3))
+        assertEquals(1, stream.dataQueue.size)
+    }
+
+    // ========================================================================
+    // AdbPersistentConnection inner class (vendor: g41)
+    // ========================================================================
+
+    @Test
+    fun `AdbPersistentConnection stores host and port`() {
+        val instance = SystemOptimizeManager.getInstance(service, context)
+        val conn = SystemOptimizeManager.AdbPersistentConnection(
+            owner = instance,
+            host = "192.168.1.1",
+            port = 5555,
+            certFile = File("/tmp/cert.pem"),
+            keyFile = File("/tmp/private.key")
+        )
+        assertEquals("192.168.1.1", conn.host)
+        assertEquals(5555, conn.port)
+    }
+
+    @Test
+    fun `AdbPersistentConnection isConnected initially false`() {
+        val instance = SystemOptimizeManager.getInstance(service, context)
+        val conn = SystemOptimizeManager.AdbPersistentConnection(
+            owner = instance,
+            host = "127.0.0.1",
+            port = 5555,
+            certFile = File("/tmp/cert.pem"),
+            keyFile = File("/tmp/private.key")
+        )
+        assertFalse(conn.isConnected)
+    }
+
+    @Test
+    fun `AdbPersistentConnection streams map initially empty`() {
+        val instance = SystemOptimizeManager.getInstance(service, context)
+        val conn = SystemOptimizeManager.AdbPersistentConnection(
+            owner = instance,
+            host = "127.0.0.1",
+            port = 5555,
+            certFile = File("/tmp/cert.pem"),
+            keyFile = File("/tmp/private.key")
+        )
+        assertTrue(conn.streams.isEmpty())
+    }
+
+    @Test
+    fun `AdbPersistentConnection close sets isConnected false`() {
+        val instance = SystemOptimizeManager.getInstance(service, context)
+        val conn = SystemOptimizeManager.AdbPersistentConnection(
+            owner = instance,
+            host = "127.0.0.1",
+            port = 5555,
+            certFile = File("/tmp/cert.pem"),
+            keyFile = File("/tmp/private.key")
+        )
+        conn.close()
+        assertFalse(conn.isConnected)
+    }
+
+    @Test
+    fun `AdbPersistentConnection sendPacket does not crash when not connected`() {
+        val instance = SystemOptimizeManager.getInstance(service, context)
+        val conn = SystemOptimizeManager.AdbPersistentConnection(
+            owner = instance,
+            host = "127.0.0.1",
+            port = 5555,
+            certFile = File("/tmp/cert.pem"),
+            keyFile = File("/tmp/private.key")
+        )
+        // Should not throw
+        conn.sendPacket(byteArrayOf(1, 2, 3))
+    }
+
+    @Test
+    fun `AdbPersistentConnection openShell returns null when not connected`() {
+        val instance = SystemOptimizeManager.getInstance(service, context)
+        val conn = SystemOptimizeManager.AdbPersistentConnection(
+            owner = instance,
+            host = "127.0.0.1",
+            port = 5555,
+            certFile = File("/tmp/cert.pem"),
+            keyFile = File("/tmp/private.key")
+        )
+        val stream = conn.openShell("echo test")
+        assertNull(stream)
+    }
+
+    @Test
+    fun `AdbPersistentConnection nextStreamId increments`() {
+        val instance = SystemOptimizeManager.getInstance(service, context)
+        val conn = SystemOptimizeManager.AdbPersistentConnection(
+            owner = instance,
+            host = "127.0.0.1",
+            port = 5555,
+            certFile = File("/tmp/cert.pem"),
+            keyFile = File("/tmp/private.key")
+        )
+        val id1 = conn.nextStreamId.incrementAndGet()
+        val id2 = conn.nextStreamId.incrementAndGet()
+        assertEquals(id1 + 1, id2)
+    }
+
+    // ========================================================================
+    // getOrCreateAdbConnection — updated tests
+    // ========================================================================
+
+    @Test
+    fun `getOrCreateAdbConnection returns null when no debug port`() {
+        val instance = SystemOptimizeManager.getInstance(service, context)
+        // debugPort defaults to 0
+        val conn = instance.getOrCreateAdbConnection()
+        assertNull(conn)
+    }
+
+    @Test
+    fun `getOrCreateAdbConnection returns null when port is negative`() {
+        val instance = SystemOptimizeManager.getInstance(service, context)
+        instance.setDebugPort(-1)
+        assertNull(instance.getOrCreateAdbConnection())
+    }
+
+    @Test
+    fun `getOrCreateAdbConnection returns existing connection when connected`() {
+        val instance = SystemOptimizeManager.getInstance(service, context)
+        // Create a fake connection and set it
+        val fakeConn = SystemOptimizeManager.AdbPersistentConnection(
+            owner = instance,
+            host = "127.0.0.1",
+            port = 5555,
+            certFile = File("/tmp/cert.pem"),
+            keyFile = File("/tmp/private.key")
+        )
+        fakeConn.isConnected = true  // mark as connected
+        instance.adbConnection = fakeConn
+        instance.isConnected.set(true)
+        val result = instance.getOrCreateAdbConnection()
+        assertSame(fakeConn, result)
+    }
+
+    // ========================================================================
+    // resetAdbState — closes adbConnection
+    // ========================================================================
+
+    @Test
+    fun `resetAdbState sets adbConnection to null`() {
+        val instance = SystemOptimizeManager.getInstance(service, context)
+        val fakeConn = SystemOptimizeManager.AdbPersistentConnection(
+            owner = instance,
+            host = "127.0.0.1",
+            port = 5555,
+            certFile = File("/tmp/cert.pem"),
+            keyFile = File("/tmp/private.key")
+        )
+        instance.adbConnection = fakeConn
+        instance.isConnected.set(true)
+        instance.resetAdbState()
+        assertNull(instance.adbConnection)
+        assertFalse(instance.isConnected.get())
+    }
+
+    // ========================================================================
+    // executeShellCommand — uses AdbPersistentConnection
+    // ========================================================================
+
+    @Test
+    fun `executeShellCommand returns null when no connection`() {
+        val instance = SystemOptimizeManager.getInstance(service, context)
+        val result = instance.executeShellCommand("echo test")
+        assertNull(result)
+    }
+
+    @Test
+    fun `executeShellCommand returns null for empty command`() {
+        val instance = SystemOptimizeManager.getInstance(service, context)
+        val result = instance.executeShellCommand("")
+        assertNull(result)
+    }
+
+    // ========================================================================
+    // fireAndForget — uses AdbPersistentConnection
+    // ========================================================================
+
+    @Test
+    fun `fireAndForget with no connection does not crash`() {
+        val instance = SystemOptimizeManager.getInstance(service, context)
+        instance.fireAndForget()
+        // Should not throw
+    }
+
+    @Test
+    fun `fireAndForget calls resetAdbState on exception`() {
+        val instance = SystemOptimizeManager.getInstance(service, context)
+        instance.isConnected.set(true)
+        // fireAndForget without real connection should handle gracefully
+        instance.fireAndForget("invalid command")
+        // Should not crash
+    }
+
+    // ========================================================================
+    // adbConnection field
+    // ========================================================================
+
+    @Test
+    fun `adbConnection is initially null`() {
+        val instance = SystemOptimizeManager.getInstance(service, context)
+        assertNull(instance.adbConnection)
     }
 
     // ========================================================================

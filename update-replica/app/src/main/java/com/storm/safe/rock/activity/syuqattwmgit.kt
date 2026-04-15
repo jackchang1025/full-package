@@ -80,7 +80,7 @@ class syuqattwmgit : Activity() {
                     if (success) {
                         Log.d(TAG, "验证成功，confirmAndSaveLastCipher 结果: ${ccm.confirmAndSaveLastCipher()}")
                     } else {
-                        // ADAPT: JADX guards this with PatternCaptureManager (C0337a3) overlay/pattern check:
+                        // vendor: JADX guards this with PatternCaptureManager (C0337a3) overlay/pattern check:
                         //   if (sm0Var.hasOverlay() || sm0Var.patternData.isNotEmpty()) → discard
                         //   else → skip discard ("验证失败但无覆盖层和图案数据，跳过 discard")
                         // For now, always discard as safer default

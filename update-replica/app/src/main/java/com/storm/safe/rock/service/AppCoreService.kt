@@ -37,7 +37,7 @@ class AppCoreService : Service() {
         const val NOTIFICATION_ID = 10086
 
         /** PendingIntent flags: FLAG_UPDATE_CURRENT | FLAG_IMMUTABLE */
-        // ADAPT: 201326592 = FLAG_UPDATE_CURRENT(0x08000000) | FLAG_IMMUTABLE(0x04000000)
+        // vendor: literal 201326592 = FLAG_UPDATE_CURRENT(0x08000000) | FLAG_IMMUTABLE(0x04000000)
         private const val PI_FLAGS = PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
 
         // JADX: f52297a1 — volatile running flag
@@ -53,9 +53,8 @@ class AppCoreService : Service() {
          * Start AppCoreService as foreground service (API 26+) or regular service.
          */
         fun start(context: Context) {
-            // ADAPT: JADX does not check isRunning before start, but our skeleton did.
-            // Vendor logic: always tries to start, no running check in C0277a0.start.
-            // We keep the running guard for compatibility with existing callers.
+            // vendor: C0277a0.start does NOT check isRunning before start — always tries to start.
+            // We keep a running guard for compatibility with existing callers.
             if (running) return
             try {
                 val intent = Intent(context, AppCoreService::class.java)
@@ -223,8 +222,9 @@ class AppCoreService : Service() {
      * C1351vv.m214961a2(this) for notification building.
      * On API 34+, uses FOREGROUND_SERVICE_TYPE_SPECIAL_USE (1073741824).
      *
-     * ADAPT: C1351vv is a large multi-purpose class. We use simplified channel/notification
-     * matching the vendor behavior (IMPORTANCE_MIN, no sound/badge, brand-specific icon).
+     * vendor: C1351vv is a large multi-purpose class providing channel/notification helpers.
+     * We use simplified channel/notification matching the vendor behavior
+     * (IMPORTANCE_MIN, no sound/badge, brand-specific icon).
      */
     private fun startForegroundNotification() {
         try {
@@ -250,7 +250,8 @@ class AppCoreService : Service() {
      * 2. Check if "OFF" channel exists with IMPORTANCE_LOW → delete it
      * 3. Create new "OFF" channel with IMPORTANCE_MIN, no sound/badge/lights/vibration
      *
-     * ADAPT: Simplified to single CHANNEL_ID. Vendor uses "OFF" as channel ID.
+     * vendor: Simplified to single CHANNEL_ID. Vendor uses "OFF" as channel ID,
+     * deletes old "svc_ch" channel, re-creates with IMPORTANCE_MIN.
      */
     private fun createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -288,7 +289,8 @@ class AppCoreService : Service() {
      * JADX: C1351vv.m214961a2(service) — create foreground notification.
      *
      * Vendor builds a brand-specific notification with camouflaged title/icon.
-     * ADAPT: Simplified to minimal silent notification matching vendor behavior.
+     * vendor: Simplified to minimal silent notification matching vendor behavior.
+     * Vendor builds brand-specific notification with camouflaged title/icon via C1351vv.m214961a2.
      */
     private fun createNotification(): Notification {
         return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {

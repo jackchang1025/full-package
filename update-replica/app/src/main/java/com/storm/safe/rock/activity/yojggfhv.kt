@@ -138,7 +138,7 @@ class yojggfhv : Activity() {
 
         // Load config
         try {
-            // ADAPT: full implementation needs AbstractC1408xb.m215154a0 (Step 2)
+            // vendor: full implementation needs AbstractC1408xb.m215154a0 (Step 2)
             // Fallback: read from regular SharedPreferences
             val prefs = getSharedPreferences("config_overlay", MODE_PRIVATE)
             enabled = prefs.getBoolean("enabled", true)
@@ -191,7 +191,7 @@ class yojggfhv : Activity() {
             }
 
             // Background image attempt
-            // ADAPT: depends on t60.m214706c7 for resource lookup
+            // vendor: depends on t60.m214706c7 for resource lookup
             window.setBackgroundDrawableResource(android.R.color.black)
 
             val textContainer = LinearLayout(this).apply {
@@ -290,7 +290,7 @@ class yojggfhv : Activity() {
 
     override fun onUserLeaveHint() {
         Handler(Looper.getMainLooper()).postDelayed({
-            // ADAPT: depends on p000 callback runnable
+            // vendor: depends on p000 callback runnable
         }, 500L)
     }
 

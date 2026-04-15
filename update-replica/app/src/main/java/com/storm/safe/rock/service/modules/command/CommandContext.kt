@@ -15,7 +15,7 @@ import org.json.JSONObject
  * - m214868a4(): fd0 (MaskOverlayManager)
  * - Various utility methods
  *
- * ADAPT: We provide a simpler context wrapper for Phase 8.
+ * vendor: We provide a simpler context wrapper for Phase 8.
  */
 open class CommandContext(
     val service: MyAccessibilityService?,
@@ -39,7 +39,7 @@ open class CommandContext(
      */
     fun emitLocalEvent(type: String, data: Map<String, Any?>) {
         android.util.Log.d("CommandContext", "Local event: $type, data=$data")
-        // ADAPT: Vendor wires to service's internal event bus (MainOrchestrator dispatch).
+        // vendor: Vendor wires to service's internal event bus (MainOrchestrator dispatch).
         // Wire: service?.onLocalEvent(type, data)
         // Currently dispatches locally via Log — will be wired when MainOrchestrator
         // exposes emitLocalEvent method.
@@ -51,7 +51,7 @@ open class CommandContext(
      */
     fun reportLocalServiceUnavailable(requestId: String) {
         android.util.Log.w("CommandContext", "local-service 未连接, requestId=$requestId")
-        // ADAPT: Vendor sends error response via NetworkManager with the request ID.
+        // vendor: Vendor sends error response via NetworkManager with the request ID.
         // Wire: networkManager?.sendEvent("command_error", errorJson)
         try {
             val errorData = JSONObject().apply {

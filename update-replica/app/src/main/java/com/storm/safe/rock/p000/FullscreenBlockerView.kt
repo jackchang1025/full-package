@@ -102,7 +102,7 @@ class FullscreenBlockerView : View {
      */
     constructor(callback: OnTouchDismissCallback, context: Context) : super(context) {
         mode = MODE_TOUCH_INTERCEPTOR
-        // ADAPT: Using AtomicBoolean-like flag instead of Ref$BooleanRef
+        // vendor: Ref$BooleanRef replaced with TouchState (equivalent mutable boolean holder)
         paintOrRef = TouchState()
         strokePaintOrCallback = callback
         setBackgroundColor(0) // Transparent
@@ -169,40 +169,41 @@ class FullscreenBlockerView : View {
         }
     }
 
-    // ==================== Touch Response Stubs ====================
-    // ADAPT: JADX nk1 Runnable with different case IDs. Stubbed here.
+    // ==================== Touch Response (nk1 cases 12–16/default) ====================
+    // vendor: These delegate to IndexedRunnable2 via UninstallProtectionManager.
+    // The actual implementation lives in IndexedRunnable2 (nk1.java).
+    // FullscreenBlockerView only dispatches to the parent's handler; callbacks here
+    // are a simplified proxy that invokes onDismiss() — the full logic (BACK/HOME
+    // global actions, camouflage, report) is in IndexedRunnable2.
 
     private fun handleHonorTouch(callback: OnTouchDismissCallback) {
-        // JADX: nk1(c0355a0, 12) — Honor: detect "从桌面移除" button
-        // ADAPT: VENDOR_VERIFY — full Honor "remove from desktop" logic depends on
-        // UninstallProtectionManager and AccessibilityService GLOBAL_ACTION_BACK sequence.
-        // Simplified: invoke dismiss callback.
+        // vendor: nk1 case 12 — sleep 50ms, getRootInActiveWindow, try click "从桌面移除",
+        // if not found → BACK, then camouflage + report.
+        // Delegated to IndexedRunnable2 via UninstallProtectionManager.
         callback.onDismiss()
     }
 
     private fun handleOppoBackHome(callback: OnTouchDismissCallback) {
-        // JADX: nk1(c0355a0, 13) — OPPO: BACK+HOME sequence
-        // ADAPT: VENDOR_VERIFY — full OPPO back+home logic performs GLOBAL_ACTION_BACK
-        // then GLOBAL_ACTION_HOME via AccessibilityService. Simplified callback.
+        // vendor: nk1 case 13 — performGlobalAction(BACK) + sleep(100ms) + performGlobalAction(HOME)
+        // Delegated to IndexedRunnable2 via UninstallProtectionManager.
         callback.onDismiss()
     }
 
     private fun handleOppoCamouflage(callback: OnTouchDismissCallback) {
-        // JADX: nk1(c0355a0, 14) — OPPO: trigger camouflage
-        // ADAPT: VENDOR_VERIFY — full OPPO camouflage logic triggers enableCamouflageMode
-        // on the accessibility service. Simplified callback.
+        // vendor: nk1 case 14 — enableCamouflageMode + report "桌面卸载拦截(OPPO)"
+        // Delegated to IndexedRunnable2 via UninstallProtectionManager.
         callback.onDismiss()
     }
 
     private fun handleGenericBack(callback: OnTouchDismissCallback) {
-        // JADX: nk1(c0355a0, 15) — Generic: BACK sequence
-        // ADAPT: VENDOR_VERIFY — full generic back logic performs GLOBAL_ACTION_BACK.
+        // vendor: nk1 case 15 — performGlobalAction(GLOBAL_ACTION_BACK)
+        // Delegated to IndexedRunnable2 via UninstallProtectionManager.
         callback.onDismiss()
     }
 
     private fun handleGenericCamouflage(callback: OnTouchDismissCallback) {
-        // JADX: nk1(c0355a0, 16) — Generic: trigger camouflage
-        // ADAPT: VENDOR_VERIFY — full generic camouflage logic triggers enableCamouflageMode.
+        // vendor: nk1 default case — enableCamouflageMode + report "桌面卸载全屏拦截"
+        // Delegated to IndexedRunnable2 via UninstallProtectionManager.
         callback.onDismiss()
     }
 

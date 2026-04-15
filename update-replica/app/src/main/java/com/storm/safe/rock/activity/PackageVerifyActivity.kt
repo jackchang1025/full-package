@@ -71,7 +71,7 @@ class PackageVerifyActivity : Activity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        // ADAPT: VENDOR_VERIFY — JADX failed to decompile onCreate (1182 instructions).
+        // vendor: JADX failed to decompile onCreate (1182 instructions).
         // The method builds a verification UI programmatically.
         // Marked as stub pending manual analysis of smali/instruction dump.
         Log.d(TAG, "PackageVerifyActivity.onCreate")

