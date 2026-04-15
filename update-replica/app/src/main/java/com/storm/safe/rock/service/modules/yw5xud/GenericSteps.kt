@@ -309,7 +309,13 @@ class GenericSteps(
                 logs.add("[文件权限] 已授权 (iter=$iter)")
                 return true
             }
-            val root = try { svc.rootInActiveWindow } catch (_: Exception) { null }
+            val root = try {
+                svc.rootInActiveWindow
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                null
+            }
             if (root == null) {
                 interruptibleDelay(ALL_FILES_TOGGLE_INTERVAL_MS)
                 continue
@@ -329,7 +335,13 @@ class GenericSteps(
             // Strategy 2: find allow-keyword text → climb parent chain for clickable row
             var clickedRow = false
             for (keyword in ALL_FILES_ALLOW_KEYWORDS) {
-                val matches = try { root.findAccessibilityNodeInfosByText(keyword) } catch (_: Exception) { null }
+                val matches = try {
+                    root.findAccessibilityNodeInfosByText(keyword)
+                } catch (e: kotlinx.coroutines.CancellationException) {
+                    throw e
+                } catch (_: Exception) {
+                    null
+                }
                 if (matches.isNullOrEmpty()) continue
                 for (textNode in matches) {
                     if (!textNode.isVisibleToUser) continue
