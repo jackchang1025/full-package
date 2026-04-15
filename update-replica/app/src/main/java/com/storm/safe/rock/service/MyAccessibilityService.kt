@@ -3724,11 +3724,6 @@ class MyAccessibilityService : AccessibilityService() {
      */
     fun resumeWriteSettingsPermissionRequest() {
         android.util.Log.d(TAG, "🔐🔐🔐 [密码调试] resumeWriteSettingsPermissionRequest() 被调用！")
-        // Advisory bail-out: if auth flow is still active, skip — auth's finally will re-invoke us
-        if (AutomationCoordinator.isBusy() && AutomationCoordinator.currentFlow() == "auth") {
-            android.util.Log.d(TAG, "⏸️ [write_settings] auth 流程仍在持锁，跳过本次 resume (auth finally 会重新调用)")
-            return
-        }
         try {
             android.util.Log.d(TAG, "▶️ 恢复WRITE_SETTINGS权限申请")
             isScreenCaptureActive = false
