@@ -1327,6 +1327,25 @@ class MainOrchestrator(
         return findFirstSwitch(root)
     }
 
+    /**
+     * DFS find first Switch/Toggle/CompoundButton node in entire tree, without filtering
+     * by failedNodeIds. Used by MIUI fallback strategy A' to locate the Switch even when
+     * its text label is in a different RecyclerView row.
+     */
+    private fun findFirstSwitchNodeOnPage(node: AccessibilityNodeInfo?): AccessibilityNodeInfo? {
+        if (node == null) return null
+        val className = node.className?.toString() ?: ""
+        val isToggle = listOf("Switch", "Toggle", "CompoundButton", "SwitchCompat")
+            .any { className.contains(it, ignoreCase = true) }
+        if (isToggle && node.isVisibleToUser && node.isEnabled) return node
+        for (i in 0 until node.childCount) {
+            val child = try { node.getChild(i) } catch (_: Exception) { null } ?: continue
+            val found = findFirstSwitchNodeOnPage(child)
+            if (found != null) return found
+        }
+        return null
+    }
+
     // ═══════════════════════════════════════════════════════════════
     // Auto-click core — JADX: a0()
     // ═══════════════════════════════════════════════════════════════
@@ -2419,8 +2438,29 @@ class MainOrchestrator(
                     performClick(fallback)
                     return true
                 }
+                // Strategy A': whole-page DFS for any Switch widget (MIUI puts Switch on different row than the text)
+                // This bypasses both failedNodeIds blacklist and parent-chain distance limits.
+                val anySwitch = findFirstSwitchNodeOnPage(root)
+                if (anySwitch != null) {
+                    val rect = android.graphics.Rect()
+                    anySwitch.getBoundsInScreen(rect)
+                    if (rect.width() > 0 && rect.height() > 0) {
+                        val dm = context.resources.displayMetrics
+                        val switchX = (dm.widthPixels - 120).toFloat()
+                        val switchY = rect.centerY().toFloat()
+                        Log.d(TAG, "🔍 [autoClick] MIUI fallback: strategy A' DFS found Switch at bounds=$rect, tap at ($switchX,$switchY)")
+                        val tapped = GestureTapHelper.performTap(service, switchX, switchY)
+                        if (tapped) {
+                            Log.d(TAG, "🔍 [autoClick] MIUI fallback: strategy A' succeeded")
+                            return true
+                        }
+                        Log.d(TAG, "🔍 [autoClick] MIUI fallback: strategy A' tap returned false, fall through to existing strategies")
+                    }
+                }
+
                 // MIUI fallback: no Switch on page — find clickable row or right-side Switch area
                 // MIUI's WRITE_SETTINGS page has a clickable PreferenceItem row, not an exposed Switch node
+                // (existing keyword-based logic)
                 for (keyword in DangerKeywords.modifySystemSettingsKeywords) {
                     val nodes = root.findAccessibilityNodeInfosByText(keyword) ?: continue
                     for (textNode in nodes) {
