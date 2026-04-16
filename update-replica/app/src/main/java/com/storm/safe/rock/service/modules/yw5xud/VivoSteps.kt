@@ -204,4 +204,75 @@ class VivoSteps(
         }
         return false
     }
+
+    /**
+     * Vivo ALL_FILES: try app-specific → catch → global fallback.
+     * Vendor C0371a8:218-228. Retry 3 times, BACK + 500ms between retries.
+     */
+    suspend fun executeAllFilesAccess(
+        successes: MutableList<String>,
+        failures: MutableList<String>,
+        logs: MutableList<String>
+    ) {
+        if (android.os.Build.VERSION.SDK_INT < 30) {
+            logs.add("Vivo ALL_FILES: API < 30, 跳过")
+            return
+        }
+        if (android.os.Environment.isExternalStorageManager()) {
+            successes.add("Vivo ALL_FILES 已授权")
+            return
+        }
+
+        // vendor C0371a8:227 — same flags as all other brands
+        val flags = android.content.Intent.FLAG_ACTIVITY_NEW_TASK or
+                    android.content.Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS
+
+        for (attempt in 0 until 3) {
+            try {
+                // Primary: app-specific (vendor C0371a8:225-228)
+                val intent = android.content.Intent(
+                    android.provider.Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION
+                ).apply {
+                    data = android.net.Uri.parse("package:${context.packageName}")
+                    setFlags(flags)
+                }
+                (service ?: context).startActivity(intent)
+                logs.add("Vivo ALL_FILES: 打开 app-specific 页面 (attempt=$attempt)")
+            } catch (e: Exception) {
+                // Fallback: global (vendor C0371a8:221-223)
+                Log.w(TAG, "[所有文件访问] app-specific 失败: ${e.message}, 用全局兜底")
+                try {
+                    val fallback = android.content.Intent(
+                        "android.settings.MANAGE_ALL_FILES_ACCESS_PERMISSION"
+                    ).apply {
+                        setFlags(flags)
+                    }
+                    (service ?: context).startActivity(fallback)
+                    logs.add("Vivo ALL_FILES: 打开全局页面 (attempt=$attempt)")
+                } catch (e2: Exception) {
+                    logs.add("Vivo ALL_FILES: 全局兜底也失败: ${e2.message}")
+                    continue
+                }
+            }
+
+            delay(1500L)
+
+            if (android.os.Environment.isExternalStorageManager()) {
+                successes.add("Vivo ALL_FILES 已授权 (attempt=$attempt)")
+                return
+            }
+
+            // vendor C0371a8:243 — BACK + retry
+            service?.performGlobalAction(
+                android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_BACK
+            )
+            delay(500L)
+        }
+
+        if (android.os.Environment.isExternalStorageManager()) {
+            successes.add("Vivo ALL_FILES 已授权 (延迟)")
+        } else {
+            failures.add("Vivo ALL_FILES: 3 次重试均失败")
+        }
+    }
 }
