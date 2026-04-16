@@ -9,6 +9,7 @@ import android.provider.Settings
 import android.util.Log
 import android.view.accessibility.AccessibilityNodeInfo
 import com.storm.safe.rock.service.MyAccessibilityService
+import com.storm.safe.rock.service.modules.automation.A11yWindowResolver
 import kotlinx.coroutines.delay
 
 /**
@@ -312,7 +313,7 @@ class GenericSteps(
                 return true
             }
             val root = try {
-                svc.rootInActiveWindow
+                A11yWindowResolver.resolveRoot(svc)
             } catch (e: kotlinx.coroutines.CancellationException) {
                 throw e
             } catch (_: Exception) {

