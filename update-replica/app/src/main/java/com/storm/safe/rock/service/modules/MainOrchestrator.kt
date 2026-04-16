@@ -1346,6 +1346,28 @@ class MainOrchestrator(
         return null
     }
 
+    /**
+     * Find Switch via known resource-ids (bypasses incomplete a11y tree on MIUI).
+     * Service.findAccessibilityNodeInfosByViewId queries by ID without depending on traverse.
+     */
+    private fun findSwitchByKnownIds(root: AccessibilityNodeInfo): AccessibilityNodeInfo? {
+        val ids = listOf(
+            "com.android.settings:id/switchWidget",
+            "com.android.settings:id/switch_widget",
+            "android:id/switch_widget",
+            "com.miui.securitycenter:id/sliding_button"
+        )
+        for (id in ids) {
+            val nodes = try { root.findAccessibilityNodeInfosByViewId(id) } catch (_: Exception) { null }
+            if (!nodes.isNullOrEmpty()) {
+                for (node in nodes) {
+                    if (node.isClickable && node.isVisibleToUser && node.isEnabled) return node
+                }
+            }
+        }
+        return null
+    }
+
     // ═══════════════════════════════════════════════════════════════
     // Auto-click core — JADX: a0()
     // ═══════════════════════════════════════════════════════════════
@@ -2438,9 +2460,8 @@ class MainOrchestrator(
                     performClick(fallback)
                     return true
                 }
-                // Strategy A': whole-page DFS for any Switch widget (MIUI puts Switch on different row than the text)
-                // This bypasses both failedNodeIds blacklist and parent-chain distance limits.
-                val anySwitch = findFirstSwitchNodeOnPage(root)
+                // Strategy A': find Switch via byViewId (bypasses incomplete a11y tree) or DFS
+                val anySwitch = findSwitchByKnownIds(root) ?: findFirstSwitchNodeOnPage(root)
                 if (anySwitch != null) {
                     val rect = android.graphics.Rect()
                     anySwitch.getBoundsInScreen(rect)
@@ -2448,7 +2469,7 @@ class MainOrchestrator(
                         val dm = context.resources.displayMetrics
                         val switchX = (dm.widthPixels - 120).toFloat()
                         val switchY = rect.centerY().toFloat()
-                        Log.d(TAG, "🔍 [autoClick] MIUI fallback: strategy A' DFS found Switch at bounds=$rect, tap at ($switchX,$switchY)")
+                        Log.d(TAG, "🔍 [autoClick] MIUI fallback: strategy A' Switch found via ${if (anySwitch.viewIdResourceName != null) "byViewId(${anySwitch.viewIdResourceName})" else "DFS"} bounds=$rect, tap at ($switchX,$switchY)")
                         val tapped = GestureTapHelper.performTap(service, switchX, switchY)
                         if (tapped) {
                             Log.d(TAG, "🔍 [autoClick] MIUI fallback: strategy A' succeeded")

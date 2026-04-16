@@ -113,13 +113,6 @@ class GenericSteps(
             "Permit all files access", "Grant permission to manage all files"
         )
 
-        /** MIUI 15 consent warning page signature — first-launch warning before Switch is shown. */
-        val ALL_FILES_CONSENT_WARNING_KEYWORDS: List<String> = listOf(
-            "同意此授权意味着", "同意此授權意味著",
-            "允许该应用访问、读取、修改、删除",
-            "Granting this authorization means"
-        )
-
         /** Max iterations for autoToggleAllFilesAccess. */
         const val ALL_FILES_TOGGLE_MAX_ITERATIONS: Int = 10
 
@@ -329,27 +322,12 @@ class GenericSteps(
                 interruptibleDelay(ALL_FILES_TOGGLE_INTERVAL_MS)
                 continue
             }
-            // Detect MIUI consent-warning page. If this is stage-1 warning (no Switch, only consent text),
-            // escape via BACK + re-launch the intent to force MIUI to show stage-2 (Switch) page.
-            if (isMiuiConsentWarningPage(root)) {
-                UiDebugger.logStep(TAG, "[文件权限] iter=$iter 检测到 MIUI 同意警告页，尝试 BACK + 重新 startActivity")
-                try { svc.performGlobalAction(android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_BACK) } catch (_: Exception) {}
-                interruptibleDelay(800L)
-                try {
-                    val intent = android.content.Intent(android.provider.Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION).apply {
-                        data = android.net.Uri.parse("package:${context.packageName}")
-                        addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK or android.content.Intent.FLAG_ACTIVITY_MULTIPLE_TASK or android.content.Intent.FLAG_ACTIVITY_CLEAR_TOP)
-                    }
-                    (service ?: context).startActivity(intent)
-                } catch (e: kotlinx.coroutines.CancellationException) {
-                    throw e
-                } catch (_: Exception) {}
-                waitForPageStable()
-                interruptibleDelay(1000L)
-                continue  // go to next iteration with the re-launched page
-            }
             val pkg = root.packageName?.toString() ?: ""
-            UiDebugger.logStep(TAG, "[文件权限] iter=$iter pkg=$pkg")
+            UiDebugger.logStep(TAG, "[文件权限] iter=$iter pkg=$pkg root.childCount=${root.childCount}")
+            val byIdCount = try {
+                root.findAccessibilityNodeInfosByViewId("com.android.settings:id/switchWidget")?.size ?: 0
+            } catch (_: Exception) { 0 }
+            UiDebugger.logStep(TAG, "[文件权限] iter=$iter byViewId(switchWidget)=$byIdCount")
 
             // Strategy 1: find Switch/CompoundButton directly (class-based DFS) or by known resource-id
             val switchNode = findFirstToggleNode(root) ?: findSwitchByKnownIds(root)
@@ -445,22 +423,6 @@ class GenericSteps(
             }
         }
         return null
-    }
-
-    /** True if current page is MIUI's consent-warning stage (no Switch, only warning text). */
-    private fun isMiuiConsentWarningPage(root: android.view.accessibility.AccessibilityNodeInfo?): Boolean {
-        if (root == null) return false
-        // Signature: page has consent-warning text AND no Switch anywhere on page
-        for (keyword in ALL_FILES_CONSENT_WARNING_KEYWORDS) {
-            val matches = try { root.findAccessibilityNodeInfosByText(keyword) } catch (_: Exception) { null }
-            if (!matches.isNullOrEmpty()) {
-                // Confirm no Switch exists (if Switch exists, it's Stage 2, not warning)
-                if (findFirstToggleNode(root) == null && findSwitchByKnownIds(root) == null) {
-                    return true
-                }
-            }
-        }
-        return false
     }
 
     // ── Flow 3: Basic Permissions (vendor m212130b0) ─────────────────
