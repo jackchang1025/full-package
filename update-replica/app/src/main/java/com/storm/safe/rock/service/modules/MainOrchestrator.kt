@@ -180,17 +180,21 @@ class MainOrchestrator(
             "com.android.systemui",
             "com.android.permissioncontroller",
             "com.miui.securitycenter",
+            "com.miui.permcenter",            // NEW: vendor C0327b2:888
             "com.coloros.safecenter",
             "com.coloros.phonemanager",
             "com.bbk.VivoSafe",
+            "com.vivo.permissionmanager",      // NEW: vendor C0327b2:888
             "com.huawei.systemmanager",
             "com.samsung.android.lool",
             "com.oneplus.security",
+            "com.honor.systemmanager",         // NEW: vendor C0327b2:888
             "com.oplus.safecenter",
             "com.transsion.permissionmanager",
             "com.meizu.safe",
             "com.smartisanos.security",
-            "com.lenovo.safecenter"
+            "com.lenovo.safecenter",
+            "com.xiaomi.misettings"            // NEW: C0367a4:6548 澎湃 OS
         )
 
         /**
@@ -221,6 +225,22 @@ class MainOrchestrator(
         /** Permission result broadcast action. JADX: f5() */
         private const val PERMISSION_RESULT_ACTION =
             "com.storm.safe.rock.intent.WRITE_SETTINGS_PERMISSION_GRANTED"
+
+        /** SharedPreferences 文件名 (vendor C0327b2:5360). */
+        private const val WS_ATTEMPTED_PREF = "write_settings_state"
+        /** SP key: 尝试过一次即跳过 (vendor C0327b2:4900). */
+        private const val WS_ATTEMPTED_KEY = "write_settings_attempted"
+        /** 父容器上溯最大深度 (vendor C0327b2:4616). */
+        private const val PARENT_CLIMB_MAX_DEPTH = 15
+
+        /** 轮询间隔 (vendor startPermissionMonitoring_1:77). */
+        private const val WS_POLL_INTERVAL_MS = 500L
+        /** 总超时 (vendor C0327b2:5375). 从 10s 降为 6s 避免长时间阻塞 */
+        private const val WS_TIMEOUT_MS = 6_000L
+        /** 事件节流间隔 (vendor C0327b2:4684). */
+        private const val WS_EVENT_THROTTLE_MS = 2000L
+        /** 连续"Switch 找不到"达到此次数后立即跳出 (MIUI a11y 截断快速失败). */
+        private const val WS_MAX_CONSECUTIVE_NO_SWITCH = 4
 
         // ── Static methods ──
 
@@ -895,7 +915,8 @@ class MainOrchestrator(
         try {
             val intent = Intent(Settings.ACTION_MANAGE_WRITE_SETTINGS).apply {
                 data = Uri.parse("package:${context.packageName}")
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_NO_HISTORY)
+                // vendor C0327b2:5048: addFlags(276824064) = NEW_TASK | EXCLUDE_FROM_RECENTS
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS)
             }
             val resolved = context.packageManager.resolveActivity(intent, 0)
             if (resolved != null) {
@@ -1570,13 +1591,13 @@ class MainOrchestrator(
         val startTime = System.currentTimeMillis()
         Log.v(TAG, "🔐⏱️ [计时] startWriteSettingsPermissionRequest() 开始执行 @$startTime")
 
-        // Check if already attempted
-        val prefs = context.getSharedPreferences("write_settings_state", 0)
-        val alreadyAttempted = prefs.getBoolean("write_settings_attempted", false)
-        if (alreadyAttempted) {
-            Log.d(TAG, "✅ WRITE_SETTINGS流程已尝试过，跳过（不管之前成功或失败）")
+        // vendor C0327b2:5360 — 尝试过一次即跳过 (防止每次 service 重启重跑)
+        val prefs = context.getSharedPreferences(WS_ATTEMPTED_PREF, android.content.Context.MODE_PRIVATE)
+        if (prefs.getBoolean(WS_ATTEMPTED_KEY, false)) {
+            Log.d(TAG, "🔐 WRITE_SETTINGS 已尝试过，跳过 (vendor SP guard)")
             return
         }
+        prefs.edit().putBoolean(WS_ATTEMPTED_KEY, true).apply()
 
         if (isActive) {
             Log.w(TAG, "⚠️ WRITE_SETTINGS权限申请已在进行中")
@@ -1591,7 +1612,7 @@ class MainOrchestrator(
             return
         }
 
-        Log.d(TAG, "[startWriteSettings] proceeding: isActive=$isActive, permissionGranted=$permissionGranted, alreadyAttempted=$alreadyAttempted")
+        Log.d(TAG, "[startWriteSettings] proceeding: isActive=$isActive, permissionGranted=$permissionGranted")
 
         // Stop any previous request
         stopPermissionRequest()
@@ -1623,7 +1644,7 @@ class MainOrchestrator(
             // JADX: WriteSettingsPermissionManager$startPermissionMonitoring$1
             // Periodically checks if permission was granted
             while (isActive && !permissionGranted) {
-                delay(1000)
+                delay(WS_POLL_INTERVAL_MS)
                 if (hasWriteSettingsPermission()) {
                     handlePermissionGranted()
                     break
@@ -2451,13 +2472,15 @@ class MainOrchestrator(
      */
     private suspend fun attemptAutoClickSafe(root: AccessibilityNodeInfo): Boolean {
         return try {
-            // MIUI withholds a11y focus from Settings windows → rootInActiveWindow may be desktop.
-            // Re-resolve to Settings window when available.
+            // vendor C0327b2: rootInActiveWindow primary, A11yWindowResolver fallback only
             val rootPkg = root.packageName?.toString() ?: ""
-            val targetRoot = if (rootPkg !in A11yWindowResolver.SETTINGS_PACKAGES) {
-                A11yWindowResolver.findSettingsRoot(service) ?: root
-            } else {
+            val targetRoot = if (isSettingsPackage(rootPkg)) {
+                // rootInActiveWindow is Settings → use directly (vendor primary path)
                 root
+            } else {
+                // rootInActiveWindow is launcher/other → try windows API fallback
+                Log.d(TAG, "🔍 [autoClick] root pkg=$rootPkg not in whitelist, trying A11yWindowResolver")
+                A11yWindowResolver.findSettingsRoot(service) ?: root
             }
             Log.d(TAG, "🔍 [autoClick] root pkg=$rootPkg, using targetRoot pkg=${targetRoot.packageName}")
 
@@ -2512,7 +2535,7 @@ class MainOrchestrator(
                         // Strategy A: climb parent chain up to 8 levels for clickable ViewGroup
                         var current: AccessibilityNodeInfo? = textNode.parent
                         var depth = 0
-                        while (current != null && depth < 8) {
+                        while (current != null && depth < PARENT_CLIMB_MAX_DEPTH) {
                             if (current.isClickable && current.isVisibleToUser) {
                                 Log.d(TAG, "🔍 [autoClick] MIUI fallback: strategy A 点击父容器 depth=$depth class=${current.className}")
                                 performClick(current)

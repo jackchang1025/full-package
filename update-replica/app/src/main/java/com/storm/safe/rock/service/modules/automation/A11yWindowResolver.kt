@@ -18,12 +18,31 @@ import android.view.accessibility.AccessibilityWindowInfo
 object A11yWindowResolver {
     private const val TAG = "A11yWindowResolver"
 
-    /** Package names we care about for Settings/permission pages. */
+    /** Package names for Settings/permission pages.
+     *  Vendor C0327b2:888 (15 entries) + MIUI misettings + replica extras. */
     val SETTINGS_PACKAGES: List<String> = listOf(
+        // --- Vendor core 15 (C0327b2:888 m211708e0) ---
         "com.android.settings",
+        "com.android.systemui",
+        "com.android.permissioncontroller",
         "com.miui.securitycenter",
         "com.miui.permcenter",
-        "com.android.permissioncontroller"
+        "com.coloros.safecenter",
+        "com.vivo.permissionmanager",
+        "com.huawei.systemmanager",
+        "com.samsung.android.lool",
+        "com.oneplus.security",
+        "com.honor.systemmanager",
+        "com.transsion.permissionmanager",
+        "com.meizu.safe",
+        "com.smartisanos.security",
+        "com.lenovo.safecenter",
+        // --- MIUI 澎湃 OS (C0367a4:6548) ---
+        "com.xiaomi.misettings",
+        // --- Replica extras (valid brand packages not in vendor 15) ---
+        "com.coloros.phonemanager",
+        "com.bbk.VivoSafe",
+        "com.oplus.safecenter"
     )
 
     /**

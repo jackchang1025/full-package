@@ -284,4 +284,12 @@ class VivoStepsTest {
     fun `launchComponentActivity returns false for empty list`() {
         assertFalse(vivoSteps.launchComponentActivity(emptyList()))
     }
+
+    @Test
+    fun `VivoSteps has executeAllFilesAccess method`() {
+        val method = VivoSteps::class.java.declaredMethods.find {
+            it.name == "executeAllFilesAccess"
+        }
+        assertNotNull("VivoSteps should have executeAllFilesAccess", method)
+    }
 }

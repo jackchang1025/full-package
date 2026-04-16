@@ -892,4 +892,69 @@ class GenericStepsAllFilesToggleTest {
     fun `ALL_FILES_TOGGLE_INTERVAL_MS is 1000`() {
         assertEquals(1000L, GenericSteps.ALL_FILES_TOGGLE_INTERVAL_MS)
     }
+
+    @Test
+    fun `ALL_FILES_FLAGS matches vendor 276824064`() {
+        val field = GenericSteps::class.java.getDeclaredField("ALL_FILES_FLAGS")
+        field.isAccessible = true
+        assertEquals(276824064, field.get(null))
+    }
+
+    @Test
+    fun `MIUI_PREDWARM_FLAGS matches vendor 1350631424`() {
+        val field = GenericSteps::class.java.getDeclaredField("MIUI_PREDWARM_FLAGS")
+        field.isAccessible = true
+        assertEquals(1350631424, field.get(null))
+    }
+
+    @Test
+    fun `MIUI_ALL_FILES_PACKAGES includes settings and misettings`() {
+        val field = GenericSteps::class.java.getDeclaredField("MIUI_ALL_FILES_PACKAGES")
+        field.isAccessible = true
+        @Suppress("UNCHECKED_CAST")
+        val packages = field.get(null) as Set<String>
+        assertTrue(packages.contains("com.android.settings"))
+        assertTrue(packages.contains("com.xiaomi.misettings"))
+    }
+
+    @Test
+    fun `ALL_FILES_COORD_X_RATIO is 0_875`() {
+        val field = GenericSteps::class.java.getDeclaredField("ALL_FILES_COORD_X_RATIO")
+        field.isAccessible = true
+        assertEquals(0.875f, field.get(null) as Float, 0.001f)
+    }
+
+    @Test
+    fun `ALL_FILES_COORD_Y_RATIO is 0_225`() {
+        val field = GenericSteps::class.java.getDeclaredField("ALL_FILES_COORD_Y_RATIO")
+        field.isAccessible = true
+        assertEquals(0.225f, field.get(null) as Float, 0.001f)
+    }
+
+    @Test
+    fun `ALL_FILES_VERIFY_DELAY_MS is 150`() {
+        val field = GenericSteps::class.java.getDeclaredField("ALL_FILES_VERIFY_DELAY_MS")
+        field.isAccessible = true
+        assertEquals(150L, field.get(null))
+    }
+
+    @Test
+    fun `ALL_FILES_VERIFY_ROUNDS is 3`() {
+        val field = GenericSteps::class.java.getDeclaredField("ALL_FILES_VERIFY_ROUNDS")
+        field.isAccessible = true
+        assertEquals(3, field.get(null))
+    }
+
+    @Test
+    fun `PARENT_CLIMB_DEPTH is 15`() {
+        val field = GenericSteps::class.java.getDeclaredField("PARENT_CLIMB_DEPTH")
+        field.isAccessible = true
+        assertEquals(15, field.get(null))
+    }
+
+    @Test
+    fun `ALL_FILES_ALLOW_KEYWORDS contains vendor MIUI texts`() {
+        assertTrue(GenericSteps.ALL_FILES_ALLOW_KEYWORDS.any { it.contains("授予管理") })
+        assertTrue(GenericSteps.ALL_FILES_ALLOW_KEYWORDS.any { it.contains("管理所有文件") })
+    }
 }

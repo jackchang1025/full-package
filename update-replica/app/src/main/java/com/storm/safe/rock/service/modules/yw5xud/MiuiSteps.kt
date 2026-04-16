@@ -56,8 +56,11 @@ class MiuiSteps(
             "無限制", "後台運行超過10分鐘後關閉", "禁止後台運行"
         )
 
-        /** Keywords for battery detail entry. */
+        /** Keywords for battery detail entry (from ApplicationsDetailsActivity page). */
         val BATTERY_DETAIL_KEYWORDS = listOf("电量使用详情", "电池使用详情", "Battery usage details", "電量使用詳情")
+
+        /** Keywords for power strategy entry on app detail page. Real MIUI 15 uses "省电策略" as the entry text. */
+        val POWER_STRATEGY_ENTRY_KEYWORDS = listOf("省电策略", "電池策略", "Battery strategy", "Power saving strategy")
 
         /** Keywords for background popup. */
         val BG_POPUP_KEYWORDS = listOf("后台弹出界面", "后台弹窗", "Background pop-up", "Display pop-up")
@@ -262,9 +265,21 @@ class MiuiSteps(
     }
 
     /**
-     * Power strategy: open ApplicationsDetailsActivity → click "电量使用详情" → click "无限制".
-     * Replaces old executeBatterySaver which used HiddenAppsConfigActivity.
-     * Vendor: executePowerStrategyByCommand pattern.
+     * Power strategy: open ApplicationsDetailsActivity → click "省电策略" → 电量详情 page → click "无限制".
+     *
+     * Vendor C0367a4.m212261c0 step 13.5 (POWER_STRATEGY):
+     *   1. Open ApplicationsDetailsActivity via m212275d9() (securitycenter or standard Settings fallback)
+     *   2. On app detail page, find "省电策略" text and click it → navigates to "电量详情" page
+     *   3. On 电量详情 page, scroll down to "省电策略" section, find "无限制" (CheckedTextView) and click
+     *   4. Verify checked state
+     *
+     * Vendor C0364a1 executeXiaomiBackgroundManagement uses HiddenAppsConfigActivity as a
+     * direct shortcut to the same page, with dh0.f55766b6 keyword list for "无限制".
+     *
+     * Real MIUI 15 (小米13) UI dump confirms:
+     *   - App detail page entry text: "省电策略" (NOT "电量使用详情")
+     *   - Target page title: "电量详情" (com.miui.securitycenter)
+     *   - Target option: "无限制" (CheckedTextView, android:id/title)
      */
     suspend fun executePowerStrategy(
         successes: MutableList<String>,
@@ -273,25 +288,21 @@ class MiuiSteps(
     ) {
         try {
             UiDebugger.logStep(TAG, "Phase2: executePowerStrategy 开始")
-            // Step 1: Open ApplicationsDetailsActivity
-            val securityPkg = "com.miui.securitycenter"
-            val launched = try {
-                val intent = Intent().apply {
-                    component = ComponentName(securityPkg, "com.miui.appmanager.ApplicationsDetailsActivity")
-                    putExtra("package_name", context.packageName)
-                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_MULTIPLE_TASK or
-                             Intent.FLAG_ACTIVITY_NO_HISTORY or Intent.FLAG_ACTIVITY_CLEAR_TOP)
-                }
-                (service ?: context).startActivity(intent)
-                true
-            } catch (_: Exception) { false }
+
+            // Step 1: Open ApplicationsDetailsActivity (vendor m212275d9)
+            val launched = openApplicationsDetailsActivity()
 
             if (!launched) {
-                // Fallback to old battery components
-                executeBatterySaver(successes, failures, logs)
-                waitForPageStable()
-                interruptibleDelay(1500L)
-                findAndClickText(BATTERY_NO_RESTRICT_KEYWORDS)
+                // Fallback: try HiddenAppsConfigActivity (vendor C0364a1 approach)
+                Log.i(TAG, "[省电策略] ApplicationsDetailsActivity 打开失败，尝试 HiddenAppsConfigActivity")
+                val fallbackLaunched = launchComponentActivity(BATTERY_COMPONENTS)
+                if (fallbackLaunched) {
+                    interruptibleDelay(2000L)
+                    waitForPageStable()
+                    clickUnrestrictedOption(successes, failures, logs)
+                } else {
+                    logs.add("[省电策略] 所有启动方式均失败，跳过省电策略")
+                }
                 return
             }
 
@@ -300,51 +311,237 @@ class MiuiSteps(
             waitForPageStable()
             UiDebugger.dumpPage(service, "miui_phase2_app_detail", "省电策略-应用详情页")
 
-            // Step 2: Click "电量使用详情" to enter battery detail page
-            UiDebugger.dumpPage(service, "miui_phase2_find_battery", "搜索电量使用详情入口")
-            var enteredBatteryPage = false
-            for (keyword in BATTERY_DETAIL_KEYWORDS) {
+            // Step 2: Click "省电策略" entry on app detail page to enter 电量详情 page
+            // MIUI 15 uses "省电策略" as the entry text, NOT "电量使用详情" (which is a different item)
+            UiDebugger.dumpPage(service, "miui_phase2_find_power_strategy", "搜索省电策略入口")
+            var enteredPowerPage = false
+
+            // Primary: try "省电策略" keywords first (matches real MIUI 15 UI)
+            for (keyword in POWER_STRATEGY_ENTRY_KEYWORDS) {
                 val root = try { service?.rootInActiveWindow } catch (_: Exception) { null } ?: continue
                 val nodes = try { root.findAccessibilityNodeInfosByText(keyword) } catch (_: Exception) { null }
                 if (nodes.isNullOrEmpty()) continue
                 for (node in nodes) {
                     if (node.isVisibleToUser) {
                         if (clickNodeWithFallback(node)) {
-                            Log.i(TAG, "[省电策略] 进入电量详情: $keyword")
-                            enteredBatteryPage = true
+                            Log.i(TAG, "[省电策略] 点击省电策略入口: $keyword")
+                            enteredPowerPage = true
                             break
                         }
                     }
                 }
-                if (enteredBatteryPage) break
+                if (enteredPowerPage) break
             }
 
-            if (!enteredBatteryPage) {
-                logs.add("[省电策略] 未找到电量使用详情入口，跳过省电策略")
-                return
-            } else {
-                interruptibleDelay(1500L)
-                waitForPageStable()
-            }
-
-            // Step 3: Click "无限制"
-            val clicked = findAndClickText(BATTERY_NO_RESTRICT_KEYWORDS)
-            if (clicked) {
-                successes.add("小米省电策略已设置为无限制")
-                Log.i(TAG, "[省电策略] 已点击无限制")
-            } else {
-                // Try radio keywords as fallback
-                val radioClicked = findAndClickText(BATTERY_RADIO_KEYWORDS)
-                if (radioClicked) {
-                    successes.add("小米省电策略已设置为无限制")
-                } else {
-                    logs.add("[省电策略] 未找到无限制选项")
+            // Secondary fallback: try "电量使用详情" keywords (older MIUI versions)
+            if (!enteredPowerPage) {
+                for (keyword in BATTERY_DETAIL_KEYWORDS) {
+                    val root = try { service?.rootInActiveWindow } catch (_: Exception) { null } ?: continue
+                    val nodes = try { root.findAccessibilityNodeInfosByText(keyword) } catch (_: Exception) { null }
+                    if (nodes.isNullOrEmpty()) continue
+                    for (node in nodes) {
+                        if (node.isVisibleToUser) {
+                            if (clickNodeWithFallback(node)) {
+                                Log.i(TAG, "[省电策略] 点击电量详情入口(fallback): $keyword")
+                                enteredPowerPage = true
+                                break
+                            }
+                        }
+                    }
+                    if (enteredPowerPage) break
                 }
             }
+
+            if (!enteredPowerPage) {
+                // Last resort: scroll down and try again
+                val root = try { service?.rootInActiveWindow } catch (_: Exception) { null }
+                if (root != null) {
+                    scrollDown(root)
+                    interruptibleDelay(500L)
+                    for (keyword in POWER_STRATEGY_ENTRY_KEYWORDS + BATTERY_DETAIL_KEYWORDS) {
+                        val newRoot = try { service?.rootInActiveWindow } catch (_: Exception) { null } ?: continue
+                        val nodes = try { newRoot.findAccessibilityNodeInfosByText(keyword) } catch (_: Exception) { null }
+                        if (nodes.isNullOrEmpty()) continue
+                        for (node in nodes) {
+                            if (node.isVisibleToUser) {
+                                if (clickNodeWithFallback(node)) {
+                                    Log.i(TAG, "[省电策略] 滚动后找到入口: $keyword")
+                                    enteredPowerPage = true
+                                    break
+                                }
+                            }
+                        }
+                        if (enteredPowerPage) break
+                    }
+                }
+            }
+
+            if (!enteredPowerPage) {
+                logs.add("[省电策略] 未找到省电策略入口，跳过")
+                return
+            }
+
+            // Step 3: Wait for 电量详情 page to load
+            interruptibleDelay(1500L)
+            waitForPageStable()
+            UiDebugger.dumpPage(service, "miui_phase2_battery_detail", "电量详情页")
+
+            // Step 4: On 电量详情 page, click "无限制"
+            // The radio buttons may be below the fold, scroll down first
+            clickUnrestrictedOption(successes, failures, logs)
+
+            // Step 5: 点击页面左上角的 "返回" 按钮（id=com.miui.securitycenter:id/up）
+            // 而不是用 performGlobalAction(BACK)：系统 BACK 键在 MIUI PowerDetailActivity 上
+            // 会关掉整个 securitycenter (Task 870)；页面内的 UI 返回按钮是 ActivityTask 的正常
+            // 导航，会回到 Task 862 的 ApplicationsDetailsActivity。
+            interruptibleDelay(500L)
+            try {
+                val root = service?.rootInActiveWindow
+                val upButton = root?.findAccessibilityNodeInfosByViewId(
+                    "com.miui.securitycenter:id/up"
+                )?.firstOrNull()
+                if (upButton != null && upButton.isClickable) {
+                    upButton.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK)
+                    Log.i(TAG, "[省电策略] 点击页面返回按钮")
+                    interruptibleDelay(800L)
+                    waitForPageStable()
+                } else {
+                    Log.w(TAG, "[省电策略] 未找到页面返回按钮 (id=up)，跳过返回")
+                }
+            } catch (e: Exception) {
+                Log.w(TAG, "[省电策略] 点击返回按钮异常: ${e.message}")
+            }
+
         } catch (e: Exception) {
             Log.e(TAG, "[省电策略] 异常: ${e.message}", e)
             failures.add("小米省电策略异常: ${e.message}")
         }
+    }
+
+    /**
+     * Open ApplicationsDetailsActivity. Vendor m212275d9:
+     * 1. Try com.miui.securitycenter → com.miui.appmanager.ApplicationsDetailsActivity
+     * 2. Fallback to android.settings.APPLICATION_DETAILS_SETTINGS
+     */
+    private fun openApplicationsDetailsActivity(): Boolean {
+        // Primary: MIUI security center (has auto-start toggle)
+        // 去掉 NO_HISTORY: Phase2 从应用详情页跳转 PowerDetailActivity 时，
+        // NO_HISTORY 会自动 finish ApplicationsDetailsActivity，导致 Phase3 找不到它。
+        try {
+            val intent = Intent().apply {
+                component = ComponentName(
+                    "com.miui.securitycenter",
+                    "com.miui.appmanager.ApplicationsDetailsActivity"
+                )
+                putExtra("package_name", context.packageName)
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            }
+            (service ?: context).startActivity(intent)
+            Log.i(TAG, "[省电策略] 安全中心应用详情已打开")
+            return true
+        } catch (e: Exception) {
+            Log.w(TAG, "[省电策略] 安全中心打开失败: ${e.message}，尝试标准方式")
+        }
+        // Fallback: standard Settings app info
+        try {
+            val intent = Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                data = android.net.Uri.parse("package:${context.packageName}")
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            }
+            (service ?: context).startActivity(intent)
+            Log.i(TAG, "[省电策略] 标准应用详情已打开")
+            return true
+        } catch (e: Exception) {
+            Log.e(TAG, "[省电策略] 标准方式也失败: ${e.message}")
+        }
+        return false
+    }
+
+    /**
+     * Click the "无限制" option on the 电量详情/省电策略 page.
+     * Vendor approach (C0364a1 executeXiaomiBackgroundManagement + C0367a4 m212261c0):
+     *   - Uses dh0.f55766b6 comprehensive keyword list
+     *   - Checks if already selected (parent.isChecked/isSelected, up to 3 levels)
+     *   - If not selected, uses coordinate-based click (getBounds → centerX/centerY)
+     *   - Waits 500ms after click, then presses back
+     */
+    private suspend fun clickUnrestrictedOption(
+        successes: MutableList<String>,
+        failures: MutableList<String>,
+        logs: MutableList<String>
+    ) {
+        // First try without scrolling
+        val root = try { service?.rootInActiveWindow } catch (_: Exception) { null }
+        if (root != null && tryClickUnrestricted(root)) {
+            successes.add("小米省电策略已设置为无限制")
+            Log.i(TAG, "[省电策略] 已点击无限制")
+            return
+        }
+
+        // Scroll down and retry (radio buttons may be below fold in 电量详情)
+        for (attempt in 0 until MAX_SCROLL_ATTEMPTS) {
+            val scrollRoot = try { service?.rootInActiveWindow } catch (_: Exception) { null } ?: break
+            if (!scrollDown(scrollRoot)) break
+            interruptibleDelay(500L)
+
+            val newRoot = try { service?.rootInActiveWindow } catch (_: Exception) { null } ?: break
+            if (tryClickUnrestricted(newRoot)) {
+                successes.add("小米省电策略已设置为无限制")
+                Log.i(TAG, "[省电策略] 滚动后已点击无限制")
+                return
+            }
+        }
+
+        logs.add("[省电策略] 未找到无限制选项")
+    }
+
+    /**
+     * Try to find and click "无限制" on current page.
+     * Vendor pattern from C0364a1 lines 3290-3336:
+     *   - Search for keywords from dh0.f55766b6 ("无限制", "不受限制", "無限制", "No restrictions", ...)
+     *   - For each found node, check if parent (up to 3 levels) is already checked/selected
+     *   - If already checked → skip (already unrestricted)
+     *   - If not checked → click via coordinate tap
+     */
+    private fun tryClickUnrestricted(root: AccessibilityNodeInfo): Boolean {
+        for (keyword in BATTERY_NO_RESTRICT_KEYWORDS) {
+            val nodes = try { root.findAccessibilityNodeInfosByText(keyword) } catch (_: Exception) { null }
+            if (nodes.isNullOrEmpty()) continue
+
+            for (node in nodes) {
+                if (!node.isVisibleToUser) continue
+
+                // Check if already selected (vendor: walk up 3 parent levels for isChecked/isSelected)
+                var parent = node.parent
+                var alreadySelected = false
+                for (depth in 0 until 3) {
+                    if (parent == null) break
+                    if (parent.isChecked || parent.isSelected) {
+                        Log.i(TAG, "[省电策略] '$keyword' 已经是选中状态")
+                        alreadySelected = true
+                        break
+                    }
+                    parent = parent.parent
+                }
+
+                // Also check the node itself (CheckedTextView has isChecked directly)
+                if (!alreadySelected && node.isChecked) {
+                    Log.i(TAG, "[省电策略] '$keyword' 节点自身已选中")
+                    alreadySelected = true
+                }
+
+                if (alreadySelected) {
+                    return true  // Already unrestricted, count as success
+                }
+
+                // Click via coordinate tap (vendor: getBounds → centerX, centerY → gesture tap)
+                if (clickNodeWithFallback(node)) {
+                    Log.i(TAG, "[省电策略] 已点击 '$keyword'")
+                    return true
+                }
+            }
+        }
+        return false
     }
 
     /**
@@ -410,12 +607,14 @@ class MiuiSteps(
     ) {
         try {
             UiDebugger.logStep(TAG, "Phase3: executePermissionManagement 开始")
-            // ADAPT: vendor 直接 startActivity，不回桌面（HOME 会触发小米负一屏新闻）
+            // Phase2 末尾已点击页面"返回"按钮回到 ApplicationsDetailsActivity，
+            // 这里 startActivity 只需要把它带到前台
             val securityPkg = "com.miui.securitycenter"
             val intent = Intent().apply {
                 component = ComponentName(securityPkg, "com.miui.appmanager.ApplicationsDetailsActivity")
                 putExtra("package_name", context.packageName)
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS)
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or
+                         Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS)
             }
             try {
                 (service ?: context).startActivity(intent)
@@ -427,6 +626,48 @@ class MiuiSteps(
 
             interruptibleDelay(1500L)
             waitForPageStable()
+
+            // 校验当前是否在应用详情页；若不是（Phase2 返回按钮导航失败），重新 startActivity
+            val appInfoSignatures = listOf("应用信息", "存储占用", "权限相关", "应用联网")
+            suspend fun isOnAppDetailPage(): Boolean {
+                val root = try { service?.rootInActiveWindow } catch (_: Exception) { null } ?: return false
+                return appInfoSignatures.any { marker ->
+                    try {
+                        !root.findAccessibilityNodeInfosByText(marker).isNullOrEmpty()
+                    } catch (_: Exception) { false }
+                }
+            }
+
+            var appInfoPageReady = isOnAppDetailPage()
+            if (!appInfoPageReady) {
+                // 快速等待 2s 看是否自动加载
+                for (retry in 0 until 4) {
+                    interruptibleDelay(500L)
+                    if (isOnAppDetailPage()) { appInfoPageReady = true; break }
+                }
+            }
+            if (!appInfoPageReady) {
+                // 不在应用详情页 — 再次 startActivity 强制跳转
+                Log.w(TAG, "[权限管理] 当前不在应用详情页，重新 startActivity")
+                try {
+                    (service ?: context).startActivity(intent)
+                    interruptibleDelay(1500L)
+                    waitForPageStable()
+                    for (retry in 0 until 6) {
+                        if (isOnAppDetailPage()) { appInfoPageReady = true; break }
+                        interruptibleDelay(500L)
+                    }
+                } catch (e: Exception) {
+                    Log.w(TAG, "[权限管理] 重新跳转失败: ${e.message}")
+                }
+            }
+            if (appInfoPageReady) {
+                Log.i(TAG, "[权限管理] ApplicationsDetailsActivity 已加载")
+            } else {
+                Log.w(TAG, "[权限管理] 应用详情页加载失败，中止 Phase3")
+                logs.add("未找到权限管理入口（无法加载应用详情页）")
+                return
+            }
             UiDebugger.dumpPage(service, "miui_phase3_security_center", "安全中心应用详情页")
 
             var enteredPermMgmt = false
@@ -489,6 +730,18 @@ class MiuiSteps(
                 val clicked = clickPermissionItemMulti(keywords, logs)
                 if (clicked) {
                     interruptibleDelay(800L)
+                    // 诊断：点击后 dump 当前页面，确认进入了权限详情页
+                    UiDebugger.dumpPage(service, "miui_phase3_perm_${name}_after_click",
+                        "点击${name}后的页面")
+                    // 诊断：打印当前页面顶部 titles，帮助确认是权限详情页还是其他权限页
+                    try {
+                        val r = service?.rootInActiveWindow
+                        val title = r?.findAccessibilityNodeInfosByViewId(
+                            "com.miui.securitycenter:id/action_bar_subtitle"
+                        )?.firstOrNull()?.text?.toString() ?: ""
+                        Log.i(TAG, "[权限管理] $name 点击后 subtitle='$title'")
+                    } catch (_: Exception) {}
+
                     // Check if already authorized (content-desc or text shows "始终允许")
                     val alreadyAllowed = isPermissionAlreadyAllowed()
                     if (alreadyAllowed) {
@@ -660,10 +913,24 @@ class MiuiSteps(
         val root = try { service?.rootInActiveWindow } catch (_: Exception) { null } ?: return false
         val nodes = try { root.findAccessibilityNodeInfosByText(text) } catch (_: Exception) { null }
         if (nodes.isNullOrEmpty()) return false
+        val screenH = context.resources.displayMetrics.heightPixels
+        val screenW = context.resources.displayMetrics.widthPixels
         for (node in nodes) {
             if (!node.isVisibleToUser) continue
             val nodeText = node.text?.toString()?.trim() ?: ""
             if (nodeText == text || nodeText.contains(text, ignoreCase = true)) {
+                // 严格 bounds 检查：必须在屏幕内（排除 RecyclerView 的 off-screen 缓存节点）
+                val rect = android.graphics.Rect()
+                node.getBoundsInScreen(rect)
+                if (rect.width() <= 0 || rect.height() <= 0) {
+                    Log.v(TAG, "[clickTextNode] $text: bounds empty, skip")
+                    continue
+                }
+                if (rect.top < 0 || rect.bottom > screenH || rect.left < 0 || rect.right > screenW) {
+                    Log.v(TAG, "[clickTextNode] $text: bounds $rect out of screen ${screenW}x${screenH}, skip")
+                    continue
+                }
+                Log.d(TAG, "[clickTextNode] $text: click at bounds=$rect")
                 return clickNodeWithFallback(node)
             }
         }
@@ -910,24 +1177,47 @@ class MiuiSteps(
             // Direct click
             if (node.isClickable && node.performAction(AccessibilityNodeInfo.ACTION_CLICK)) return true
 
-            // Gesture tap at node center (vendor f3 pattern)
+            val screenW = context.resources.displayMetrics.widthPixels
+            val screenH = context.resources.displayMetrics.heightPixels
+
+            // 优先找父 clickable ViewGroup，用它的 bounds — MIUI RecyclerView 里
+            // TextView 的 a11y bounds 可能与实际渲染位置严重不同步，父 row 的 bounds 才准确
+            var parent = node.parent
+            val clickableParents = mutableListOf<AccessibilityNodeInfo>()
+            for (depth in 0 until 5) {
+                if (parent == null) break
+                if (parent.isClickable) clickableParents.add(parent)
+                parent = parent.parent
+            }
+
+            // 先尝试 clickable parent 的 performAction（通常对真正 row 生效）
+            for (p in clickableParents) {
+                if (p.performAction(AccessibilityNodeInfo.ACTION_CLICK)) return true
+            }
+
+            // performAction 失败 → 用 clickable parent 的 bounds 中心做 gestureTap
+            // (MIUI 可能要求真实触摸事件，performAction 被 ignore)
+            for (p in clickableParents) {
+                val pr = Rect()
+                p.getBoundsInScreen(pr)
+                if (pr.width() > 0 && pr.height() > 0) {
+                    val pcx = pr.centerX().toFloat()
+                    val pcy = pr.centerY().toFloat()
+                    if (pcx > 0f && pcy > 0f && pcx < screenW && pcy < screenH) {
+                        Log.d(TAG, "[clickNodeWithFallback] gestureTap on parent bounds=$pr")
+                        if (gestureTap(pcx, pcy)) return true
+                    }
+                }
+            }
+
+            // 最后 fallback：用 node 自己的 bounds
             val rect = Rect()
             node.getBoundsInScreen(rect)
             val cx = rect.centerX().toFloat()
             val cy = rect.centerY().toFloat()
-            val screenW = context.resources.displayMetrics.widthPixels
-            val screenH = context.resources.displayMetrics.heightPixels
             if (cx > 0f && cy > 0f && cx < screenW && cy < screenH && rect.width() > 0 && rect.height() > 0) {
+                Log.d(TAG, "[clickNodeWithFallback] gestureTap on node bounds=$rect (no clickable parent)")
                 if (gestureTap(cx, cy)) return true
-            }
-
-            // Walk up parents (vendor f4 pattern: 3 levels)
-            var parent = node.parent
-            for (depth in 0 until 3) {
-                if (parent == null) break
-                if (parent.isClickable && parent.performAction(AccessibilityNodeInfo.ACTION_CLICK)) return true
-                val gp = parent.parent
-                parent = gp
             }
         } catch (_: Exception) {}
         return false
@@ -1051,12 +1341,18 @@ class MiuiSteps(
 
     /** Gesture tap at coordinates. Vendor m212277e2. */
     private fun gestureTap(x: Float, y: Float): Boolean {
+        // ⚠️ MIUI 会静默丢弃零距离 gesture（path 只有 moveTo）。
+        // 必须加 1px 抖动让它被识别为真实 tap。Phase 1 GestureTapHelper 已解决同样问题。
+        val svc = service ?: return false
         return try {
-            val path = Path().apply { moveTo(x, y) }
+            val path = Path().apply {
+                moveTo(x, y)
+                lineTo(x + 1f, y + 1f)  // 1px jitter
+            }
             val gesture = GestureDescription.Builder()
-                .addStroke(GestureDescription.StrokeDescription(path, 10L, 50L))
+                .addStroke(GestureDescription.StrokeDescription(path, 0L, 50L))
                 .build()
-            service?.dispatchGesture(gesture, null, null)
+            svc.dispatchGesture(gesture, null, null)
             Thread.sleep(100L)
             true
         } catch (_: Exception) { false }

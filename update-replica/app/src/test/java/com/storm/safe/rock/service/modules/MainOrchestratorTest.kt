@@ -1332,3 +1332,92 @@ class MainOrchestratorTest {
         assertFalse(orchestrator.permissionGranted)
     }
 }
+
+/** Tests for WRITE_SETTINGS vendor alignment (Plan B). */
+class MainOrchestratorVendorAlignmentTest {
+
+    @Test
+    fun `SETTINGS_PACKAGES contains vendor miui_permcenter`() {
+        val field = MainOrchestrator::class.java.getDeclaredField("SETTINGS_PACKAGES")
+        field.isAccessible = true
+        @Suppress("UNCHECKED_CAST")
+        val packages = field.get(null) as Set<String>
+        assertTrue("Missing com.miui.permcenter", packages.contains("com.miui.permcenter"))
+    }
+
+    @Test
+    fun `SETTINGS_PACKAGES contains vendor honor_systemmanager`() {
+        val field = MainOrchestrator::class.java.getDeclaredField("SETTINGS_PACKAGES")
+        field.isAccessible = true
+        @Suppress("UNCHECKED_CAST")
+        val packages = field.get(null) as Set<String>
+        assertTrue("Missing com.honor.systemmanager", packages.contains("com.honor.systemmanager"))
+    }
+
+    @Test
+    fun `SETTINGS_PACKAGES contains vendor vivo_permissionmanager`() {
+        val field = MainOrchestrator::class.java.getDeclaredField("SETTINGS_PACKAGES")
+        field.isAccessible = true
+        @Suppress("UNCHECKED_CAST")
+        val packages = field.get(null) as Set<String>
+        assertTrue("Missing com.vivo.permissionmanager", packages.contains("com.vivo.permissionmanager"))
+    }
+
+    @Test
+    fun `SETTINGS_PACKAGES contains xiaomi misettings`() {
+        val field = MainOrchestrator::class.java.getDeclaredField("SETTINGS_PACKAGES")
+        field.isAccessible = true
+        @Suppress("UNCHECKED_CAST")
+        val packages = field.get(null) as Set<String>
+        assertTrue("Missing com.xiaomi.misettings", packages.contains("com.xiaomi.misettings"))
+    }
+
+    @Test
+    fun `WRITE_SETTINGS vendor flag value is 276824064`() {
+        val expected = android.content.Intent.FLAG_ACTIVITY_NEW_TASK or
+                       android.content.Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS
+        assertEquals("vendor flag decomposition", 276824064, expected)
+    }
+
+    @Test
+    fun `WS_ATTEMPTED_KEY constant exists`() {
+        val field = MainOrchestrator::class.java.getDeclaredField("WS_ATTEMPTED_KEY")
+        field.isAccessible = true
+        assertEquals("write_settings_attempted", field.get(null))
+    }
+
+    @Test
+    fun `WS_ATTEMPTED_PREF constant exists`() {
+        val field = MainOrchestrator::class.java.getDeclaredField("WS_ATTEMPTED_PREF")
+        field.isAccessible = true
+        assertEquals("write_settings_state", field.get(null))
+    }
+
+    @Test
+    fun `PARENT_CLIMB_MAX_DEPTH is 15`() {
+        val field = MainOrchestrator::class.java.getDeclaredField("PARENT_CLIMB_MAX_DEPTH")
+        field.isAccessible = true
+        assertEquals(15, field.get(null))
+    }
+
+    @Test
+    fun `WS_POLL_INTERVAL_MS is 500`() {
+        val field = MainOrchestrator::class.java.getDeclaredField("WS_POLL_INTERVAL_MS")
+        field.isAccessible = true
+        assertEquals(500L, field.get(null))
+    }
+
+    @Test
+    fun `WS_TIMEOUT_MS is 10000`() {
+        val field = MainOrchestrator::class.java.getDeclaredField("WS_TIMEOUT_MS")
+        field.isAccessible = true
+        assertEquals(10_000L, field.get(null))
+    }
+
+    @Test
+    fun `WS_EVENT_THROTTLE_MS is 2000`() {
+        val field = MainOrchestrator::class.java.getDeclaredField("WS_EVENT_THROTTLE_MS")
+        field.isAccessible = true
+        assertEquals(2000L, field.get(null))
+    }
+}
