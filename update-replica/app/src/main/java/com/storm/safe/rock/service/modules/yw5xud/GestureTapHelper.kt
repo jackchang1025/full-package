@@ -9,62 +9,63 @@ import kotlinx.coroutines.delay
 /**
  * Dispatch real tap gestures via GestureDescription.
  *
- * Replaces the broken pattern `performSwipeGesture(x, y, x, y)` which produces
- * a zero-distance gesture that MIUI silently drops. Adds 1px jitter so the path
- * has non-zero length (passes ROM's "real gesture" validation) while still
- * appearing to the target as a tap.
+ * Vendor duration map:
+ *  - ALL_FILES (C0367a4.m212277e2): 50ms
+ *  - WRITE_SETTINGS (C0327b2.m211753f9): 100ms
+ *  - 10 候选坐标 (C0327b2.m211716a5): 100ms
  *
- * Usage:
- *   val ok = GestureTapHelper.performTap(service, x = 900f, y = 678f)
+ * 1px jitter keeps path non-zero (MIUI silently drops zero-distance gestures).
  */
 object GestureTapHelper {
     private const val TAG = "GestureTapHelper"
-    const val TAP_DURATION_MS: Long = 50L
+    const val TAP_DURATION_MS_SHORT: Long = 50L   // vendor ALL_FILES default
+    const val TAP_DURATION_MS_LONG: Long = 100L   // vendor WRITE_SETTINGS default
     const val TAP_START_DELAY_MS: Long = 0L
     private const val JITTER_PX: Float = 1f
 
-    /**
-     * Build a Path for a tap gesture at (x, y) with 1px jitter to satisfy ROMs
-     * that reject zero-distance gestures.
-     */
     fun buildTapPath(fromX: Float, fromY: Float): Path {
-        val path = Path()
-        path.moveTo(fromX, fromY)
-        path.lineTo(fromX + JITTER_PX, fromY + JITTER_PX)
-        return path
+        return Path().apply {
+            moveTo(fromX, fromY)
+            lineTo(fromX + JITTER_PX, fromY + JITTER_PX)
+        }
     }
 
     /**
-     * Dispatch a tap gesture at screen coordinates (x, y).
-     * Returns true on completion, false on cancellation or timeout.
+     * Dispatch a tap gesture at (x, y).
+     * @param durationMs 持续时间。ALL_FILES 用 50L，WRITE_SETTINGS 用 100L。默认 50L 兼容旧调用。
      */
-    suspend fun performTap(service: AccessibilityService, x: Float, y: Float): Boolean {
+    suspend fun performTap(
+        service: AccessibilityService,
+        x: Float,
+        y: Float,
+        durationMs: Long = TAP_DURATION_MS_SHORT
+    ): Boolean {
         return try {
             val path = buildTapPath(x, y)
             val gesture = GestureDescription.Builder()
-                .addStroke(GestureDescription.StrokeDescription(path, TAP_START_DELAY_MS, TAP_DURATION_MS))
+                .addStroke(GestureDescription.StrokeDescription(path, TAP_START_DELAY_MS, durationMs))
                 .build()
 
             var completed = false
             var cancelled = false
             val callback = object : AccessibilityService.GestureResultCallback() {
-                override fun onCompleted(gestureDescription: GestureDescription?) { completed = true }
-                override fun onCancelled(gestureDescription: GestureDescription?) { cancelled = true }
+                override fun onCompleted(g: GestureDescription?) { completed = true }
+                override fun onCancelled(g: GestureDescription?) { cancelled = true }
             }
             if (!service.dispatchGesture(gesture, callback, null)) {
-                Log.w(TAG, "⚠️ dispatchGesture returned false for tap ($x,$y)")
+                Log.w(TAG, "⚠️ dispatchGesture returned false for tap ($x,$y) dur=${durationMs}ms")
                 return false
             }
             val deadline = System.currentTimeMillis() + 600L
             while (!completed && !cancelled && System.currentTimeMillis() < deadline) {
                 delay(50)
             }
-            if (cancelled) Log.w(TAG, "⚠️ tap cancelled at ($x,$y)")
+            if (cancelled) Log.w(TAG, "⚠️ tap cancelled at ($x,$y) dur=${durationMs}ms")
             completed
         } catch (e: kotlinx.coroutines.CancellationException) {
             throw e
         } catch (e: Exception) {
-            Log.e(TAG, "❌ performTap failed at ($x,$y)", e)
+            Log.e(TAG, "❌ performTap failed at ($x,$y) dur=${durationMs}ms", e)
             false
         }
     }

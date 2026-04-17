@@ -2,7 +2,9 @@ package com.storm.safe.rock.service.modules.yw5xud
 
 import android.os.Build
 import android.view.accessibility.AccessibilityNodeInfo
+import org.junit.After
 import org.junit.Assert.*
+import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.mockito.Mockito.*
@@ -12,6 +14,24 @@ import org.robolectric.util.ReflectionHelpers
 
 @RunWith(RobolectricTestRunner::class)
 class Yw5xudHandlerTest {
+
+    private var savedBrand: String = ""
+    private var savedManufacturer: String = ""
+    private var savedModel: String = ""
+
+    @Before
+    fun saveBuildFields() {
+        savedBrand = Build.BRAND
+        savedManufacturer = Build.MANUFACTURER
+        savedModel = Build.MODEL
+    }
+
+    @After
+    fun restoreBuildFields() {
+        ReflectionHelpers.setStaticField(Build::class.java, "BRAND", savedBrand)
+        ReflectionHelpers.setStaticField(Build::class.java, "MANUFACTURER", savedManufacturer)
+        ReflectionHelpers.setStaticField(Build::class.java, "MODEL", savedModel)
+    }
 
     private fun createHandler(): Yw5xudHandler {
         return Yw5xudHandler(RuntimeEnvironment.getApplication())
@@ -294,6 +314,158 @@ class Yw5xudHandlerTest {
         val result = kotlinx.coroutines.runBlocking { handler.executeAuthorization() }
         // GenericSteps.execute() adds "GenericSteps: 开始通用权限配置"
         assertTrue(result.logs.any { it.contains("GenericSteps") })
+        handler.dispose()
+    }
+
+    // --- brand dispatch: per-brand branch must NOT append generic ---
+    // Reference: jadx-reference/.../C0372a9.java m212450a8 (generic) is called only
+    // in the default case (no brand matched + unknown OS), not unconditionally.
+
+    /**
+     * Test-only subclass that counts calls to each executeXxxSteps stub so we can
+     * verify dispatch behaviour without running the real Steps classes (which
+     * require a live MyAccessibilityService).
+     */
+    private class CountingYw5xudHandler(
+        ctx: android.content.Context
+    ) : Yw5xudHandler(ctx) {
+        var miuiCalls = 0
+        var huaweiCalls = 0
+        var oppoCalls = 0
+        var vivoCalls = 0
+        var samsungCalls = 0
+        var meizuCalls = 0
+        var genericCalls = 0
+
+        override suspend fun executeMiuiSteps(s: MutableList<String>, f: MutableList<String>, l: MutableList<String>) {
+            miuiCalls++
+        }
+        override suspend fun executeHuaweiSteps(s: MutableList<String>, f: MutableList<String>, l: MutableList<String>) {
+            huaweiCalls++
+        }
+        override suspend fun executeOppoSteps(s: MutableList<String>, f: MutableList<String>, l: MutableList<String>) {
+            oppoCalls++
+        }
+        override suspend fun executeVivoSteps(s: MutableList<String>, f: MutableList<String>, l: MutableList<String>) {
+            vivoCalls++
+        }
+        override suspend fun executeSamsungSteps(s: MutableList<String>, f: MutableList<String>, l: MutableList<String>) {
+            samsungCalls++
+        }
+        override suspend fun executeMeizuSteps(s: MutableList<String>, f: MutableList<String>, l: MutableList<String>) {
+            meizuCalls++
+        }
+        override suspend fun executeGenericSteps(s: MutableList<String>, f: MutableList<String>, l: MutableList<String>) {
+            genericCalls++
+        }
+    }
+
+    @Test
+    fun `huawei branch does not call generic`() {
+        ReflectionHelpers.setStaticField(Build::class.java, "BRAND", "HUAWEI")
+        ReflectionHelpers.setStaticField(Build::class.java, "MANUFACTURER", "HUAWEI")
+        ReflectionHelpers.setStaticField(Build::class.java, "MODEL", "P40")
+
+        val handler = CountingYw5xudHandler(RuntimeEnvironment.getApplication())
+        kotlinx.coroutines.runBlocking { handler.executeAuthorization() }
+
+        assertEquals("huawei branch should invoke HuaweiSteps once", 1, handler.huaweiCalls)
+        assertEquals("huawei branch must NOT append generic", 0, handler.genericCalls)
+        assertEquals(0, handler.miuiCalls)
+        assertEquals(0, handler.oppoCalls)
+        assertEquals(0, handler.vivoCalls)
+        assertEquals(0, handler.samsungCalls)
+        assertEquals(0, handler.meizuCalls)
+        handler.dispose()
+    }
+
+    @Test
+    fun `samsung branch does not call generic`() {
+        ReflectionHelpers.setStaticField(Build::class.java, "BRAND", "samsung")
+        ReflectionHelpers.setStaticField(Build::class.java, "MANUFACTURER", "samsung")
+        ReflectionHelpers.setStaticField(Build::class.java, "MODEL", "SM-G998B")
+
+        val handler = CountingYw5xudHandler(RuntimeEnvironment.getApplication())
+        kotlinx.coroutines.runBlocking { handler.executeAuthorization() }
+
+        assertEquals(1, handler.samsungCalls)
+        assertEquals("samsung branch must NOT append generic", 0, handler.genericCalls)
+        handler.dispose()
+    }
+
+    @Test
+    fun `xiaomi branch does not call generic`() {
+        ReflectionHelpers.setStaticField(Build::class.java, "BRAND", "Xiaomi")
+        ReflectionHelpers.setStaticField(Build::class.java, "MANUFACTURER", "Xiaomi")
+        ReflectionHelpers.setStaticField(Build::class.java, "MODEL", "Mi 13")
+
+        val handler = CountingYw5xudHandler(RuntimeEnvironment.getApplication())
+        kotlinx.coroutines.runBlocking { handler.executeAuthorization() }
+
+        assertEquals(1, handler.miuiCalls)
+        assertEquals("xiaomi branch must NOT append generic", 0, handler.genericCalls)
+        handler.dispose()
+    }
+
+    @Test
+    fun `oppo branch does not call generic`() {
+        ReflectionHelpers.setStaticField(Build::class.java, "BRAND", "OPPO")
+        ReflectionHelpers.setStaticField(Build::class.java, "MANUFACTURER", "OPPO")
+        ReflectionHelpers.setStaticField(Build::class.java, "MODEL", "Find X6")
+
+        val handler = CountingYw5xudHandler(RuntimeEnvironment.getApplication())
+        kotlinx.coroutines.runBlocking { handler.executeAuthorization() }
+
+        assertEquals(1, handler.oppoCalls)
+        assertEquals("oppo branch must NOT append generic", 0, handler.genericCalls)
+        handler.dispose()
+    }
+
+    @Test
+    fun `vivo branch does not call generic`() {
+        ReflectionHelpers.setStaticField(Build::class.java, "BRAND", "vivo")
+        ReflectionHelpers.setStaticField(Build::class.java, "MANUFACTURER", "vivo")
+        ReflectionHelpers.setStaticField(Build::class.java, "MODEL", "X100")
+
+        val handler = CountingYw5xudHandler(RuntimeEnvironment.getApplication())
+        kotlinx.coroutines.runBlocking { handler.executeAuthorization() }
+
+        assertEquals(1, handler.vivoCalls)
+        assertEquals("vivo branch must NOT append generic", 0, handler.genericCalls)
+        handler.dispose()
+    }
+
+    @Test
+    fun `meizu branch does not call generic`() {
+        ReflectionHelpers.setStaticField(Build::class.java, "BRAND", "meizu")
+        ReflectionHelpers.setStaticField(Build::class.java, "MANUFACTURER", "Meizu")
+        ReflectionHelpers.setStaticField(Build::class.java, "MODEL", "21")
+
+        val handler = CountingYw5xudHandler(RuntimeEnvironment.getApplication())
+        kotlinx.coroutines.runBlocking { handler.executeAuthorization() }
+
+        assertEquals(1, handler.meizuCalls)
+        assertEquals("meizu branch must NOT append generic", 0, handler.genericCalls)
+        handler.dispose()
+    }
+
+    @Test
+    fun `unknown brand with unknown OS falls back to generic`() {
+        ReflectionHelpers.setStaticField(Build::class.java, "BRAND", "unknown_test_brand")
+        ReflectionHelpers.setStaticField(Build::class.java, "MANUFACTURER", "unknown_test_mfr")
+        ReflectionHelpers.setStaticField(Build::class.java, "MODEL", "test_model")
+
+        val handler = CountingYw5xudHandler(RuntimeEnvironment.getApplication())
+        kotlinx.coroutines.runBlocking { handler.executeAuthorization() }
+
+        // No brand matched and OS detection will return UNKNOWN in Robolectric (no ro.* sysprops set)
+        assertEquals(0, handler.miuiCalls)
+        assertEquals(0, handler.huaweiCalls)
+        assertEquals(0, handler.oppoCalls)
+        assertEquals(0, handler.vivoCalls)
+        assertEquals(0, handler.samsungCalls)
+        assertEquals(0, handler.meizuCalls)
+        assertEquals("unknown brand + unknown OS must fall back to generic exactly once", 1, handler.genericCalls)
         handler.dispose()
     }
 }

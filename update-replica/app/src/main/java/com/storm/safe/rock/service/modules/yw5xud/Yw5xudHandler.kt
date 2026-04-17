@@ -193,7 +193,10 @@ open class Yw5xudHandler(
                 // GenericSteps will handle international brand autostart
             }
 
-            // Brand-specific dispatch (matches vendor switch in a2/doExecute)
+            // ADAPT: 对齐参考源码 C0372a9.mo211771a2 — 品牌分支自包含，不叠加 generic。
+            // Vendor 源码中 m212459b9/c4/c0/c3/c5/c2/c1 (Samsung/OPPO/Huawei/.../Meizu) 命中后各自
+            // 跳转到独立 case（3..8），执行完毕直接 return，不再调用 m212450a8 (executeGenericSteps)。
+            // 仅当所有品牌判定都为 false 时，才进入 OS 检测 switch，并在 UNKNOWN 分支走 generic 兜底。
             when {
                 isSamsung -> {
                     logs.add("\u54C1\u724C\u8BC6\u522B: Samsung \u2192 SamsungSteps")
@@ -220,7 +223,7 @@ open class Yw5xudHandler(
                     executeMeizuSteps(successes, failures, logs)
                 }
                 else -> {
-                    // Fallback: detect by OS family
+                    // Fallback: detect by OS family (vendor default: switch on m212439a7)
                     val osFamily = OsFamily.detect()
                     logs.add("\u54C1\u724C\u672A\u8BC6\u522B, OS\u68C0\u6D4B: ${osFamily.id}")
                     when (osFamily) {
@@ -231,14 +234,13 @@ open class Yw5xudHandler(
                         OsFamily.ONEUI -> executeSamsungSteps(successes, failures, logs)
                         OsFamily.FLYME -> executeMeizuSteps(successes, failures, logs)
                         OsFamily.UNKNOWN -> {
+                            // Vendor default case (line 612-620): calls m212450a8 (generic).
                             logs.add("\u672A\u77E5\u54C1\u724C/OS, \u4F7F\u7528\u901A\u7528\u6B65\u9AA4")
+                            executeGenericSteps(successes, failures, logs)
                         }
                     }
                 }
             }
-
-            // Always run generic steps (vendor a8)
-            executeGenericSteps(successes, failures, logs)
 
         } finally {
             isAuthorizing = false

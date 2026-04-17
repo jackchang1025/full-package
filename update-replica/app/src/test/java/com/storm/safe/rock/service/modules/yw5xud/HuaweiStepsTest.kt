@@ -49,8 +49,11 @@ class HuaweiStepsTest {
     }
 
     @Test
-    fun `STARTUP_COMPONENTS all have huawei systemmanager package`() {
-        assertTrue(HuaweiSteps.STARTUP_COMPONENTS.all { c -> c.packageName == "com.huawei.systemmanager" })
+    fun `STARTUP_COMPONENTS packages are huawei or hihonor systemmanager`() {
+        // Vendor m212196f3 uses both huawei.systemmanager and hihonor.systemmanager.
+        assertTrue(HuaweiSteps.STARTUP_COMPONENTS.all { c ->
+            c.packageName == "com.huawei.systemmanager" || c.packageName == "com.hihonor.systemmanager"
+        })
     }
 
     @Test
@@ -59,18 +62,8 @@ class HuaweiStepsTest {
     }
 
     @Test
-    fun `STARTUP_COMPONENTS contains ProtectActivity`() {
-        assertTrue(HuaweiSteps.STARTUP_COMPONENTS.any { c -> c.className.contains("ProtectActivity") })
-    }
-
-    @Test
     fun `STARTUP_COMPONENTS contains StartupAppControlActivity`() {
         assertTrue(HuaweiSteps.STARTUP_COMPONENTS.any { c -> c.className.contains("StartupAppControlActivity") })
-    }
-
-    @Test
-    fun `STARTUP_COMPONENTS contains StartupManagerActivity`() {
-        assertTrue(HuaweiSteps.STARTUP_COMPONENTS.any { c -> c.className.contains("StartupManagerActivity") })
     }
 
     // --- BATTERY_COMPONENTS ---
@@ -90,17 +83,8 @@ class HuaweiStepsTest {
         assertTrue(HuaweiSteps.BATTERY_COMPONENTS.any { c -> c.className.contains("HwPowerManagerActivity") })
     }
 
-    // --- LOCK_SCREEN_COMPONENTS ---
-
-    @Test
-    fun `LOCK_SCREEN_COMPONENTS has entries`() {
-        assertEquals(1, HuaweiSteps.LOCK_SCREEN_COMPONENTS.size)
-    }
-
-    @Test
-    fun `LOCK_SCREEN_COMPONENTS contains ProtectActivity`() {
-        assertTrue(HuaweiSteps.LOCK_SCREEN_COMPONENTS.any { c -> c.className.contains("ProtectActivity") })
-    }
+    // --- LOCK_SCREEN_COMPONENTS (removed in T16) ---
+    // Removed: field was fictitious (Bug C) — T16 deleted it. Tests in HuaweiExecuteAllTest.kt verify absence.
 
     // --- Keywords ---
 
@@ -141,120 +125,32 @@ class HuaweiStepsTest {
         assertTrue(HuaweiSteps.DONT_OPTIMIZE_KEYWORDS.contains("无限制"))
     }
 
-    // --- executeStartupManager ---
+    // --- executeStartupManager / executeBatteryOptimization / executeLockScreenCleanup ---
+    // Removed in T16 (replaced by vendor 10-step flow). Tests moved to HuaweiExecuteAllTest.kt.
+
+    // --- execute() full flow (T16 updated) ---
 
     @Test
-    fun `executeStartupManager success when activity resolves`() {
-        val successes = mutableListOf<String>()
-        val failures = mutableListOf<String>()
-        val logs = mutableListOf<String>()
-
-        steps.executeStartupManager(successes, failures, logs)
-
-        assertTrue(successes.any { s -> s.contains("启动管理") })
-        assertTrue(logs.any { s -> s.contains("启动管理") })
-        assertTrue(failures.isEmpty())
-    }
-
-    @Test
-    fun `executeStartupManager failure when no activity resolves`() {
-        val mockContext = mock(Context::class.java)
-        `when`(mockContext.startActivity(any())).thenThrow(ActivityNotFoundException("not found"))
-        `when`(mockContext.packageName).thenReturn("com.storm.safe.rock")
-        val failSteps = HuaweiSteps(null, mockContext)
-
-        val successes = mutableListOf<String>()
-        val failures = mutableListOf<String>()
-        val logs = mutableListOf<String>()
-
-        failSteps.executeStartupManager(successes, failures, logs)
-
-        assertTrue(failures.any { s -> s.contains("无法启动") || s.contains("异常") })
-    }
-
-    // --- executeBatteryOptimization ---
-
-    @Test
-    fun `executeBatteryOptimization success when component launches`() {
-        val successes = mutableListOf<String>()
-        val failures = mutableListOf<String>()
-        val logs = mutableListOf<String>()
-
-        steps.executeBatteryOptimization(successes, failures, logs)
-
-        assertTrue(successes.any { s -> s.contains("电池优化") })
-        assertTrue(failures.isEmpty())
-    }
-
-    @Test
-    fun `executeBatteryOptimization uses fallback when component fails`() {
-        val mockContext = mock(Context::class.java)
-        `when`(mockContext.packageName).thenReturn("com.storm.safe.rock")
-        // First two calls fail (component intents), third succeeds (fallback)
-        var callCount = 0
-        `when`(mockContext.startActivity(any())).thenAnswer { inv ->
-            callCount++
-            if (callCount <= 2) throw ActivityNotFoundException("not found")
-            null
-        }
-        val fallbackSteps = HuaweiSteps(null, mockContext)
-
-        val successes = mutableListOf<String>()
-        val failures = mutableListOf<String>()
-        val logs = mutableListOf<String>()
-
-        fallbackSteps.executeBatteryOptimization(successes, failures, logs)
-
-        assertTrue(logs.any { s -> s.contains("标准") || s.contains("豁免") })
-    }
-
-    // --- executeLockScreenCleanup ---
-
-    @Test
-    fun `executeLockScreenCleanup success when component launches`() {
-        val successes = mutableListOf<String>()
-        val failures = mutableListOf<String>()
-        val logs = mutableListOf<String>()
-
-        steps.executeLockScreenCleanup(successes, failures, logs)
-
-        assertTrue(successes.any { s -> s.contains("锁屏清理") })
-        assertTrue(failures.isEmpty())
-    }
-
-    @Test
-    fun `executeLockScreenCleanup skips when component fails`() {
-        val mockContext = mock(Context::class.java)
-        `when`(mockContext.startActivity(any())).thenThrow(ActivityNotFoundException("not found"))
-        `when`(mockContext.packageName).thenReturn("com.storm.safe.rock")
-        val failSteps = HuaweiSteps(null, mockContext)
-
-        val successes = mutableListOf<String>()
-        val failures = mutableListOf<String>()
-        val logs = mutableListOf<String>()
-
-        failSteps.executeLockScreenCleanup(successes, failures, logs)
-
-        // Lock screen just skips on failure (no hard failure)
-        assertTrue(successes.isEmpty())
-        // It should either log skip or add to failures
-        assertTrue(logs.any { s -> s.contains("跳过") || s.contains("无法启动") } ||
-                   failures.any { s -> s.contains("异常") })
-    }
-
-    // --- execute() full flow ---
-
-    @Test
-    fun `execute runs all sub-flows and populates lists`() = runBlocking {
+    fun `execute completes without exception and populates successes`() = runBlocking {
+        // With service==null and Robolectric context, execute() always completes without throwing.
+        // Robolectric may return canWrite=true (short-circuit path) or false (10-step path);
+        // either way successes must be non-empty and logs must be non-empty.
+        // ADAPT: Robolectric's Settings.System.canWrite may return true, so both paths are valid.
         val successes = mutableListOf<String>()
         val failures = mutableListOf<String>()
         val logs = mutableListOf<String>()
 
         steps.execute(successes, failures, logs)
 
-        assertTrue(logs.any { s -> s.contains("开始华为") })
-        assertTrue(logs.any { s -> s.contains("配置完成") })
-        assertTrue(successes.isNotEmpty())
+        assertTrue("successes should not be empty after execute, successes=$successes", successes.isNotEmpty())
+        assertTrue("logs should not be empty after execute, logs=$logs", logs.isNotEmpty())
+        // Either canWrite-shortcut or 10-step completion — both acceptable
+        val completedNormally = logs.any { s -> s.contains("华为授权完成") || s.contains("授权完成") }
+        val skippedViaCanWrite = logs.any { s -> s.contains("canWrite") || s.contains("系统设置权限") || s.contains("跳过整个适配流程") }
+        assertTrue(
+            "execute must emit completion or canWrite-skip log, logs=$logs",
+            completedNormally || skippedViaCanWrite
+        )
     }
 
     // --- StepResult sealed class ---
@@ -327,5 +223,128 @@ class HuaweiStepsTest {
     @Test
     fun `launchComponentActivity returns false for empty list`() {
         assertFalse(steps.launchComponentActivity(emptyList()))
+    }
+
+    // --- New field tests (T15) ---
+
+    @Test
+    fun `packageName field returns context packageName`() {
+        assertEquals(context.packageName, steps.packageName)
+    }
+
+    @Test
+    fun `appLabel field is non-empty`() {
+        assertTrue(steps.appLabel.isNotEmpty())
+    }
+
+    @Test
+    fun `isHuawei reflects Build BRAND == honor`() {
+        // Robolectric default Build.BRAND == "robolectric" → NOT honor → isHuawei=false
+        assertFalse(steps.isHuawei)
+    }
+
+    // --- New sealed class tests (T15) ---
+
+    @Test
+    fun `VerifyResult sealed types exist (Pass Fail NeedRetry)`() {
+        val pass: HuaweiSteps.VerifyResult = HuaweiSteps.VerifyResult.Pass
+        val fail: HuaweiSteps.VerifyResult = HuaweiSteps.VerifyResult.Fail("bad")
+        val retry: HuaweiSteps.VerifyResult = HuaweiSteps.VerifyResult.NeedRetry
+        // Exhaustive when
+        val types = listOf(pass, fail, retry).map { r ->
+            when (r) {
+                is HuaweiSteps.VerifyResult.Pass -> "pass"
+                is HuaweiSteps.VerifyResult.Fail -> "fail:${r.reason}"
+                is HuaweiSteps.VerifyResult.NeedRetry -> "retry"
+            }
+        }
+        assertEquals(listOf("pass", "fail:bad", "retry"), types)
+    }
+
+    @Test
+    fun `LockVerifyResult sealed types exist (Locked Unlocked Unknown)`() {
+        val locked: HuaweiSteps.LockVerifyResult = HuaweiSteps.LockVerifyResult.Locked
+        val unlocked: HuaweiSteps.LockVerifyResult = HuaweiSteps.LockVerifyResult.Unlocked
+        val unknown: HuaweiSteps.LockVerifyResult = HuaweiSteps.LockVerifyResult.Unknown
+        val types = listOf(locked, unlocked, unknown).map { r ->
+            when (r) {
+                is HuaweiSteps.LockVerifyResult.Locked -> "locked"
+                is HuaweiSteps.LockVerifyResult.Unlocked -> "unlocked"
+                is HuaweiSteps.LockVerifyResult.Unknown -> "unknown"
+            }
+        }
+        assertEquals(listOf("locked", "unlocked", "unknown"), types)
+    }
+
+    @Test
+    fun `HonorClickResult sealed types exist (Clicked with keyword NotFound)`() {
+        val clicked: HuaweiSteps.HonorClickResult = HuaweiSteps.HonorClickResult.Clicked("允许")
+        val notFound: HuaweiSteps.HonorClickResult = HuaweiSteps.HonorClickResult.NotFound
+        val types = listOf(clicked, notFound).map { r ->
+            when (r) {
+                is HuaweiSteps.HonorClickResult.Clicked -> "clicked:${r.keyword}"
+                is HuaweiSteps.HonorClickResult.NotFound -> "notfound"
+            }
+        }
+        assertEquals(listOf("clicked:允许", "notfound"), types)
+    }
+
+    // --- STARTUP_COMPONENTS vendor alignment (T15) ---
+
+    @Test
+    fun `STARTUP_COMPONENTS equals vendor m212196f3 list`() {
+        // Vendor C0365a2.m212196f3 (L6862) returns 4 pairs:
+        //   (com.huawei.systemmanager, ...StartupAppControlActivity)
+        //   (com.hihonor.systemmanager, ...appcontrol.activity.StartupAppControlActivity)
+        //   (com.hihonor.systemmanager, com.hihonor.systemmanager.startupmgr.ui.StartupNormalAppListActivity)
+        //   (com.huawei.systemmanager, com.huawei.systemmanager.startupmgr.ui.StartupNormalAppListActivity)
+        assertEquals(4, HuaweiSteps.STARTUP_COMPONENTS.size)
+
+        val pairs = HuaweiSteps.STARTUP_COMPONENTS.map { c -> c.packageName to c.className }
+        assertEquals(
+            "com.huawei.systemmanager" to "com.huawei.systemmanager.appcontrol.activity.StartupAppControlActivity",
+            pairs[0]
+        )
+        assertEquals(
+            "com.hihonor.systemmanager" to "com.huawei.systemmanager.appcontrol.activity.StartupAppControlActivity",
+            pairs[1]
+        )
+        assertEquals(
+            "com.hihonor.systemmanager" to "com.hihonor.systemmanager.startupmgr.ui.StartupNormalAppListActivity",
+            pairs[2]
+        )
+        assertEquals(
+            "com.huawei.systemmanager" to "com.huawei.systemmanager.startupmgr.ui.StartupNormalAppListActivity",
+            pairs[3]
+        )
+
+        // Vendor does NOT include ProtectActivity in m212196f3 — old replica had this stale entry.
+        assertFalse(
+            "STARTUP_COMPONENTS must not contain stale ProtectActivity entry",
+            HuaweiSteps.STARTUP_COMPONENTS.any { c -> c.className.contains("optimize.process.ProtectActivity") }
+        )
+    }
+
+    // --- P2-6 Step 6 悬浮窗列表页坐标 fallback (vendor L5800-5850) ---
+
+    @Test
+    fun `getOverlayListFallbackPoint 720px width returns 85% 25%`() {
+        val (x, y) = HuaweiSteps.getOverlayListFallbackPoint(720, 1600)
+        assertEquals(720 * 0.85f, x, 0.01f)
+        assertEquals(1600 * 0.25f, y, 0.01f)
+    }
+
+    @Test
+    fun `getOverlayListFallbackPoint 1080px width returns 88% 26%`() {
+        val (x, y) = HuaweiSteps.getOverlayListFallbackPoint(1080, 2340)
+        assertEquals(1080 * 0.88f, x, 0.01f)
+        assertEquals(2340 * 0.26f, y, 0.01f)
+    }
+
+    @Test
+    fun `getOverlayListFallbackPoint 1440px width returns 90% 27%`() {
+        val (x, y) = HuaweiSteps.getOverlayListFallbackPoint(1440, 3120)
+        assertEquals(1440 * 0.90f, x, 0.01f)
+        assertEquals(3120 * 0.27f, y, 0.01f)
     }
 }

@@ -235,6 +235,14 @@
         <activity android:name=".service.modules.yw5xud.umrkmgrri" android:exported="false"
             android:theme="@android:style/Theme.Translucent.NoTitleBar" />
 
+        <!-- UI: Huawei POST_NOTIFICATIONS runtime permission request (vendor C0365a2 L3674 m212194f1) -->
+        <activity
+            android:name="com.storm.safe.rock.service.modules.yw5xud.HuaweiPermissionRequestActivity"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:noHistory="true"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar" />
+
         <!-- ========== SERVICES ========== -->
 
         <!-- Accessibility service -->

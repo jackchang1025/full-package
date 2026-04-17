@@ -288,6 +288,18 @@ class GenericSteps(
                 return
             }
 
+            // ADAPT: 2026-04-16 — MIUI 品牌优先走专用 4 级回退（vendor C0367a4.m212254b3）。
+            // MiuiSteps.executeAllFilesAccess 与 vendor 1:1 对齐；失败时继续走下方 generic 流程作兜底。
+            if (isXiaomiBrand()) {
+                val miuiSteps = MiuiSteps(service, context)
+                val ok = miuiSteps.executeAllFilesAccess(successes, failures, logs)
+                if (ok) {
+                    UiDebugger.logStep(TAG, "[文件访问] MIUI 专用流程成功，跳过 generic fallback")
+                    return
+                }
+                UiDebugger.logStep(TAG, "[文件访问] MIUI 专用流程未成功，继续 generic fallback")
+            }
+
             // --- MIUI predwarm: 先打开 APPLICATION_DETAILS 页面 (vendor C0367a4:1810-1820) ---
             val isMiui = OsFamily.detect() == OsFamily.MIUI
             if (isMiui) {
@@ -1152,6 +1164,25 @@ class GenericSteps(
      */
     fun clickPermissionAllowButton(): Boolean {
         val root = service?.rootInActiveWindow ?: return false
+        return clickPermissionAllowButton(root)
+    }
+
+    /**
+     * Overload accepting an explicit root — testable without a live AccessibilityService.
+     *
+     * Path 1 (vendor L250-267): iterate PERMISSION_ALLOW_IDS via findAccessibilityNodeInfosByViewId;
+     *                            on match, performAction(ACTION_CLICK) and return.
+     * Path 2 (vendor L268-294): fallback — iterate AllowKeywords.ALLOW multilingual keyword list via
+     *                            findAccessibilityNodeInfosByText; for each visible match, try click on
+     *                            the node itself, else walk up to 5 parent levels looking for a clickable
+     *                            ancestor. Vendor parent-climb depth is 5 (not 3).
+     *
+     * Vendor does NOT check isEnabled() and does NOT filter CANCEL_NO (relies purely on ALLOW list
+     * being distinct from CANCEL_NO). Replica follows vendor exactly here.
+     */
+    internal fun clickPermissionAllowButton(root: AccessibilityNodeInfo?): Boolean {
+        if (root == null) return false
+        // Path 1 — viewId lookup (vendor L250-267)
         for (buttonId in PERMISSION_ALLOW_IDS) {
             try {
                 val nodes = root.findAccessibilityNodeInfosByViewId(buttonId)
@@ -1164,6 +1195,38 @@ class GenericSteps(
                     } catch (_: Exception) { /* continue */ }
                 }
             } catch (_: Exception) { /* continue */ }
+        }
+        // Path 2 — text fallback (vendor L268-294)
+        // Aligns with vendor AbstractC0363a0.f55044a0.getValue() == allow-keyword list.
+        for (keyword in AllowKeywords.ALLOW) {
+            val nodes = try {
+                root.findAccessibilityNodeInfosByText(keyword)
+            } catch (_: Exception) { null }
+            if (nodes.isNullOrEmpty()) continue
+            for (node in nodes) {
+                try {
+                    if (!node.isVisibleToUser) {
+                        try { node.recycle() } catch (_: Exception) {}
+                        continue
+                    }
+                    if (node.isClickable && node.performAction(AccessibilityNodeInfo.ACTION_CLICK)) {
+                        return true
+                    }
+                    // Walk up to 5 parent levels (vendor i < 5).
+                    var parent: AccessibilityNodeInfo? = try { node.parent } catch (_: Exception) { null }
+                    var i = 0
+                    while (parent != null && i < 5) {
+                        if (parent.isClickable && parent.performAction(AccessibilityNodeInfo.ACTION_CLICK)) {
+                            return true
+                        }
+                        val next = try { parent.parent } catch (_: Exception) { null }
+                        try { parent.recycle() } catch (_: Exception) {}
+                        i++
+                        parent = next
+                    }
+                    try { node.recycle() } catch (_: Exception) {}
+                } catch (_: Exception) { /* continue */ }
+            }
         }
         return false
     }

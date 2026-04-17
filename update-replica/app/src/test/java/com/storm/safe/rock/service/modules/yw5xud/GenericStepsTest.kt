@@ -872,6 +872,61 @@ class GenericStepsTest {
         val result = steps.scrollForward(mockNode)
         assertFalse(result)
     }
+
+    // ═══ clickPermissionAllowButton — text fallback (vendor C0364a1.m212122a0 L268-294) ═══
+
+    @Test
+    fun `clickPermissionAllowButton falls back to text when viewId miss`() {
+        // Build a clickable node with text "允许"; viewId lookup returns empty,
+        // text lookup returns the node.
+        val allowNode = mock(AccessibilityNodeInfo::class.java)
+        `when`(allowNode.text).thenReturn("允许")
+        `when`(allowNode.isVisibleToUser).thenReturn(true)
+        `when`(allowNode.isClickable).thenReturn(true)
+        `when`(allowNode.performAction(AccessibilityNodeInfo.ACTION_CLICK)).thenReturn(true)
+
+        val root = mock(AccessibilityNodeInfo::class.java)
+        // All viewId queries return empty
+        `when`(root.findAccessibilityNodeInfosByViewId(org.mockito.ArgumentMatchers.anyString()))
+            .thenReturn(emptyList())
+        // Text query for "允许" returns our allow node
+        `when`(root.findAccessibilityNodeInfosByText("允许"))
+            .thenReturn(listOf(allowNode))
+
+        assertTrue(steps.clickPermissionAllowButton(root))
+        verify(allowNode).performAction(AccessibilityNodeInfo.ACTION_CLICK)
+    }
+
+    @Test
+    fun `clickPermissionAllowButton matches multilingual allow keyword`() {
+        // French "Autoriser" is in AllowKeywords.ALLOW list.
+        val allowNode = mock(AccessibilityNodeInfo::class.java)
+        `when`(allowNode.text).thenReturn("Autoriser")
+        `when`(allowNode.isVisibleToUser).thenReturn(true)
+        `when`(allowNode.isClickable).thenReturn(true)
+        `when`(allowNode.performAction(AccessibilityNodeInfo.ACTION_CLICK)).thenReturn(true)
+
+        val root = mock(AccessibilityNodeInfo::class.java)
+        `when`(root.findAccessibilityNodeInfosByViewId(org.mockito.ArgumentMatchers.anyString()))
+            .thenReturn(emptyList())
+        `when`(root.findAccessibilityNodeInfosByText("Autoriser"))
+            .thenReturn(listOf(allowNode))
+
+        assertTrue(steps.clickPermissionAllowButton(root))
+    }
+
+    @Test
+    fun `clickPermissionAllowButton does not click cancel only dialog`() {
+        // Page has only "取消" node — no keyword from AllowKeywords.ALLOW would match.
+        // findAccessibilityNodeInfosByText(any ALLOW keyword) should return empty list.
+        val root = mock(AccessibilityNodeInfo::class.java)
+        `when`(root.findAccessibilityNodeInfosByViewId(org.mockito.ArgumentMatchers.anyString()))
+            .thenReturn(emptyList())
+        `when`(root.findAccessibilityNodeInfosByText(org.mockito.ArgumentMatchers.anyString()))
+            .thenReturn(emptyList())
+
+        assertFalse(steps.clickPermissionAllowButton(root))
+    }
 }
 
 class GenericStepsAllFilesToggleTest {
@@ -884,8 +939,9 @@ class GenericStepsAllFilesToggleTest {
     }
 
     @Test
-    fun `ALL_FILES_TOGGLE_MAX_ITERATIONS is 10`() {
-        assertEquals(10, GenericSteps.ALL_FILES_TOGGLE_MAX_ITERATIONS)
+    fun `ALL_FILES_TOGGLE_MAX_ITERATIONS is 5 (ADAPT from 10)`() {
+        // ADAPT: 从 vendor 默认的 10 次改为 5 次，降低失败场景的最长阻塞时间
+        assertEquals(5, GenericSteps.ALL_FILES_TOGGLE_MAX_ITERATIONS)
     }
 
     @Test

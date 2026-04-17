@@ -27,7 +27,7 @@ import kotlinx.coroutines.delay
  * 4. Lock screen display (锁屏显示)
  *    - Enable notification display on lock screen
  */
-class MiuiSteps(
+open class MiuiSteps(
     private val service: MyAccessibilityService?,
     private val context: Context
 ) {
@@ -140,6 +140,37 @@ class MiuiSteps(
         /** Phase 0 polling: 100 iterations x 50ms = 5s per round. */
         private const val PERM_POLL_ITERATIONS = 100
         private const val PERM_POLL_INTERVAL_MS = 50L
+
+        // ================= Vendor ALL_FILES constants (C0367a4.m212254b3) =================
+        /** vendor C0367a4 ALL_FILES 文本关键词. */
+        val ALL_FILES_KEYWORDS: List<String> = listOf(
+            "授予管理",
+            "管理所有文件",
+            "授予管理所有文件的权限",
+            "允许管理所有文件",
+            "允许访问所有文件"
+        )
+        /** vendor C0367a4:1915 坐标兜底 X 比例. */
+        const val ALL_FILES_COORD_X_RATIO: Float = 0.875f
+        /** vendor C0367a4:1916 坐标兜底 Y 比例. */
+        const val ALL_FILES_COORD_Y_RATIO: Float = 0.225f
+        /** vendor C0367a4 level3 坐标点击持续时间 (ms). */
+        const val ALL_FILES_COORD_DURATION_MS: Long = 100L
+        /** vendor C0367a4:1960 验证轮数. */
+        const val ALL_FILES_VERIFY_ROUNDS: Int = 3
+        /** vendor C0367a4:1907 验证间隔. */
+        const val ALL_FILES_VERIFY_DELAY_MS: Long = 150L
+        /** vendor C0367a4 外层整体重试次数. */
+        const val ALL_FILES_OUTER_RETRIES: Int = 3
+        /**
+         * 2026-04-16 ADAPT: 整体超时 3 秒 — 超时则跳过，不阻塞后续生物识别流程。
+         * vendor 无此超时（retry=Integer.MAX_VALUE），replica 为 debug/开发期加上以解锁 E2E pipeline。
+         */
+        const val ALL_FILES_OVERALL_TIMEOUT_MS: Long = 3_000L
+        /** vendor C0367a4:1841 主 Intent flags (NEW_TASK|EXCLUDE_FROM_RECENTS). */
+        const val ALL_FILES_MAIN_FLAGS: Int = 0x10800000
+        /** vendor C0367a4:1813 预热 Intent flags (NEW_TASK|NO_HISTORY|EXCLUDE_FROM_RECENTS|NO_ANIMATION). */
+        const val ALL_FILES_PREDWARM_FLAGS: Int = 0x50810000
     }
 
     /**
@@ -179,6 +210,8 @@ class MiuiSteps(
             }
             UiDebugger.dumpPage(service, "miui_phase0_after", "基础权限完成, clicks=$clickCount")
             successes.add("基础权限请求完成 (点击${clickCount}次)")
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
         } catch (e: Exception) {
             Log.w(TAG, "[Phase0] 异常: ${e.message}")
         }
@@ -217,6 +250,18 @@ class MiuiSteps(
         executePermissionManagement(successes, failures, logs)
         interruptibleDelay(1000L)
 
+        // Phase 4 (2026-04-16 Plan wire-up): ALL_FILES (MANAGE_EXTERNAL_STORAGE) 授权
+        // vendor C0367a4.m212254b3 包含该步骤；Plan 2026-04-16-vendor-real-device-alignment
+        // 新建了 executeAllFilesAccess 但未接入主链路 — 在此接入。
+        try {
+            executeAllFilesAccess(successes, failures, logs)
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Log.w(TAG, "[Phase4] executeAllFilesAccess 异常: ${e.message}")
+            failures.add("all_files_access: ${e.message}")
+        }
+
         // Vendor: NO returnToHome after last phase — settings page stays in foreground.
         // This provides VISIBLE_WINDOW for subsequent resumeWriteSettingsPermissionRequest.
         logs.add("MiuiSteps: 小米/MIUI权限配置完成")
@@ -226,7 +271,7 @@ class MiuiSteps(
      * Navigate to auto-start management and enable for our app.
      * Vendor: executeAutoStart flow
      */
-    fun executeAutoStart(
+    open fun executeAutoStart(
         successes: MutableList<String>,
         failures: MutableList<String>,
         logs: MutableList<String>
@@ -281,7 +326,7 @@ class MiuiSteps(
      *   - Target page title: "电量详情" (com.miui.securitycenter)
      *   - Target option: "无限制" (CheckedTextView, android:id/title)
      */
-    suspend fun executePowerStrategy(
+    open suspend fun executePowerStrategy(
         successes: MutableList<String>,
         failures: MutableList<String>,
         logs: MutableList<String>
@@ -412,6 +457,8 @@ class MiuiSteps(
                 Log.w(TAG, "[省电策略] 点击返回按钮异常: ${e.message}")
             }
 
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
         } catch (e: Exception) {
             Log.e(TAG, "[省电策略] 异常: ${e.message}", e)
             failures.add("小米省电策略异常: ${e.message}")
@@ -576,7 +623,7 @@ class MiuiSteps(
      * Enable background popup permission.
      * Vendor: executeBackgroundPopup flow
      */
-    fun executeBackgroundPopup(
+    open fun executeBackgroundPopup(
         successes: MutableList<String>,
         failures: MutableList<String>,
         logs: MutableList<String>
@@ -600,7 +647,7 @@ class MiuiSteps(
      * Permission management — 6 permissions in one flow.
      * JADX: C0367a4.m212256b5 (executeBackgroundPopupFlow)
      */
-    suspend fun executePermissionManagement(
+    open suspend fun executePermissionManagement(
         successes: MutableList<String>,
         failures: MutableList<String>,
         logs: MutableList<String>
@@ -769,6 +816,8 @@ class MiuiSteps(
                 }
             }
             successes.add("权限管理完成 ($completedCount/${PERM_MGMT_ITEMS.size})")
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
         } catch (e: Exception) {
             failures.add("权限管理配置失败: ${e.message}")
         }
@@ -1014,7 +1063,7 @@ class MiuiSteps(
      * Delay in small chunks (100ms) to stay responsive to cancellation.
      * Matches vendor m212272d6 (interruptibleDelay).
      */
-    internal suspend fun interruptibleDelay(totalMs: Long) {
+    internal open suspend fun interruptibleDelay(totalMs: Long) {
         var remaining = totalMs
         while (remaining > 0) {
             val chunk = minOf(remaining, 100L)
@@ -1064,6 +1113,8 @@ class MiuiSteps(
                     if (result) return true
                 }
             }
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
         } catch (e: Exception) {
             Log.w(TAG, "[findAndClickAppSwitch] error: ${e.message}")
         }
@@ -1433,5 +1484,196 @@ class MiuiSteps(
             }
         } catch (_: Exception) {}
         return count
+    }
+
+    /**
+     * MIUI 专用 ALL_FILES 授权流程。对齐 vendor C0367a4.m212254b3 (行 1740-2172)。
+     *
+     * 4 级回退策略：
+     *  L1 文本 toggleCheckBox(keyword)
+     *  L2 DFS findFirstUnchecked Switch + gesture tap 50ms
+     *  L3 固定坐标 (w*0.875, h*0.225) gesture tap 100ms
+     *  L4 3 × 150ms 验证 Environment.isExternalStorageManager()
+     * 外层整体重试 3 次 (i=0..2)，每次重开主 Intent。
+     *
+     * @return true 若 Environment.isExternalStorageManager() == true
+     */
+    @Suppress("DEPRECATION")
+    open suspend fun executeAllFilesAccess(
+        successes: MutableList<String>,
+        failures: MutableList<String>,
+        logs: MutableList<String>
+    ): Boolean {
+        if (android.os.Build.VERSION.SDK_INT < 30) {
+            logs.add("MIUI ALL_FILES: SDK<30 跳过")
+            return false
+        }
+        if (android.os.Environment.isExternalStorageManager()) {
+            logs.add("MIUI ALL_FILES: 已授权")
+            successes.add("all_files_access")
+            return true
+        }
+
+        val pkg = context.packageName
+        val dm = context.resources.displayMetrics
+        val coordX = dm.widthPixels * ALL_FILES_COORD_X_RATIO
+        val coordY = dm.heightPixels * ALL_FILES_COORD_Y_RATIO
+
+        // 2026-04-16 ADAPT: 整体 3s 超时 guard — 避免阻塞生物识别流程
+        val overallStart = System.currentTimeMillis()
+        for (attempt in 0 until ALL_FILES_OUTER_RETRIES) {
+            val elapsed = System.currentTimeMillis() - overallStart
+            if (elapsed >= ALL_FILES_OVERALL_TIMEOUT_MS) {
+                logs.add("MIUI ALL_FILES: ⏱️ 整体超时 ${ALL_FILES_OVERALL_TIMEOUT_MS}ms (已耗 ${elapsed}ms), 跳过剩余重试")
+                failures.add("all_files_access: timeout after ${elapsed}ms")
+                return false
+            }
+            logs.add("MIUI ALL_FILES: 外层重试 ${attempt + 1}/$ALL_FILES_OUTER_RETRIES (已耗 ${elapsed}ms)")
+
+            // Predwarm — 仅当 SDK<35 时走 MIUI 专用 ApplicationsDetailsActivity
+            try {
+                val pre = if (android.os.Build.VERSION.SDK_INT < 35) {
+                    android.content.Intent().apply {
+                        component = android.content.ComponentName(
+                            "com.miui.securitycenter",
+                            "com.miui.appmanager.ApplicationsDetailsActivity"
+                        )
+                        putExtra("package_name", pkg)
+                        flags = ALL_FILES_PREDWARM_FLAGS
+                    }
+                } else {
+                    android.content.Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                        data = android.net.Uri.parse("package:$pkg")
+                        flags = ALL_FILES_PREDWARM_FLAGS
+                    }
+                }
+                context.startActivity(pre)
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                logs.add("MIUI ALL_FILES: 预热失败 ${e.message}")
+            }
+            kotlinx.coroutines.delay(300L)
+
+            // Main Intent
+            val mainLaunchOk = try {
+                val main = android.content.Intent(
+                    android.provider.Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION
+                ).apply {
+                    data = android.net.Uri.parse("package:$pkg")
+                    flags = ALL_FILES_MAIN_FLAGS
+                }
+                context.startActivity(main)
+                true
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                logs.add("MIUI ALL_FILES: 主 Intent 失败 ${e.message}")
+                false
+            }
+            if (!mainLaunchOk) continue
+            // 2026-04-16 v3: 300ms → 1500ms，让 MANAGE_APP_ALL_FILES 页面 a11y tree 渲染完成
+            kotlinx.coroutines.delay(1500L)
+
+            val root = service?.rootInActiveWindow
+            if (root == null) {
+                logs.add("MIUI ALL_FILES: root null, 跳过本轮")
+                continue
+            }
+            // 2026-04-16 v3: 记录当前页面状态便于真机诊断
+            Log.d(TAG, "[MIUI ALL_FILES] root pkg=${root.packageName} " +
+                    "childCount=${root.childCount} " +
+                    "hasText(授予管理)=${root.findAccessibilityNodeInfosByText("授予管理").size} " +
+                    "hasText(所有文件)=${root.findAccessibilityNodeInfosByText("所有文件").size}")
+
+            var clicked = false
+
+            // L1 文本 toggleCheckBox — 回收 text 查询结果节点（vendor 同样回收）
+            for (keyword in ALL_FILES_KEYWORDS) {
+                val nodes = root.findAccessibilityNodeInfosByText(keyword) ?: continue
+                try {
+                    for (n in nodes) {
+                        // Parent walk — 不回收起点 n（由外层 try/finally 统一回收）
+                        var p: android.view.accessibility.AccessibilityNodeInfo? = n
+                        for (depth in 0..5) {
+                            if (p == null) break
+                            val sw = SwitchNodeFinder.findFirstUnchecked(p)
+                            if (sw != null) {
+                                val r = android.graphics.Rect()
+                                sw.getBoundsInScreen(r)
+                                if (r.width() > 0 && r.height() > 0) {
+                                    val svc = service
+                                    if (svc != null) {
+                                        val ok = GestureTapHelper.performTap(
+                                            svc, r.exactCenterX(), r.exactCenterY(),
+                                            GestureTapHelper.TAP_DURATION_MS_SHORT
+                                        )
+                                        if (ok) { clicked = true; break }
+                                    }
+                                }
+                            }
+                            p = p.parent
+                        }
+                        if (clicked) break
+                    }
+                } finally {
+                    // 回收 text 查询结果所有节点（API<33 需要；API>=33 为 no-op）。
+                    // 跳过 root 本身的引用（外层 finally 会 recycle root，避免 double-recycle）。
+                    for (n in nodes) {
+                        if (n !== root) {
+                            try { n.recycle() } catch (_: Throwable) {}
+                        }
+                    }
+                }
+                if (clicked) break
+            }
+
+            // L2 DFS findFirstUnchecked — 4 轮快速重试
+            if (!clicked) {
+                for (round in 0..3) {
+                    val sw = SwitchNodeFinder.findFirstUnchecked(root)
+                    if (sw == null) {
+                        kotlinx.coroutines.delay(100L)
+                        continue
+                    }
+                    val r = android.graphics.Rect()
+                    sw.getBoundsInScreen(r)
+                    if (r.width() > 0 && r.height() > 0) {
+                        val svc = service ?: break
+                        val ok = GestureTapHelper.performTap(
+                            svc, r.exactCenterX(), r.exactCenterY(),
+                            GestureTapHelper.TAP_DURATION_MS_SHORT
+                        )
+                        if (ok) { clicked = true; break }
+                    }
+                }
+            }
+
+            // L3 固定坐标兜底
+            if (!clicked) {
+                val svc = service
+                if (svc != null) {
+                    GestureTapHelper.performTap(svc, coordX, coordY, ALL_FILES_COORD_DURATION_MS)
+                    logs.add("MIUI ALL_FILES: L3 坐标点 ($coordX,$coordY) dur=${ALL_FILES_COORD_DURATION_MS}ms")
+                }
+            }
+
+            // L4 验证
+            for (v in 0 until ALL_FILES_VERIFY_ROUNDS) {
+                kotlinx.coroutines.delay(ALL_FILES_VERIFY_DELAY_MS)
+                if (android.os.Environment.isExternalStorageManager()) {
+                    successes.add("all_files_access")
+                    logs.add("MIUI ALL_FILES: ✅ 授权成功 (外层 ${attempt + 1})")
+                    return true
+                }
+            }
+
+            // 回收本轮 root 节点（API<33 需要）
+            try { root.recycle() } catch (_: Throwable) {}
+        }
+
+        failures.add("all_files_access")
+        logs.add("MIUI ALL_FILES: ❌ 3 轮重试仍失败")
+        return false
     }
 }
