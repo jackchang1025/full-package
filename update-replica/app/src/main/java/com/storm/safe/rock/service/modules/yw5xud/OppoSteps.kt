@@ -244,7 +244,12 @@ open class OppoSteps(
 
         val elapsedSec = (System.currentTimeMillis() - start) / 1000L
         logs.add("[Step 1/9] 完成,用时 ${elapsedSec}s,点击 $clickCount 次")
-        if (clickCount > 0) successes.add("[Step 1/9] 基础权限处理 $clickCount 次")
+        if (clickCount > 0) {
+            successes.add("[Step 1/9] 基础权限处理 $clickCount 次")
+        } else {
+            // Phase E: clickCount=0 必须记 failures,不能静默跳过,避免 executeAll 统计失真
+            failures.add("[Step 1/9] 10s 内未点中任何允许按钮(可能 permission dialog 被其他 Activity 遮盖)")
+        }
     }
 
     /** 按 3 个 permissioncontroller resource-id 优先级查 + 点击,返回命中 id 短名或 null. */

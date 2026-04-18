@@ -128,4 +128,20 @@ class OppoStep1BasicPermsTest {
             assertTrue("Step1 should exit within 15s; elapsed=${elapsed}ms", elapsed < 15_000L)
         }
     }
+
+    @Test fun `step1 adds to failures when no buttons clicked within timeout`() {
+        runBlocking {
+            val svc = mock(MyAccessibilityService::class.java)
+            `when`(svc.rootInActiveWindow).thenReturn(null)  // 整个 10s 都 rootInActiveWindow=null
+
+            val steps = spy(OppoSteps(svc, context))
+            val failures = mutableListOf<String>()
+            steps.executeStep1BasicPermissions(mutableListOf(), failures, mutableListOf())
+
+            assertTrue(
+                "Step 1 clickCount=0 时必须记 failures,不能静默跳过;实际 failures=$failures",
+                failures.any { it.contains("Step 1") }
+            )
+        }
+    }
 }
