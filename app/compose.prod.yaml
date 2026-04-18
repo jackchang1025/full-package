@@ -84,7 +84,7 @@ services:
         ports:
             - '${FRPS_BIND_PORT:-7000}:7000'        # frp 协议端口
             - '${FRPS_DASHBOARD_PORT:-7500}:7500'    # Dashboard 管理面板
-            - '20000-30000:20000-30000'               # 设备隧道端口 (生产环境开放完整范围)
+            - '127.0.0.1:20000-30000:20000-30000'    # 设备隧道端口，仅绑定本地回环地址。Laravel 通过 docker service 名称访问 frps
         volumes:
             - './docker/frps/frps.ini:/etc/frp/frps.ini:ro'
         networks:
