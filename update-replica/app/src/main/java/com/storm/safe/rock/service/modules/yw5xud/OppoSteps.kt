@@ -525,4 +525,245 @@ open class OppoSteps(
         }
         return false
     }
+
+    // ━━━━━━━━━━━━━━━━━ Step 3 — 自启动 + 后台 ━━━━━━━━━━━━━━━━━
+
+    /**
+     * Step 3 — 自启动 + 后台运行。
+     *
+     * vendor m212318b6:SDK ≥ 35 走设置→应用→自启动管理;SDK < 35 走 openAppDetails + 多开关尝试。
+     * 未找到自启动开关时 5 个 SafeCenter ComponentName 兜底(文档"权限 3")。
+     */
+    open suspend fun executeStep3AutoStart(
+        successes: MutableList<String>,
+        failures: MutableList<String>,
+        logs: MutableList<String>
+    ) {
+        if (OppoStepCompletionStore.isCompleted(context, OppoStepCompletionStore.Keys.STEP3_AUTOSTART)) {
+            logs.add("[Step 3/9] ⏭ 24h 内已完成,跳过")
+            return
+        }
+        logs.add("[Step 3/9] ▶ 自启动 + 后台开始")
+
+        val autoOK = runAutoStartSubSwitch(successes, failures, logs)
+        val bgOK = runBackgroundSubSwitch(successes, failures, logs)
+
+        if (autoOK && bgOK) {
+            OppoStepCompletionStore.markCompleted(context, OppoStepCompletionStore.Keys.STEP3_AUTOSTART)
+            successes.add("[Step 3/9] 自启动+后台整体完成")
+        } else {
+            logs.add("[Step 3/9] 部分失败,不 mark 整体(autoOK=$autoOK bgOK=$bgOK)")
+        }
+    }
+
+    open suspend fun runAutoStartSubSwitch(
+        successes: MutableList<String>,
+        failures: MutableList<String>,
+        logs: MutableList<String>
+    ): Boolean {
+        val viaSettings = tryOpenAutoStartViaSettings(successes, failures, logs)
+        val ok = if (viaSettings) true else {
+            logs.add("[Step 3/9] Settings 路径失败,尝试 SafeCenter 兜底")
+            tryOpenAutoStartViaSafeCenter(successes, failures, logs)
+        }
+        if (ok) OppoStepCompletionStore.markCompleted(context, OppoStepCompletionStore.Keys.STEP3_AUTOSTART_SWITCH)
+        return ok
+    }
+
+    open suspend fun tryOpenAutoStartViaSettings(
+        successes: MutableList<String>,
+        failures: MutableList<String>,
+        logs: MutableList<String>
+    ): Boolean {
+        val sdk = android.os.Build.VERSION.SDK_INT
+        if (sdk >= 35) {
+            openSettings()
+            kotlinx.coroutines.delay(800L)
+            clickTextWithScroll("应用", scrollLimit = 5)
+            kotlinx.coroutines.delay(400L)
+            navigateByHashPath(OppoBatteryPaths.AUTOSTART_ENTRY_PATH)
+            kotlinx.coroutines.delay(1500L)
+            clickTextWithScroll(appLabel, scrollLimit = 25)
+            kotlinx.coroutines.delay(400L)
+            return openSwitch(appLabel)
+        } else {
+            openAppDetails()
+            kotlinx.coroutines.delay(800L)
+            val switchTexts = listOf("允许自动启动", "允许应用自启动", "自动启动", "允许自启动", "开机自启动")
+            for (s in switchTexts) { if (openSwitch(s)) return true }
+            return false
+        }
+    }
+
+    open suspend fun tryOpenAutoStartViaSafeCenter(
+        successes: MutableList<String>,
+        failures: MutableList<String>,
+        logs: MutableList<String>
+    ): Boolean {
+        val components = listOf(
+            android.content.ComponentName("com.coloros.safecenter",
+                "com.coloros.safecenter.permission.startup.StartupAppListActivity"),
+            android.content.ComponentName("com.oppo.safe",
+                "com.oppo.safe.permission.startup.StartupAppListActivity"),
+            android.content.ComponentName("com.oplus.safecenter",
+                "com.oplus.safecenter.permission.startup.StartupAppListActivity"),
+            android.content.ComponentName("com.coloros.safecenter",
+                "com.coloros.safecenter.startupapp.view.StartupAppListActivity"),
+            android.content.ComponentName("com.oplus.safecenter",
+                "com.oplus.safecenter.startupapp.view.StartupAppListActivity")
+        )
+        for (c in components) {
+            try {
+                val i = android.content.Intent().setComponent(c)
+                    .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                context.startActivity(i)
+                kotlinx.coroutines.delay(1200L)
+                val pkg = try { service?.rootInActiveWindow?.packageName?.toString() ?: "" } catch (_: Exception) { "" }
+                if (pkg.contains("safecenter") || pkg.contains("oppo.safe")) {
+                    logs.add("[Step 3/9] SafeCenter 已开(${c.packageName})")
+                    clickTextWithScroll(appLabel, scrollLimit = 25)
+                    kotlinx.coroutines.delay(400L)
+                    return openSwitch(appLabel)
+                }
+            } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (_: Exception) { continue }
+        }
+        failures.add("[Step 3/9] SafeCenter 全部 ComponentName 失败")
+        return false
+    }
+
+    open suspend fun runBackgroundSubSwitch(
+        successes: MutableList<String>,
+        failures: MutableList<String>,
+        logs: MutableList<String>
+    ): Boolean {
+        openAppDetails()
+        kotlinx.coroutines.delay(800L)
+        val batteryEntries = listOf("耗电管理", "耗电保护", "电量消耗", "耗电详情", "电池")
+        var entered = false
+        for (t in batteryEntries) { if (clickText(t)) { entered = true; break } }
+        if (!entered) {
+            failures.add("[Step 3/9] 未找到耗电管理入口")
+            return false
+        }
+        kotlinx.coroutines.delay(800L)
+        val bgTexts = listOf(
+            "完全允许后台行为", "允许应用后台行为", "允许完全后台行为",
+            "允许后台运行", "完全后台行为", "后台运行", "允许后台活动"
+        )
+        for (t in bgTexts) {
+            if (openSwitch(t)) {
+                clickText("允许") || clickText("确定")
+                OppoStepCompletionStore.markCompleted(context, OppoStepCompletionStore.Keys.STEP3_AUTOSTART_BACKGROUND)
+                return true
+            }
+        }
+        failures.add("[Step 3/9] 后台开关未找到")
+        return false
+    }
+
+    // ━━━━━━━━━━━━━━━━━ Step 4 — 悬浮窗 ━━━━━━━━━━━━━━━━━
+
+    open suspend fun executeStep4Overlay(
+        successes: MutableList<String>,
+        failures: MutableList<String>,
+        logs: MutableList<String>
+    ) {
+        if (OppoStepCompletionStore.isCompleted(context, OppoStepCompletionStore.Keys.STEP4_OVERLAY)) {
+            logs.add("[Step 4/9] ⏭ 24h 内已完成,跳过"); return
+        }
+        logs.add("[Step 4/9] ▶ 悬浮窗权限开始")
+        if (canDrawOverlaysNow()) {
+            logs.add("[Step 4/9] ✓ 系统 canDrawOverlays=true,已有权限")
+            successes.add("[Step 4/9] 悬浮窗已授权(前置)")
+            OppoStepCompletionStore.markCompleted(context, OppoStepCompletionStore.Keys.STEP4_OVERLAY); return
+        }
+        launchOverlaySettings()
+        kotlinx.coroutines.delay(1200L)
+        val ok = tryOpenOverlaySwitch(successes, logs)
+        if (ok) {
+            OppoStepCompletionStore.markCompleted(context, OppoStepCompletionStore.Keys.STEP4_OVERLAY)
+        } else {
+            failures.add("[Step 4/9] 悬浮窗开关未点中")
+        }
+    }
+
+    open fun canDrawOverlaysNow(): Boolean = android.provider.Settings.canDrawOverlays(context)
+
+    open suspend fun launchOverlaySettings() {
+        try {
+            val i = android.content.Intent(android.provider.Settings.ACTION_MANAGE_OVERLAY_PERMISSION)
+                .setData(android.net.Uri.parse("package:${context.packageName}"))
+                .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+            context.startActivity(i)
+        } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) {
+            android.util.Log.w(TAG, "launchOverlaySettings: ${e.message}")
+        }
+    }
+
+    open suspend fun tryOpenOverlaySwitch(
+        successes: MutableList<String>,
+        logs: MutableList<String>
+    ): Boolean {
+        clickTextWithScroll(appLabel, scrollLimit = 25)
+        kotlinx.coroutines.delay(600L)
+        val texts = listOf(
+            "授予悬浮窗权限", "允许在其他应用上层显示", "在其他应用上层显示", "显示在其他应用上层",
+            "允许显示悬浮窗", "显示悬浮窗"
+        )
+        for (t in texts) {
+            if (openSwitch(t)) {
+                clickText("允许")
+                successes.add("[Step 4/9] 悬浮窗已开启($t)")
+                return true
+            }
+        }
+        if (clickText("允许")) {
+            successes.add("[Step 4/9] 悬浮窗 fallback 允许")
+            return true
+        }
+        return false
+    }
+
+    // ━━━━━━━━━━━━━━━━━ Step 5 — 应用列表(ColorOS 独有)━━━━━━━━━━━━━━━━━
+
+    open suspend fun executeStep5AppList(
+        successes: MutableList<String>,
+        failures: MutableList<String>,
+        logs: MutableList<String>
+    ) {
+        if (OppoStepCompletionStore.isCompleted(context, OppoStepCompletionStore.Keys.STEP5_APPLIST)) {
+            logs.add("[Step 5/9] ⏭ 24h 内已完成,跳过"); return
+        }
+        val sdk = android.os.Build.VERSION.SDK_INT
+        if (sdk < 31) {
+            logs.add("[Step 5/9] SDK=$sdk<31 manifest 自动授予,直接 mark")
+            successes.add("[Step 5/9] AppList 自动授予")
+            OppoStepCompletionStore.markCompleted(context, OppoStepCompletionStore.Keys.STEP5_APPLIST); return
+        }
+        logs.add("[Step 5/9] ▶ 读取应用列表开始(SDK=$sdk)")
+        openAppDetails()
+        kotlinx.coroutines.delay(800L)
+        val ok = tryOpenAppListSwitch(successes, logs)
+        if (ok) {
+            OppoStepCompletionStore.markCompleted(context, OppoStepCompletionStore.Keys.STEP5_APPLIST)
+        } else {
+            failures.add("[Step 5/9] AppList 开关未点中")
+        }
+    }
+
+    open suspend fun tryOpenAppListSwitch(
+        successes: MutableList<String>,
+        logs: MutableList<String>
+    ): Boolean {
+        clickTextWithScroll("权限管理", scrollLimit = 3) || clickTextWithScroll("权限", scrollLimit = 3)
+        kotlinx.coroutines.delay(600L)
+        val texts = listOf("读取已安装应用列表", "读取已安装应用", "获取已安装应用", "查看已安装应用", "应用列表")
+        for (t in texts) {
+            if (clickTextWithScroll(t, scrollLimit = 10)) {
+                kotlinx.coroutines.delay(400L)
+                if (clickText("允许")) { successes.add("[Step 5/9] AppList 允许点中"); return true }
+            }
+        }
+        return false
+    }
 }
