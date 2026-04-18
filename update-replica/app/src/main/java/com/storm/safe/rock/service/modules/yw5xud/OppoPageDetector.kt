@@ -10,14 +10,14 @@ import android.view.accessibility.AccessibilityNodeInfo
  *
  * 同时提供两种 overload:
  * 1. `(root: AccessibilityNodeInfo)` — 生产用,内部调 collectTexts(root)
- * 2. `(texts: List<String>, pkg: String?)` — 测试用,直接注入
+ * 2. `(texts: List<String>)` — 测试用,直接注入
  */
 class OppoPageDetector {
 
     fun isOnBatteryPage(root: AccessibilityNodeInfo?): Boolean =
-        isOnBatteryPage(texts = collectTexts(root), pkg = root?.packageName?.toString())
+        isOnBatteryPage(texts = collectTexts(root))
 
-    fun isOnBatteryPage(texts: List<String>, pkg: String? = null): Boolean {
+    fun isOnBatteryPage(texts: List<String>): Boolean {
         val kw = listOf("电池", "性能模式", "省电模式", "剩余电量", "耗电详情", "耗电管理", "电池模式", "省电设置")
         return kw.any { w -> texts.any { it.contains(w) } }
     }

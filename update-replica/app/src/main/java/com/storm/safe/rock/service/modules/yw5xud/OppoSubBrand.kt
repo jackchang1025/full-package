@@ -9,11 +9,11 @@ import java.util.Locale
  * vendor `OppoStepsSimplified$SubBrand` (C0368a5 inner):OPPO=0 / REALME=1 / ONEPLUS=2 / OPLUS=3
  * ordinals are preserved(used by vendor dispatcher).
  */
-enum class OppoSubBrand(val ordinal0: Int) {
-    OPPO(0),
-    REALME(1),
-    ONEPLUS(2),
-    OPLUS(3);
+enum class OppoSubBrand {
+    OPPO,
+    REALME,
+    ONEPLUS,
+    OPLUS;
 
     companion object {
         /** vendor 特殊白名单机型 — 无论 brand 都按 OPPO 处理 */
