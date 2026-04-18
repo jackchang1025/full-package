@@ -57,15 +57,6 @@ class OppoStepsTest {
     }
 
     @Test
-    fun `PERMISSION_ALLOW_IDS contains AOSP IDs`() {
-        val ids = OppoSteps.PERMISSION_ALLOW_IDS
-        assertTrue(ids.any { id -> id.contains("permission_allow_button") })
-        assertTrue(ids.any { id -> id.startsWith("android:id/") })
-        assertTrue(ids.any { id -> id.contains("button1") })
-        assertTrue(ids.any { id -> id.contains("button2") })
-    }
-
-    @Test
     fun `AUTOSTART_KEYWORDS has Chinese and English`() {
         val keywords = OppoSteps.AUTOSTART_KEYWORDS
         assertTrue(keywords.any { k -> k.contains("自启动") })

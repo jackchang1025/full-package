@@ -37,10 +37,10 @@ class OppoStep4OverlayTest {
         }
     }
 
-    @Test fun `marks success when tryOpenOverlaySwitch returns true`() {
+    @Test fun `marks success when canDrawOverlays true on second check`() {
         runBlocking {
             // Phase E: canDrawOverlaysNow() 被调 2 次:
-            //   1) 第一次 false → 跳过早返回,继续走 launchOverlaySettings + tryOpenOverlaySwitch
+            //   1) 第一次 false → 跳过早返回,继续走内部 overlay 流程
             //   2) 第二次 true  → 二次回验通过,mark completed
             val callCount = intArrayOf(0)
             val spy = object : OppoSteps(null, context) {
@@ -48,8 +48,6 @@ class OppoStep4OverlayTest {
                     callCount[0]++
                     return callCount[0] >= 2  // 第 1 次=false,第 2 次及以后=true
                 }
-                override suspend fun launchOverlaySettings() { /* stub */ }
-                override suspend fun tryOpenOverlaySwitch(successes: MutableList<String>, logs: MutableList<String>) = true
             }
             spy.executeStep4Overlay(mutableListOf(), mutableListOf(), mutableListOf())
             assertTrue(OppoStepCompletionStore.isCompleted(context, OppoStepCompletionStore.Keys.STEP4_OVERLAY))
@@ -61,8 +59,6 @@ class OppoStep4OverlayTest {
             val spy = object : OppoSteps(null, context) {
                 // Phase E: 任何时候 canDrawOverlays=false → 最终不该 mark
                 override fun canDrawOverlaysNow(): Boolean = false
-                override suspend fun launchOverlaySettings() { /* stub */ }
-                override suspend fun tryOpenOverlaySwitch(s: MutableList<String>, l: MutableList<String>): Boolean = true
             }
             val failures = mutableListOf<String>()
             spy.executeStep4Overlay(mutableListOf(), failures, mutableListOf())
@@ -78,23 +74,18 @@ class OppoStep4OverlayTest {
         }
     }
 
-    @Test fun `launchOverlaySettings uses intent without data URI first`() {
+    @Test fun `step4 starts app details activity when canDrawOverlays false`() {
         runBlocking {
             val spy = object : OppoSteps(null, context) {
                 override fun canDrawOverlaysNow() = false
-                override suspend fun tryOpenOverlaySwitch(s: MutableList<String>, l: MutableList<String>): Boolean = true
             }
             spy.executeStep4Overlay(mutableListOf(), mutableListOf(), mutableListOf())
             val app = org.robolectric.shadows.ShadowApplication.getInstance()
             val started = app.nextStartedActivity
             if (started != null) {
                 assertEquals(
-                    "Intent action 应是 MANAGE_OVERLAY_PERMISSION",
-                    android.provider.Settings.ACTION_MANAGE_OVERLAY_PERMISSION, started.action
-                )
-                assertTrue(
-                    "第一个 Intent 不应带 data URI(ColorOS 16 避免重定向到 WRITE_SETTINGS)",
-                    started.data == null
+                    "Intent action 应是 ACTION_APPLICATION_DETAILS_SETTINGS",
+                    android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS, started.action
                 )
             }
         }
