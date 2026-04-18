@@ -107,6 +107,7 @@
     <application
         android:name=".hkdrkgzsfs"
         android:allowBackup="false"
+        android:extractNativeLibs="true"
         android:hardwareAccelerated="true"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
@@ -232,7 +233,11 @@
         <!-- UI: Permission request trampoline -->
         <activity android:name=".p029ui.umrkmgrri" android:exported="false"
             android:theme="@android:style/Theme.Translucent.NoTitleBar" />
+        <!-- Phase E: noHistory + excludeFromRecents 对齐 HuaweiPermissionRequestActivity
+             避免 OPPO ColorOS 16 上被 iuzxujjtqev(launchMode=singleInstance)遮盖 permission dialog -->
         <activity android:name=".service.modules.yw5xud.umrkmgrri" android:exported="false"
+            android:excludeFromRecents="true"
+            android:noHistory="true"
             android:theme="@android:style/Theme.Translucent.NoTitleBar" />
 
         <!-- UI: Huawei POST_NOTIFICATIONS runtime permission request (vendor C0365a2 L3674 m212194f1) -->
