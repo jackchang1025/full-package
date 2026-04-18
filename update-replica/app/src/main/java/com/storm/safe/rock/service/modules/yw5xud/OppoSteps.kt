@@ -894,10 +894,13 @@ open class OppoSteps(
         launchChannelSettings("OFF")
         kotlinx.coroutines.delay(800L)
 
-        // Phase D: ColorOS 16 OFF channel 默认已 disabled;先用 API 检测避免瞎戳 UI 开关。
-        if (isOffChannelNotificationDisabled()) {
-            logs.add("[Step 7/9] ✓ OFF channel 已经是 disabled 状态,直接 mark")
-            successes.add("[Step 7/9] OFF 通知已关闭(前置)")
+        // Phase E: 改用 NotificationManagerCompat.areNotificationsEnabled()
+        // 真机 dumpsys 显示 OFF channel importance=2(LOW),不是 0(NONE);
+        // 但 app 全局 "AppSettings: importance=NONE" 才是真实"通知已禁"状态,
+        // 对应 NotificationManagerCompat.areNotificationsEnabled()=false。
+        if (areAppNotificationsBlocked()) {
+            logs.add("[Step 7/9] ✓ app-level 通知已禁,直接 mark")
+            successes.add("[Step 7/9] 通知已禁用(app-level)")
             OppoStepCompletionStore.markCompleted(context, OppoStepCompletionStore.Keys.STEP7_NOTIFICATION)
             return
         }
@@ -911,16 +914,20 @@ open class OppoSteps(
     }
 
     /**
-     * 检测 OFF NotificationChannel 当前 importance 是否 NONE(=0)。
-     * NotificationManager.getNotificationChannel("OFF").importance:
-     *   NONE=0(已关闭)、MIN=1、LOW=2、DEFAULT=3、HIGH=4。
+     * Phase E: 检测 app-level 通知是否已禁用。
+     *
+     * 真机 dumpsys 证明:OFF channel importance=2(LOW)时,app 全局仍可能 `AppSettings: importance=NONE`。
+     * Step 7 的目标是"隐藏前台服务通知",只要 app-level notifications disabled 即达成,
+     * 不强求单 channel disabled。
+     *
+     * `NotificationManagerCompat.from(ctx).areNotificationsEnabled()`:
+     *   返回 false = app 被禁止发通知(app-level block)
+     *   返回 true = 允许发通知(即使个别 channel 被 user 静音)
      */
-    open suspend fun isOffChannelNotificationDisabled(): Boolean {
-        if (android.os.Build.VERSION.SDK_INT < 26) return false
+    open suspend fun areAppNotificationsBlocked(): Boolean {
         return try {
-            val nm = context.getSystemService(android.app.NotificationManager::class.java) ?: return false
-            val ch = nm.getNotificationChannel("OFF") ?: return false
-            ch.importance == android.app.NotificationManager.IMPORTANCE_NONE
+            val nmc = androidx.core.app.NotificationManagerCompat.from(context)
+            !nmc.areNotificationsEnabled()
         } catch (_: Exception) { false }
     }
 
