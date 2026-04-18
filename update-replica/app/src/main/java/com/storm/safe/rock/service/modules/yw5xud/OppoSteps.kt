@@ -62,6 +62,17 @@ open class OppoSteps(
             )
         )
 
+        /**
+         * Step 1 permission dialog allow-button resource-ids,按优先级 3 个(Android 12+ permissioncontroller)。
+         * PERMISSION_ALLOW_IDS 是更宽泛的 8-id fallback 列表(含 packageinstaller 等老 Android 版本);
+         * STEP1_ALLOW_IDS 是华为真机 25/26 validated 的最小稳定集。
+         */
+        val STEP1_ALLOW_IDS = listOf(
+            "com.android.permissioncontroller:id/permission_allow_button",
+            "com.android.permissioncontroller:id/permission_allow_foreground_only_button",
+            "com.android.permissioncontroller:id/permission_allow_one_time_button"
+        )
+
         /** Permission allow button IDs for ColorOS. */
         val PERMISSION_ALLOW_IDS = listOf(
             "com.android.permissioncontroller:id/permission_allow_button",
@@ -238,12 +249,7 @@ open class OppoSteps(
 
     /** 按 3 个 permissioncontroller resource-id 优先级查 + 点击,返回命中 id 短名或 null. */
     private fun clickPermissionControllerAllowButton(root: android.view.accessibility.AccessibilityNodeInfo): String? {
-        val ids = listOf(
-            "com.android.permissioncontroller:id/permission_allow_button",
-            "com.android.permissioncontroller:id/permission_allow_foreground_only_button",
-            "com.android.permissioncontroller:id/permission_allow_one_time_button"
-        )
-        for (id in ids) {
+        for (id in STEP1_ALLOW_IDS) {
             val nodes = try { root.findAccessibilityNodeInfosByViewId(id) } catch (_: Exception) { null } ?: continue
             for (n in nodes) {
                 try { if (!n.isVisibleToUser) continue } catch (_: Exception) { /* mock may throw */ }

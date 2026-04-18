@@ -77,6 +77,9 @@ class OppoStep1BasicPermsTest {
                 .findAccessibilityNodeInfosByViewId(
                     "com.android.permissioncontroller:id/permission_allow_foreground_only_button")
             doReturn(emptyList<AccessibilityNodeInfo>()).`when`(root)
+                .findAccessibilityNodeInfosByViewId(
+                    "com.android.permissioncontroller:id/permission_allow_one_time_button")
+            doReturn(emptyList<AccessibilityNodeInfo>()).`when`(root)
                 .findAccessibilityNodeInfosByText(anyString())
 
             val steps = spy(OppoSteps(svc, context))
