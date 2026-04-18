@@ -677,11 +677,21 @@ open class OppoSteps(
         }
         launchOverlaySettings()
         kotlinx.coroutines.delay(1200L)
-        val ok = tryOpenOverlaySwitch(successes, logs)
-        if (ok) {
+        val switchClicked = tryOpenOverlaySwitch(successes, logs)
+
+        // Phase E: 点完开关后二次回验 Settings.canDrawOverlays() 真实效果,
+        // 避免点到"不允许"按钮或其他应用的允许按钮而虚假 mark success。
+        kotlinx.coroutines.delay(500L)
+        val actuallyGranted = canDrawOverlaysNow()
+        if (actuallyGranted) {
+            logs.add("[Step 4/9] ✓ canDrawOverlays 回验通过,mark completed")
+            successes.add("[Step 4/9] 悬浮窗已授权(真实效果回验)")
             OppoStepCompletionStore.markCompleted(context, OppoStepCompletionStore.Keys.STEP4_OVERLAY)
         } else {
-            failures.add("[Step 4/9] 悬浮窗开关未点中")
+            failures.add(
+                if (switchClicked) "[Step 4/9] 开关点中但 canDrawOverlays 仍 false(可能点到错按钮)"
+                else "[Step 4/9] 悬浮窗开关未点中"
+            )
         }
     }
 
