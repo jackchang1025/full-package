@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Exceptions\ResourceAccessDeniedException;
+use App\Http\Requests\Device\DeviceProxyRequest;
 use App\Http\Requests\Device\UpdateDeviceRequest;
 use App\Models\Device;
 use App\Models\Setting;
@@ -11,6 +12,8 @@ use App\Services\FrpcConfigService;
 use App\Services\PanelTokenService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\RateLimiter;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -221,6 +224,56 @@ class DeviceController extends Controller
             'port_map' => $device->getFrpcPortMap(),
             'base_url' => (new DeviceProxyService())->getDeviceBaseUrl($device),
         ]);
+    }
+
+    /**
+     * 透明代理：将 Panel 指令通过 frpc 隧道转发给设备 HTTP API。
+     * POST /devices/{device}/api-proxy
+     */
+    public function apiProxy(DeviceProxyRequest $request, Device $device): JsonResponse
+    {
+        $this->ensureDeviceOwnership($device, $request->user());
+
+        $validated = $request->validated();
+
+        if ($validated['path'] === '/syncLockCipher') {
+            $key = 'device-cipher:' . $request->user()->id;
+            if (RateLimiter::tooManyAttempts($key, 5)) {
+                $seconds = RateLimiter::availableIn($key);
+                return response()->json([
+                    'success' => false,
+                    'status' => 429,
+                    'data' => null,
+                    'error' => "Too many cipher change attempts; retry in {$seconds}s",
+                ], 429);
+            }
+            RateLimiter::hit($key, 60);
+        }
+
+        Log::channel('security')->info('device.api_proxy', [
+            'user_id'   => $request->user()->id,
+            'device_id' => $device->uuid,
+            'method'    => $validated['method'],
+            'path'      => $validated['path'],
+            'query'     => array_keys($validated['query'] ?? []),
+            'body_keys' => array_keys($validated['body'] ?? []),
+            'ip'        => $request->ip(),
+        ]);
+
+        $proxy = new DeviceProxyService;
+        $result = $proxy->request(
+            device: $device,
+            method: $validated['method'],
+            path: $validated['path'],
+            query: $validated['query'] ?? [],
+            body: $validated['body'] ?? [],
+        )->toArray();
+
+        if (! $result['success'] && $result['status'] === 0) {
+            $result['error'] = 'Device is unreachable or tunnel is not active';
+        }
+
+        return response()->json($result);
     }
 
     /**

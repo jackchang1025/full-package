@@ -57,6 +57,9 @@ Route::prefix($userEntryPath)->middleware(['auth', 'subscription'])->group(funct
         Route::post('/devices/{device}/frpc-action', [DeviceController::class, 'frpcAction'])->name('devices.frpc-action');
         Route::get('/devices/{device}/frpc-screenshot', [DeviceController::class, 'frpcScreenshot'])->name('devices.frpc-screenshot');
         Route::post('/devices/{device}/frpc-config', [DeviceController::class, 'frpcConfig'])->name('devices.frpc-config');
+        Route::post('/devices/{device}/api-proxy', [DeviceController::class, 'apiProxy'])
+            ->middleware('throttle:60,1')
+            ->name('devices.api-proxy');
     });
 
     // 构建相关：需对应权限（builds.view / builds.create / builds.delete）
