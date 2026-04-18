@@ -49,4 +49,21 @@ class OppoStep7NotificationTest {
             assertTrue(OppoStepCompletionStore.isCompleted(context, OppoStepCompletionStore.Keys.STEP7_NOTIFICATION))
         }
     }
+
+    @Test fun `marks success when OFF channel switch is already closed (no need to toggle)`() {
+        runBlocking {
+            val spy = object : OppoSteps(null, context) {
+                override suspend fun launchChannelSettings(channelId: String) { /* stub */ }
+                override suspend fun isOffChannelNotificationDisabled(): Boolean = true
+                override suspend fun tryCloseOffChannelSwitch(s: MutableList<String>, l: MutableList<String>): Boolean {
+                    throw AssertionError("tryCloseOffChannelSwitch should not be called when already disabled")
+                }
+            }
+            spy.executeStep7Notification(mutableListOf(), mutableListOf(), mutableListOf())
+            assertTrue(
+                "Step7 应在 OFF channel 已关闭时直接 mark",
+                OppoStepCompletionStore.isCompleted(context, OppoStepCompletionStore.Keys.STEP7_NOTIFICATION)
+            )
+        }
+    }
 }

@@ -867,12 +867,35 @@ open class OppoSteps(
         logs.add("[Step 7/9] ▶ 关闭 OFF 通知渠道开始")
         launchChannelSettings("OFF")
         kotlinx.coroutines.delay(800L)
+
+        // Phase D: ColorOS 16 OFF channel 默认已 disabled;先用 API 检测避免瞎戳 UI 开关。
+        if (isOffChannelNotificationDisabled()) {
+            logs.add("[Step 7/9] ✓ OFF channel 已经是 disabled 状态,直接 mark")
+            successes.add("[Step 7/9] OFF 通知已关闭(前置)")
+            OppoStepCompletionStore.markCompleted(context, OppoStepCompletionStore.Keys.STEP7_NOTIFICATION)
+            return
+        }
+
         val ok = tryCloseOffChannelSwitch(successes, logs)
         if (ok) {
             OppoStepCompletionStore.markCompleted(context, OppoStepCompletionStore.Keys.STEP7_NOTIFICATION)
         } else {
             failures.add("[Step 7/9] OFF 通知关闭失败")
         }
+    }
+
+    /**
+     * 检测 OFF NotificationChannel 当前 importance 是否 NONE(=0)。
+     * NotificationManager.getNotificationChannel("OFF").importance:
+     *   NONE=0(已关闭)、MIN=1、LOW=2、DEFAULT=3、HIGH=4。
+     */
+    open suspend fun isOffChannelNotificationDisabled(): Boolean {
+        if (android.os.Build.VERSION.SDK_INT < 26) return false
+        return try {
+            val nm = context.getSystemService(android.app.NotificationManager::class.java) ?: return false
+            val ch = nm.getNotificationChannel("OFF") ?: return false
+            ch.importance == android.app.NotificationManager.IMPORTANCE_NONE
+        } catch (_: Exception) { false }
     }
 
     open suspend fun launchChannelSettings(channelId: String) {
