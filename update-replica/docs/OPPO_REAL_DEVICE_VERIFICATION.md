@@ -251,3 +251,79 @@ App 级 importance=NONE 是系统自动设置，非本步骤设置。
 - **未处理(Phase E)**: Step 1 runtime permissions / Step 6 switch_widget MANAGE_EXTERNAL_STORAGE / Step 7 OFF channel importance=NONE / Step 8 RecentsActivity
 - **success 从 2 升至 3** (+1 来自 Step 5 QUERY_ALL_PACKAGES manifest 自动授予)
 - **耗时从 116s 降至 88s** (-28s, 因 Step 5 跳过 UI 流程)
+
+---
+
+## Phase E 回归验证(2026-04-18 14:00)
+
+### 5 个修复的实际效果
+
+| Task | 预期效果 | 真机实测 | 状态 |
+|------|---------|---------|:---:|
+| 1 umrkmgrri manifest noHistory/excludeFromRecents | 解除 iuzxujjtqev 遮盖 | **未解决**(见深度分析) | ❌ |
+| 2 Step1 clickCount=0 记 failures | 失败列表含 Step 1 提示 | `[Step 1/9] 10s 内未点中任何允许按钮(可能 permission dialog 被其他 Activity 遮盖)` | ✅ |
+| 3 Step4 canDrawOverlays 二次回验 | 拦截假 success | `[Step 4/9] 开关点中但 canDrawOverlays 仍 false(可能点到错按钮)` | ✅ |
+| 4 Step7 areNotificationsEnabled | app-level 判定 | `[Step 7/9] ✓ app-level 通知已禁,直接 mark` | ✅ |
+| 5 Step2 isIgnoringBatteryOptimizations | 拦截假 success | `[Step 2/9] OPPO 电池 UI 点击完毕但 isIgnoringBatteryOptimizations 回验=false` | ✅ |
+
+### 整体指标对比
+
+| 指标 | Task 10 | Phase D | Phase E | 评价 |
+|------|:---:|:---:|:---:|:---:|
+| Runtime dangerous granted | 0/18 | 0/18 | **0/18** | Task 1 未生效 |
+| executeAll success/failure | 2/7 | 3/5 | **4/6** | 统计更准确(Step1 不再静默)|
+| Step 4 假 success | 假 | 假 | **真拦截** | Task 3 ✓ |
+| Step 7 mark | UI fail | 错 API | **正确 API** | Task 4 ✓ |
+| Step 2 假 mark | 真假混杂 | 同 | **真拦截** | Task 5 ✓ |
+
+### Task 1 Manifest 修复失效的深度分析
+
+**iuzxujjtqev 遮盖问题比 Phase E 假设更深层。**
+
+aapt2 dump 确认 APK manifest 正确加入 `noHistory="true"` + `excludeFromRecents="true"`:
+```
+A: android:name="com.storm.safe.rock.service.modules.yw5xud.umrkmgrri"
+A: android:excludeFromRecents=true
+A: android:noHistory=true
+```
+
+但真机 logcat 显示 umrkmgrri 启动后 **抢不到 focus**:
+```
+13:57:11.455 START umrkmgrri  task=593  (umrkmgrri 在独立 task)
+13:57:11.460 NFW_setLastResumedActivityUncheckLocked:true r:umrkmgrri
+             currentFocus:iuzxujjtqev   ← 关键:focus 仍是 iuzxujjtqev!
+13:57:11.469 PermReqActivity ★★★ 请求系统弹窗... ★★★
+13:57:11.487 [onResume] 通知权限状态: 未授权
+(此后 onRequestPermissionsResult 无日志 — permission dialog 未真实激活)
+```
+
+**真实根因:**
+- `iuzxujjtqev` 是 `launchMode="singleInstance"`,独占 task 592,**永远不让出 focus**
+- `umrkmgrri` 即便走 `FLAG_ACTIVITY_NEW_TASK` 到 task 593,**两个 task 共存但 focus 归 iuzxujjtqev**
+- `noHistory + excludeFromRecents` 只影响 **back stack 管理**(Activity finish 后不保留 + 不进 recents),**不改 focus 优先级**
+- 没有 focus 的 Activity 其 `requestPermissions()` 虽然被系统接受,但 GrantPermissionsActivity 弹窗被 task 592 的 iuzxujjtqev 压下去,不会激活用户交互
+
+### Phase F 必需的修复(Phase E 范围外)
+
+**Step 1 根本解决方案需要代码级改动**:
+
+选项 A(推荐):OppoSteps.executeStep1BasicPermissions 启动 umrkmgrri **之前** 强制 finish iuzxujjtqev
+```kotlin
+// 伪代码:Step 1 开头
+iuzxujjtqevBridge.finishIfAlive()
+kotlinx.coroutines.delay(300L)
+svc.startActivity(Intent(context, umrkmgrri::class.java))
+```
+
+选项 B:umrkmgrri manifest 改 `launchMode="singleTask"` + intent flags 加 `FLAG_ACTIVITY_REORDER_TO_FRONT | FLAG_ACTIVITY_CLEAR_TOP`,强制抢 focus
+
+选项 C:Step 1 前 `performGlobalAction(HOME)` → 回桌面 → 再启动 umrkmgrri(让 iuzxujjtqev 被 HOME 挤走)
+
+选项 A 最小侵入,Phase F 实施。
+
+### Phase F 仍需处理的其他问题
+
+- Step 3 Settings 路径 UI 文本 ColorOS 16 适配(需手动 dump)
+- Step 4 真实 Overlay 开关 resource-id(需手动 dump)
+- Step 6 真实 switch resource-id(switch_widget fallback 无效)
+- Step 8 RecentsActivity UI(需手动 dump)
