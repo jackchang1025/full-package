@@ -480,7 +480,7 @@ open class OppoSteps(
     }
 
     /** 文本点击(单层,不滚动)— 复用 Task 1 的 clickTextOnRoot */
-    protected fun clickText(text: String): Boolean {
+    open fun clickText(text: String): Boolean {
         val root = try { service?.rootInActiveWindow } catch (_: Exception) { null } ?: return false
         return clickTextOnRoot(root, text)
     }
@@ -500,7 +500,7 @@ open class OppoSteps(
     protected fun closeSwitch(text: String): Boolean = toggleSwitch(text, desiredChecked = false)
 
     /** 开启名为 text 的 Switch */
-    protected fun openSwitch(text: String): Boolean = toggleSwitch(text, desiredChecked = true)
+    open fun openSwitch(text: String): Boolean = toggleSwitch(text, desiredChecked = true)
 
     private fun toggleSwitch(text: String, desiredChecked: Boolean): Boolean {
         val root = try { service?.rootInActiveWindow } catch (_: Exception) { null } ?: return false
@@ -522,6 +522,22 @@ open class OppoSteps(
                 p = try { p.parent } catch (_: Exception) { null }
                 depth++
             }
+        }
+        return false
+    }
+
+    /**
+     * Phase D: 直接用 resource-id 查找 Switch/CheckBox 并 toggle 到 checked=true。
+     * ColorOS 16 许多 Settings 页的 Switch id 是 android:id/switch_widget,不依赖 label。
+     */
+    open fun toggleSwitchById(id: String): Boolean {
+        val root = try { service?.rootInActiveWindow } catch (_: Exception) { null } ?: return false
+        val nodes = try { root.findAccessibilityNodeInfosByViewId(id) } catch (_: Exception) { null } ?: return false
+        for (sw in nodes) {
+            try { if (!sw.isVisibleToUser) continue } catch (_: Exception) {}
+            val isChecked = try { sw.isChecked } catch (_: Exception) { false }
+            if (isChecked) return true
+            if (performClickOrAncestor(sw)) return true
         }
         return false
     }
@@ -835,6 +851,12 @@ open class OppoSteps(
         )
         var toggled = false
         for (s in switches) { if (openSwitch(s)) { toggled = true; break } }
+
+        // Phase D: ColorOS 16 — label 文本都没匹配到时直接用 resource-id 查 Switch
+        if (!toggled) {
+            if (toggleSwitchById("android:id/switch_widget")) { toggled = true }
+        }
+
         if (!toggled) {
             for (b in listOf("开启", "Enable", "Turn on")) { if (clickText(b)) { toggled = true; break } }
         }
