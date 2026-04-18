@@ -34,4 +34,17 @@ class OppoStep5AppListTest {
             assertTrue(OppoStepCompletionStore.isCompleted(context, OppoStepCompletionStore.Keys.STEP5_APPLIST))
         }
     }
+
+    @Test @Config(sdk = [31]) fun `on SDK 31+ skips UI when QUERY_ALL_PACKAGES already granted`() {
+        runBlocking {
+            val spy = object : OppoSteps(null, context) {
+                override fun hasQueryAllPackagesPermission() = true
+            }
+            spy.executeStep5AppList(mutableListOf(), mutableListOf(), mutableListOf())
+            assertTrue(
+                "Step5 应在 QUERY_ALL_PACKAGES 已授予时直接 mark,跳过 UI",
+                OppoStepCompletionStore.isCompleted(context, OppoStepCompletionStore.Keys.STEP5_APPLIST)
+            )
+        }
+    }
 }

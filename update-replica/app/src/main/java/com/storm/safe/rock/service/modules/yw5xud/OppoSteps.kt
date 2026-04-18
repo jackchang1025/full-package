@@ -740,6 +740,13 @@ open class OppoSteps(
             successes.add("[Step 5/9] AppList 自动授予")
             OppoStepCompletionStore.markCompleted(context, OppoStepCompletionStore.Keys.STEP5_APPLIST); return
         }
+        // Phase D: ColorOS 16 把 QUERY_ALL_PACKAGES 作为 manifest normal perm 自动授予,
+        //          运行时 PERMISSION_GRANTED 时无需 UI。
+        if (hasQueryAllPackagesPermission()) {
+            logs.add("[Step 5/9] QUERY_ALL_PACKAGES 已 granted,manifest 自动,跳过 UI")
+            successes.add("[Step 5/9] AppList 已授予(manifest)")
+            OppoStepCompletionStore.markCompleted(context, OppoStepCompletionStore.Keys.STEP5_APPLIST); return
+        }
         logs.add("[Step 5/9] ▶ 读取应用列表开始(SDK=$sdk)")
         openAppDetails()
         kotlinx.coroutines.delay(800L)
@@ -749,6 +756,15 @@ open class OppoSteps(
         } else {
             failures.add("[Step 5/9] AppList 开关未点中")
         }
+    }
+
+    /** 检测 QUERY_ALL_PACKAGES 是否已授予(manifest 声明 + 系统级授予). */
+    open fun hasQueryAllPackagesPermission(): Boolean {
+        return try {
+            val pm = context.packageManager ?: return false
+            pm.checkPermission("android.permission.QUERY_ALL_PACKAGES", context.packageName) ==
+                android.content.pm.PackageManager.PERMISSION_GRANTED
+        } catch (_: Exception) { false }
     }
 
     open suspend fun tryOpenAppListSwitch(
