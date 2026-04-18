@@ -55,6 +55,7 @@ import MicTab from '@/Components/DeviceControl/tabs/MicTab.vue';
 
 import { useDeviceWebSocket } from '@/composables/useDeviceWebSocket';
 import { useScreenControl } from '@/composables/useScreenControl';
+import { useDeviceApi } from '@/composables/useDeviceApi';
 import {
     useDeviceData,
     parseSmsData,
@@ -108,6 +109,7 @@ const {
 
 const screenControl = useScreenControl(send, deviceId);
 const deviceData = useDeviceData(send, deviceId, message);
+const deviceApi = useDeviceApi(deviceId.value, message);
 
 const screenData = ref<string | null>(null);
 const screenWidth = ref(1080);
@@ -334,14 +336,22 @@ const handleStopScreen = () => {
 };
 
 const handleNavigate = (type: 'home' | 'back' | 'recent') => {
-    screenControl.sendNavigation(type);
+    deviceApi.call('POST', '/global/action', {
+        body: { actionName: type },
+    });
 };
 
 const handleVolumeUp = () => screenControl.sendVolumeUp();
 const handleVolumeDown = () => screenControl.sendVolumeDown();
 const handleShowKeyboard = () => screenControl.showKeyboard();
 const handleHideKeyboard = () => screenControl.hideKeyboard();
-const handlePaste = (text: string) => screenControl.pasteText(text);
+const handlePaste = (text: string) => {
+    if (!text) return;
+    deviceApi.call('GET', '/global/setText', {
+        query: { text },
+        successMessage: '文本已发送到设备',
+    });
+};
 
 // OCR 文字辅助处理
 const handleStartOcr = () => {
@@ -369,13 +379,24 @@ const handleOcrSwipe = (startX: number, startY: number, endX: number, endY: numb
 const handleOcrLongPress = (x: number, y: number) => {
     screenControl.sendLongPress(x, y);
 };
-const handleLock = (type: 0 | 1 | 2 | 3) => screenControl.lockDevice(type);
+const handleLock = (type: 0 | 1 | 2 | 3) => {
+    if (type === 0) {
+        deviceApi.call('GET', '/unlock', { successMessage: '解锁请求已发送' });
+        return;
+    }
+    if (type === 1) {
+        deviceApi.call('GET', '/global/lockScreen', { successMessage: '锁屏请求已发送' });
+        return;
+    }
+    screenControl.lockDevice(type);
+};
 const handleScreenshot = () => screenControl.takeScreenshot();
 const handleQualityChange = (quality: number) => screenControl.setScreenQuality(quality);
 
 const handleWakeScreen = () => {
-    screenControl.wakeScreen();
-    message.success('点亮屏幕请求已发送');
+    deviceApi.call('GET', '/global/wakeUpScreen', {
+        successMessage: '点亮屏幕请求已发送',
+    });
 };
 
 const handleSendMute = () => {
