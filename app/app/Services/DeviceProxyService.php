@@ -50,7 +50,20 @@ class DeviceProxyService
             return null;
         }
 
-        return "http://{$this->frpsHost}:{$device->frpc_base_port}";
+        $port = (int) $device->frpc_base_port;
+        $start = (int) config('frpc.port_range_start', 20000);
+        $end = (int) config('frpc.port_range_end', 30000);
+
+        if ($port < $start || $port > $end) {
+            \Illuminate\Support\Facades\Log::channel('security')->warning(
+                'device.frpc_base_port out of range',
+                ['device_id' => $device->uuid, 'port' => $port, 'range' => "$start-$end"],
+            );
+
+            return null;
+        }
+
+        return "http://{$this->frpsHost}:{$port}";
     }
 
     /**
@@ -62,7 +75,9 @@ class DeviceProxyService
     {
         $baseUrl = $this->getDeviceBaseUrl($device);
         if ($baseUrl === null) {
-            return DeviceApiResponse::noTunnel();
+            return $this->hasTunnel($device)
+                ? DeviceApiResponse::portOutOfRange((int) $device->frpc_base_port)
+                : DeviceApiResponse::noTunnel();
         }
 
         try {
@@ -84,7 +99,9 @@ class DeviceProxyService
     {
         $baseUrl = $this->getDeviceBaseUrl($device);
         if ($baseUrl === null) {
-            return DeviceApiResponse::noTunnel();
+            return $this->hasTunnel($device)
+                ? DeviceApiResponse::portOutOfRange((int) $device->frpc_base_port)
+                : DeviceApiResponse::noTunnel();
         }
 
         try {
@@ -95,6 +112,29 @@ class DeviceProxyService
         } catch (ConnectionException $e) {
             return DeviceApiResponse::connectionFailed($e->getMessage());
         }
+    }
+
+    /**
+     * 泛型 HTTP 请求，支持 GET 和 POST。
+     *
+     * @param  'GET'|'POST'  $method
+     */
+    public function request(
+        Device $device,
+        string $method,
+        string $path,
+        array $query = [],
+        array $body = [],
+        ?int $timeout = null,
+    ): DeviceApiResponse {
+        $method = strtoupper($method);
+        if ($method !== 'GET' && $method !== 'POST') {
+            throw new \InvalidArgumentException("Unsupported HTTP method: {$method}");
+        }
+
+        return $method === 'GET'
+            ? $this->get($device, $path, $query, $timeout)
+            : $this->post($device, $path, $body, $timeout);
     }
 
     // ─── 常用快捷方法 ────────────────────────────────────────────

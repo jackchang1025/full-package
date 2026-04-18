@@ -44,6 +44,11 @@ final class DeviceApiResponse
         return new self(false, 0, null, "Connection failed: {$reason}");
     }
 
+    public static function portOutOfRange(int $port): self
+    {
+        return new self(false, 0, null, "Device frpc_base_port {$port} is out of range");
+    }
+
     public function ok(): bool
     {
         return $this->success;
