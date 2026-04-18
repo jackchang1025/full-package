@@ -58,6 +58,12 @@
 
 由于前端没有调用 `frpcAction` 端点，这个 bug 未被触发。本计划的 Task 5 不依赖 `frpcAction`；后续清理可作为独立 PR。
 
+`DeviceProxyService::globalAction()` (line 127-130) 同样使用 `['action' => $action]`，字段名也是错的。新的 `request()` 方法绕过此快捷方法所以不影响迁移。
+
+`DeviceController::frpcPing()` (line 158) 返回 `base_url` 字段包含内网 host:port（如 `http://frps:20000`），这是信息泄露。本计划 Task 3 的错误过滤只覆盖 `apiProxy()` 端点。
+
+**以上三项遗留问题应在独立 follow-up PR 中统一修复。**
+
 ---
 
 ## 文件结构
@@ -66,13 +72,13 @@
 - Modify: `app/compose.prod.yaml` — 收窄 frps 数据段端口到 127.0.0.1 绑定
 - Modify: `app/resources/ts/env.d.ts` — 追加 `Window.axios` 类型声明
 - Modify: `vendor-replica/app/src/main/java/com/guard/wallet/server/ApiRouter.java` — 修 syncLockCipher 反序列化 bug（1 行）
+- Modify: `app/config/logging.php` — 新增 `security` logging channel（审计日志前置条件）
 
 **后端 (Laravel)**
 - Modify: `app/app/Services/DeviceProxyService.php` — 新增 `request()` 通用方法 + `getDeviceBaseUrl()` 加端口范围断言
-- Modify: `app/app/Http/Controllers/DeviceController.php` — 新增 `apiProxy()` action，含审计日志、错误过滤、命名限流
+- Modify: `app/app/Http/Controllers/DeviceController.php` — 新增 `apiProxy()` action，含审计日志、错误过滤、手动限流
 - Create: `app/app/Http/Requests/Device/DeviceProxyRequest.php` — 校验 + 白名单 + 深度校验（**注意**：放在 `Device` 子目录，与 `UpdateDeviceRequest` 并列）
-- Modify: `app/app/Providers/AppServiceProvider.php` — 注册 `device-cipher` 命名限流器
-- Modify: `app/routes/web.php` — 新增 `POST /devices/{device}/api-proxy` 路由 + `throttle:60,1`
+- Modify: `app/routes/web.php` — 新增 `POST /devices/{device}/api-proxy` 路由（独立 `throttle:60,1`，不影响现有 frpc 路由）
 - Create: `app/tests/Feature/Http/DeviceProxyTest.php` — Feature 测试（HTTP::fake）+ 子账号场景
 - Create: `app/tests/Unit/Services/DeviceProxyServiceRequestTest.php` — Unit 测试（含端口越界）
 
@@ -321,6 +327,48 @@ making the instanceof branch unreachable — cipher never saved.
 
 Both VOs share a 'textCipher' field so JSON payload is compatible.
 Add regression test to lock down the expected type."
+```
+
+#### Task 0d: 新增 `security` logging channel（审计日志前置条件）
+
+**背景**：Task 3 的 `apiProxy()` 用 `Log::channel('security')->info(...)` 写审计日志。当前 `app/config/logging.php` 只有 `apk` 和 `websocket` 两个自定义 channel，没有 `security`。缺少此 channel 时，Laravel 会抛 `InvalidArgumentException: Log [security] is not defined`，导致所有代理请求 500。
+
+**Files:**
+- Modify: `app/config/logging.php`
+
+- [ ] **Step 1: 在 logging.php channels 数组末尾追加 security channel**
+
+Modify `app/config/logging.php`，在 `'websocket'` channel 之后、`]` 闭合之前追加：
+
+```php
+        'security' => [
+            'driver' => 'daily',
+            'path' => storage_path('logs/security/security.log'),
+            'level' => 'info',
+            'days' => 90,
+            'replace_placeholders' => true,
+        ],
+```
+
+- [ ] **Step 2: 验证 channel 可用**
+
+```bash
+cd app
+./vendor/bin/sail artisan tinker --execute="Log::channel('security')->info('channel test'); echo 'OK';"
+```
+
+Expected: 输出 `OK`，且 `storage/logs/security/security-YYYY-MM-DD.log` 文件被创建。
+
+- [ ] **Step 3: 提交**
+
+```bash
+cd app
+git add config/logging.php
+git commit -m "chore(logging): add security channel for audit trail
+
+Daily rotation with 90-day retention. Used by DeviceController::apiProxy
+to log all device proxy requests (user_id, device_id, method, path, ip)
+without recording sensitive body values."
 ```
 
 ---
@@ -776,36 +824,16 @@ git commit -m "feat(proxy): add DeviceProxyRequest with whitelist + per-path dee
 
 ### Task 3: Laravel — DeviceController::apiProxy action + 路由 + 限流 + 审计日志 + 测试
 
+**前置条件**：Task 0d（`security` logging channel）必须先完成，否则 `Log::channel('security')` 会抛 `InvalidArgumentException`。
+
 **Files:**
-- Modify: `app/app/Http/Controllers/DeviceController.php` — 新增 `apiProxy()` action（含审计日志、错误过滤、独立限流）
-- Modify: `app/app/Providers/AppServiceProvider.php` — 注册 `device-cipher` 命名限流器
-- Modify: `app/routes/web.php` — 新增路由 + `throttle:60,1`
+- Modify: `app/app/Http/Controllers/DeviceController.php` — 新增 `apiProxy()` action（含审计日志、错误过滤、手动限流）
+- Modify: `app/routes/web.php` — 新增 `api-proxy` 路由（`throttle:60,1` 仅加到该路由，不影响现有 frpc 路由）
 - Create: `app/tests/Feature/Http/DeviceProxyTest.php` — Feature 测试
 
-- [ ] **Step 1: 注册命名限流器（device-cipher 专用，更严格）**
+**注意**：不再修改 `AppServiceProvider.php`。`/syncLockCipher` 的独立限流在 controller 内用 `RateLimiter::tooManyAttempts()`/`hit()` 手动实现，因为需要按 `path` 条件触发，中间件级别的 `RateLimiter::for()` 注册做不到这种条件限流。
 
-Modify `app/app/Providers/AppServiceProvider.php`:
-
-在 `boot()` 方法里追加（如果文件里还没有 `use Illuminate\Cache\RateLimiting\Limit` 相关 import 就一并加上）：
-
-```php
-use Illuminate\Cache\RateLimiting\Limit;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\RateLimiter;
-
-// ... 在 boot() 方法内：
-public function boot(): void
-{
-    // ... 现有内容保持不变 ...
-
-    // 密码同步操作限流：按用户每分钟 5 次，防止暴力枚举 cipher
-    RateLimiter::for('device-cipher', function (Request $request) {
-        return Limit::perMinute(5)->by((string) ($request->user()?->id ?? $request->ip()));
-    });
-}
-```
-
-- [ ] **Step 2: 写失败的 Feature 测试（完整版，含子账号 + 审计日志 + 限流 + 错误过滤）**
+- [ ] **Step 1: 写失败的 Feature 测试（完整版，含子账号 + 审计日志 + 限流 + 错误过滤）**
 
 Create `app/tests/Feature/Http/DeviceProxyTest.php`:
 
@@ -838,6 +866,8 @@ class DeviceProxyTest extends TestCase
             'frpc.proxy_host' => 'frps',
             'frpc.port_range_start' => 20000,
             'frpc.port_range_end' => 30000,
+            // 清空路由前缀，否则 URL /devices/... 会因缺少前缀而 404
+            'site.user_entry_path' => '',
         ]);
 
         // 必须：先 seed 权限体系（项目用 Spatie/Laravel-Permission + RolePermissionSeeder）
@@ -1039,8 +1069,12 @@ class DeviceProxyTest extends TestCase
             ['method' => 'GET', 'path' => '/unlock'],
         );
 
-        // postJson 带 Accept: application/json，未认证会得 401 而不是 302 redirect
-        $response->assertUnauthorized();
+        // web 路由未认证 JSON 请求：Laravel Breeze/Fortify 可能返回 401 或 302
+        // 取决于 Authenticate::redirectTo() 实现，两者都表示认证拦截成功
+        $this->assertTrue(
+            in_array($response->status(), [401, 302]),
+            "Expected 401 or 302 for unauthenticated request, got {$response->status()}"
+        );
     }
 
     public function test_sub_account_can_proxy_parent_device(): void
@@ -1273,22 +1307,26 @@ use Illuminate\Support\Facades\RateLimiter;
     }
 ```
 
-- [ ] **Step 5: 注册路由 + 加 throttle**
+- [ ] **Step 5: 注册路由（throttle 仅加到 api-proxy，不影响现有 frpc 路由）**
 
-Modify `app/routes/web.php` line 54-60 — 整体替换 frpc 路由组为：
+Modify `app/routes/web.php` line 54-60 — 在现有 frpc 路由组**内部末尾**追加 api-proxy 路由（独立 throttle）：
 
 ```php
-    // frpc 隧道直连接口（需 devices.control 权限 + 速率限制）
-    // throttle:60,1 = 每用户/IP 每分钟最多 60 次代理请求
-    Route::middleware(['permission:devices.control', 'throttle:60,1'])->group(function () {
+    // frpc 隧道直连接口（需 devices.control 权限）
+    Route::middleware('permission:devices.control')->group(function () {
         Route::get('/devices/{device}/frpc-ping', [DeviceController::class, 'frpcPing'])->name('devices.frpc-ping');
         Route::get('/devices/{device}/frpc-info', [DeviceController::class, 'frpcInfo'])->name('devices.frpc-info');
         Route::post('/devices/{device}/frpc-action', [DeviceController::class, 'frpcAction'])->name('devices.frpc-action');
         Route::get('/devices/{device}/frpc-screenshot', [DeviceController::class, 'frpcScreenshot'])->name('devices.frpc-screenshot');
         Route::post('/devices/{device}/frpc-config', [DeviceController::class, 'frpcConfig'])->name('devices.frpc-config');
-        Route::post('/devices/{device}/api-proxy', [DeviceController::class, 'apiProxy'])->name('devices.api-proxy');
+        // 新增透明代理端点 — 独立限流 60/min/user（不影响 frpc-ping 等高频轮询路由）
+        Route::post('/devices/{device}/api-proxy', [DeviceController::class, 'apiProxy'])
+            ->middleware('throttle:60,1')
+            ->name('devices.api-proxy');
     });
 ```
+
+**为什么 throttle 不加到整个 group：** `frpc-ping` 被 Panel 用作设备健康检查轮询（可能 10+ 设备同时开 control 页面，每秒一次 = 600+/min），60/min 限制会误伤。throttle 只应约束代理命令路由。
 
 - [ ] **Step 6: 运行测试验证通过**
 
@@ -1301,21 +1339,20 @@ Expected: 全部测试通过（约 14 个测试）。
 
 **常见问题排查**：
 - 如果 `assignRole('client')` 报错 "Role does not exist"，检查 `RolePermissionSeeder` 是否真的创建了 `client` 角色；如果项目用的是不同角色名（例如 `user`），改成项目实际存在的角色
-- 如果 `test_proxy_writes_audit_log_on_each_call` 报错 "was not called"，可能项目的 logging.php 里没有 `security` channel；可以先用 `'daily'` 替代，或新增 channel（参考 `app/config/logging.php`）
-- 如果 `test_proxy_requires_authentication` 报 302 而不是 401，说明项目的 auth middleware 对 JSON 请求没有返回 401；可改为 `$response->assertStatus(302)` 或 `assertRedirect`，以项目实际行为为准
+- 如果 `test_proxy_requires_authentication` 得到 200/404 而不是 401/302，检查路由是否在 `auth` 中间件保护下（`web.php:30` 的 `Route::prefix($userEntryPath)->middleware(['auth', 'subscription'])` 应该覆盖）
 
 - [ ] **Step 7: 提交**
 
 ```bash
 cd app
 git add app/Http/Controllers/DeviceController.php \
-        app/Providers/AppServiceProvider.php \
         routes/web.php \
         tests/Feature/Http/DeviceProxyTest.php
 git commit -m "feat(proxy): add POST /devices/{device}/api-proxy with full hardening
 
 - Transparent proxy forwarding to device HTTP API via frpc tunnel
-- Throttle: 60/min global + 5/min for /syncLockCipher (RateLimiter::for)
+- Throttle: 60/min on api-proxy route only (not affecting frpc-ping polling)
+- Manual rate limit: 5/min for /syncLockCipher via RateLimiter::tooManyAttempts
 - Audit log to 'security' channel (body_keys only, no plaintext)
 - Filter connection error details to avoid internal host:port leak
 - Feature tests: whitelist, deep validation, rate limit, sub-account
@@ -2043,7 +2080,7 @@ cd app
                         app/Http/Requests/Device/DeviceProxyRequest.php \
                         app/Services/DeviceProxyService.php \
                         app/Services/DeviceApiResponse.php \
-                        app/Providers/AppServiceProvider.php
+                        config/logging.php
 ```
 
 - [ ] **Step 5: 如果 Pint 有修改，追加提交**
@@ -2067,12 +2104,12 @@ ss -tlnp | grep -E ":2[0-9]{4}\s"
 ```
 Expected: 全部绑定 `127.0.0.1:xxxxx`，**绝对不能**出现 `0.0.0.0:2xxxx` 或 `:::2xxxx`。
 
-**6.2 logging channel 存在**
+**6.2 logging channel 存在（Task 0d 应已完成）**
 ```bash
 cd app
 ./vendor/bin/sail artisan tinker --execute="dump(config('logging.channels.security'));"
 ```
-Expected: 返回 channel 配置；如果是 `null`，在 `app/config/logging.php` 追加 `security` channel（建议指向 `storage/logs/security.log` + daily driver），或在 Task 3 里改成用 `daily` 或 `stack` channel。
+Expected: 返回 daily driver 配置（`path => storage/logs/security/security.log`, `days => 90`）。如果返回 `null`，说明 Task 0d 未执行或被回滚——必须先修复再继续。
 
 **6.3 UpdateDeviceRequest 没有把 frpc_base_port 加入允许字段**（防御 M4 残余风险）
 ```bash
@@ -2293,7 +2330,7 @@ replica-side issues (wakeUpScreen vivo-only, syncLockCipher VO bug fix)."
 ## Self-Review Checklist
 
 **1. 规格覆盖：**
-- ✅ 部署/环境前置（Task 0a/0b/0c）
+- ✅ 部署/环境前置（Task 0a/0b/0c/0d）
 - ✅ DeviceProxyService 通用 request 方法 + 端口范围断言（Task 1）
 - ✅ DeviceProxyRequest 白名单 + 深度校验 + 长度限制（Task 2）
 - ✅ apiProxy 端点 + 限流 + 审计日志 + 错误过滤（Task 3）
@@ -2335,12 +2372,12 @@ replica-side issues (wakeUpScreen vivo-only, syncLockCipher VO bug fix)."
 **5. 安全审查矩阵：**
 - 🔴 BLOCKER B1（frps 端口公网暴露 → arbitrary shell via `/global/execCommand`）→ Task 0a 修复
 - 🔴 BLOCKER B2（SSRF via frpc_base_port 污染）→ Task 1 端口范围断言（纵深）
-- 🔴 BLOCKER B3（缺速率限制，违反 security.md）→ Task 3 throttle + device-cipher 命名限流器
-- 🟡 HIGH H1（缺审计日志，高危命令无追溯）→ Task 3 audit log 到 security channel
+- 🔴 BLOCKER B3（缺速率限制，违反 security.md）→ Task 3 throttle:60,1 on api-proxy + 手动 5/min for /syncLockCipher
+- 🟡 HIGH H1（缺审计日志，高危命令无追溯）→ Task 0d security channel + Task 3 audit log
 - 🟡 HIGH H2（syncLockCipher 无服务端格式校验）→ Task 2 body.textCipher regex + actionName 枚举
 - 🟡 HIGH H3（query.* 无长度上界，DoS 风险）→ Task 2 max:1024
 - 🟢 MEDIUM M1（路径 regex 纵深防御）→ Task 2 正则规则
-- 🟢 MEDIUM M2（401 vs 302 断言错误）→ Task 3 assertUnauthorized
+- 🟢 MEDIUM M2（401 vs 302 断言兼容）→ Task 3 assertTrue(in_array(status, [401, 302]))
 - 🟢 MEDIUM M3（子账号测试覆盖不足）→ Task 3 两个子账号测试
 - 🟢 MEDIUM M4（连接错误信息泄露内网 host:port）→ Task 3 错误过滤
 - 🔵 LOW L1/L2/L3（CSRF / 系统应用启动 / 焦点输入框业务风险）→ Task 14 文档化
@@ -2348,12 +2385,16 @@ replica-side issues (wakeUpScreen vivo-only, syncLockCipher VO bug fix)."
 **6. 已知风险与执行注意事项：**
 
 - **Task 3 测试 permission 授权**：计划基于 Spatie/Laravel-Permission + `RolePermissionSeeder` + `assignRole('client')`。如果 `client` 角色在项目里叫别的名字（例如 `user`），按实际调整。执行前用 `grep -rn "assignRole" app/tests/Feature/` 核对现有测试怎么写
-- **Task 3 `security` logging channel**：如果 `config/logging.php` 没定义这个 channel，选择：(a) 改用 `daily` / `stack` / `single`；(b) 在 `logging.php` 新增 security channel（推荐 daily driver，日志分文件存储）
+- **Task 3 路由前缀**：所有 frpc/api-proxy 路由在 `Route::prefix($userEntryPath)` 内（`web.php:30`），`$userEntryPath` 来自 `config('site.user_entry_path')`。测试 setUp 已设置为空字符串以避免 404
 - **Task 0a 生产验证**：`127.0.0.1:20000-30000` 的绑定前提是 Laravel 与 frps 在同一 Docker host。如果 Laravel 部署在另一台机器，改为专用内网接口绑定
 - **Task 0c 必须先于 Task 12 合并到设备 APK**：否则 Task 12 的手动验证会显示成功但密码不生效（replica bug 导致 instanceof 检查永远 false）
+- **Task 0d 是 Task 3 硬前置条件**：`security` logging channel 不存在时 `Log::channel('security')` 会抛 `InvalidArgumentException`
 - **Task 10 `/blockView` 参数语义**：`show/transparent/hint/zeroBrightness/destroyLock` 的具体行为从 `UiDialogHandler.blockView()` 签名推导。执行前最好在真机上手动 curl 测试一次每种组合，确认与用户预期一致
 - **Task 7 wakeScreen**：非 vivo 设备会静默失败（replica 侧 `GlobalActionHandler.wakeUpScreen()` 只对 vivo 家族生效），这是已知限制，不在本计划 scope
-- **现有 `frpcAction` 是坏的**：`DeviceController::frpcAction` 用 `['action' => $action]` + 路由校验 `in:back,home,recents,lock` 全部写错了（应该是 `actionName` + `recent`）。前端没有调用这个端点所以 bug 未被触发。本计划不修 `frpcAction`；后续可独立清理
+- **遗留代码问题（本计划不修，需独立 follow-up PR）**：
+  - `DeviceController::frpcAction` (L181-191) 字段名 `action` 应改 `actionName`，值 `recents` 应改 `recent`，`lock` 应走 `/global/lockScreen`
+  - `DeviceProxyService::globalAction()` (L127-130) 同样用错误字段名 `['action' => $action]`
+  - `DeviceController::frpcPing()` (L158) 返回 `base_url` 泄露内网 host:port
 
 ---
 
@@ -2361,7 +2402,7 @@ replica-side issues (wakeUpScreen vivo-only, syncLockCipher VO bug fix)."
 
 Plan complete and saved to `docs/superpowers/plans/2026-04-12-panel-command-http-migration.md`.
 
-**修订后 total steps**：17 个（Task 0a + 0b + 0c + Tasks 1-14），其中 Task 0c 触及 Android 代码。
+**修订后 total steps**：18 个（Task 0a + 0b + 0c + 0d + Tasks 1-14），其中 Task 0c 触及 Android 代码。
 
 Two execution options:
 
@@ -2369,13 +2410,20 @@ Two execution options:
 
 **2. Inline Execution** — 在当前 session 里连续执行，批量检查点 review
 
-建议执行顺序：
-1. **Task 0a / 0b / 0c** 并行执行（三个独立变更，不相互依赖）
-2. **Task 1 / 2** 并行执行（两个独立后端变更）
-3. **Task 3** 顺序执行（依赖 Task 1 + 2 — 引用 DeviceProxyService::request + DeviceProxyRequest）
-4. **Task 4** 顺序执行（依赖 Task 0b 完成的 env.d.ts 类型声明）
-5. **Tasks 5-12** 顺序执行（每个独立，但都依赖 Task 3 + 4；可快速迭代）
-6. **Task 13** 顺序执行（依赖前面全部）
-7. **Task 14** 独立执行
+建议执行顺序（依赖图优化后的 6 阶段）：
+
+```
+Phase 0 (4 parallel): 0a + 0b + 0c + 0d  ← 全部独立
+Phase 1 (3 parallel): 1 + 2 + 4           ← 4 依赖 0b; 1/2 无外部依赖
+Phase 2 (1 serial):   3                   ← 依赖 1 + 2 + 0d
+Phase 3 (8 serial):   5 → 6 → 7 → 8 → 9 → 10 → 11 → 12  ← 依赖 3 + 4
+Phase 4 (2 parallel): 13 + 14             ← 13 依赖全部; 14 独立
+```
+
+**关键依赖链**：
+- Task 3 (`apiProxy`) → 需要 Task 1 (`request()`) + Task 2 (`DeviceProxyRequest`) + Task 0d (`security` channel)
+- Task 4 (`useDeviceApi`) → 需要 Task 0b (`Window.axios` 类型)
+- Tasks 5-12 (前端迁移) → 需要 Task 3 (后端路由) + Task 4 (composable)
+- Task 12 (modifyPassword) → 需要 Task 0c (ApiRouter 反序列化修复) 已部署到真机
 
 Which approach?
