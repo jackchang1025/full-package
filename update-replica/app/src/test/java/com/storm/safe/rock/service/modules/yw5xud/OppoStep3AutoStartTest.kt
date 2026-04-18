@@ -79,4 +79,14 @@ class OppoStep3AutoStartTest {
                 logs.any { it.contains("SafeCenter") || it.contains("safecenter") })
         }
     }
+
+    @Test fun `tryOpenAutoStartViaSafeCenter returns false on ColorOS 16 (no SafeCenter packages)`() {
+        runBlocking {
+            val spy = OppoSteps(null, context)
+            val logs = mutableListOf<String>()
+            val ok = spy.tryOpenAutoStartViaSafeCenter(mutableListOf(), mutableListOf(), logs)
+            assertTrue("SafeCenter 路径在 ColorOS 16 应该返回 false 且不抛异常", !ok)
+            assertTrue("应留下 deprecation 日志", logs.any { it.contains("SafeCenter") })
+        }
+    }
 }

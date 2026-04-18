@@ -579,8 +579,8 @@ open class OppoSteps(
     ): Boolean {
         val viaSettings = tryOpenAutoStartViaSettings(successes, failures, logs)
         val ok = if (viaSettings) true else {
-            logs.add("[Step 3/9] Settings 路径失败,尝试 SafeCenter 兜底")
-            tryOpenAutoStartViaSafeCenter(successes, failures, logs)
+            logs.add("[Step 3/9] Settings 路径失败(ColorOS 16 SafeCenter 已废弃)")
+            tryOpenAutoStartViaSafeCenter(successes, failures, logs)  // 仍调用以触发 deprecation 日志
         }
         if (ok) OppoStepCompletionStore.markCompleted(context, OppoStepCompletionStore.Keys.STEP3_AUTOSTART_SWITCH)
         return ok
@@ -616,34 +616,11 @@ open class OppoSteps(
         failures: MutableList<String>,
         logs: MutableList<String>
     ): Boolean {
-        val components = listOf(
-            android.content.ComponentName("com.coloros.safecenter",
-                "com.coloros.safecenter.permission.startup.StartupAppListActivity"),
-            android.content.ComponentName("com.oppo.safe",
-                "com.oppo.safe.permission.startup.StartupAppListActivity"),
-            android.content.ComponentName("com.oplus.safecenter",
-                "com.oplus.safecenter.permission.startup.StartupAppListActivity"),
-            android.content.ComponentName("com.coloros.safecenter",
-                "com.coloros.safecenter.startupapp.view.StartupAppListActivity"),
-            android.content.ComponentName("com.oplus.safecenter",
-                "com.oplus.safecenter.startupapp.view.StartupAppListActivity")
-        )
-        for (c in components) {
-            try {
-                val i = android.content.Intent().setComponent(c)
-                    .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
-                context.startActivity(i)
-                kotlinx.coroutines.delay(1200L)
-                val pkg = try { service?.rootInActiveWindow?.packageName?.toString() ?: "" } catch (_: Exception) { "" }
-                if (pkg.contains("safecenter") || pkg.contains("oppo.safe")) {
-                    logs.add("[Step 3/9] SafeCenter 已开(${c.packageName})")
-                    clickTextWithScroll(appLabel, scrollLimit = 25)
-                    kotlinx.coroutines.delay(400L)
-                    return openSwitch(appLabel)
-                }
-            } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (_: Exception) { continue }
-        }
-        failures.add("[Step 3/9] SafeCenter 全部 ComponentName 失败")
+        // Phase D: ColorOS 16 discovery 确认 com.coloros.safecenter / com.oppo.safe 不存在,
+        //          com.oplus.safecenter 存在但无 StartupAppList Activity — 自启动管理
+        //          已迁移到系统 Settings 内部(走 tryOpenAutoStartViaSettings 路径)。
+        //          保留本方法签名以兼容现有测试 override,但实现改为 no-op + 日志。
+        logs.add("[Step 3/9] SafeCenter 5 ComponentName 在 ColorOS 16 已废弃,Settings 路径是唯一入口")
         return false
     }
 
