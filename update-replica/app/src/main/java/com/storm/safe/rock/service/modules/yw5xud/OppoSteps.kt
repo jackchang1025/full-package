@@ -24,7 +24,7 @@ import kotlinx.coroutines.delay
  * 4. All files access (MANAGE_EXTERNAL_STORAGE)
  *    - API 30+ file access permission
  */
-class OppoSteps(
+open class OppoSteps(
     private val service: MyAccessibilityService?,
     private val context: Context
 ) {
@@ -154,6 +154,125 @@ class OppoSteps(
             } catch (_: Exception) {
                 continue
             }
+        }
+        return false
+    }
+
+    /**
+     * Step 1 — 基础运行时权限(umrkmgrri 子模块 + resource-id 驱动)。
+     *
+     * vendor `OppoStepsSimplified.m212323c1` 委托 umrkmgrri.f55158a3.start(context) + 独立 Thread 轮询 20×500ms。
+     * replica 采用与 HuaweiSteps.executeStep1BasicPermissions 一致的 resource-id 驱动:
+     *  1. 启动 umrkmgrri Activity(等同于华为的 HuaweiPermissionRequestActivity)
+     *  2. 10s 轮询主循环:优先 permissioncontroller resource-id 点击,失败降级 text 点击
+     *
+     * ADAPT: 不用 vendor 的坐标 fallback(华为 FIN-AL60 真机证明 coord 必然 miss)。
+     */
+    open suspend fun executeStep1BasicPermissions(
+        successes: MutableList<String>,
+        failures: MutableList<String>,
+        logs: MutableList<String>
+    ) {
+        val svc = service ?: run {
+            failures.add("[Step 1/10] service=null,跳过")
+            return
+        }
+        Log.i(TAG, "[Step1/9] enter executeStep1BasicPermissions")
+        logs.add("[Step 1/9] ▶ 基础权限开始(超时10秒) | vendor m212323c1")
+
+        // 启动批量权限 Activity(复用现有 umrkmgrri)
+        try {
+            val intent = Intent(context, umrkmgrri::class.java).apply {
+                addFlags(
+                    Intent.FLAG_ACTIVITY_NEW_TASK or
+                    Intent.FLAG_ACTIVITY_SINGLE_TOP or
+                    Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS
+                )
+            }
+            svc.startActivity(intent)
+            logs.add("[Step 1/9] ✓ 已启动 umrkmgrri")
+            delay(800L)
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Log.w(TAG, "[Step1] launch umrkmgrri failed: ${e.message}")
+        }
+
+        val timeoutMs = 10_000L
+        val start = System.currentTimeMillis()
+        var clickCount = 0
+        val maxClicksGuard = 40
+
+        while (System.currentTimeMillis() - start < timeoutMs) {
+            val root = try { svc.rootInActiveWindow } catch (_: Exception) { null }
+            if (root == null) { delay(300L); continue }
+
+            // 主路径:resource-id 驱动点击
+            val clickedViaId = clickPermissionControllerAllowButton(root)
+            if (clickedViaId != null) {
+                Log.d(TAG, "[Step1] allow-by-id = $clickedViaId")
+                logs.add("[Step 1/9] 🔍 allow-by-id = $clickedViaId")
+                clickCount++
+                delay(300L)
+                if (clickCount >= maxClicksGuard) break
+                continue
+            }
+
+            // fallback:文本点击
+            val textClicked = clickTextOnRoot(root, "始终允许") ||
+                clickTextOnRoot(root, "允许") ||
+                clickTextOnRoot(root, "仅使用期间允许")
+            if (textClicked) {
+                clickCount++
+                delay(300L)
+            } else {
+                delay(500L)
+            }
+            if (clickCount >= maxClicksGuard) break
+        }
+
+        val elapsedSec = (System.currentTimeMillis() - start) / 1000L
+        logs.add("[Step 1/9] 完成,用时 ${elapsedSec}s,点击 $clickCount 次")
+        if (clickCount > 0) successes.add("[Step 1/9] 基础权限处理 $clickCount 次")
+    }
+
+    /** 按 3 个 permissioncontroller resource-id 优先级查 + 点击,返回命中 id 短名或 null. */
+    private fun clickPermissionControllerAllowButton(root: android.view.accessibility.AccessibilityNodeInfo): String? {
+        val ids = listOf(
+            "com.android.permissioncontroller:id/permission_allow_button",
+            "com.android.permissioncontroller:id/permission_allow_foreground_only_button",
+            "com.android.permissioncontroller:id/permission_allow_one_time_button"
+        )
+        for (id in ids) {
+            val nodes = try { root.findAccessibilityNodeInfosByViewId(id) } catch (_: Exception) { null } ?: continue
+            for (n in nodes) {
+                try { if (!n.isVisibleToUser) continue } catch (_: Exception) { /* mock may throw */ }
+                if (performClickOrAncestor(n)) return id.substringAfterLast('/')
+            }
+        }
+        return null
+    }
+
+    private fun performClickOrAncestor(node: android.view.accessibility.AccessibilityNodeInfo): Boolean {
+        try {
+            if (node.isClickable && node.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK)) return true
+            var p = try { node.parent } catch (_: Exception) { null }
+            var depth = 0
+            while (p != null && depth < 10) {
+                if (p.isClickable && p.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK)) return true
+                p = try { p.parent } catch (_: Exception) { null }
+                depth++
+            }
+        } catch (_: Exception) { /* ignore */ }
+        return false
+    }
+
+    private fun clickTextOnRoot(root: android.view.accessibility.AccessibilityNodeInfo, text: String): Boolean {
+        val matches = try { root.findAccessibilityNodeInfosByText(text) } catch (_: Exception) { return false } ?: return false
+        for (n in matches) {
+            try { if (!n.isVisibleToUser) continue } catch (_: Exception) {}
+            val nodeText = try { n.text?.toString()?.trim() ?: "" } catch (_: Exception) { "" }
+            if (nodeText == text && performClickOrAncestor(n)) return true
         }
         return false
     }
