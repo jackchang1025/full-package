@@ -304,15 +304,15 @@ open class OppoSteps(
      *   OPPO/OPLUS → mOppo
      */
     open suspend fun executeStep2Battery(
-        successes: MutableList<String>?,
-        failures: MutableList<String>?,
-        logs: MutableList<String>?
+        successes: MutableList<String>,
+        failures: MutableList<String>,
+        logs: MutableList<String>
     ) {
         if (OppoStepCompletionStore.isCompleted(context, OppoStepCompletionStore.Keys.STEP2_BATTERY)) {
-            logs?.add("[Step 2/9] ⏭ 24h 内已完成,跳过")
+            logs.add("[Step 2/9] ⏭ 24h 内已完成,跳过")
             return
         }
-        logs?.add("[Step 2/9] ▶ 电池优化豁免开始(subBrand=$subBrand)")
+        logs.add("[Step 2/9] ▶ 电池优化豁免开始(subBrand=$subBrand)")
 
         when (subBrand) {
             OppoSubBrand.REALME -> executeBatteryRealme(successes, failures, logs)
@@ -323,11 +323,11 @@ open class OppoSteps(
 
     /** OPPO/OPLUS 路径(文档 2a) — 4 级菜单 + 5 个目标开关 */
     open suspend fun executeBatteryOppo(
-        successes: MutableList<String>?,
-        failures: MutableList<String>?,
-        logs: MutableList<String>?
+        successes: MutableList<String>,
+        failures: MutableList<String>,
+        logs: MutableList<String>
     ) {
-        logs?.add("[Step 2/9] mOppo 4 级菜单路径")
+        logs.add("[Step 2/9] mOppo 4 级菜单路径")
         openSettings()
         kotlinx.coroutines.delay(800L)
 
@@ -347,18 +347,18 @@ open class OppoSteps(
         pressBack(); pressBack()
         closeSwitch("省电模式")
 
-        successes?.add("[Step 2/9] OPPO 电池流程完成")
+        successes.add("[Step 2/9] OPPO 电池流程完成")
         OppoStepCompletionStore.markCompleted(context, OppoStepCompletionStore.Keys.STEP2_BATTERY)
     }
 
     /** Realme 路径(文档 2c) — 按 SDK 分支 */
     open suspend fun executeBatteryRealme(
-        successes: MutableList<String>?,
-        failures: MutableList<String>?,
-        logs: MutableList<String>?
+        successes: MutableList<String>,
+        failures: MutableList<String>,
+        logs: MutableList<String>
     ) {
         val sdk = android.os.Build.VERSION.SDK_INT
-        logs?.add("[Step 2/9] mRealme SDK=$sdk")
+        logs.add("[Step 2/9] mRealme SDK=$sdk")
         openSettings()
         kotlinx.coroutines.delay(800L)
         clickTextWithScroll("电池", scrollLimit = 5)
@@ -366,7 +366,7 @@ open class OppoSteps(
 
         when {
             sdk >= 36 -> {
-                logs?.add("[Step 2/9] Realme SDK≥36 委托 mOppo")
+                logs.add("[Step 2/9] Realme SDK≥36 委托 mOppo")
                 executeBatteryOppo(successes, failures, logs)
                 return
             }
@@ -391,18 +391,18 @@ open class OppoSteps(
                 pressBack(); pressBack()
             }
         }
-        successes?.add("[Step 2/9] Realme 电池流程完成")
+        successes.add("[Step 2/9] Realme 电池流程完成")
         OppoStepCompletionStore.markCompleted(context, OppoStepCompletionStore.Keys.STEP2_BATTERY)
     }
 
     /** OnePlus 路径(文档 2b) — 按 SDK 分支 */
     open suspend fun executeBatteryOnePlus(
-        successes: MutableList<String>?,
-        failures: MutableList<String>?,
-        logs: MutableList<String>?
+        successes: MutableList<String>,
+        failures: MutableList<String>,
+        logs: MutableList<String>
     ) {
         val sdk = android.os.Build.VERSION.SDK_INT
-        logs?.add("[Step 2/9] mOnePlus SDK=$sdk")
+        logs.add("[Step 2/9] mOnePlus SDK=$sdk")
         openSettings()
         kotlinx.coroutines.delay(800L)
         clickTextWithScroll("电池", scrollLimit = 5)
@@ -410,7 +410,7 @@ open class OppoSteps(
 
         when {
             sdk >= 36 -> {
-                logs?.add("[Step 2/9] OnePlus SDK≥36 委托 mOppo")
+                logs.add("[Step 2/9] OnePlus SDK≥36 委托 mOppo")
                 executeBatteryOppo(successes, failures, logs)
                 return
             }
@@ -438,7 +438,7 @@ open class OppoSteps(
                 pressBack(); pressBack(); pressBack()
             }
         }
-        successes?.add("[Step 2/9] OnePlus 电池流程完成")
+        successes.add("[Step 2/9] OnePlus 电池流程完成")
         OppoStepCompletionStore.markCompleted(context, OppoStepCompletionStore.Keys.STEP2_BATTERY)
     }
 
