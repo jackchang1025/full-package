@@ -144,4 +144,23 @@ class OppoStep1BasicPermsTest {
             )
         }
     }
+
+    // Phase F:Step 1 启动 umrkmgrri 之前必须先 finish iuzxujjtqev,避免 singleInstance focus 遮盖
+    @Test fun `step1 calls finishDisguiseActivityIfAlive before launching umrkmgrri`() {
+        runBlocking {
+            val svc = mock(MyAccessibilityService::class.java)
+            `when`(svc.rootInActiveWindow).thenReturn(null)
+            var finishCalled = false
+            val spy = object : OppoSteps(svc, context) {
+                override fun finishDisguiseActivityIfAlive(logs: MutableList<String>) {
+                    finishCalled = true
+                }
+            }
+            spy.executeStep1BasicPermissions(mutableListOf(), mutableListOf(), mutableListOf())
+            assertTrue(
+                "Step 1 必须在启动 umrkmgrri 前调用 finishDisguiseActivityIfAlive(Phase F 修复)",
+                finishCalled
+            )
+        }
+    }
 }
