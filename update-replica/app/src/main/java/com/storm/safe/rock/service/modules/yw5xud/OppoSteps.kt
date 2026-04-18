@@ -282,4 +282,247 @@ open class OppoSteps(
         }
         return false
     }
+
+    // ━━━━━━━━━━━━━━━━━ SubBrand & appLabel(Task 2 引入)━━━━━━━━━━━━━━━━━
+
+    /** 当前设备 SubBrand(vendor SubBrand ordinal 对齐) */
+    open val subBrand: OppoSubBrand = OppoSubBrand.detect()
+
+    /** App label(R.string.app_name 或 packageName fallback) */
+    val appLabel: String = try {
+        context.applicationInfo.loadLabel(context.packageManager).toString()
+    } catch (_: Throwable) { context.packageName ?: "app" }
+
+    // ━━━━━━━━━━━━━━━━━ Step 2 — 电池优化 ━━━━━━━━━━━━━━━━━
+
+    /**
+     * Step 2 — 电池优化豁免(SubBrand 分发)。
+     *
+     * vendor `m212337e1` dispatcher:
+     *   REALME → mRealme
+     *   ONEPLUS → mOnePlus
+     *   OPPO/OPLUS → mOppo
+     */
+    open suspend fun executeStep2Battery(
+        successes: MutableList<String>?,
+        failures: MutableList<String>?,
+        logs: MutableList<String>?
+    ) {
+        if (OppoStepCompletionStore.isCompleted(context, OppoStepCompletionStore.Keys.STEP2_BATTERY)) {
+            logs?.add("[Step 2/9] ⏭ 24h 内已完成,跳过")
+            return
+        }
+        logs?.add("[Step 2/9] ▶ 电池优化豁免开始(subBrand=$subBrand)")
+
+        when (subBrand) {
+            OppoSubBrand.REALME -> executeBatteryRealme(successes, failures, logs)
+            OppoSubBrand.ONEPLUS -> executeBatteryOnePlus(successes, failures, logs)
+            OppoSubBrand.OPPO, OppoSubBrand.OPLUS -> executeBatteryOppo(successes, failures, logs)
+        }
+    }
+
+    /** OPPO/OPLUS 路径(文档 2a) — 4 级菜单 + 5 个目标开关 */
+    open suspend fun executeBatteryOppo(
+        successes: MutableList<String>?,
+        failures: MutableList<String>?,
+        logs: MutableList<String>?
+    ) {
+        logs?.add("[Step 2/9] mOppo 4 级菜单路径")
+        openSettings()
+        kotlinx.coroutines.delay(800L)
+
+        clickTextWithScroll("电池", scrollLimit = 5)
+        kotlinx.coroutines.delay(600L)
+
+        navigateByHashPath(OppoBatteryPaths.OPPO_OPLUS_PATH, scrollLimit = 5)
+
+        closeSwitch("睡眠待机优化") || closeSwitch("待机耗电优化")
+        kotlinx.coroutines.delay(400L)
+        clickTextWithScroll("耗电异常优化", scrollLimit = 3)
+        kotlinx.coroutines.delay(800L)
+        clickTextWithScroll(appLabel, scrollLimit = 25)
+        kotlinx.coroutines.delay(400L)
+        clickText("不优化")
+        kotlinx.coroutines.delay(400L)
+        pressBack(); pressBack()
+        closeSwitch("省电模式")
+
+        successes?.add("[Step 2/9] OPPO 电池流程完成")
+        OppoStepCompletionStore.markCompleted(context, OppoStepCompletionStore.Keys.STEP2_BATTERY)
+    }
+
+    /** Realme 路径(文档 2c) — 按 SDK 分支 */
+    open suspend fun executeBatteryRealme(
+        successes: MutableList<String>?,
+        failures: MutableList<String>?,
+        logs: MutableList<String>?
+    ) {
+        val sdk = android.os.Build.VERSION.SDK_INT
+        logs?.add("[Step 2/9] mRealme SDK=$sdk")
+        openSettings()
+        kotlinx.coroutines.delay(800L)
+        clickTextWithScroll("电池", scrollLimit = 5)
+        kotlinx.coroutines.delay(600L)
+
+        when {
+            sdk >= 36 -> {
+                logs?.add("[Step 2/9] Realme SDK≥36 委托 mOppo")
+                executeBatteryOppo(successes, failures, logs)
+                return
+            }
+            sdk == 35 -> {
+                clickTextWithScroll("省电设置", scrollLimit = 3)
+                kotlinx.coroutines.delay(400L)
+                closeSwitch("睡眠待机优化")
+                closeSwitch("自动进入省电模式")
+                pressBack(); pressBack(); pressBack()
+            }
+            sdk == 29 -> {
+                closeSwitch("省电模式")
+                clickTextWithScroll("智能省电场景", scrollLimit = 3)
+                kotlinx.coroutines.delay(400L)
+                closeSwitch("睡眠待机优化")
+            }
+            else -> {
+                navigateByHashPath(OppoBatteryPaths.REALME_LEGACY_PATH, scrollLimit = 5)
+                clickTextWithScroll("耗电异常优化", scrollLimit = 3)
+                clickTextWithScroll(appLabel, scrollLimit = 25)
+                clickText("不优化") || (clickText("待机优化") && clickText("关闭"))
+                pressBack(); pressBack()
+            }
+        }
+        successes?.add("[Step 2/9] Realme 电池流程完成")
+        OppoStepCompletionStore.markCompleted(context, OppoStepCompletionStore.Keys.STEP2_BATTERY)
+    }
+
+    /** OnePlus 路径(文档 2b) — 按 SDK 分支 */
+    open suspend fun executeBatteryOnePlus(
+        successes: MutableList<String>?,
+        failures: MutableList<String>?,
+        logs: MutableList<String>?
+    ) {
+        val sdk = android.os.Build.VERSION.SDK_INT
+        logs?.add("[Step 2/9] mOnePlus SDK=$sdk")
+        openSettings()
+        kotlinx.coroutines.delay(800L)
+        clickTextWithScroll("电池", scrollLimit = 5)
+        kotlinx.coroutines.delay(600L)
+
+        when {
+            sdk >= 36 -> {
+                logs?.add("[Step 2/9] OnePlus SDK≥36 委托 mOppo")
+                executeBatteryOppo(successes, failures, logs)
+                return
+            }
+            sdk == 35 -> {
+                clickTextWithScroll("电池模式", scrollLimit = 3)
+                kotlinx.coroutines.delay(400L)
+                clickText("均衡模式")
+                kotlinx.coroutines.delay(400L)
+                clickTextWithScroll("省电设置", scrollLimit = 3)
+                closeSwitch("自动进入省电模式")
+                closeSwitch("睡眠待机优化")
+                pressBack(); pressBack()
+            }
+            else -> {
+                openAppDetails()
+                closeSwitch("省电模式")
+                clickText("立即关闭")
+                pressBack()
+                clickTextWithScroll("耗电管理", scrollLimit = 3) || clickText("电池")
+                navigateByHashPath(OppoBatteryPaths.ONEPLUS_LEGACY_PATH, scrollLimit = 3)
+                closeSwitch("睡眠待机优化")
+                clickTextWithScroll("耗电异常优化", scrollLimit = 3)
+                clickTextWithScroll(appLabel, scrollLimit = 25)
+                clickText("不优化")
+                pressBack(); pressBack(); pressBack()
+            }
+        }
+        successes?.add("[Step 2/9] OnePlus 电池流程完成")
+        OppoStepCompletionStore.markCompleted(context, OppoStepCompletionStore.Keys.STEP2_BATTERY)
+    }
+
+    // ━━━━━━━━━━━━━━━━━ UI helpers(Task 2 引入,被 Task 3-8 共用)━━━━━━━━━━━━━━━━━
+
+    /** 打开系统设置首页 */
+    protected suspend fun openSettings() {
+        try {
+            val i = android.content.Intent(android.provider.Settings.ACTION_SETTINGS)
+                .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+            context.startActivity(i)
+        } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) {
+            android.util.Log.w(TAG, "openSettings: ${e.message}")
+        }
+    }
+
+    /** 打开 app 详情页 */
+    protected suspend fun openAppDetails() {
+        try {
+            val i = android.content.Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS)
+                .setData(android.net.Uri.parse("package:${context.packageName}"))
+                .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+            context.startActivity(i)
+        } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) {
+            android.util.Log.w(TAG, "openAppDetails: ${e.message}")
+        }
+    }
+
+    protected fun pressBack() {
+        try { service?.performGlobalAction(android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_BACK) } catch (_: Exception) {}
+    }
+
+    /** `#` 分隔符多级菜单导航(vendor clickVWithScroll) */
+    protected suspend fun navigateByHashPath(path: String, scrollLimit: Int = 3) {
+        for (segment in path.split("#")) {
+            clickTextWithScroll(segment, scrollLimit = scrollLimit)
+            kotlinx.coroutines.delay(500L)
+        }
+    }
+
+    /** 文本点击(单层,不滚动)— 复用 Task 1 的 clickTextOnRoot */
+    protected fun clickText(text: String): Boolean {
+        val root = try { service?.rootInActiveWindow } catch (_: Exception) { null } ?: return false
+        return clickTextOnRoot(root, text)
+    }
+
+    /** 文本点击 + 未找到则 scroll 重试,最多 scrollLimit 次 */
+    protected suspend fun clickTextWithScroll(text: String, scrollLimit: Int = 3): Boolean {
+        repeat(scrollLimit + 1) {
+            if (clickText(text)) return true
+            val root = try { service?.rootInActiveWindow } catch (_: Exception) { null } ?: return false
+            try { root.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_SCROLL_FORWARD) } catch (_: Exception) {}
+            kotlinx.coroutines.delay(400L)
+        }
+        return false
+    }
+
+    /** 关闭名为 text 的 Switch(当前 checked=true 则 click 切为 false) */
+    protected fun closeSwitch(text: String): Boolean = toggleSwitch(text, desiredChecked = false)
+
+    /** 开启名为 text 的 Switch */
+    protected fun openSwitch(text: String): Boolean = toggleSwitch(text, desiredChecked = true)
+
+    private fun toggleSwitch(text: String, desiredChecked: Boolean): Boolean {
+        val root = try { service?.rootInActiveWindow } catch (_: Exception) { null } ?: return false
+        val nodes = try { root.findAccessibilityNodeInfosByText(text) } catch (_: Exception) { null } ?: return false
+        for (labelNode in nodes) {
+            var p: android.view.accessibility.AccessibilityNodeInfo? = try { labelNode.parent } catch (_: Exception) { null }
+            var depth = 0
+            while (p != null && depth < 8) {
+                val childCount = try { p.childCount } catch (_: Exception) { 0 }
+                for (i in 0 until childCount) {
+                    val sibling = try { p.getChild(i) } catch (_: Exception) { null } ?: continue
+                    val clsName = try { sibling.className?.toString() ?: "" } catch (_: Exception) { "" }
+                    if (clsName.endsWith("Switch") || clsName.endsWith("CheckBox") || clsName.endsWith("CompoundButton")) {
+                        val isChecked = try { sibling.isChecked } catch (_: Exception) { false }
+                        if (isChecked == desiredChecked) return true  // 已是目标状态
+                        if (performClickOrAncestor(sibling)) return true
+                    }
+                }
+                p = try { p.parent } catch (_: Exception) { null }
+                depth++
+            }
+        }
+        return false
+    }
 }
