@@ -25,7 +25,7 @@ import kotlinx.coroutines.delay
  *    - API 30+ file access permission
  */
 open class OppoSteps(
-    private val service: MyAccessibilityService?,
+    protected val service: MyAccessibilityService?,
     private val context: Context
 ) {
     companion object {
@@ -763,6 +763,216 @@ open class OppoSteps(
                 kotlinx.coroutines.delay(400L)
                 if (clickText("允许")) { successes.add("[Step 5/9] AppList 允许点中"); return true }
             }
+        }
+        return false
+    }
+
+    // ━━━━━━━━━━━━━━━━━ Step 6 — 所有文件访问 ━━━━━━━━━━━━━━━━━
+
+    open suspend fun executeStep6FileAccess(
+        successes: MutableList<String>,
+        failures: MutableList<String>,
+        logs: MutableList<String>
+    ) {
+        if (OppoStepCompletionStore.isCompleted(context, OppoStepCompletionStore.Keys.STEP6_FILEACCESS)) {
+            logs.add("[Step 6/9] ⏭ 24h 内已完成,跳过"); return
+        }
+        val sdk = android.os.Build.VERSION.SDK_INT
+        if (sdk < 30) { logs.add("[Step 6/9] SDK=$sdk<30 不需要,跳过"); return }
+        if (isExternalStorageManagerNow()) {
+            successes.add("[Step 6/9] 已有 MANAGE_EXTERNAL_STORAGE")
+            OppoStepCompletionStore.markCompleted(context, OppoStepCompletionStore.Keys.STEP6_FILEACCESS); return
+        }
+        logs.add("[Step 6/9] ▶ 所有文件访问开始")
+        launchFileAccessSettings()
+        kotlinx.coroutines.delay(1500L)
+        val ok = tryToggleFileAccess(successes, logs)
+        if (ok) {
+            OppoStepCompletionStore.markCompleted(context, OppoStepCompletionStore.Keys.STEP6_FILEACCESS)
+        } else {
+            failures.add("[Step 6/9] 所有文件访问未开启")
+        }
+    }
+
+    open fun isExternalStorageManagerNow(): Boolean {
+        return if (android.os.Build.VERSION.SDK_INT >= 30) android.os.Environment.isExternalStorageManager() else true
+    }
+
+    open suspend fun launchFileAccessSettings() {
+        try {
+            val i = android.content.Intent(android.provider.Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION)
+                .setData(android.net.Uri.parse("package:${context.packageName}"))
+                .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+            context.startActivity(i)
+        } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) {
+            android.util.Log.w(TAG, "launchFileAccessSettings: ${e.message}")
+        }
+    }
+
+    open suspend fun tryToggleFileAccess(
+        successes: MutableList<String>,
+        logs: MutableList<String>
+    ): Boolean {
+        val switches = listOf(
+            "授予所有文件的管理权限", "所有文件访问权限", "授予管理所有文件的权限",
+            "允许访问所有文件", "允许管理所有文件"
+        )
+        var toggled = false
+        for (s in switches) { if (openSwitch(s)) { toggled = true; break } }
+        if (!toggled) {
+            for (b in listOf("开启", "Enable", "Turn on")) { if (clickText(b)) { toggled = true; break } }
+        }
+        if (!toggled) return false
+        kotlinx.coroutines.delay(800L)
+        val sdk = android.os.Build.VERSION.SDK_INT
+        when {
+            sdk in 29..31 -> listOf("确定", "OK", "允许", "Allow", "我知道了", "Got it").any { clickText(it) }
+            sdk == 32 -> listOf("确定", "应用", "允许").any { clickText(it) }
+            sdk == 33 -> { clickText("确定"); kotlinx.coroutines.delay(400L); clickText("允许") }
+            sdk >= 34 -> listOf("允许", "授予权限", "确定").any { clickText(it) }
+            else -> clickText("确定")
+        }
+        kotlinx.coroutines.delay(800L)
+        val granted = isExternalStorageManagerNow()
+        if (granted) successes.add("[Step 6/9] MANAGE_EXTERNAL_STORAGE 已获取")
+        return granted
+    }
+
+    // ━━━━━━━━━━━━━━━━━ Step 7 — 关 OFF 通知渠道 ━━━━━━━━━━━━━━━━━
+
+    open suspend fun executeStep7Notification(
+        successes: MutableList<String>,
+        failures: MutableList<String>,
+        logs: MutableList<String>
+    ) {
+        if (OppoStepCompletionStore.isCompleted(context, OppoStepCompletionStore.Keys.STEP7_NOTIFICATION)) {
+            logs.add("[Step 7/9] ⏭ 24h 内已完成,跳过"); return
+        }
+        logs.add("[Step 7/9] ▶ 关闭 OFF 通知渠道开始")
+        launchChannelSettings("OFF")
+        kotlinx.coroutines.delay(800L)
+        val ok = tryCloseOffChannelSwitch(successes, logs)
+        if (ok) {
+            OppoStepCompletionStore.markCompleted(context, OppoStepCompletionStore.Keys.STEP7_NOTIFICATION)
+        } else {
+            failures.add("[Step 7/9] OFF 通知关闭失败")
+        }
+    }
+
+    open suspend fun launchChannelSettings(channelId: String) {
+        try {
+            val i = android.content.Intent("android.settings.CHANNEL_NOTIFICATION_SETTINGS")
+                .putExtra("android.provider.extra.APP_PACKAGE", context.packageName)
+                .putExtra("android.provider.extra.CHANNEL_ID", channelId)
+                .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+            context.startActivity(i)
+        } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) {
+            android.util.Log.w(TAG, "launchChannelSettings: ${e.message}")
+        }
+    }
+
+    open suspend fun tryCloseOffChannelSwitch(
+        successes: MutableList<String>,
+        logs: MutableList<String>
+    ): Boolean {
+        repeat(6) {
+            if (closeSwitch("允许通知")) {
+                pressBack()
+                successes.add("[Step 7/9] 允许通知 已关闭")
+                return true
+            }
+            kotlinx.coroutines.delay(500L)
+        }
+        return false
+    }
+
+    // ━━━━━━━━━━━━━━━━━ Step 8 — 最近任务锁定 ━━━━━━━━━━━━━━━━━
+
+    open suspend fun executeStep8RecentTaskLock(
+        successes: MutableList<String>,
+        failures: MutableList<String>,
+        logs: MutableList<String>
+    ) {
+        if (OppoStepCompletionStore.isCompleted(context, OppoStepCompletionStore.Keys.STEP8_APPLOCK)) {
+            logs.add("[Step 8/9] ⏭ 24h 内已完成,跳过"); return
+        }
+        val svc = service ?: run { failures.add("[Step 8/9] service=null"); return }
+        logs.add("[Step 8/9] ▶ 最近任务锁定开始")
+
+        try {
+            val launch = context.packageManager.getLaunchIntentForPackage(context.packageName)
+            launch?.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+            launch?.let { context.startActivity(it) }
+            kotlinx.coroutines.delay(500L)
+        } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (_: Exception) {}
+
+        try { svc.performGlobalAction(android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_RECENTS) } catch (_: Exception) {}
+        kotlinx.coroutines.delay(1200L)
+
+        horizontalSwipeToActivate()
+        kotlinx.coroutines.delay(500L)
+
+        val ok = tryLockAppCard(successes, logs)
+        if (ok) {
+            OppoStepCompletionStore.markCompleted(context, OppoStepCompletionStore.Keys.STEP8_APPLOCK)
+        } else {
+            failures.add("[Step 8/9] 未能锁定 app 卡片")
+        }
+    }
+
+    protected suspend fun horizontalSwipeToActivate() {
+        val svc = service ?: return
+        val w = try { (context.resources.displayMetrics.widthPixels) } catch (_: Exception) { 1080 }
+        val h = try { (context.resources.displayMetrics.heightPixels) } catch (_: Exception) { 2400 }
+        val fromX = w * 0.8f; val toX = w * 0.2f; val y = h * 0.4f
+        try {
+            val path = android.graphics.Path().apply { moveTo(fromX, y); lineTo(toX, y) }
+            val stroke = android.accessibilityservice.GestureDescription.StrokeDescription(path, 0, 400)
+            val gesture = android.accessibilityservice.GestureDescription.Builder().addStroke(stroke).build()
+            svc.dispatchGesture(gesture, null, null)
+        } catch (_: Exception) {}
+    }
+
+    open suspend fun tryLockAppCard(
+        successes: MutableList<String>,
+        logs: MutableList<String>
+    ): Boolean {
+        val svc = service ?: return false
+        val lockTexts = listOf("锁定", "鎖定", "加锁", "Lock", "LOCK", "잠금", "잠그기")
+        val alreadyLocked = listOf("解锁", "解鎖", "Unlock", "UNLOCK", "취소 잠금", "잠금 해제",
+            "已锁定", "已鎖定", "Locked", "LOCKED")
+
+        repeat(4) {
+            val root = try { svc.rootInActiveWindow } catch (_: Exception) { null } ?: return@repeat
+            val cards = try { root.findAccessibilityNodeInfosByText(appLabel) } catch (_: Exception) { null } ?: emptyList()
+            for (card in cards) {
+                val cardRoot: android.view.accessibility.AccessibilityNodeInfo =
+                    try { card.parent } catch (_: Exception) { null } ?: card
+                val cardTexts = OppoPageDetector.collectTexts(cardRoot)
+                if (alreadyLocked.any { t -> cardTexts.any { it.contains(t) } }) {
+                    successes.add("[Step 8/9] 已锁定($appLabel)")
+                    return true
+                }
+                val moreNodes = try { cardRoot.findAccessibilityNodeInfosByText("更多") } catch (_: Exception) { null } ?: emptyList()
+                for (m in moreNodes) {
+                    val t = try { m.text?.toString() ?: "" } catch (_: Exception) { "" }
+                    val desc = try { m.contentDescription?.toString() ?: "" } catch (_: Exception) { "" }
+                    if (t == "更多" || desc == "更多") {
+                        performClickOrAncestor(m); kotlinx.coroutines.delay(800L); break
+                    }
+                }
+                for (lt in lockTexts) {
+                    val found = try { (svc.rootInActiveWindow ?: root).findAccessibilityNodeInfosByText(lt) } catch (_: Exception) { null } ?: emptyList()
+                    for (n in found) {
+                        val t = try { n.text?.toString() ?: "" } catch (_: Exception) { "" }
+                        if ("解" !in t && "已" !in t && performClickOrAncestor(n)) {
+                            successes.add("[Step 8/9] 锁定按钮点中 '$lt'")
+                            return true
+                        }
+                    }
+                }
+            }
+            kotlinx.coroutines.delay(600L)
         }
         return false
     }
