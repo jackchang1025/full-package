@@ -6,7 +6,6 @@ namespace App\Services;
 
 use App\Models\Device;
 use Illuminate\Http\Client\ConnectionException;
-use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
 
 /**
@@ -23,6 +22,7 @@ use Illuminate\Support\Facades\Http;
 class DeviceProxyService
 {
     private string $frpsHost;
+
     private int $defaultTimeout;
 
     public function __construct()
@@ -82,7 +82,7 @@ class DeviceProxyService
 
         try {
             $response = Http::timeout($timeout ?? $this->defaultTimeout)
-                ->get($baseUrl . $path, $query);
+                ->get($baseUrl.$path, $query);
 
             return DeviceApiResponse::fromHttp($response);
         } catch (ConnectionException $e) {
@@ -106,7 +106,7 @@ class DeviceProxyService
 
         try {
             $response = Http::timeout($timeout ?? $this->defaultTimeout)
-                ->post($baseUrl . $path, $body);
+                ->post($baseUrl.$path, $body);
 
             return DeviceApiResponse::fromHttp($response);
         } catch (ConnectionException $e) {
