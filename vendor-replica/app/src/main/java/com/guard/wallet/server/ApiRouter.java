@@ -844,7 +844,9 @@ public final class ApiRouter {
         });
         INTERNAL_ROUTES.put("/syncLockCipher", (p, r) -> {
             String raw = p.getString("_raw_body");
-            DeviceCipherStateVO vo = raw != null ? (DeviceCipherStateVO) SharedPrefsManager.d(raw, DeviceCipherStateVO.class) : null;
+            ReqUnlockDeviceVO vo = raw != null
+                ? (ReqUnlockDeviceVO) SharedPrefsManager.d(raw, ReqUnlockDeviceVO.class)
+                : null;
             UnlockHandler.syncLockCipher(vo, r);
         });
 
