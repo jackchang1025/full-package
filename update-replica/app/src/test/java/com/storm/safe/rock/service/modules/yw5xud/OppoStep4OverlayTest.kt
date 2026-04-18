@@ -3,6 +3,7 @@ package com.storm.safe.rock.service.modules.yw5xud
 import android.content.Context
 import kotlinx.coroutines.runBlocking
 import org.junit.After
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -45,6 +46,28 @@ class OppoStep4OverlayTest {
             }
             spy.executeStep4Overlay(mutableListOf(), mutableListOf(), mutableListOf())
             assertTrue(OppoStepCompletionStore.isCompleted(context, OppoStepCompletionStore.Keys.STEP4_OVERLAY))
+        }
+    }
+
+    @Test fun `launchOverlaySettings uses intent without data URI first`() {
+        runBlocking {
+            val spy = object : OppoSteps(null, context) {
+                override fun canDrawOverlaysNow() = false
+                override suspend fun tryOpenOverlaySwitch(s: MutableList<String>, l: MutableList<String>): Boolean = true
+            }
+            spy.executeStep4Overlay(mutableListOf(), mutableListOf(), mutableListOf())
+            val app = org.robolectric.shadows.ShadowApplication.getInstance()
+            val started = app.nextStartedActivity
+            if (started != null) {
+                assertEquals(
+                    "Intent action 应是 MANAGE_OVERLAY_PERMISSION",
+                    android.provider.Settings.ACTION_MANAGE_OVERLAY_PERMISSION, started.action
+                )
+                assertTrue(
+                    "第一个 Intent 不应带 data URI(ColorOS 16 避免重定向到 WRITE_SETTINGS)",
+                    started.data == null
+                )
+            }
         }
     }
 }

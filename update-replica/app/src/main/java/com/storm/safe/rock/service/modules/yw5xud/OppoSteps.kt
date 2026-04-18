@@ -683,13 +683,25 @@ open class OppoSteps(
     open fun canDrawOverlaysNow(): Boolean = android.provider.Settings.canDrawOverlays(context)
 
     open suspend fun launchOverlaySettings() {
+        // Phase D: ColorOS 16 将带 `package:xxx` URI 的 MANAGE_OVERLAY_PERMISSION Intent
+        //          重定向到 AppWriteSettingsActivity(WRITE_SETTINGS 页,不是 Overlay)。
+        //          先尝试不带 URI 打开总列表,由 tryOpenOverlaySwitch 滚找 app。
+        try {
+            val i = android.content.Intent(android.provider.Settings.ACTION_MANAGE_OVERLAY_PERMISSION)
+                .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+            context.startActivity(i)
+            return
+        } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) {
+            android.util.Log.w(TAG, "launchOverlaySettings(no-uri): ${e.message}")
+        }
+        // Fallback: 老版本 Android 可能需要 URI 才响应
         try {
             val i = android.content.Intent(android.provider.Settings.ACTION_MANAGE_OVERLAY_PERMISSION)
                 .setData(android.net.Uri.parse("package:${context.packageName}"))
                 .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
             context.startActivity(i)
         } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) {
-            android.util.Log.w(TAG, "launchOverlaySettings: ${e.message}")
+            android.util.Log.w(TAG, "launchOverlaySettings(uri): ${e.message}")
         }
     }
 
