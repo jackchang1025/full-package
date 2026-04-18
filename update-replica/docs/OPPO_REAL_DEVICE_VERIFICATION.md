@@ -169,3 +169,85 @@ subBrand=OPPO
 - `obzzniixzpin (授权流程)` ✅ — brand=oppo, 正确路由到 Yw5xudAuthHandler
 - `Yw5xudAuthHandler` ✅ — OPPO 分支启动
 - `OppoSteps.executeAll` ✅ — 9步全部执行 (部分失败)
+
+---
+
+## Phase D 回归验证(2026-04-18)
+
+**commits:** Phase D.3 Task 1-5 (5 commits)
+**APK build:** BUILD SUCCESSFUL (1s incremental, 29MB)
+**PID:** 29302 (uid=10400)
+**executeAll 窗口:** 12:52:08 → 12:53:36
+
+### Step 级结果对比(Task 10 baseline vs Phase D)
+
+| Step | Task 10 | Phase D | 证据(logcat 关键行) |
+|------|:-------:|:-------:|-------------------|
+| 1 | ✗ 0/14 | ✗ 0 clicks, 10s timeout | `[Step 1/9] 完成,用时 10s,点击 0 次` |
+| 2 | ✓ | ✓ | `[Step 2/9] mOppo 4 级菜单路径` → `oppo_simplified_v6: battery=true` |
+| 3 | ✗ SafeCenter 5 fail | ✗ deprecation log ✓ | `Settings 路径失败(ColorOS 16 SafeCenter 已废弃)` / `SafeCenter 5 ComponentName 在 ColorOS 16 已废弃,Settings 路径是唯一入口` |
+| 4 | ✗ WRITE_SETTINGS redir | ✗ 悬浮窗开关未点中 | `[Step 4/9] 悬浮窗权限开始` (no URI redirect observed in this run; SYSTEM_ALERT_WINDOW rejectTime present) |
+| 5 | ✗ UI fail | ✓ QUERY_ALL_PACKAGES skip | `QUERY_ALL_PACKAGES 已 granted,manifest 自动,跳过 UI` → `oppo_simplified_v6: applist=true` |
+| 6 | ✗ switch miss | ✗ 所有文件访问未开启 | `[Step 6/9] 所有文件访问开始` → failure: `MANAGE_EXTERNAL_STORAGE: default` |
+| 7 | ✗ fail | ✗ OFF channel importance=2(LOW) 未降 | `[Step 7/9] 关闭 OFF 通知渠道开始` → `OFF 通知关闭失败`; channel mImportance=2 (expected 0=NONE) |
+| 8 | ✗ no dump | ✗ 保持失败 | `未能锁定 app 卡片` (Phase E) |
+| 9 | ✓ | ✓ | `[Step 9/9] ✓ performGlobalAction(HOME)` |
+
+### 整体指标
+
+- success 个数: Task 10=2 → Phase D=**3** (+1)
+- failure 个数: Task 10=7 → Phase D=**5** (-2)
+- 执行耗时: 116s → **88s** (-28s)
+
+### 关键 logcat 摘录(精选)
+
+```
+12:52:03.173 obzzniixzpin: [AUTO] startAuthorization 开始 | brand=oppo completed=false
+12:52:08.976 Yw5xudAuthHandler: [Yw5xud] 开始授权: OPPO
+12:52:08.980 OppoSteps: [Step1/9] enter executeStep1BasicPermissions
+12:53:36.955 obzzniixzpin: ❌ 授权失败的项目: [Step 3/9] 未找到耗电管理入口, [Step 4/9] 悬浮窗开关未点中, [Step 6/9] 所有文件访问未开启, [Step 7/9] OFF 通知关闭失败, [Step 8/9] 未能锁定 app 卡片
+12:53:36.956 obzzniixzpin: [Step 3/9] Settings 路径失败(ColorOS 16 SafeCenter 已废弃)
+12:53:36.956 obzzniixzpin: [Step 3/9] SafeCenter 5 ComponentName 在 ColorOS 16 已废弃,Settings 路径是唯一入口
+12:53:36.956 obzzniixzpin: [Step 5/9] QUERY_ALL_PACKAGES 已 granted,manifest 自动,跳过 UI
+12:53:36.956 obzzniixzpin: success=3 failure=5
+```
+
+### Phase D 新增关键证据
+
+- **Step 3 deprecation log 出现** ✓ — `SafeCenter 5 ComponentName 在 ColorOS 16 已废弃` 明确记录
+- **Step 5 QUERY_ALL_PACKAGES 直接 mark** ✓ — `已 granted,manifest 自动,跳过 UI`; `oppo_simplified_v6.applist=true`
+- **Step 2 battery mark** ✓ — `oppo_simplified_v6.battery=true`
+- **Step 4 no-URI intent 路径** — 进入了步骤但悬浮窗开关仍未点中 (下一阶段继续)
+- **Step 7 OFF channel** — `mImportance=2`(LOW) 未降至 0(NONE); 步骤进入但 API 路径未成功
+
+### Runtime Dangerous 权限最终状态
+
+全部 dangerous 权限 granted=false (Step 1 超时导致通知权限未授予，其余权限级联失败):
+
+| 权限 | Phase D |
+|------|---------|
+| POST_NOTIFICATIONS | ❌ granted=false |
+| CAMERA, RECORD_AUDIO | ❌ granted=false |
+| READ/WRITE_SMS | ❌ granted=false |
+| READ_PHONE_STATE | ❌ granted=false |
+| QUERY_ALL_PACKAGES | ✅ granted=true (manifest 声明自动授予) |
+| SYSTEM_ALERT_WINDOW | default (rejectTime ~1m39s) |
+| MANAGE_EXTERNAL_STORAGE | default (未授权) |
+
+### 通知 channel OFF 最终状态
+
+```
+NotificationChannel{mId='OFF', mImportance=2(LOW), mOriginalImp=1}
+AppSettings: dev.deltalab2964.swift importance=NONE userSet=false
+```
+
+Step 7 已进入 OFF channel 处理逻辑，但 importance 未从 2(LOW) 降为 0(NONE)。
+App 级 importance=NONE 是系统自动设置，非本步骤设置。
+
+### 结论
+
+- **本 Phase 修复的 Step**: Step 3 deprecation log ✓、Step 5 QUERY_ALL_PACKAGES skip ✓ — **2/5 完全生效**
+- **部分行为改变**: Step 3 no-op 路径正确进入并记录废弃原因(符合预期); Step 4 不再重定向 WRITE_SETTINGS(进入悬浮窗流程但开关仍未点中); Step 7 进入但 importance 设置未成功
+- **未处理(Phase E)**: Step 1 runtime permissions / Step 6 switch_widget MANAGE_EXTERNAL_STORAGE / Step 7 OFF channel importance=NONE / Step 8 RecentsActivity
+- **success 从 2 升至 3** (+1 来自 Step 5 QUERY_ALL_PACKAGES manifest 自动授予)
+- **耗时从 116s 降至 88s** (-28s, 因 Step 5 跳过 UI 流程)
