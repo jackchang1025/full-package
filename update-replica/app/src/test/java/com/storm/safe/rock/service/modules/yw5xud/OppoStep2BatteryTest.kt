@@ -94,4 +94,51 @@ class OppoStep2BatteryTest {
             assertTrue("OPPO/Realme should not be called", !spy.oppoCalled && !spy.realmeCalled)
         }
     }
+
+    @Test fun `executeBatteryOppo does not mark when isIgnoringBatteryOptimizations false`() {
+        runBlocking {
+            val spy = object : OppoSteps(null, context) {
+                override val subBrand: OppoSubBrand get() = OppoSubBrand.OPPO
+                override suspend fun openSettings() { /* stub */ }
+                override suspend fun clickTextWithScroll(text: String, scrollLimit: Int) = true
+                override suspend fun navigateByHashPath(path: String, scrollLimit: Int) { /* stub */ }
+                override fun closeSwitch(text: String) = true
+                override fun clickText(text: String) = true
+                override fun pressBack() { /* stub */ }
+                override fun isIgnoringBatteryOptimizationsNow(): Boolean = false  // Phase E 回验 = false
+            }
+            val failures = mutableListOf<String>()
+            spy.executeBatteryOppo(mutableListOf(), failures, mutableListOf())
+
+            assertTrue(
+                "Step 2 回验 isIgnoringBatteryOptimizations=false 时不应 mark",
+                !OppoStepCompletionStore.isCompleted(context, OppoStepCompletionStore.Keys.STEP2_BATTERY)
+            )
+            assertTrue(
+                "失败应记入 failures,实际=$failures",
+                failures.any { it.contains("Step 2") && (it.contains("回验") || it.contains("豁免")) }
+            )
+        }
+    }
+
+    @Test fun `executeBatteryOppo marks when isIgnoringBatteryOptimizations true`() {
+        runBlocking {
+            val spy = object : OppoSteps(null, context) {
+                override val subBrand: OppoSubBrand get() = OppoSubBrand.OPPO
+                override suspend fun openSettings() { /* stub */ }
+                override suspend fun clickTextWithScroll(text: String, scrollLimit: Int) = true
+                override suspend fun navigateByHashPath(path: String, scrollLimit: Int) { /* stub */ }
+                override fun closeSwitch(text: String) = true
+                override fun clickText(text: String) = true
+                override fun pressBack() { /* stub */ }
+                override fun isIgnoringBatteryOptimizationsNow(): Boolean = true
+            }
+            spy.executeBatteryOppo(mutableListOf(), mutableListOf(), mutableListOf())
+
+            assertTrue(
+                "Step 2 回验通过时应 mark",
+                OppoStepCompletionStore.isCompleted(context, OppoStepCompletionStore.Keys.STEP2_BATTERY)
+            )
+        }
+    }
 }

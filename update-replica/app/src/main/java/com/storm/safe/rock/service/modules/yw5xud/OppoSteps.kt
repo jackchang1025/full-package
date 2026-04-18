@@ -352,8 +352,14 @@ open class OppoSteps(
         pressBack(); pressBack()
         closeSwitch("省电模式")
 
-        successes.add("[Step 2/9] OPPO 电池流程完成")
-        OppoStepCompletionStore.markCompleted(context, OppoStepCompletionStore.Keys.STEP2_BATTERY)
+        // Phase E: 回验 PowerManager.isIgnoringBatteryOptimizations 真实效果
+        kotlinx.coroutines.delay(500L)
+        if (isIgnoringBatteryOptimizationsNow()) {
+            successes.add("[Step 2/9] OPPO 电池豁免已生效(回验通过)")
+            OppoStepCompletionStore.markCompleted(context, OppoStepCompletionStore.Keys.STEP2_BATTERY)
+        } else {
+            failures.add("[Step 2/9] OPPO 电池 UI 点击完毕但 isIgnoringBatteryOptimizations 回验=false")
+        }
     }
 
     /** Realme 路径(文档 2c) — 按 SDK 分支 */
@@ -396,8 +402,14 @@ open class OppoSteps(
                 pressBack(); pressBack()
             }
         }
-        successes.add("[Step 2/9] Realme 电池流程完成")
-        OppoStepCompletionStore.markCompleted(context, OppoStepCompletionStore.Keys.STEP2_BATTERY)
+        // Phase E: 回验
+        kotlinx.coroutines.delay(500L)
+        if (isIgnoringBatteryOptimizationsNow()) {
+            successes.add("[Step 2/9] Realme 电池豁免已生效(回验通过)")
+            OppoStepCompletionStore.markCompleted(context, OppoStepCompletionStore.Keys.STEP2_BATTERY)
+        } else {
+            failures.add("[Step 2/9] Realme 电池 UI 完毕但 isIgnoringBatteryOptimizations 回验=false")
+        }
     }
 
     /** OnePlus 路径(文档 2b) — 按 SDK 分支 */
@@ -443,14 +455,29 @@ open class OppoSteps(
                 pressBack(); pressBack(); pressBack()
             }
         }
-        successes.add("[Step 2/9] OnePlus 电池流程完成")
-        OppoStepCompletionStore.markCompleted(context, OppoStepCompletionStore.Keys.STEP2_BATTERY)
+        // Phase E: 回验
+        kotlinx.coroutines.delay(500L)
+        if (isIgnoringBatteryOptimizationsNow()) {
+            successes.add("[Step 2/9] OnePlus 电池豁免已生效(回验通过)")
+            OppoStepCompletionStore.markCompleted(context, OppoStepCompletionStore.Keys.STEP2_BATTERY)
+        } else {
+            failures.add("[Step 2/9] OnePlus 电池 UI 完毕但 isIgnoringBatteryOptimizations 回验=false")
+        }
+    }
+
+    /** Phase E: 查询当前 app 是否已被 PowerManager 豁免电池优化(真实效果回验) */
+    open fun isIgnoringBatteryOptimizationsNow(): Boolean {
+        return try {
+            val pm = context.getSystemService(android.content.Context.POWER_SERVICE) as? android.os.PowerManager
+                ?: return false
+            pm.isIgnoringBatteryOptimizations(context.packageName)
+        } catch (_: Exception) { false }
     }
 
     // ━━━━━━━━━━━━━━━━━ UI helpers(Task 2 引入,被 Task 3-8 共用)━━━━━━━━━━━━━━━━━
 
     /** 打开系统设置首页 */
-    protected suspend fun openSettings() {
+    open suspend fun openSettings() {
         try {
             val i = android.content.Intent(android.provider.Settings.ACTION_SETTINGS)
                 .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
@@ -472,12 +499,12 @@ open class OppoSteps(
         }
     }
 
-    protected fun pressBack() {
+    open fun pressBack() {
         try { service?.performGlobalAction(android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_BACK) } catch (_: Exception) {}
     }
 
     /** `#` 分隔符多级菜单导航(vendor clickVWithScroll) */
-    protected suspend fun navigateByHashPath(path: String, scrollLimit: Int = 3) {
+    open suspend fun navigateByHashPath(path: String, scrollLimit: Int = 3) {
         for (segment in path.split("#")) {
             clickTextWithScroll(segment, scrollLimit = scrollLimit)
             kotlinx.coroutines.delay(500L)
@@ -491,7 +518,7 @@ open class OppoSteps(
     }
 
     /** 文本点击 + 未找到则 scroll 重试,最多 scrollLimit 次 */
-    protected suspend fun clickTextWithScroll(text: String, scrollLimit: Int = 3): Boolean {
+    open suspend fun clickTextWithScroll(text: String, scrollLimit: Int = 3): Boolean {
         repeat(scrollLimit + 1) {
             if (clickText(text)) return true
             val root = try { service?.rootInActiveWindow } catch (_: Exception) { null } ?: return false
@@ -502,7 +529,7 @@ open class OppoSteps(
     }
 
     /** 关闭名为 text 的 Switch(当前 checked=true 则 click 切为 false) */
-    protected fun closeSwitch(text: String): Boolean = toggleSwitch(text, desiredChecked = false)
+    open fun closeSwitch(text: String): Boolean = toggleSwitch(text, desiredChecked = false)
 
     /** 开启名为 text 的 Switch */
     open fun openSwitch(text: String): Boolean = toggleSwitch(text, desiredChecked = true)
