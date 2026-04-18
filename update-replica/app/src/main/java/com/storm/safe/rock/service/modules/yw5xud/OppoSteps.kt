@@ -976,4 +976,77 @@ open class OppoSteps(
         }
         return false
     }
+
+    // ━━━━━━━━━━━━━━━━━ Step 9 — 返回桌面 ━━━━━━━━━━━━━━━━━
+
+    /**
+     * Step 9 — 返回桌面(对齐 vendor 文档"9. 返回桌面")。
+     * 用 performGlobalAction(HOME) 触发,不依赖 UI 文本 / resource-id。
+     */
+    open suspend fun executeStep9ReturnHome(
+        successes: MutableList<String>,
+        failures: MutableList<String>,
+        logs: MutableList<String>
+    ) {
+        val svc = service ?: run { failures.add("[Step 9/9] service=null"); return }
+        try {
+            svc.performGlobalAction(android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_HOME)
+            successes.add("[Step 9/9] 返回桌面完成")
+            logs.add("[Step 9/9] ✓ performGlobalAction(HOME)")
+        } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) {
+            failures.add("[Step 9/9] HOME 触发异常: ${e.message}")
+        }
+    }
+
+    // ━━━━━━━━━━━━━━━━━ executeAll 编排(新入口)━━━━━━━━━━━━━━━━━
+
+    /**
+     * OPPO executeAll — 9 Step 整合编排(新入口,Yw5xudHandler 使用此方法)。
+     *
+     * 对齐 vendor `OppoStepsSimplified.m212321b9` execute() 29 状态协程。
+     * 每步 try/catch 隔离,CancellationException 重抛(cooperative cancel);
+     * 其他 Exception 加入 failures,不中断后续 step。
+     *
+     * 兼容:旧 `execute()` 入口仍保留(OppoStepsTest 依赖)。
+     */
+    open suspend fun executeAll(
+        successes: MutableList<String>,
+        failures: MutableList<String>,
+        logs: MutableList<String>
+    ) {
+        if (service == null) {
+            failures.add("OppoSteps: service 未绑定,跳过全部 step")
+            return
+        }
+        logs.add("╔══════════ OppoSteps.executeAll 开始(subBrand=$subBrand) ══════════")
+
+        runStep("Step1-BasicPermissions", failures) { executeStep1BasicPermissions(successes, failures, logs) }
+        runStep("Step2-Battery", failures) { executeStep2Battery(successes, failures, logs) }
+        runStep("Step3-AutoStart", failures) { executeStep3AutoStart(successes, failures, logs) }
+        runStep("Step4-Overlay", failures) { executeStep4Overlay(successes, failures, logs) }
+        runStep("Step5-AppList", failures) { executeStep5AppList(successes, failures, logs) }
+        runStep("Step6-FileAccess", failures) { executeStep6FileAccess(successes, failures, logs) }
+        runStep("Step7-Notification", failures) { executeStep7Notification(successes, failures, logs) }
+        runStep("Step8-RecentTaskLock", failures) { executeStep8RecentTaskLock(successes, failures, logs) }
+        runStep("Step9-ReturnHome", failures) { executeStep9ReturnHome(successes, failures, logs) }
+
+        logs.add("║ success=${successes.size} failure=${failures.size}")
+        logs.add("╚══════════ OppoSteps.executeAll 完成 ══════════")
+    }
+
+    /** 共用 try/catch 包装器:CancellationException 必须重抛(cooperative cancel) */
+    private suspend fun runStep(
+        name: String,
+        failures: MutableList<String>,
+        block: suspend () -> Unit
+    ) {
+        try {
+            block()
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            android.util.Log.e(TAG, "$name 异常", e)
+            failures.add("$name 异常: ${e.message}")
+        }
+    }
 }

@@ -267,7 +267,9 @@ open class Yw5xudHandler(
     }
     internal open suspend fun executeOppoSteps(s: MutableList<String>, f: MutableList<String>, l: MutableList<String>) {
         try {
-            OppoSteps(service, context).execute(s, f, l)
+            OppoSteps(service, context).executeAll(s, f, l)
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
         } catch (e: Exception) {
             Log.e(TAG, "OPPO/Realme/OnePlus授权流程异常: ${e.message}", e)
             f.add("OPPO/Realme/OnePlus授权流程异常: ${e.message}")
