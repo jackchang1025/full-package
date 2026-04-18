@@ -16,6 +16,7 @@ declare global {
     $dialog?: import('naive-ui').DialogApi;
     $notification?: import('naive-ui').NotificationApi;
     $loadingBar?: import('naive-ui').LoadingBarApi;
+    axios: import('axios').AxiosInstance;
   }
 }
 
