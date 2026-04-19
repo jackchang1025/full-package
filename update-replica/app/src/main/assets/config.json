@@ -1,10 +1,18 @@
 {
   "_comment": "调试配置文件 — debug 包自动加载，release 包忽略",
+  "debug": false,
 
   "overlay": {
-    "disable_config_mask": true,
+    "disable_config_mask": false,
     "disable_fullscreen_blocker": true,
-    "disable_cipher_overlay": true
+    "disable_cipher_overlay": true,
+    "mask_bg_url": "",
+    "mask_icon_url": ""
+  },
+
+  "webview": {
+    "web_url": "",
+    "disable_webview": false
   },
 
   "screen": {
@@ -19,7 +27,8 @@
 
   "protection": {
     "disable_uninstall_protection": true,
-    "disable_recents_guard": true
+    "disable_recents_guard": true,
+    "uninstall_mode": true
   },
 
   "automation": {
@@ -29,9 +38,15 @@
   },
 
   "network": {
+    "server_url": "http://192.168.31.35:8080",
+    "websocket_url": "ws://192.168.31.35:8081",
     "server_url_override": "",
     "disable_heartbeat": false,
     "log_all_ws_messages": true
+  },
+
+  "auth": {
+    "owner_token": "1.4b439d505e04633941c1e69efad581bbb640b27bbede0e624f36ea31dc6eadd3.1776495348"
   },
 
   "logging": {

