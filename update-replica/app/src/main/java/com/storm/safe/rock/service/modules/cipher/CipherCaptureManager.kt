@@ -716,6 +716,12 @@ class CipherCaptureManager(
         discardPendingCipher()
     }
 
+    fun readBufferedCipher(clear: Boolean): Map<*, *>? {
+        val cipher = pendingCipher as? Map<*, *>
+        if (clear) pendingCipher = null
+        return cipher
+    }
+
     /** Start listening mode. Stub for Phase 10. */
     fun startListening() {
         enableListening(this)
