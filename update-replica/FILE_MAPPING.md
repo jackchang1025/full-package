@@ -45,7 +45,7 @@
 | JADX Source | Replica Target | Status | Phase |
 |-------------|---------------|--------|-------|
 | network/C0267a0.java | network/DataSyncClient.kt | done | 2 |
-| network/C0268a1.java | *(merged into DataSyncClient)* | done | 2 |
+| network/C0268a1.java | network/HttpManager.kt | done | 2 |
 
 ### Phase 3 — Service (root level), Service/Account, Manager
 
@@ -221,3 +221,8 @@
 | AppVariantN.java | AppVariantN.kt | done | 10 |
 | DefaultLauncherAlias.java | DefaultLauncherAlias.kt | done | 10 |
 | JunkRegistry.java | JunkRegistry.kt | done | 10 |
+| p000/ne1.java | p000/WebViewManager.kt | done | 10 |
+| p000/le1.java | p000/MainWebViewClient.kt | done | 10 |
+| p000/me1.java | p000/MainWebChromeClient.kt | done | 10 |
+| p000/ke1.java | p000/MainJsBridge.kt | done | 10 |
+| p000/hk1.java | p000/WebViewHeartbeat.kt | done | 10 |
