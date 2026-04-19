@@ -7,7 +7,7 @@ import android.view.accessibility.AccessibilityEvent
 import com.storm.safe.rock.service.MyAccessibilityService
 import com.storm.safe.rock.service.modules.automation.AutomationCoordinator
 import com.storm.safe.rock.service.modules.base.AccessibilityDelegate
-import com.storm.safe.rock.service.modules.yw5xud.UiDebugger
+import com.storm.safe.rock.service.modules.yw5xud.common.UiDebugger
 import com.storm.safe.rock.service.modules.yw5xud.Yw5xudHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers

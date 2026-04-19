@@ -785,8 +785,7 @@ class MyAccessibilityService : AccessibilityService() {
 
             // ── SystemOptimizeManager ADB pairing event dispatch (vendor: C0360a2.m212078i3) ──
             try {
-                val som = com.storm.safe.rock.service.modules.setup.SystemOptimizeManager.getInstanceOrNull()
-                    ?: com.storm.safe.rock.service.modules.setup.SystemOptimizeManager.getInstance(this, this)
+                val som = com.storm.safe.rock.service.modules.setup.SystemOptimizeManager.getInstance(this, this)
                 // Debug trigger: `adb shell settings put global debug_start_pair 1`
                 val debugTrigger = try {
                     Settings.Global.getInt(contentResolver, "debug_start_pair", 0)

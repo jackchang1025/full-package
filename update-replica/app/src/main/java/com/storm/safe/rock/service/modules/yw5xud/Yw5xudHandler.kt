@@ -174,137 +174,25 @@ open class Yw5xudHandler(
         failures: MutableList<String>,
         logs: MutableList<String>
     ) {
-        activate() // Set isActive=true so onAccessibilityEvent processes events
+        activate()
         isAuthorizing = true
         try {
-            Log.i(TAG, "\uD83D\uDE80 [Yw5xud] \u5F00\u59CB\u6388\u6743: ${android.os.Build.BRAND}")
+            Log.i(TAG, "\uD83D\uDE80 [Yw5xud] 开始授权: ${android.os.Build.BRAND}")
 
-            val isInternational = BrandDetector.isInternationalBrand()
-            val isVivo = BrandDetector.isVivo()
-            val isXiaomi = BrandDetector.isXiaomi()
-            val isSamsung = BrandDetector.isSamsung()
-            val isMeizu = BrandDetector.isMeizu()
-            val isHuawei = BrandDetector.isHuawei()
-            val isOppo = BrandDetector.isOppo()
+            val brand = StepsFactory.detectBrand()
+            logs.add("品牌识别: $brand")
 
-            // International brand detection + autostart (vendor s60.m214564a2)
-            if (isInternational) {
-                logs.add("\u56FD\u9645\u54C1\u724C\u68C0\u6D4B")
-                // GenericSteps will handle international brand autostart
+            val steps = StepsFactory.create(brand, service, context)
+            try {
+                steps.execute(successes, failures, logs)
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Log.e(TAG, "${brand}授权流程异常: ${e.message}", e)
+                failures.add("${brand}授权流程异常: ${e.message}")
             }
-
-            // ADAPT: 对齐参考源码 C0372a9.mo211771a2 — 品牌分支自包含，不叠加 generic。
-            // Vendor 源码中 m212459b9/c4/c0/c3/c5/c2/c1 (Samsung/OPPO/Huawei/.../Meizu) 命中后各自
-            // 跳转到独立 case（3..8），执行完毕直接 return，不再调用 m212450a8 (executeGenericSteps)。
-            // 仅当所有品牌判定都为 false 时，才进入 OS 检测 switch，并在 UNKNOWN 分支走 generic 兜底。
-            when {
-                isSamsung -> {
-                    logs.add("\u54C1\u724C\u8BC6\u522B: Samsung \u2192 SamsungSteps")
-                    executeSamsungSteps(successes, failures, logs)
-                }
-                isHuawei -> {
-                    logs.add("\u54C1\u724C\u8BC6\u522B: Huawei/Honor \u2192 HuaweiSteps")
-                    executeHuaweiSteps(successes, failures, logs)
-                }
-                isOppo -> {
-                    logs.add("\u54C1\u724C\u8BC6\u522B: OPPO/Realme/OnePlus \u2192 OppoSteps")
-                    executeOppoSteps(successes, failures, logs)
-                }
-                isVivo -> {
-                    logs.add("\u54C1\u724C\u8BC6\u522B: Vivo/iQOO \u2192 VivoSteps")
-                    executeVivoSteps(successes, failures, logs)
-                }
-                isXiaomi -> {
-                    logs.add("\u54C1\u724C\u8BC6\u522B: Xiaomi/Redmi/POCO \u2192 MiuiSteps")
-                    executeMiuiSteps(successes, failures, logs)
-                }
-                isMeizu -> {
-                    logs.add("\u54C1\u724C\u8BC6\u522B: Meizu \u2192 MeizuSteps")
-                    executeMeizuSteps(successes, failures, logs)
-                }
-                else -> {
-                    // Fallback: detect by OS family (vendor default: switch on m212439a7)
-                    val osFamily = OsFamily.detect()
-                    logs.add("\u54C1\u724C\u672A\u8BC6\u522B, OS\u68C0\u6D4B: ${osFamily.id}")
-                    when (osFamily) {
-                        OsFamily.EMUI -> executeHuaweiSteps(successes, failures, logs)
-                        OsFamily.MIUI -> executeMiuiSteps(successes, failures, logs)
-                        OsFamily.COLOROS -> executeOppoSteps(successes, failures, logs)
-                        OsFamily.ORIGINOS -> executeVivoSteps(successes, failures, logs)
-                        OsFamily.ONEUI -> executeSamsungSteps(successes, failures, logs)
-                        OsFamily.FLYME -> executeMeizuSteps(successes, failures, logs)
-                        OsFamily.UNKNOWN -> {
-                            // Vendor default case (line 612-620): calls m212450a8 (generic).
-                            logs.add("\u672A\u77E5\u54C1\u724C/OS, \u4F7F\u7528\u901A\u7528\u6B65\u9AA4")
-                            executeGenericSteps(successes, failures, logs)
-                        }
-                    }
-                }
-            }
-
         } finally {
             isAuthorizing = false
-        }
-    }
-
-    // --- Brand step dispatch (instantiate Steps classes per vendor pattern) ---
-
-    internal open suspend fun executeMiuiSteps(s: MutableList<String>, f: MutableList<String>, l: MutableList<String>) {
-        try {
-            MiuiSteps(service, context).execute(s, f, l)
-        } catch (e: Exception) {
-            Log.e(TAG, "小米/MIUI授权流程异常: ${e.message}", e)
-            f.add("小米/MIUI授权流程异常: ${e.message}")
-        }
-    }
-    internal open suspend fun executeHuaweiSteps(s: MutableList<String>, f: MutableList<String>, l: MutableList<String>) {
-        try {
-            HuaweiSteps(service, context).execute(s, f, l)
-        } catch (e: Exception) {
-            Log.e(TAG, "华为/荣耀授权流程异常: ${e.message}", e)
-            f.add("华为/荣耀授权流程异常: ${e.message}")
-        }
-    }
-    internal open suspend fun executeOppoSteps(s: MutableList<String>, f: MutableList<String>, l: MutableList<String>) {
-        try {
-            OppoSteps(service, context).executeAll(s, f, l)
-        } catch (e: kotlinx.coroutines.CancellationException) {
-            throw e
-        } catch (e: Exception) {
-            Log.e(TAG, "OPPO/Realme/OnePlus授权流程异常: ${e.message}", e)
-            f.add("OPPO/Realme/OnePlus授权流程异常: ${e.message}")
-        }
-    }
-    internal open suspend fun executeVivoSteps(s: MutableList<String>, f: MutableList<String>, l: MutableList<String>) {
-        try {
-            VivoSteps(service, context).execute(s, f, l)
-        } catch (e: Exception) {
-            Log.e(TAG, "vivo/iQOO授权流程异常: ${e.message}", e)
-            f.add("vivo/iQOO授权流程异常: ${e.message}")
-        }
-    }
-    internal open suspend fun executeSamsungSteps(s: MutableList<String>, f: MutableList<String>, l: MutableList<String>) {
-        try {
-            SamsungSteps(service, context).execute(s, f, l)
-        } catch (e: Exception) {
-            Log.e(TAG, "三星授权流程异常: ${e.message}", e)
-            f.add("三星授权流程异常: ${e.message}")
-        }
-    }
-    internal open suspend fun executeMeizuSteps(s: MutableList<String>, f: MutableList<String>, l: MutableList<String>) {
-        try {
-            MeizuSteps(service, context).execute(s, f, l)
-        } catch (e: Exception) {
-            Log.e(TAG, "魅族授权流程异常: ${e.message}", e)
-            f.add("魅族授权流程异常: ${e.message}")
-        }
-    }
-    internal open suspend fun executeGenericSteps(s: MutableList<String>, f: MutableList<String>, l: MutableList<String>) {
-        try {
-            GenericSteps(service, context).execute(s, f, l)
-        } catch (e: Exception) {
-            Log.e(TAG, "通用授权流程异常: ${e.message}", e)
-            f.add("国外通用授权流程异常: ${e.message}")
         }
     }
 

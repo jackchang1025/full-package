@@ -235,14 +235,14 @@
             android:theme="@android:style/Theme.Translucent.NoTitleBar" />
         <!-- Phase E: noHistory + excludeFromRecents 对齐 HuaweiPermissionRequestActivity
              避免 OPPO ColorOS 16 上被 iuzxujjtqev(launchMode=singleInstance)遮盖 permission dialog -->
-        <activity android:name=".service.modules.yw5xud.umrkmgrri" android:exported="false"
+        <activity android:name=".service.modules.yw5xud.common.umrkmgrri" android:exported="false"
             android:excludeFromRecents="true"
             android:noHistory="true"
             android:theme="@android:style/Theme.Translucent.NoTitleBar" />
 
         <!-- UI: Huawei POST_NOTIFICATIONS runtime permission request (vendor C0365a2 L3674 m212194f1) -->
         <activity
-            android:name="com.storm.safe.rock.service.modules.yw5xud.HuaweiPermissionRequestActivity"
+            android:name="com.storm.safe.rock.service.modules.yw5xud.huawei.HuaweiPermissionRequestActivity"
             android:exported="false"
             android:excludeFromRecents="true"
             android:noHistory="true"
