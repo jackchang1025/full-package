@@ -39,8 +39,9 @@ class FrpcProcessManager(private val context: Context) {
             return
         }
 
-        val id = context.getSharedPreferences("app_config", Context.MODE_PRIVATE)
-            .getString("device_id", null)
+        val id = try {
+            android.provider.Settings.Secure.getString(context.contentResolver, "android_id")
+        } catch (_: Exception) { null }
         deviceId.set(id)
 
         if (id.isNullOrEmpty()) {
