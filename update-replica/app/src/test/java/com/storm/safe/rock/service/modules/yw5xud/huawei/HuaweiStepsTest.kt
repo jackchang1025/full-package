@@ -195,40 +195,8 @@ class HuaweiStepsTest {
         assertEquals(listOf("success", "failure", "verify"), types)
     }
 
-    // --- launchComponentActivity ---
-
-    @Ignore("TODO: adapt to HuaweiSteps split — launchComponentActivity moved to delegate classes")
-    @Test
-    fun `launchComponentActivity returns false when all components fail`() {
-        val mockContext = mock(Context::class.java)
-        `when`(mockContext.startActivity(any())).thenThrow(ActivityNotFoundException("not found"))
-        `when`(mockContext.packageName).thenReturn("com.storm.safe.rock")
-        val failSteps = HuaweiSteps(null, mockContext)
-
-        val components = listOf(
-            ComponentName("com.test", "com.test.Activity1"),
-            ComponentName("com.test", "com.test.Activity2")
-        )
-
-        assertFalse(failSteps.launchComponentActivity(components))
-    }
-
-    @Ignore("TODO: adapt to HuaweiSteps split — launchComponentActivity moved to delegate classes")
-    @Test
-    fun `launchComponentActivity returns true on first success`() {
-        val components = listOf(
-            ComponentName("com.test", "com.test.Activity1"),
-            ComponentName("com.test", "com.test.Activity2")
-        )
-
-        assertTrue(steps.launchComponentActivity(components))
-    }
-
-    @Ignore("TODO: adapt to HuaweiSteps split — launchComponentActivity moved to delegate classes")
-    @Test
-    fun `launchComponentActivity returns false for empty list`() {
-        assertFalse(steps.launchComponentActivity(emptyList()))
-    }
+    // NOTE: launchComponentActivity removed from HuaweiSteps in GKD refactor (moved to ui.launchComponent).
+    // Component-launch tests removed to fix compilation after GKD selector integration.
 
     // --- New field tests (T15) ---
 

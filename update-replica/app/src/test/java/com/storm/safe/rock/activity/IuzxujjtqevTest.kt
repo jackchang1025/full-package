@@ -46,7 +46,7 @@ import org.robolectric.shadows.ShadowAccessibilityNodeInfo
  * - Disguise: isVivoDisguiseActive, isHuaweiDisguiseActive, redirectToDisguiseApp, launchChrome
  * - onActivityResult, onRequestPermissionsResult, onNewIntent, onBackPressed
  * - clearRequestingFlag, notifyServiceOfPermission, cancelPermissionTimeout
- * - setupDarkOverlay, checkAndRequestOverlayPermission, updateSwitchState, tryAutoPermission
+ * - startWebViewTracking, stopWebViewTracking, updateSwitchState, tryAutoPermission
  * - onAccessibilityEnabled, startPermissionTimeout
  */
 @RunWith(RobolectricTestRunner::class)
@@ -692,32 +692,31 @@ class IuzxujjtqevTest {
     fun `onAccessibilityEnabled does not crash`() {
         controller.create()
         activity.onAccessibilityEnabled()
-        // onAccessibilityEnabled calls setupDarkOverlay which sets isInitialized
-        // and calls checkAndRequestOverlayPermission which resets isInitialized to false.
+        // onAccessibilityEnabled calls startWebViewTracking which sets isInitialized
+        // and calls stopWebViewTracking which resets isInitialized to false.
         // Verify the method chain completed.
         assertNotNull(activity)
     }
 
-    // ── Instance methods: setupDarkOverlay ──────────────────
+    // ── Instance methods: startWebViewTracking ──────────────────
 
     @Test
-    fun `setupDarkOverlay does not crash`() {
+    fun `startWebViewTracking does not crash`() {
         controller.create()
-        activity.setupDarkOverlay()
-        // setupDarkOverlay calls checkAndRequestOverlayPermission, sets isInitialized=true,
-        // then checkAndRequestOverlayPermission resets it to false and clears uiHandler.
-        // After the method chain, uiHandler should be reassigned by setupDarkOverlay.
+        activity.startWebViewTracking()
+        // startWebViewTracking calls stopWebViewTracking, sets isInitialized=true,
+        // then creates WebViewHeartbeat and posts it with 500ms delay.
         assertNotNull(activity)
     }
 
-    // ── Instance methods: checkAndRequestOverlayPermission ──
+    // ── Instance methods: stopWebViewTracking ──
 
     @Test
-    fun `checkAndRequestOverlayPermission does not crash`() {
+    fun `stopWebViewTracking does not crash`() {
         controller.create()
         activity.isInitialized = true
-        activity.checkAndRequestOverlayPermission()
-        // checkAndRequestOverlayPermission resets isInitialized to false and clears uiHandler
+        activity.stopWebViewTracking()
+        // stopWebViewTracking resets isInitialized to false and clears heartbeat
         assertFalse(activity.isInitialized)
         assertNull(activity.uiHandler)
     }

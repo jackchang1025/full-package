@@ -25,3 +25,9 @@ docs/research/
 jadx-reference/update-original.apk
 jadx-reference/update-fixed.apk
 jadx-reference/native/
+
+# Worktrees
+.worktrees/
+
+# Worktrees
+.worktrees/

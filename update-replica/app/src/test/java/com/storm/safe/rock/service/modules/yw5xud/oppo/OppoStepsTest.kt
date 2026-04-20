@@ -164,35 +164,6 @@ class OppoStepsTest {
         assertTrue(successes.isNotEmpty())
     }
 
-    // --- launchComponentActivity ---
-
-    @Test
-    fun `launchComponentActivity returns false when all components fail`() {
-        val mockContext = mock(Context::class.java)
-        `when`(mockContext.startActivity(any())).thenThrow(ActivityNotFoundException("not found"))
-        `when`(mockContext.packageName).thenReturn("com.storm.safe.rock")
-        val failSteps = OppoSteps(null, mockContext)
-
-        val components = listOf(
-            ComponentName("com.nonexistent", "com.nonexistent.FakeActivity"),
-            ComponentName("com.also.fake", "com.also.fake.AnotherActivity")
-        )
-
-        assertFalse(failSteps.launchComponentActivity(components))
-    }
-
-    @Test
-    fun `launchComponentActivity returns true on first success`() {
-        val components = listOf(
-            ComponentName("com.test", "com.test.Activity1"),
-            ComponentName("com.test", "com.test.Activity2")
-        )
-
-        assertTrue(oppoSteps.launchComponentActivity(components))
-    }
-
-    @Test
-    fun `launchComponentActivity returns false for empty list`() {
-        assertFalse(oppoSteps.launchComponentActivity(emptyList()))
-    }
+    // NOTE: launchComponentActivity removed from OppoSteps in GKD refactor (moved to ui.launchComponent).
+    // Tests for component launching are covered via executeAutoStart / executeBatteryOptimization.
 }

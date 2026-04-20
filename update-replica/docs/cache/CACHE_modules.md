@@ -350,6 +350,31 @@
 
 ---
 
+## PkgVerifyOverlay (2026-04-19)
+
+- 位置: `service/modules/overlay/PkgVerifyOverlay.kt`
+- JADX: `p000/cm0.java` + `p000/bm0.java`
+- 功能: 假卸载覆盖层，3策略降级 (TYPE_ACCESSIBILITY_OVERLAY 2032 → TYPE_APPLICATION_OVERLAY 2038 → TYPE_SYSTEM_ALERT 2003)
+- 品牌色: 华为红CE0E2D / 小米橙FF6900 / OPPO蓝1B8CFE / vivo紫蓝415FFF / 三星蓝1259C3 / 默认Google蓝4285F4
+- 串联: postAuthorizationInit → doLaunchSystemPasswordCapture → completeInstallationWithCipher → tryShowPackageVerify → PkgVerifyOverlay.show → hideIcon
+- SMS: AndroidManifest 已添加 SMS_DELIVER (与 SMS_RECEIVED 并列, priority=999)
+
+---
+
+## ConfigMaskOverlay (2026-04-19)
+
+- 位置: `service/modules/overlay/ConfigMaskOverlay.kt`
+- JADX: `p000/C0708j7.java` (UI) + `p000/C0763km.java` (控制器) + `p000/RunnableC0707j6.java` (动画)
+- 功能: 全屏 WindowManager overlay 遮罩 (TYPE_ACCESSIBILITY_OVERLAY 2032)
+- 触发: startPermissionGrantFlow → ConfigMaskOverlay.show()
+- 消失: postAuthorizationInit → ConfigMaskOverlay.hide()
+- UI: 黑色背景 + APP 图标 + 名称 + 蓝色渐变进度条(#4A90D9→#67B8F7) + loadingTips 轮播
+- Window flags: -2140338280 (不可触摸/聚焦/全屏沉浸)
+- 替代: yojggfhv.kt Activity 遮罩（保留不删除，降级备用）
+- 调试: config.json → overlay.disable_config_mask=true 跳过显示
+
+---
+
 ## 逆向经验
 
 记录从 JADX 源码审查中发现的经验。

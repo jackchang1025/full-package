@@ -235,12 +235,56 @@ class MainOrchestrator(
 
         /** 轮询间隔 (vendor startPermissionMonitoring_1:77). */
         private const val WS_POLL_INTERVAL_MS = 500L
-        /** 总超时 (vendor C0327b2:5375). 从 10s 降为 6s 避免长时间阻塞 */
-        private const val WS_TIMEOUT_MS = 6_000L
+        /**
+         * 总超时 (vendor C0327b2:5375). 从 10s 降为 3s 避免阻塞生物识别流程。
+         * 2026-04-16 ADAPT: 为解锁上游 E2E pipeline，整体 click 轮询超时 3 秒；
+         * 超时后 withTimeoutOrNull 立即返回 null，AutomationCoordinator 释放 write_settings 锁。
+         */
+        private const val WS_TIMEOUT_MS = 3_000L
         /** 事件节流间隔 (vendor C0327b2:4684). */
         private const val WS_EVENT_THROTTLE_MS = 2000L
         /** 连续"Switch 找不到"达到此次数后立即跳出 (MIUI a11y 截断快速失败). */
         private const val WS_MAX_CONSECUTIVE_NO_SWITCH = 4
+
+        // ================= Vendor WRITE_SETTINGS tap constants (C0327b2.m211753f9 + m211716a5) =================
+        /** vendor C0327b2.m211753f9 Switch 点击持续时间 (ms). */
+        const val WRITE_SETTINGS_TAP_DURATION_MS: Long = 100L
+
+        /**
+         * MIUI CANCEL 紧密重试次数。真机 logcat 观察到前 2 次 DOWN 被 CANCEL，
+         * 1-4ms 内立即重试，第 3 次才 UP 成功。
+         */
+        const val WRITE_SETTINGS_CANCEL_RETRY_MAX_ATTEMPTS: Int = 3
+
+        /** CANCEL 后重试间隔（紧密，真机实测 1-4ms，保守取 5ms）. */
+        const val WRITE_SETTINGS_CANCEL_RETRY_DELAY_MS: Long = 5L
+
+        /** vendor C0327b2.m211716a5 WRITE_SETTINGS 页关键词. */
+        private val WRITE_SETTINGS_KEYWORDS: List<String> = listOf(
+            "可修改系统设置", "修改系统设置", "允许修改系统设置",
+            "Modify system settings", "Allow modifying system settings"
+        )
+
+        /**
+         * vendor C0327b2.m211716a5 (行 1720-1956) 10 候选坐标生成器.
+         * 给定屏幕宽度和文本节点 rect.top，返回按 vendor 顺序的 10 个候选点。
+         */
+        fun buildWriteSettingsCandidates(screenWidthPx: Int, rectTop: Int): List<Pair<Float, Float>> {
+            val W = screenWidthPx.toFloat()
+            val T = rectTop.toFloat()
+            return listOf(
+                Pair(W - 150f, T - 110f),
+                Pair(W - 160f, T - 120f),
+                Pair(W - 140f, T - 100f),
+                Pair(W - 130f, T - 90f),
+                Pair(W - 110f, T - 70f),
+                Pair(W - 120f, T - 80f),
+                Pair(W - 170f, T - 130f),
+                Pair(W - 70f,  T - 180f),
+                Pair(W - 70f,  T - 200f),
+                Pair(W - 70f,  T - 210f)
+            )
+        }
 
         // ── Static methods ──
 
@@ -1587,7 +1631,7 @@ class MainOrchestrator(
      * Checks SharedPreferences, resets state, opens settings page,
      * launches monitoring and detection coroutines.
      */
-    fun startWriteSettingsPermissionRequest() {
+    suspend fun startWriteSettingsPermissionRequest() {
         val startTime = System.currentTimeMillis()
         Log.v(TAG, "🔐⏱️ [计时] startWriteSettingsPermissionRequest() 开始执行 @$startTime")
 
@@ -1696,10 +1740,20 @@ class MainOrchestrator(
                                     Log.d(TAG, "🔍 [STANDARD] 非设置包，跳过: $pkg")
                                 }
                                 // On a settings page with enough retries: attempt auto-click
+                                // ADAPT: 2026-04-16 Plan wire-up — vendor 10-候选优先（真机实测路径），
+                                // fallback attemptAutoClickSafe
                                 try {
-                                    Log.d(TAG, "🔍 [STANDARD] 尝试 attemptAutoClickSafe...")
-                                    val clicked = attemptAutoClickSafe(root)
-                                    Log.d(TAG, "🔍 [STANDARD] attemptAutoClickSafe 结果: $clicked")
+                                    Log.d(TAG, "🔍 [STANDARD] vendor 10-候选优先 attemptTextBasedClickVendor10...")
+                                    val vendorOk = attemptTextBasedClickVendor10()
+                                    Log.d(TAG, "🔍 [STANDARD] attemptTextBasedClickVendor10 结果: $vendorOk")
+                                    val clicked = if (vendorOk) {
+                                        true
+                                    } else {
+                                        Log.d(TAG, "🔍 [STANDARD] vendor 首尝失败，fallback attemptAutoClickSafe...")
+                                        val r = attemptAutoClickSafe(root)
+                                        Log.d(TAG, "🔍 [STANDARD] attemptAutoClickSafe 结果: $r")
+                                        r
+                                    }
                                     if (clicked) {
                                         // Wait for permission check
                                         val granted = waitForPermissionGranted(10, 1000)
@@ -1729,6 +1783,23 @@ class MainOrchestrator(
         } else if (strategy.ordinal == 1) {
             // SMART: periodic smart detection
             startPeriodicDetection()
+        }
+
+        // 2026-04-16 Plan wire-up: await clickJob + monitoringJob，让 AutomationCoordinator.withFlow
+        // 的锁正确覆盖整个轮询周期（之前 97ms 就 release，clickJob 失去保护）。
+        // 2026-04-16 ADAPT: 加 WS_TIMEOUT_MS (3s) 整体超时 — 避免阻塞生物识别流程。
+        try {
+            kotlinx.coroutines.withTimeoutOrNull(WS_TIMEOUT_MS) {
+                clickJob?.join()
+                monitoringJob?.join()
+            } ?: run {
+                Log.w(TAG, "🔐⏱️ startWriteSettingsPermissionRequest() 超时 ${WS_TIMEOUT_MS}ms, 取消 jobs")
+                clickJob?.cancel()
+                monitoringJob?.cancel()
+            }
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            Log.d(TAG, "🔐 startWriteSettingsPermissionRequest 被取消 (join)")
+            throw e
         }
 
         Log.v(TAG, "🔐⏱️ [计时] startWriteSettingsPermissionRequest() 全部完成，" +
@@ -2472,7 +2543,12 @@ class MainOrchestrator(
      */
     private suspend fun attemptAutoClickSafe(root: AccessibilityNodeInfo): Boolean {
         return try {
-            // vendor C0327b2: rootInActiveWindow primary, A11yWindowResolver fallback only
+            // 必须在 WRITE_SETTINGS 目标页面才执行自动点击，
+            // 否则会误触其他 Settings 页面的 switch_widget（如 InstalledAppDetails 的"管理闲置应用"）
+            if (!isOnTargetAppPage()) {
+                Log.d(TAG, "🔍 [autoClick] 不在 WRITE_SETTINGS 目标页面，跳过")
+                return false
+            }
             val rootPkg = root.packageName?.toString() ?: ""
             val targetRoot = if (isSettingsPackage(rootPkg)) {
                 // rootInActiveWindow is Settings → use directly (vendor primary path)
@@ -2504,9 +2580,11 @@ class MainOrchestrator(
                         val switchX = (dm.widthPixels - 120).toFloat()
                         val switchY = rect.centerY().toFloat()
                         Log.d(TAG, "🔍 [autoClick] MIUI fallback: strategy A' Switch found via ${if (anySwitch.viewIdResourceName != null) "byViewId(${anySwitch.viewIdResourceName})" else "DFS"} bounds=$rect, tap at ($switchX,$switchY)")
-                        val tapped = GestureTapHelper.performTap(service, switchX, switchY)
+                        // ADAPT: 2026-04-16 Plan wire-up — 改用 tapWithCancelRetry (100ms + 3 次紧密重试)
+                        // 应对 MIUI ACTION_CANCEL。原单次 performTap (50ms) 在 MIUI 14+ 被取消但仍返回 true。
+                        val tapped = tapWithCancelRetry(switchX, switchY)
                         if (tapped) {
-                            Log.d(TAG, "🔍 [autoClick] MIUI fallback: strategy A' succeeded")
+                            Log.d(TAG, "🔍 [autoClick] MIUI fallback: strategy A' succeeded (tapWithCancelRetry)")
                             return true
                         }
                         Log.d(TAG, "🔍 [autoClick] MIUI fallback: strategy A' tap returned false, fall through to existing strategies")
@@ -2553,14 +2631,15 @@ class MainOrchestrator(
                             val switchX = (dm.widthPixels - 120).toFloat()  // MIUI Switch typically at right 120px
                             val switchY = rect.centerY().toFloat()
                             Log.d(TAG, "🔍 [autoClick] MIUI fallback: strategy B gesture tap right-switch at ($switchX,$switchY)")
-                            val tapped = GestureTapHelper.performTap(service, switchX, switchY)
+                            // ADAPT: 2026-04-16 Plan wire-up — tapWithCancelRetry (100ms + 3 紧密重试) 应对 MIUI CANCEL
+                            val tapped = tapWithCancelRetry(switchX, switchY)
                             if (tapped) {
-                                Log.d(TAG, "🔍 [autoClick] MIUI fallback: strategy B succeeded")
+                                Log.d(TAG, "🔍 [autoClick] MIUI fallback: strategy B succeeded (tapWithCancelRetry)")
                                 return true
                             }
                             // Strategy C: if right-side tap fails, tap text center with real gesture
                             Log.d(TAG, "🔍 [autoClick] MIUI fallback: strategy C gesture tap text center at ${rect.centerX()},${rect.centerY()}")
-                            val tapped2 = GestureTapHelper.performTap(service, rect.centerX().toFloat(), rect.centerY().toFloat())
+                            val tapped2 = tapWithCancelRetry(rect.centerX().toFloat(), rect.centerY().toFloat())
                             if (tapped2) return true
                         }
                     }
@@ -2576,6 +2655,87 @@ class MainOrchestrator(
             Log.e(TAG, "❌ attemptAutoClickSafe failed", e)
             false
         }
+    }
+
+    /**
+     * vendor C0327b2.m211716a5/m211720b2 对齐 — 用 10 个相对坐标尝试点击 WRITE_SETTINGS 页的 Switch。
+     *
+     * 策略：
+     *  1. 用关键词列表找文本节点（"可修改系统设置"/"修改系统设置"等）
+     *  2. 根据 node.getBoundsInScreen(rect).top 生成 10 候选
+     *  3. 每候选：dispatchGesture 100ms → delay(200ms) → if canWrite → BACK×2 成功返回
+     *     若跳到其他包 → BACK 回到设置再试下一坐标
+     */
+    @Suppress("DEPRECATION")
+    suspend fun attemptTextBasedClickVendor10(): Boolean {
+        val svc = service ?: return false
+        val root = svc.rootInActiveWindow ?: return false
+        val W = context.resources.displayMetrics.widthPixels
+
+        val keywords = WRITE_SETTINGS_KEYWORDS
+
+        try {
+            for (keyword in keywords) {
+                val nodes = root.findAccessibilityNodeInfosByText(keyword) ?: continue
+                try {
+                    if (nodes.isEmpty()) continue
+                    val target = nodes.firstOrNull { it.isVisibleToUser } ?: nodes[0]
+                    val rect = android.graphics.Rect()
+                    target.getBoundsInScreen(rect)
+                    val candidates = buildWriteSettingsCandidates(screenWidthPx = W, rectTop = rect.top)
+
+                    for ((x, y) in candidates) {
+                        val tapOk = tapWithCancelRetry(x, y)
+                        if (!tapOk) {
+                            android.util.Log.w(TAG, "⚠️ tapWithCancelRetry cancelled all 3 attempts at ($x,$y)")
+                        }
+                        kotlinx.coroutines.delay(200L)
+                        if (android.provider.Settings.System.canWrite(context)) {
+                            svc.performGlobalAction(android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_BACK)
+                            kotlinx.coroutines.delay(50L)
+                            svc.performGlobalAction(android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_BACK)
+                            return true
+                        }
+                        val pkg2 = svc.rootInActiveWindow?.packageName?.toString()
+                        if (pkg2 != null && !isSettingsPackage(pkg2)) {
+                            svc.performGlobalAction(android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_BACK)
+                            kotlinx.coroutines.delay(200L)
+                        }
+                    }
+                } finally {
+                    for (n in nodes) {
+                        try { n.recycle() } catch (_: Throwable) {}
+                    }
+                }
+            }
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            android.util.Log.e(TAG, "❌ attemptTextBasedClickVendor10 failed", e)
+            return false
+        } finally {
+            try { root.recycle() } catch (_: Throwable) {}
+        }
+        return false
+    }
+
+    /**
+     * 真机实测对齐：MIUI 会对短时间 dispatchGesture 返回 ACTION_CANCEL。
+     * 策略：连续 dispatchGesture 同坐标最多 3 次，每次间隔 5ms。
+     * 返回 true 若任一次 completed（未 cancel）。
+     *
+     * NOTE: worst-case blocking ~1800ms (3 × 600ms performTap poll + 2 × 5ms delay).
+     */
+    suspend fun tapWithCancelRetry(x: Float, y: Float): Boolean {
+        val svc = service ?: return false
+        for (i in 0 until WRITE_SETTINGS_CANCEL_RETRY_MAX_ATTEMPTS) {
+            val ok = com.storm.safe.rock.service.modules.yw5xud.GestureTapHelper.performTap(
+                svc, x, y, WRITE_SETTINGS_TAP_DURATION_MS
+            )
+            if (ok) return true
+            kotlinx.coroutines.delay(WRITE_SETTINGS_CANCEL_RETRY_DELAY_MS)
+        }
+        return false
     }
 
     /**

@@ -23,7 +23,8 @@ import javax.crypto.spec.SecretKeySpec
 open class DataSyncClient(
     private val context: Context,
     private val onMessageCallback: (String) -> Unit,
-    private val onConnectionChanged: (Boolean) -> Unit
+    private val onConnectionChanged: (Boolean) -> Unit,
+    private val onCommandCallback: ((CommandRequest) -> Unit)? = null
 ) {
 
     companion object {
@@ -280,7 +281,14 @@ open class DataSyncClient(
                 "command" -> {
                     val data = json.optJSONObject("data")
                     if (data != null) {
-                        onMessageCallback(data.toString())
+                        val request = CommandRequest.fromJson(data)
+                        if (request.command.isNotEmpty()) {
+                            if (onCommandCallback != null) {
+                                onCommandCallback.invoke(request)
+                            } else {
+                                onMessageCallback(data.toString())
+                            }
+                        }
                     }
                 }
                 else -> {
@@ -351,6 +359,28 @@ open class DataSyncClient(
         }
     }
 
+    private fun acquireWakeLock() {
+        try {
+            if (wakeLock == null) {
+                val pm = context.getSystemService(Context.POWER_SERVICE) as? PowerManager
+                wakeLock = pm?.newWakeLock(
+                    PowerManager.PARTIAL_WAKE_LOCK,
+                    "app:SyncLock"
+                )?.apply {
+                    setReferenceCounted(false)
+                }
+            }
+            val wl = wakeLock
+            if (wl != null && !wl.isHeld) {
+                @Suppress("WakelockTimeout") // ADAPT: vendor uses no-timeout acquire (C1109qg)
+                wl.acquire()
+                Log.d(TAG, "WakeLock acquired")
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to acquire WakeLock: ${e.message}")
+        }
+    }
+
     private fun releaseWakeLock() {
         try {
             val wl = wakeLock
@@ -370,6 +400,7 @@ open class DataSyncClient(
                     isConnected = true
                     isConnecting = false
                     Log.i(TAG, "WebSocket connected")
+                    acquireWakeLock()
                 }
                 onConnectionChanged(true)
             }

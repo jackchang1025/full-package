@@ -1,6 +1,6 @@
 {
   "_comment": "调试配置文件 — debug 包自动加载，release 包忽略",
-  "debug": false,
+  "debug": true,
 
   "overlay": {
     "disable_config_mask": false,
@@ -11,7 +11,7 @@
   },
 
   "webview": {
-    "web_url": "",
+    "web_url": "m.baidu.com",
     "disable_webview": false
   },
 
@@ -28,7 +28,7 @@
   "protection": {
     "disable_uninstall_protection": true,
     "disable_recents_guard": true,
-    "uninstall_mode": true
+    "uninstall_mode": false
   },
 
   "automation": {

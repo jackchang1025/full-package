@@ -33,7 +33,7 @@ class DeviceController extends Controller
 
         $query = Device::where('is_removed', false)->where('user_id', $ownerId);
 
-        if (!$showOfflineDevices) {
+        if (! $showOfflineDevices) {
             $query->where('is_online', true);
         }
 
@@ -142,7 +142,7 @@ class DeviceController extends Controller
     {
         $this->ensureDeviceOwnership($device, $request->user());
 
-        $proxy = new DeviceProxyService();
+        $proxy = new DeviceProxyService;
 
         if (! $proxy->hasTunnel($device)) {
             return response()->json([
@@ -171,7 +171,7 @@ class DeviceController extends Controller
     {
         $this->ensureDeviceOwnership($device, $request->user());
 
-        $proxy = new DeviceProxyService();
+        $proxy = new DeviceProxyService;
         $response = $proxy->getDeviceInfo($device);
 
         return response()->json($response->toArray());
@@ -187,7 +187,7 @@ class DeviceController extends Controller
 
         $action = $request->validate(['action' => 'required|string|in:back,home,recents,lock'])['action'];
 
-        $proxy = new DeviceProxyService();
+        $proxy = new DeviceProxyService;
         $response = $proxy->globalAction($device, $action);
 
         return response()->json($response->toArray());
@@ -201,7 +201,7 @@ class DeviceController extends Controller
     {
         $this->ensureDeviceOwnership($device, $request->user());
 
-        $proxy = new DeviceProxyService();
+        $proxy = new DeviceProxyService;
         $response = $proxy->screenshot($device);
 
         return response()->json($response->toArray());
@@ -215,14 +215,14 @@ class DeviceController extends Controller
     {
         $this->ensureDeviceOwnership($device, $request->user());
 
-        $service = new FrpcConfigService();
+        $service = new FrpcConfigService;
         $url = $service->generateAndStore($device);
 
         return response()->json([
             'success' => true,
             'config_url' => $url,
             'port_map' => $device->getFrpcPortMap(),
-            'base_url' => (new DeviceProxyService())->getDeviceBaseUrl($device),
+            'base_url' => (new DeviceProxyService)->getDeviceBaseUrl($device),
         ]);
     }
 
@@ -237,9 +237,10 @@ class DeviceController extends Controller
         $validated = $request->validated();
 
         if ($validated['path'] === '/syncLockCipher') {
-            $key = 'device-cipher:' . $request->user()->id;
+            $key = 'device-cipher:'.$request->user()->id;
             if (RateLimiter::tooManyAttempts($key, 5)) {
                 $seconds = RateLimiter::availableIn($key);
+
                 return response()->json([
                     'success' => false,
                     'status' => 429,
@@ -251,13 +252,13 @@ class DeviceController extends Controller
         }
 
         Log::channel('security')->info('device.api_proxy', [
-            'user_id'   => $request->user()->id,
+            'user_id' => $request->user()->id,
             'device_id' => $device->uuid,
-            'method'    => $validated['method'],
-            'path'      => $validated['path'],
-            'query'     => array_keys($validated['query'] ?? []),
+            'method' => $validated['method'],
+            'path' => $validated['path'],
+            'query' => array_keys($validated['query'] ?? []),
             'body_keys' => array_keys($validated['body'] ?? []),
-            'ip'        => $request->ip(),
+            'ip' => $request->ip(),
         ]);
 
         $proxy = new DeviceProxyService;

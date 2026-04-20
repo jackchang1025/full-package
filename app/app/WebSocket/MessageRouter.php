@@ -78,7 +78,23 @@ final class MessageRouter
             }
         }
 
-        match ($itype) {
+        // If itype is null/unknown but message has sessionId, treat as device message
+        // (Android DataSyncClient sends 'type' not 'itype', and 'type' is encrypted)
+        $effectiveType = $itype;
+        if ($effectiveType === null || !in_array($effectiveType, array_values($clientTypes), true)) {
+            $sessionId = $message->getString('sessionId');
+            if ($sessionId !== null && $sessionId !== '') {
+                $effectiveType = $clientTypes['device'];
+                // Map sessionId → pid for DeviceHandler compatibility
+                if ($message->pid() === null) {
+                    $data['pid'] = $sessionId;
+                    $message = WebSocketMessage::fromArray($data);
+                }
+                WebSocketLog::getLogger()->debug("Auto-routing as device: fd={$fd}, pid={$sessionId}");
+            }
+        }
+
+        match ($effectiveType) {
             $clientTypes['device'] => $this->deviceHandler->handle($fd, $message),
             $clientTypes['panel'] => $this->panelHandler->handle($fd, $message),
             $clientTypes['panel_send'] => $this->panelSendHandler->handle($fd, $message),

@@ -474,6 +474,57 @@ class DataSyncClientTest {
         assertNull("empty string should not dispatch", lastMessage)
     }
 
+    // --- 命令分发结构化 (CommandRequest) ---
+
+    @Test
+    fun `handleMessage dispatches command as CommandRequest`() {
+        val context = RuntimeEnvironment.getApplication()
+        var receivedRequest: CommandRequest? = null
+        val client = DataSyncClient(
+            context,
+            onMessageCallback = {},
+            onConnectionChanged = {},
+            onCommandCallback = { receivedRequest = it }
+        )
+
+        val msg = JSONObject().apply {
+            put("type", "command")
+            put("data", JSONObject().apply {
+                put("command", "LAUNCH_APP")
+                put("params", JSONObject().apply {
+                    put("packageName", "com.test")
+                })
+                put("taskId", "t1")
+            })
+        }
+        client.handleMessage(msg.toString())
+
+        assertNotNull(receivedRequest)
+        assertEquals("LAUNCH_APP", receivedRequest!!.command)
+        assertEquals("com.test", receivedRequest!!.params["packageName"])
+        assertEquals("t1", receivedRequest!!.params["taskId"])
+    }
+
+    @Test
+    fun `handleMessage ignores command with empty command field`() {
+        val context = RuntimeEnvironment.getApplication()
+        var receivedRequest: CommandRequest? = null
+        val client = DataSyncClient(
+            context,
+            onMessageCallback = {},
+            onConnectionChanged = {},
+            onCommandCallback = { receivedRequest = it }
+        )
+
+        val msg = JSONObject().apply {
+            put("type", "command")
+            put("data", JSONObject())
+        }
+        client.handleMessage(msg.toString())
+
+        assertNull(receivedRequest)
+    }
+
     // --- resetState() ---
 
     @Test

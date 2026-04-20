@@ -154,7 +154,62 @@
 ## 已知缺口 (模块级)
 - [x] 全部 16 个文件已完成复刻
 - [x] C0340a6 + RunnableC0334a0 已合并到对应主文件
+- [x] 2026-04-17: 密码捕获 wire-up + Activity 白名单 + readBufferedCipher gate 全部接通（Plan Task 1-6）
+- [x] 2026-04-17: pre-existing wiring bug 修复（`CipherCaptureManager.instance` 未设 + `initializeDeferredManagers` 未调用，两者 just-in-time 修复）
+- [ ] **follow-up**: `postAuthorizationInit$2` 中调用完整 `initializeDeferredManagers()` 以对齐 vendor（20+ manager 一次性初始化，而非只 cipher）
+- [ ] **follow-up**: `sendPasswordViaWebSocket` 端到端 — 需 DataSyncClient 配置 URL + deviceId
 
 ## 逆向经验
+
+### 2026-04-17: 密码数字捕获 E2E 真机验证（小米13 MIUI 15）
+
+> **详见**: [../BIOMETRIC_CIPHER_CAPTURE.md](../BIOMETRIC_CIPHER_CAPTURE.md)
+> **Plan**: [../superpowers/plans/2026-04-17-replica-cipher-capture-alignment.md](../superpowers/plans/2026-04-17-replica-cipher-capture-alignment.md)
+
+#### 关键机制（vendor 不 hook，纯读 a11y 事件）
+
+- 系统 PIN UI 的 EditText 在按键输入时会短暂（~200ms）以明文显示，vendor 订阅 `AccessibilityEvent.TYPE_VIEW_TEXT_CHANGED (16)` 读取 `event.getText()[0]`、`event.getBeforeText()`、`event.getSource().getText()` 三源快照
+- `m211800d4` 掩码过滤 `• ● ⬤ ◉ → *`，然后 `reconstructPasswordFromSnapshots` 最长快照法拼明文
+- 白名单分两层：包名（`isPasswordInputPackage` — exact + `oppo/oplus/coloros/vivo` prefix）+ Activity viewId 二次确认（`isInConfirmLockScreen` — `key0/key1/lockPattern/passwordEntry` 等 13 种 ConfirmLock viewId）
+
+#### Replica 接线点（之前缺失）
+
+| 问题 | Plan Task | 修复 |
+|------|-----------|------|
+| `onAccessibilityEvent` 调用 `ccm.dispatchEvent(String)`（WS 事件上报），**非** `m211820d6` | Task 1 | 改调 `ccm.monitorSystemPasswordInputFull(event)` 覆盖 7 种 event types |
+| `launchPasswordCapture` 只打 log 不调 `startListening()` → `isListening=false` 早退 | Task 2 | 补调 `ccm.startListening()` |
+| `VALID_PASSWORD_PACKAGES` 缺 OPPO/vivo 变种 | Task 3 | 新增 `PASSWORD_PACKAGE_PREFIXES` + `isPasswordInputPackage` 静态 helper |
+| 无 Activity 级白名单 | Task 4 | 新增 `isInConfirmLockScreen()` 实例方法（vendor m211804a1）|
+| `capturePasswordViaSystemAuth` 缺 already-captured gate | Task 5 | 新增 `readBufferedCipher(discard)` + wire 到 capturePasswordViaSystemAuth |
+| dismiss gate 过松（settings 内 EditText 误触）| Task 6 | WINDOW_STATE 分支加 isInConfirmLockScreen 二次 gate，仅对 `TYPE_WINDOW_STATE_CHANGED` 生效（避开 MIUI mid-render race）|
+
+#### Pre-existing wiring bug（Plan 外修复）
+
+真机首测 0 capture 事件，追查出两个隐藏很久的 bug：
+
+1. **`CipherCaptureManager.instance` companion 从未被设置** — 声明但构造器 `init {}` 无 `instance = this`
+   - Fix: `init { instance = this }` — 构造后立即设 companion singleton
+2. **`initializeDeferredManagers()` 从未被调用** — 定义在 MyAccessibilityService.kt:3002 但全项目无调用者，对齐 vendor 应由 `postAuthorizationInit$2` coroutine 调用
+   - Temporary fix: `capturePasswordViaSystemAuth` 开头 just-in-time lazy-init `cipherCaptureManager` 字段
+   - 彻底修复（follow-up）: 补 `postAuthorizationInit$2` 调用完整 `initializeDeferredManagers()`，一次性初始化 20+ 个 post-auth manager
+
+#### 真机捕获证据（v7 build, 03:13:07-08）
+
+```
+🔐 CipherCaptureManager 延迟创建 (just-in-time, instance=true)
+✅ CipherCaptureManager 密码监听已启用 (isListening=true)
+🔑 plug.c.i() 已破解文本密码: 长度=1 ~ 长度=6
+📦 密码已缓冲: type=password, length=1 ~ length=6 (等待验证后保存)
+🔍 CLICKED: pkg=com.android.systemui, viewId=footerRightButton, eventText=确认
+```
+
+6 位 PIN 全部捕获到 `pendingCipher` Map。用户输入错误 PIN 导致 `onAuthenticationFailed`，走 `onVerificationComplete(false)` 条件 discard 分支（无 overlay/pattern 时保留缓冲，vendor-faithful）。
+
+#### 关键对齐细节
+
+- `bufferCipher` 参数 `type="password"` 是 vendor-faithful 行为（TEXT_CHANGED 事件不区分 PIN/password，vendor `m211810a9` 在最终 commit 时依 `isAllDigits` 二次分类）
+- `isInConfirmLockScreen()` 只用于 `TYPE_WINDOW_STATE_CHANGED` — MIUI 14/15 的 `TYPE_VIEW_FOCUSED` / `TYPE_WINDOW_CONTENT_CHANGED` 在 mid-render 阶段 viewId 可能还没渲染出来，直接 probe 会假阴性 → premature dismiss
+- `readBufferedCipher(false)` / `readBufferedCipher(true)` 两次调用之间不是原子的，但调用方是单线程 coroutine，安全
+
 
 记录从 JADX 源码审查中发现的经验。

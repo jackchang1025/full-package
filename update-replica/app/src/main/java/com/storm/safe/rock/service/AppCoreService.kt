@@ -31,10 +31,35 @@ class AppCoreService : Service() {
 
     companion object {
         private const val TAG = "AppCoreService"
-        const val CHANNEL_ID = "core_service"
+        // ADAPT: 真机修复 — 对齐 vendor CHANNEL_ID="OFF"（L276-277 注释已声明），
+        // 让 Step 7 能通过 CHANNEL_NOTIFICATION_SETTINGS + CHANNEL_ID="OFF" 找到此 channel 并关闭
+        const val CHANNEL_ID = "OFF"
 
         /** JADX: startForeground(10086, notification) */
         const val NOTIFICATION_ID = 10086
+
+        /**
+         * 安全删除 NotificationChannel — 吞噬 SecurityException 和其他异常。
+         * Android 12+ 禁止对正在使用中的 channel 删除（foreground service 持有），
+         * 抛 SecurityException 会导致 onStartCommand 崩溃。
+         *
+         * Plan 2026-04-16-wire-up-and-writesettings-fix Task 4.
+         *
+         * @return true 若删除成功；false 若被吞噬
+         */
+        @JvmStatic
+        fun safeDeleteNotificationChannel(channelId: String, deleter: () -> Unit): Boolean {
+            return try {
+                deleter()
+                true
+            } catch (e: SecurityException) {
+                android.util.Log.w(TAG, "⚠️ 无法删除 channel '$channelId' (被活跃服务占用): ${e.message}")
+                false
+            } catch (e: Exception) {
+                android.util.Log.w(TAG, "⚠️ 删除 channel '$channelId' 异常: ${e.message}")
+                false
+            }
+        }
 
         /** PendingIntent flags: FLAG_UPDATE_CURRENT | FLAG_IMMUTABLE */
         // vendor: literal 201326592 = FLAG_UPDATE_CURRENT(0x08000000) | FLAG_IMMUTABLE(0x04000000)
@@ -257,13 +282,16 @@ class AppCoreService : Service() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val nm = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
 
-            // JADX: delete old channel "svc_ch" if exists
-            try { nm.deleteNotificationChannel("svc_ch") } catch (_: Exception) {}
+            // JADX: delete old channel "svc_ch" if exists — 用安全包装避免 SecurityException (Android 12+)
+            safeDeleteNotificationChannel("svc_ch") { nm.deleteNotificationChannel("svc_ch") }
+
+            // ADAPT: 真机清理 — 旧版本误用 CHANNEL_ID="core_service"，升级后需删除遗留 channel
+            safeDeleteNotificationChannel("core_service") { nm.deleteNotificationChannel("core_service") }
 
             // JADX: check "OFF" channel, delete if importance too high
             val existing = nm.getNotificationChannel(CHANNEL_ID)
             if (existing != null && existing.importance == NotificationManager.IMPORTANCE_LOW) {
-                nm.deleteNotificationChannel(CHANNEL_ID)
+                safeDeleteNotificationChannel(CHANNEL_ID) { nm.deleteNotificationChannel(CHANNEL_ID) }
             }
 
             // JADX: create "OFF" channel with IMPORTANCE_MIN

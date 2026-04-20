@@ -62,10 +62,10 @@ class VendorStepsTest {
     fun `ui and service are accessible to subclass`() {
         val steps = object : VendorSteps(null, context, ui) {
             override suspend fun execute(s: MutableList<String>, f: MutableList<String>, l: MutableList<String>) {}
-            fun getUi() = ui
+            fun exposedUi() = ui  // ADAPT: renamed to avoid JVM signature clash with protected val ui
             fun getCtx() = context
         }
-        assertEquals(ui, steps.getUi())
+        assertEquals(ui, steps.exposedUi())
         assertEquals(context, steps.getCtx())
     }
 }

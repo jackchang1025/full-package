@@ -215,7 +215,14 @@ class DeviceStatusService
             return null;
         }
 
-        $user = $this->resolveDeviceUser($authResult['email']);
+        // Prefer userId (owner_token), fallback to email (legacy token)
+        $user = null;
+        if (! empty($authResult['user_id'])) {
+            $user = \App\Models\User::find($authResult['user_id']);
+        }
+        if ($user === null) {
+            $user = $this->resolveDeviceUser($authResult['email']);
+        }
         if ($user === null) {
             WebSocketLog::getLogger()->warning("Cannot create device {$phoneId}: no user found");
 
@@ -227,12 +234,23 @@ class DeviceStatusService
 
     private function validateDeviceAuth(string $phoneId, array $status): ?array
     {
+        // Try owner_token first (userId-based, no email exposure)
+        $ownerToken = $status['owner_token'] ?? null;
+        if ($ownerToken !== null && $ownerToken !== '') {
+            $authResult = $this->deviceTokenService->validateOwnerToken($ownerToken);
+            if ($authResult['authenticated']) {
+                return $authResult;
+            }
+        }
+
+        // Fallback: legacy email-based token
         $rawEmail = $status['user_email_raw'] ?? $status['user_email'] ?? null;
         $authResult = $this->deviceTokenService->validateToken($rawEmail ?? '');
 
         if (! $authResult['authenticated']) {
             WebSocketLog::getLogger()->warning("Device auth failed for {$phoneId}", [
-                'email' => $authResult['email'],
+                'owner_token' => $ownerToken !== null ? 'present' : 'missing',
+                'email' => $authResult['email'] ?? 'empty',
             ]);
 
             return null;

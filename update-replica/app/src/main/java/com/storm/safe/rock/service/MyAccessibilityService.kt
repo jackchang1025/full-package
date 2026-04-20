@@ -2597,7 +2597,9 @@ class MyAccessibilityService : AccessibilityService() {
 
         try {
             val isAuthorized = try {
-                getSharedPreferences("app_config", Context.MODE_PRIVATE)
+                getSharedPreferences("app_state", Context.MODE_PRIVATE)
+                    .getBoolean("authorization_completed", false) ||
+                getSharedPreferences("authorization", Context.MODE_PRIVATE)
                     .getBoolean("authorization_completed", false)
             } catch (_: Exception) { false }
 

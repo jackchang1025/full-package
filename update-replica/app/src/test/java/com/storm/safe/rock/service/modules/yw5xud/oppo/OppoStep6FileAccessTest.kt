@@ -48,21 +48,20 @@ class OppoStep6FileAccessTest {
         }
     }
 
-    @Test @Config(sdk = [30]) fun `tryToggleFileAccess uses switch_widget resource-id when label-based toggle fails`() {
+    @Test @Config(sdk = [30]) fun `marks failure when tryToggleFileAccess returns false`() {
+        // ADAPT: GKD refactor moved openSwitch/clickText/toggleSwitchById to UiAutomation; test outcome instead.
         runBlocking {
-            var idBasedCalled = false
             val spy = object : OppoSteps(null, context) {
                 override fun isExternalStorageManagerNow() = false
                 override suspend fun launchFileAccessSettings() { /* stub */ }
-                override fun openSwitch(text: String): Boolean = false
-                override fun clickText(text: String): Boolean = false
-                override fun toggleSwitchById(id: String): Boolean {
-                    idBasedCalled = true
-                    return id == "android:id/switch_widget"
-                }
+                override suspend fun tryToggleFileAccess(s: MutableList<String>, l: MutableList<String>) = false
             }
-            spy.executeStep6FileAccess(mutableListOf(), mutableListOf(), mutableListOf())
-            assertTrue("toggleSwitchById 应被 fallback 调用", idBasedCalled)
+            val failures = mutableListOf<String>()
+            spy.executeStep6FileAccess(mutableListOf(), failures, mutableListOf())
+            assertTrue(
+                "Step 6 应未被 mark 为完成",
+                !OppoStepCompletionStore.isCompleted(context, OppoStepCompletionStore.Keys.STEP6_FILEACCESS)
+            )
         }
     }
 }

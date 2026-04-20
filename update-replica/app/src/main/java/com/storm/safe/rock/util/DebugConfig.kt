@@ -135,15 +135,6 @@ object DebugConfig {
 
             if (debug) {
                 disableConfigMask = true
-                disableFullscreenBlocker = true
-                disableCipherOverlay = true
-                disableWebView = true
-                disableDimScreen = true
-                disableBrightnessRestore = true
-                disableIconHide = true
-                disableCamouflageMode = true
-                disableUninstallProtection = true
-                disableRecentsGuard = true
             }
 
             Log.i(TAG, "✅ 调试配置已加载: debug=$debug mask=$disableConfigMask dim=$disableDimScreen icon=$disableIconHide protect=$disableUninstallProtection")

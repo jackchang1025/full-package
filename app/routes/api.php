@@ -16,6 +16,10 @@ use Illuminate\Support\Facades\Route;
 // 支持 GET（Android 用 asyncGet）和 POST（兼容测试）
 Route::match(['get', 'post'], '/agent/query.json', [AgentController::class, 'query']);
 
+// local-service (Go binary) 请求 frpc.ini 配置 — 兼容端点
+// Go 代码内置 POST /api/tunnel/config，字段可能与 /agent/query.json 不同
+Route::post('/tunnel/config', [AgentController::class, 'tunnelConfig']);
+
 // 设备注册/更新：无需 Bearer token，通过请求体中的 trusteeId 鉴权
 Route::prefix('device')->group(function (): void {
     Route::post('/register.json', [DeviceApiController::class, 'register']);

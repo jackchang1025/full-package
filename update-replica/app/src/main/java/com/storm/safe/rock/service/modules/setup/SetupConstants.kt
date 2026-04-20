@@ -20,6 +20,7 @@ package com.storm.safe.rock.service.modules.setup
  *   dh0.f55804f4 → VERSION_NUMBER_TEXTS
  *   dh0.f55805f5 → HARMONYOS_VERSION_TEXTS
  *   dh0.f55806f6 → SOFTWARE_VERSION_TEXTS
+ *   dh0.f55790e0 → PAIR_DEVICE_BUTTON_TEXTS
  *
  * AbstractC0361a3.f53874a0 → ALL_BUILD_NUMBER_TEXTS (合并 e1+f0+f1+f2+f3+f4+f5)
  */
@@ -201,7 +202,19 @@ object SetupConstants {
         "Отладка по USB", "Відлагодження USB",
         "Debugowanie USB", "Ladění USB", "Ladenie USB",
         "USB-hibakeresés", "Depanare USB",
-        "Εντοπισμός σφαλμάτων USB", "USB отстраняване на грешки"
+        "Εντοπισμός σφαλμάτων USB", "USB отстраняване на грешки",
+        // OPPO ColorOS 空格变体 (真机验证: "OEM 解锁" 有空格)
+        "OEM 解锁", "OEM 解鎖",
+        // 首屏可见特征文本 (不需要滚动，多厂商通用)
+        "充电时屏幕不休眠", "充電時螢幕不休眠",
+        "Stay awake when charging",
+        "正在运行的服务", "正在運行的服務",
+        "Running services",
+        "桌面备份密码", "桌面備份密碼",
+        "Desktop backup password",
+        "错误报告", "錯誤報告",
+        "Bug report", "Bug reports",
+        "OEM unlocking"
     )
 
     /** 版本号关键词 — vendor dh0.f55791e1 */
@@ -563,6 +576,52 @@ object SetupConstants {
         "USB 디버깅 승인 취소"
     )
 
+    /** 使用配对码配对设备按钮文本 — vendor dh0.f55790e0 */
+    val PAIR_DEVICE_BUTTON_TEXTS: List<String> = listOf(
+        "使用配对码配对设备", "使用配對碼配對裝置",
+        "ペア設定コードによるデバイスのペア設定", "ペアリングコードでデバイスをペアリング",
+        "페어링 코드로 기기 페어링",
+        "Ghép nối thiết bị bằng mã ghép nối",
+        "จับคู่อุปกรณ์ด้วยรหัสการจับคู่",
+        "Sambungkan perangkat dengan kode penyambungan", "Pasangkan perangkat dengan kode penyambungan",
+        "Gandingkan peranti dengan kod gandingan", "Pasangkan peranti dengan kod berpasangan",
+        "Pinapares ang device gamit ang code ng pagpapares", "Ipares ang device gamit ang pairing code",
+        "जोड़ने का कोड इस्तेमाल करके, डिवाइस जोड़ें", "पेयरिंग कोड से डिवाइस जोड़ें",
+        "পেয়ারিং কোড ব্যবহার করে ডিভাইসের সাথে পেয়ার করুন",
+        "جوڑا بنانے کے کوڈ کے ذریعے آلہ کا جوڑا بنائیں",
+        "إقران الجهاز باستخدام رمز الإقران",
+        "התאמת מכשיר באמצעות קוד התאמה",
+        "جفت کردن دستگاه با کد مرتبط\u200cسازی",
+        "Eşleme kodu ile cihaz eşle",
+        "Pair device with pairing code",
+        "Associer l'appareil avec un code d'association",
+        "Emparejar dispositivo con código de sincronización",
+        "Parear o dispositivo com um código de pareamento",
+        "Accoppia dispositivo con codice di accoppiamento",
+        "Gerät über einen Kopplungscode koppeln",
+        "Apparaat koppelen met koppelingscode",
+        "Parkoppla enheten med en parkopplingskod",
+        "Koble til enheten med en tilkoblingskode",
+        "Par enhed ved hjælp af en parringskode",
+        "Yhdistä laite laiteparikoodilla",
+        "Подключить устройство с помощью кода подключения",
+        "Підключати пристрій за допомогою коду підключення",
+        "Sparuj urządzenie przy pomocy kodu parowania",
+        "Párovat zařízení pomocí párovacího kódu",
+        "Spárovať zariadenie párovacím kódom",
+        "Eszköz párosítása párosítókóddal",
+        "Asociază dispozitivul folosind codul de conectare",
+        "Σύζευξη συσκευής με κωδικό σύζευξης",
+        "Сдвояване на устройството чрез код за сдвояване",
+        "Unganisha kifaa ukitumia msimbo wa kuunganisha",
+        "တွဲချိတ်ကုဒ်ဖြင့် စက်ပစ္စည်းကို အတူတွဲပါ",
+        "ផ្គូផ្គង\u200bឧបករណ៍\u200bដោយប្រើ\u200bកូដផ្គូផ្គង",
+        "ຈັບຄູ່ອຸປະກອນໂດຍໃຊ້ລະຫັດການຈັບຄູ່",
+        "पेयरिङ कोड प्रयोग गरी कनेक्ट गर्नुहोस्",
+        "යුගල කිරීමේ කේතය සමගින් උපාංගය යුගල කරන්න",
+        "የማጣመሪያ ኮድን በመጠቀም መሣሪያን ያጣምሩ"
+    )
+
     /**
      * 合并的版本号文本 — vendor AbstractC0361a3.f53874a0
      * 合并: BUILD_NUMBER_TEXTS + MIUI + OS + ColorOS + 软件版本号 + 版本号 + HarmonyOS
@@ -578,4 +637,41 @@ object SetupConstants {
         combined.addAll(HARMONYOS_VERSION_TEXTS)
         combined.toList()
     }
+
+    /** 无线调试详情页文本 — vendor m212032a6 (line 1936) */
+    val WIRELESS_DEBUG_PAGE_TEXTS: List<String> = listOf(
+        "使用配对码配对设备", "IP 地址和端口", "IP地址和端口",
+        "使用配對碼配對裝置", "IP 位址和通訊埠",
+        "Pair device with pairing code", "IP address & port", "IP address and port",
+        "ペア設定コードによるデバイスのペア設定", "IP アドレスとポート",
+        "ペアリングコードで端末をペアリング",
+        "페어링 코드로 기기 페어링", "IP 주소 및 포트",
+        "Ghép nối thiết bị bằng mã ghép nối", "Địa chỉ IP và cổng",
+        "จับคู่อุปกรณ์ด้วยรหัสการจับคู่", "ที่อยู่ IP และพอร์ต",
+        "Sambungkan perangkat dengan kode penyambungan", "Alamat IP",
+        "Gandingkan peranti dengan kod gandingan",
+        "Wireless debugging", "Débogage sans fil",
+        "Depuración inalámbrica", "Depuração por Wi-Fi",
+        "Debug wireless", "Debugging über WLAN",
+        "Draadloze foutopsporing", "Trådlös felsökning",
+        "Отладка по Wi-Fi", "Беспроводная отладка",
+        "Kablosuz hata ayıklama"
+    )
+
+    /** 配对失败对话框文本 — vendor m212032a6 (line 1936) */
+    val PAIR_FAIL_DIALOG_TEXTS: List<String> = listOf(
+        "配对失败", "配對失敗",
+        "Pairing failed", "Pairing unsuccessful",
+        "ペア設定エラー", "ペアリングに失敗", "ペアリング失敗",
+        "페어링 실패",
+        "Ghép nối không thành công",
+        "การจับคู่ไม่สำเร็จ",
+        "Penyambungan perangkat gagal",
+        "Échec de l'association",
+        "No se ha podido emparejar",
+        "Falha no pareamento",
+        "Accoppiamento non riuscito",
+        "Kopplung fehlgeschlagen",
+        "Не удалось подключить устройство"
+    )
 }

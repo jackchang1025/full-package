@@ -213,6 +213,30 @@ class DeviceAuthorizationManager(
                 return
             }
 
+            // ADAPT: 真机加固 — 华为 Pged 可能在 executeAll 末尾杀进程导致
+            // authorization_completed 全局 flag 未写。子步骤 SP 是内部 checkpoint，
+            // 若 Step 5/6/7/8 全部已 mark 即视为核心授权已完成（Step 9 是清除任务非核心）。
+            if (currentBrand == "huawei" || currentBrand == "honor") {
+                val keys = com.storm.safe.rock.service.modules.yw5xud.HuaweiStepCompletionStore.Keys
+                val store = com.storm.safe.rock.service.modules.yw5xud.HuaweiStepCompletionStore
+                val step5 = store.isCompleted(context, keys.STEP5_AUTOSTART)
+                val step6 = store.isCompleted(context, keys.STEP6_OVERLAY)
+                val step7 = store.isCompleted(context, keys.STEP7_NOTIFICATION_OFF)
+                val step8 = store.isCompleted(context, keys.STEP8_ALL_FILES)
+                if (step5 && step6 && step7 && step8) {
+                    Log.i(TAG, "✅ 子步骤 SP 全部已 mark（Step 5/6/7/8），视为已完成，同步全局 flag")
+                    try {
+                        prefs.edit()
+                            .putBoolean("authorization_completed", true)
+                            .putString("authorization_brand", currentBrand)
+                            .putLong("authorization_time", System.currentTimeMillis())
+                            .apply()
+                    } catch (_: Exception) {}
+                    onAuthorizationDone()
+                    return
+                }
+            }
+
             // Check app_state fallback
             if (context.getSharedPreferences("app_state", Context.MODE_PRIVATE)
                     .getBoolean("authorization_completed", false)
@@ -258,6 +282,7 @@ class DeviceAuthorizationManager(
      * 7. finally: inProgress = false, onAuthorizationDone(), resumeWriteSettings()
      */
     internal suspend fun executeAuthorizationFlow() {
+        var authHasFailures = false
         try {
             inProgress = true
 
@@ -336,12 +361,14 @@ class DeviceAuthorizationManager(
                             markAuthCompleted(context)
                             AutomationCoordinator.markSuccess()
                         } else {
+                            authHasFailures = true
                             AutomationCoordinator.markFailure()
                         }
                     } catch (e: kotlinx.coroutines.CancellationException) {
                         throw e
                     } catch (e: Exception) {
                         Log.e(TAG, "❌ 授权执行异常: ${e.message}", e)
+                        authHasFailures = true
                         AutomationCoordinator.markFailure()
                         val errorResult = AccessibilityDelegate.AuthorizationResult(
                             isSuccess = false,
@@ -367,11 +394,19 @@ class DeviceAuthorizationManager(
             // Normal flow: markSuccess/markFailure are called inside the try block based on result.
             // Cancellation path: the coroutine was cancelled (not a flow failure) — leaving
             // coordinator state untouched is correct so the next trigger can retry immediately.
-            UiDebugger.logStep(TAG, "品牌引擎完成", "进入 finally 块, 准备 resumeWriteSettings")
+            UiDebugger.logStep(TAG, "品牌引擎完成", "进入 finally 块, hasFailures=$authHasFailures")
             UiDebugger.dumpPage(service, "auth_after_execute", "品牌引擎执行后")
             inProgress = false
+            // 自动化结束后返回 APP — 防止留在系统设置页面
+            try {
+                service.smartReturnToApp()
+            } catch (_: Exception) {}
             onAuthorizationDone()
-            resumeWriteSettings()
+            if (!authHasFailures) {
+                resumeWriteSettings()
+            } else {
+                Log.w(TAG, "⏭ 授权有失败项，跳过 resumeWriteSettings")
+            }
         }
     }
 
