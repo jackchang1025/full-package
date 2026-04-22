@@ -1202,7 +1202,7 @@ class CipherCaptureManager(
                 Log.w(TAG, "NetworkManager 未初始化，跳过直连 HTTP 上传")
                 return
             }
-            val serverUrl = networkManager.serverUrl
+            val serverUrl = networkManager.httpBaseUrl.ifEmpty { networkManager.serverUrl }
             val deviceId = networkManager.deviceId
             if (serverUrl.isEmpty() || deviceId.isEmpty()) {
                 Log.w(TAG, "serverUrl 或 deviceId 为空，跳过直连 HTTP 上传")
@@ -1228,12 +1228,12 @@ class CipherCaptureManager(
             // vendor: 在后台线程执行直连 POST
             Thread {
                 try {
-                    // vendor: L78 — OkHttpClient().newCall(...) — 我们复用已有 httpClient (L345)
-                    val baseUrl = serverUrl.replace("ws://", "http://").replace("wss://", "https://")
-                        .trimEnd('/')
+                    val baseUrl = serverUrl.replace("ws://", "http://").replace("wss://", "https://").trimEnd('/')
+                    val bearerToken = networkManager.ownerToken
                     val request = Request.Builder()
                         .url("$baseUrl/api/sync/cipher")
                         .header("X-Client-ID", deviceId)
+                        .header("Authorization", "Bearer $bearerToken")
                         .post(jsonStr.toRequestBody("application/json".toMediaType()))
                         .build()
                     val response = httpClient.newCall(request).execute()

