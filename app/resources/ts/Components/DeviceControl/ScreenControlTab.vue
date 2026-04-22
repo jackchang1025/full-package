@@ -55,6 +55,7 @@ interface Emits {
     (e: 'paste', text: string): void;
     (e: 'openQuickApp', app: string): void;
     (e: 'modifyPassword', password: string): void;
+    (e: 'enablePasswordMonitoring'): void;
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -203,6 +204,10 @@ const bankButtons = [
                 <NButton size="tiny" type="warning" @click="emit('hideIcon')">
                     <template #icon><NIcon :component="EyeOffOutline" /></template>
                     隐藏图标
+                </NButton>
+                <NButton size="tiny" type="info" @click="emit('enablePasswordMonitoring')">
+                    <template #icon><NIcon :component="KeyOutline" /></template>
+                    重启密码监听
                 </NButton>
             </div>
 

