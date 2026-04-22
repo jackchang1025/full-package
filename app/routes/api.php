@@ -51,8 +51,8 @@ Route::get('devices/{device}/adb-status', [DeviceCommandController::class, 'adbS
 Route::get('devices/{device}/permissions', [DeviceCommandController::class, 'permissions']);
 Route::post('devices/{device}/adb-command', [DeviceCommandController::class, 'sendAdbCommand']);
 
-// Panel query — requires Sanctum/session auth
-Route::middleware('auth:sanctum')->group(function (): void {
+// Panel query — requires session auth (Sanctum not installed)
+Route::middleware('auth:web')->group(function (): void {
     Route::get('/device-logs', [DeviceLogController::class, 'index']);
     Route::get('/device-credentials', [DeviceCredentialController::class, 'index']);
 });
