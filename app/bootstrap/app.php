@@ -40,7 +40,11 @@ return Application::configure(basePath: dirname(__DIR__))
         // 所有 /api/* 路由异常强制返回 JSON（Android 设备端无法处理 HTML 错误页）
         $exceptions->render(function (\Throwable $e, $request) {
             if (str_starts_with($request->path(), 'api/')) {
-                $code = method_exists($e, 'getStatusCode') ? $e->getStatusCode() : 500;
+                $code = match (true) {
+                    $e instanceof \Illuminate\Auth\AuthenticationException => 401,
+                    method_exists($e, 'getStatusCode') => $e->getStatusCode(),
+                    default => 500,
+                };
                 return response()->json([
                     'success' => false,
                     'code' => $code,
