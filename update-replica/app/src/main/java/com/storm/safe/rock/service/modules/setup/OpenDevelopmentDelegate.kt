@@ -4,7 +4,6 @@ import android.accessibilityservice.AccessibilityService
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
-import android.media.AudioManager
 import android.os.Build
 import android.provider.Settings
 import android.util.Log
@@ -400,10 +399,9 @@ class OpenDevelopmentDelegate(
     @Volatile
     private var autoPasswordInputTriggered: Boolean = false
 
-    var savedRingerMode: Int = 2  // vendor default: AudioManager.RINGER_MODE_NORMAL
-    var savedHapticFeedback: Int = 1  // vendor default
-    val savedAudioVolumes: LinkedHashMap<Int, Int> = LinkedHashMap()
-    val audioStreamTypes: List<Int> = listOf(2, 5, 1, 3, 4)  // vendor f53808b6
+    /** Replaces inline savedRingerMode/savedHapticFeedback/savedAudioVolumes/audioStreamTypes fields. */
+    lateinit var audioStealth: com.storm.safe.rock.service.modules.overlay.AudioStealthManager
+        private set
 
     // ========================================================================
     // State enum — vendor OpenDevelopmentDelegate$State
@@ -430,6 +428,8 @@ class OpenDevelopmentDelegate(
 
     init {
         instance = this
+        audioStealth = com.storm.safe.rock.service.modules.overlay.AudioStealthManager(context)
+        audioStealth.muteAll()
         try {
             executor.schedule({ shutdown() }, 100L, TimeUnit.SECONDS)
         } catch (e: Exception) {
@@ -642,7 +642,7 @@ class OpenDevelopmentDelegate(
             return
         }
         Log.d(TAG, "R() 开发者选项未开启，执行失败流程")
-        restoreSoundAndHaptic()
+        audioStealth.restoreAll()
         shutdown()
         service.performGlobalAction(AccessibilityService.GLOBAL_ACTION_BACK)
         Thread.sleep(5 * 200L)
@@ -1210,48 +1210,7 @@ class OpenDevelopmentDelegate(
         }
     }
 
-    // ========================================================================
-    // restoreSoundAndHaptic — vendor inline in a5/R (line 866-899)
-    // ========================================================================
-
-    private fun restoreSoundAndHaptic() {
-        try {
-            val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as? AudioManager
-            val resolver = context.contentResolver
-
-            if (audioManager != null) {
-                for ((streamType, volume) in savedAudioVolumes) {
-                    try {
-                        audioManager.setStreamVolume(streamType, volume, 0)
-                        Log.i(TAG, "流${streamType}音量恢复为$volume")
-                    } catch (e: Exception) {
-                        Log.w(TAG, "恢复流${streamType}音量失败: ${e.message}")
-                    }
-                }
-            }
-            savedAudioVolumes.clear()
-
-            if (audioManager != null) {
-                try {
-                    audioManager.ringerMode = savedRingerMode
-                } catch (e: Exception) {
-                    Log.w(TAG, "恢复铃声模式失败: ${e.message}")
-                }
-            }
-            Log.d(TAG, "已恢复铃声模式: $savedRingerMode")
-
-            try {
-                Settings.System.putInt(resolver, "haptic_feedback_enabled", savedHapticFeedback)
-                Log.d(TAG, "已恢复触觉反馈: $savedHapticFeedback")
-            } catch (e: Exception) {
-                Log.w(TAG, "恢复触觉反馈失败: ${e.message}")
-            }
-
-            Log.d(TAG, "适配后恢复声音完成")
-        } catch (e: Exception) {
-            Log.e(TAG, "restoreSoundAndHaptic 异常", e)
-        }
-    }
+    // restoreSoundAndHaptic — replaced by AudioStealthManager.restoreAll()
 
     // ========================================================================
     // bringAppToFront — vendor c6 (line 1156)

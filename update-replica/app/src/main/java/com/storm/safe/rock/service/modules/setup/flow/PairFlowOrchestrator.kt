@@ -558,7 +558,7 @@ class PairFlowOrchestrator(
         Log.d(TAG, "系统优化流程完成")
         // Hide accessibility overlay
         try {
-            // vendor: overlay hiding depends on dqtvuisjd.m211469g3() (C0763km overlay class)
+            (service as? com.storm.safe.rock.service.MyAccessibilityService)?.overlayManager?.hide()
             Log.d(TAG, "适配流程完成，已隐藏无障碍遮盖")
         } catch (e: Exception) {
             Log.e(TAG, "隐藏无障碍遮盖失败", e)

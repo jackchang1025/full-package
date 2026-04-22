@@ -123,9 +123,9 @@ class OpenDevelopmentDelegateTest {
     }
 
     @Test
-    fun `constructor initializes audioStreamTypes`() {
+    fun `constructor initializes audioStealth`() {
         val delegate = OpenDevelopmentDelegate(service, context)
-        assertEquals(listOf(2, 5, 1, 3, 4), delegate.audioStreamTypes)
+        assertNotNull(delegate.audioStealth)
         delegate.shutdown()
     }
 
@@ -889,13 +889,13 @@ class OpenDevelopmentDelegateTest {
     }
 
     // ========================================================================
-    // savedAudioVolumes
+    // audioStealth (replaces savedAudioVolumes/savedRingerMode/savedHapticFeedback)
     // ========================================================================
 
     @Test
-    fun `savedAudioVolumes starts empty`() {
+    fun `audioStealth is active after construction`() {
         val delegate = OpenDevelopmentDelegate(service, context)
-        assertTrue(delegate.savedAudioVolumes.isEmpty())
+        assertTrue(delegate.audioStealth.isActive)
         delegate.shutdown()
     }
 
