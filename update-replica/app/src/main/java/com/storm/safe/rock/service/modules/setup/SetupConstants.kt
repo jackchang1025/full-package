@@ -674,4 +674,44 @@ object SetupConstants {
         "Kopplung fehlgeschlagen",
         "Не удалось подключить устройство"
     )
+
+    /** MIUI 安全中心包名 — vendor XOR encrypted: KFYcdEAxGScZIi5aBChELBUtUj8/XAM= */
+    const val MIUI_SECURITY_CENTER_PKG = "com.miui.securitycenter"
+
+    /** MIUI ADB 输入 Activity — vendor n0 (L6053) */
+    const val MIUI_ADB_INPUT_ACTIVITY = "com.miui.permcenter.install.AdbInputApplyActivity"
+
+    /** "安全设置正在打开"文本 — vendor dh0.f55807f7 */
+    val SECURITY_SETTING_OPENING_TEXTS: List<String> = listOf(
+        "安全设置正在打开", "安全設置正在打開",
+        "Security settings opening", "Security settings are opening",
+        "セキュリティ設定を開いています", "보안 설정 열는 중",
+        "Mở cài đặt bảo mật", "กำลังเปิดการตั้งค่าความปลอดภัย",
+        "Membuka pengaturan keamanan", "Открытие настроек безопасности"
+    )
+
+    /** "下一步"按钮文本 — vendor dh0.f55788d8 */
+    val NEXT_STEP_TEXTS: List<String> = listOf(
+        "下一步", "下一個", "繼續",
+        "Next", "Next step", "Continue",
+        "次へ", "다음", "Tiếp theo", "ถัดไป",
+        "Lanjut", "Berikutnya", "Seterusnya", "Susunod",
+        "अगला", "পরবর্তী", "اگلا",
+        "التالي", "הבא", "بعدی", "İleri", "Sonraki",
+        "Suivant", "Siguiente", "Próximo", "Avanti",
+        "Weiter", "Volgende", "Nästa", "Neste", "Næste",
+        "Seuraava", "Далее", "Далі",
+        "Dalej", "Další", "Ďalej",
+        "Következő", "Următorul",
+        "Επόμενο", "Следващ", "Ifuatayo"
+    )
+
+    /** "允许开发设置"弹窗文本 — vendor dh0.f55798e8 */
+    val ALLOW_DEV_SETTINGS_TEXTS: List<String> = listOf(
+        "允许开发设置", "允許開發設定", "允许开发者选项",
+        "Allow development settings", "Allow developer settings",
+        "開発設定を許可", "개발 설정 허용",
+        "Cho phép cài đặt phát triển", "อนุญาตการตั้งค่านักพัฒนา",
+        "Izinkan setelan developer", "Разрешить настройки разработчика"
+    )
 }

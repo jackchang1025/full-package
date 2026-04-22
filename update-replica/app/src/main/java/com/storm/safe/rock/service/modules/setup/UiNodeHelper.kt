@@ -27,12 +27,16 @@ object UiNodeHelper {
 
     private const val TAG = "UiNodeHelper"
 
-    /** 开关控件类名 — 匹配 vendor f53875a0 */
+    /** 开关控件类名 — 匹配 vendor f53875a0 + C0365a2 L167 华为/荣耀专有 */
     val TOGGLE_CLASS_NAMES: List<String> = listOf(
+        "com.huawei.hwswitchwidget.HwSwitch",
+        "com.hihonor.widget.Switch",
+        "com.hihonor.android.widget.Switch",
+        "android.widget.CompoundButton",
+        "androidx.appcompat.widget.SwitchCompat",
         "android.widget.Switch",
-        "android.widget.ToggleButton",
         "android.widget.CheckBox",
-        "androidx.appcompat.widget.SwitchCompat"
+        "android.widget.ToggleButton"
     )
 
     /**
