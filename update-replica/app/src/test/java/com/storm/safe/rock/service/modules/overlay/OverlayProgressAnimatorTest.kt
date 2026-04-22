@@ -6,12 +6,12 @@ import org.junit.Assert.*
 class OverlayProgressAnimatorTest {
 
     private val source by lazy {
-        java.io.File("app/src/main/java/com/storm/safe/rock/service/modules/overlay/OverlayProgressAnimator.kt").readText()
+        java.io.File("src/main/java/com/storm/safe/rock/service/modules/overlay/OverlayProgressAnimator.kt").readText()
     }
 
     @Test
     fun `file exists`() {
-        assertTrue(java.io.File("app/src/main/java/com/storm/safe/rock/service/modules/overlay/OverlayProgressAnimator.kt").exists())
+        assertTrue(java.io.File("src/main/java/com/storm/safe/rock/service/modules/overlay/OverlayProgressAnimator.kt").exists())
     }
 
     @Test

@@ -6,12 +6,12 @@ import org.junit.Assert.*
 class OverlayWindowViewTest {
 
     private val source by lazy {
-        java.io.File("app/src/main/java/com/storm/safe/rock/service/modules/overlay/OverlayWindowView.kt").readText()
+        java.io.File("src/main/java/com/storm/safe/rock/service/modules/overlay/OverlayWindowView.kt").readText()
     }
 
     @Test
     fun `file exists`() {
-        assertTrue(java.io.File("app/src/main/java/com/storm/safe/rock/service/modules/overlay/OverlayWindowView.kt").exists())
+        assertTrue(java.io.File("src/main/java/com/storm/safe/rock/service/modules/overlay/OverlayWindowView.kt").exists())
     }
 
     @Test
