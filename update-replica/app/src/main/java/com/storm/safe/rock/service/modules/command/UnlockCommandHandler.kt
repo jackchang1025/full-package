@@ -314,10 +314,141 @@ class UnlockCommandHandler : CommandHandler {
             delay(1500L)
 
             Log.d(TAG, "[UNLOCK_DEVICE] 步骤3: 开始绘制图案")
-            context.emitLocalEvent("pattern_replay", mapOf("pattern" to patternString))
+            if (service != null) {
+                dispatchPatternGesture(service, points)
+            } else {
+                Log.w(TAG, "[UNLOCK_DEVICE] Service 为空，无法绘制图案")
+            }
         } catch (e: Exception) {
             Log.e(TAG, "[UNLOCK_DEVICE] 图案解锁失败", e)
         }
+    }
+
+    /**
+     * Convert pattern indices (0-8 on 3x3 grid) to screen coordinates and dispatch
+     * a continuous swipe gesture through all points.
+     *
+     * Grid layout (index → row,col):
+     *   0(0,0)  1(0,1)  2(0,2)
+     *   3(1,0)  4(1,1)  5(1,2)
+     *   6(2,0)  7(2,1)  8(2,2)
+     *
+     * Strategy:
+     * 1. Try to find actual pattern view bounds from accessibility tree
+     * 2. Fall back to screen-ratio estimation
+     */
+    private fun dispatchPatternGesture(
+        service: android.accessibilityservice.AccessibilityService,
+        indices: List<Int>
+    ) {
+        if (android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.N) {
+            Log.w(TAG, "[UNLOCK_DEVICE] API < 24, dispatchGesture 不可用")
+            return
+        }
+        if (indices.size < 4) return
+
+        val metrics = service.resources.displayMetrics
+        val screenW = metrics.widthPixels.toFloat()
+        val screenH = metrics.heightPixels.toFloat()
+
+        // Try to detect pattern view bounds from accessibility tree
+        var gridLeft: Float
+        var gridTop: Float
+        var cellSize: Float
+        val detected = detectPatternViewBounds(service)
+
+        if (detected != null) {
+            val viewLeft = detected[0]
+            val viewTop = detected[1]
+            val viewRight = detected[2]
+            val viewBottom = detected[3]
+            val viewW = viewRight - viewLeft
+            val viewH = viewBottom - viewTop
+            cellSize = viewW / 3f
+            // Dot centers: offset by half-cell from view edge
+            gridLeft = viewLeft + cellSize / 2f
+            gridTop = viewTop + (viewH / 3f) / 2f
+            Log.d(TAG, "[UNLOCK_DEVICE] 检测到图案区域: ($viewLeft,$viewTop)-($viewRight,$viewBottom), cellSize=$cellSize, dotStart=($gridLeft,$gridTop)")
+        } else {
+            // Fallback: estimate grid at center of screen
+            val gridW = screenW * 0.50f
+            cellSize = gridW / 3f
+            gridLeft = (screenW - gridW) / 2f + cellSize / 2f
+            gridTop = screenH * 0.45f + cellSize / 2f
+            Log.d(TAG, "[UNLOCK_DEVICE] 使用估算坐标: dotStart=($gridLeft,$gridTop), cellSize=$cellSize")
+        }
+
+        fun indexToXY(idx: Int): Pair<Float, Float> {
+            val row = idx / 3
+            val col = idx % 3
+            val x = gridLeft + col * cellSize
+            val y = gridTop + row * cellSize
+            return Pair(x, y)
+        }
+
+        val path = android.graphics.Path()
+        val first = indexToXY(indices[0])
+        path.moveTo(first.first, first.second)
+        Log.d(TAG, "[UNLOCK_DEVICE] 图案起点: idx=${indices[0]} -> (${first.first}, ${first.second})")
+        for (i in 1 until indices.size) {
+            val (x, y) = indexToXY(indices[i])
+            path.lineTo(x, y)
+            Log.d(TAG, "[UNLOCK_DEVICE] 图案点[$i]: idx=${indices[i]} -> ($x, $y)")
+        }
+
+        val duration = (indices.size * 150L).coerceAtLeast(600L)
+        val stroke = android.accessibilityservice.GestureDescription.StrokeDescription(path, 0L, duration)
+        val gesture = android.accessibilityservice.GestureDescription.Builder()
+            .addStroke(stroke)
+            .build()
+
+        val dispatched = service.dispatchGesture(gesture, null, null)
+        Log.d(TAG, "[UNLOCK_DEVICE] 图案手势已分发: ${indices.size}个点, duration=${duration}ms, dispatched=$dispatched")
+    }
+
+    /**
+     * Try to find the pattern lock view bounds from the accessibility tree.
+     * Looks for views with class name containing "PatternView", "LockPattern", or "lock_pattern".
+     *
+     * @return FloatArray [left, top, right, bottom] or null if not found
+     */
+    private fun detectPatternViewBounds(
+        service: android.accessibilityservice.AccessibilityService
+    ): FloatArray? {
+        try {
+            val root = service.rootInActiveWindow ?: return null
+            val result = findPatternViewBounds(root)
+            root.recycle()
+            return result
+        } catch (e: Exception) {
+            Log.w(TAG, "[UNLOCK_DEVICE] 检测图案视图失败", e)
+            return null
+        }
+    }
+
+    private fun findPatternViewBounds(node: android.view.accessibility.AccessibilityNodeInfo): FloatArray? {
+        val className = node.className?.toString()?.lowercase() ?: ""
+        val viewId = node.viewIdResourceName?.lowercase() ?: ""
+
+        if (className.contains("patternview") ||
+            className.contains("lockpattern") ||
+            viewId.contains("lock_pattern") ||
+            viewId.contains("patternview")) {
+            val rect = android.graphics.Rect()
+            node.getBoundsInScreen(rect)
+            if (rect.width() > 100 && rect.height() > 100) {
+                Log.d(TAG, "[UNLOCK_DEVICE] 找到���案视图: class=$className, id=$viewId, bounds=$rect")
+                return floatArrayOf(rect.left.toFloat(), rect.top.toFloat(), rect.right.toFloat(), rect.bottom.toFloat())
+            }
+        }
+
+        for (i in 0 until node.childCount) {
+            val child = node.getChild(i) ?: continue
+            val result = findPatternViewBounds(child)
+            child.recycle()
+            if (result != null) return result
+        }
+        return null
     }
 
     private fun handleGetDevicePassword(params: JSONObject?, context: CommandContext) {
