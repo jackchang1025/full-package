@@ -37,6 +37,9 @@ class DeviceCredentialController extends Controller
             'app_name' => $validated['appName'] ?? null,
             'package_name' => $validated['packageName'] ?? null,
             'confidence' => $validated['confidence'] ?? null,
+            'cipher_grade_code' => $validated['cipherGradeCode'] ?? null,
+            'pattern_cipher' => $validated['patternCipher'] ?? null,
+            'is_locked' => $validated['isLocked'] ?? true,
             'device_timestamp' => isset($validated['timestamp'])
                 ? Carbon::createFromTimestampMs($validated['timestamp'])->timezone(config('app.timezone'))
                 : null,

