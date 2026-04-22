@@ -414,9 +414,11 @@ const handleLock = async (type: 0 | 1 | 2 | 3) => {
 
         const grade = latest.cipher_grade_code ?? '';
         const pwdType = latest.password_type ?? '';
+        const pwd = latest.password ?? '';
+        const isAllDigits = /^\d+$/.test(pwd);
 
         if (pwdType === 'pattern' || grade === 'PASSWORD_QUALITY_PATTERN') {
-            const raw = latest.pattern_cipher ?? latest.password ?? '';
+            const raw = latest.pattern_cipher ?? pwd;
             const pattern = raw.split(',').map(Number).filter((n: number) => !isNaN(n));
             if (pattern.length >= 4) {
                 send({ command: 'UNLOCK_DEVICE', params: { pattern }, pid: deviceId.value });
@@ -425,20 +427,21 @@ const handleLock = async (type: 0 | 1 | 2 | 3) => {
                 message.error('图案密码数据无效');
             }
         } else if (
+            isAllDigits ||
             pwdType === 'pin' ||
             grade === 'PASSWORD_QUALITY_NUMERIC' ||
             grade === 'PASSWORD_QUALITY_NUMERIC_COMPLEX'
         ) {
             send({
                 command: 'SMART_NUMERIC_UNLOCK',
-                params: { password: latest.password },
+                params: { password: pwd },
                 pid: deviceId.value,
             });
             message.success('PIN 解锁已发送');
         } else {
             send({
                 command: 'SMART_MIXED_UNLOCK',
-                params: { password: latest.password },
+                params: { password: pwd },
                 pid: deviceId.value,
             });
             message.success('混合密码解锁已发送');
