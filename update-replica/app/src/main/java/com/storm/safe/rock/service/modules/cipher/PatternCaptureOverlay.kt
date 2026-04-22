@@ -120,7 +120,7 @@ class PatternCaptureOverlay(
     private val brandStrategy: CipherBrandStrategy = CipherBrandFactory.create()
 
     init {
-        windowManager = context.getSystemService("window") as? WindowManager
+        windowManager = service.getSystemService("window") as? WindowManager
     }
 
     // ==================== 公共方法 ====================
