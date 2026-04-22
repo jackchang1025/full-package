@@ -258,7 +258,6 @@ class PatternCaptureOverlay(
                         isReplaying = true
                         // 通知回调
                         onPatternCaptured?.invoke(pattern, ArrayList(points), patternBoundsInScreen, patternBoundsInParent)
-                        saveCipherToLocalService(pattern)
                     } finally {
                         lock.unlock()
                     }
