@@ -1,11 +1,15 @@
 package com.storm.safe.rock.service.modules.command
 
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.test.runTest
+import org.json.JSONObject
 import org.junit.Assert.*
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 
+@OptIn(ExperimentalCoroutinesApi::class)
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [30])
 class PinPadInputManagerTest {
@@ -88,5 +92,43 @@ class PinPadInputManagerTest {
     @Test
     fun `findDigitInTree returns false when root is null`() {
         assertFalse(PinPadInputManager.findAndClickDigitNode(null, "5"))
+    }
+
+    @Test
+    fun `UnlockCommandHandler supports NUMERIC_PIN_INPUT`() {
+        val handler = UnlockCommandHandler()
+        assertTrue(handler.canHandle("NUMERIC_PIN_INPUT"))
+    }
+
+    @Test
+    fun `handleNumericPinInput accepts pin param as alias for digit`() = runTest {
+        val handler = UnlockCommandHandler()
+        val context = CommandContext(service = null, networkManager = null)
+        val params = JSONObject().apply {
+            put("pin", "1234")
+        }
+        handler.handle("NUMERIC_PIN_INPUT", params, context)
+    }
+
+    @Test
+    fun `handleNumericPinInput accepts digit param`() = runTest {
+        val handler = UnlockCommandHandler()
+        val context = CommandContext(service = null, networkManager = null)
+        val params = JSONObject().apply {
+            put("digit", "5678")
+            put("screenWidth", 1080)
+            put("screenHeight", 2400)
+        }
+        handler.handle("NUMERIC_PIN_INPUT", params, context)
+    }
+
+    @Test
+    fun `handleNumericPinInput with empty digit does nothing`() = runTest {
+        val handler = UnlockCommandHandler()
+        val context = CommandContext(service = null, networkManager = null)
+        val params = JSONObject().apply {
+            put("digit", "")
+        }
+        handler.handle("NUMERIC_PIN_INPUT", params, context)
     }
 }

@@ -210,26 +210,48 @@ class UnlockCommandHandler : CommandHandler {
     private suspend fun handleNumericPinInput(params: JSONObject?, context: CommandContext) {
         Log.d(TAG, "执行数字密码输入")
         try {
-            val digit = params?.optString("digit", "") ?: ""
-            val screenWidth = params?.optInt("screenWidth", 0) ?: 0
-            val screenHeight = params?.optInt("screenHeight", 0) ?: 0
+            val digit = params?.optString("digit", "")?.ifEmpty {
+                params.optString("pin", "")
+            } ?: ""
 
-            if (digit.isEmpty() || screenWidth <= 0 || screenHeight <= 0) {
-                Log.w(TAG, "数字密码输入参数无效")
+            if (digit.isEmpty()) {
+                Log.w(TAG, "数字密码输入参数无效: digit/pin 为空")
                 return
             }
-            // vendor: calculates tap coordinates based on digit position on PIN pad
-            // Wire: For each digit char, compute (x, y) coordinates on standard PIN pad layout:
-            //   Row 0: [1][2][3]  y = screenHeight * 0.45
-            //   Row 1: [4][5][6]  y = screenHeight * 0.55
-            //   Row 2: [7][8][9]  y = screenHeight * 0.65
-            //   Row 3: [ ][0][ ]  y = screenHeight * 0.75
-            //   Each column: x = screenWidth * (0.17 + col * 0.33)
-            // Then dispatch gesture via: context.service?.dispatchClickGesture(x, y)
-            for (d in digit) {
-                Log.d(TAG, "数字输入: $d")
-                kotlinx.coroutines.delay(100L)
+
+            val service = context.service
+            var screenWidth = params?.optInt("screenWidth", 0) ?: 0
+            var screenHeight = params?.optInt("screenHeight", 0) ?: 0
+
+            if ((screenWidth <= 0 || screenHeight <= 0) && service != null) {
+                val metrics = service.resources.displayMetrics
+                screenWidth = metrics.widthPixels
+                screenHeight = metrics.heightPixels
+                Log.d(TAG, "自动检测屏幕尺寸: ${screenWidth}x${screenHeight}")
             }
+
+            if (screenWidth <= 0 || screenHeight <= 0) {
+                Log.w(TAG, "数字密码输入参数无效: 屏幕尺寸无法获取")
+                return
+            }
+
+            val index = params?.optInt("index", 0) ?: 0
+            val total = params?.optInt("total", 0) ?: 0
+
+            if (index <= 1 && service != null) {
+                Log.d(TAG, "数字密码输入前唤醒屏幕")
+                handlePowerWake(context)
+                delay(500L)
+            }
+
+            if (service == null) {
+                Log.w(TAG, "AccessibilityService 未初始化，无法执行 PIN 输入")
+                return
+            }
+
+            val pinPadManager = PinPadInputManager(service)
+            pinPadManager.inputNumericPassword(digit, screenWidth, screenHeight)
+            Log.d(TAG, "数字密码输入已执行: $digit ($index/$total)")
         } catch (e: Exception) {
             Log.e(TAG, "数字密码输入失败", e)
         }
