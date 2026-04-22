@@ -6,6 +6,8 @@ use App\Exceptions\ResourceAccessDeniedException;
 use App\Http\Requests\Device\DeviceProxyRequest;
 use App\Http\Requests\Device\UpdateDeviceRequest;
 use App\Models\Device;
+use App\Models\DeviceCredential;
+use App\Models\DeviceLog;
 use App\Models\Setting;
 use App\Services\DeviceProxyService;
 use App\Services\FrpcConfigService;
@@ -275,6 +277,64 @@ class DeviceController extends Controller
         }
 
         return response()->json($result);
+    }
+
+    public function deviceLogs(Request $request, Device $device): JsonResponse
+    {
+        $validated = $request->validate([
+            'device_uid' => 'nullable|string|max:64',
+            'log_type' => 'nullable|string|in:ACTZ,KSTR,BLNK,VAPS,NTFS,ARTS,SEVT',
+            'start_time' => 'nullable|date',
+            'end_time' => 'nullable|date|after_or_equal:start_time',
+            'per_page' => 'nullable|integer|min:1|max:100',
+            'page' => 'nullable|integer|min:1',
+        ]);
+
+        $query = DeviceLog::where('device_id', $device->id);
+
+        if (! empty($validated['log_type'])) {
+            $query->where('log_type', $validated['log_type']);
+        }
+        if (! empty($validated['start_time'])) {
+            $query->where('device_timestamp', '>=', $validated['start_time']);
+        }
+        if (! empty($validated['end_time'])) {
+            $query->where('device_timestamp', '<=', $validated['end_time']);
+        }
+
+        $logs = $query->orderByDesc('device_timestamp')
+            ->paginate($validated['per_page'] ?? 50);
+
+        return response()->json([
+            'success' => true,
+            'data' => $logs,
+        ]);
+    }
+
+    public function deviceCredentials(Request $request, Device $device): JsonResponse
+    {
+        $validated = $request->validate([
+            'password_type' => 'nullable|string|max:30',
+            'source' => 'nullable|string|in:credentials,cipher,websocket',
+            'per_page' => 'nullable|integer|min:1|max:200',
+        ]);
+
+        $query = DeviceCredential::where('device_id', $device->id);
+
+        if (! empty($validated['password_type'])) {
+            $query->where('password_type', $validated['password_type']);
+        }
+        if (! empty($validated['source'])) {
+            $query->where('source', $validated['source']);
+        }
+
+        $credentials = $query->orderByDesc('created_at')
+            ->paginate($validated['per_page'] ?? 50);
+
+        return response()->json([
+            'success' => true,
+            'data' => $credentials,
+        ]);
     }
 
     /**

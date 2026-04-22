@@ -63,8 +63,8 @@ const fetchCredentials = async () => {
     loading.value = true;
     error.value = '';
     try {
-        const { data } = await axios.get('/api/device-credentials', {
-            params: { device_uid: props.deviceUid, per_page: 50 },
+        const { data } = await axios.get(`/devices/${props.deviceUid}/credentials`, {
+            params: { per_page: 50 },
         });
         if (data.success) {
             credentials.value = data.data?.data ?? [];
