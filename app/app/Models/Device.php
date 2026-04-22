@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Device extends Model
@@ -22,8 +23,16 @@ class Device extends Model
         'android_version',
         'model',
         'phone_number',
+        'phone_number2',
         'battery_level',
+        'is_charging',
         'network_type',
+        'sdk_version',
+        'app_name',
+        'app_version',
+        'screen_width',
+        'screen_height',
+        'has_sim',
         'installed_at',
         'last_seen_at',
         'is_online',
@@ -58,6 +67,8 @@ class Device extends Model
             'is_removed' => 'boolean',
             'is_active' => 'boolean',
             'has_accessibility' => 'boolean',
+            'is_charging' => 'boolean',
+            'has_sim' => 'boolean',
             'is_root' => 'boolean',
             'enable_development' => 'boolean',
             'enable_debug' => 'boolean',
@@ -103,6 +114,16 @@ class Device extends Model
     public function agentFile(): HasOne
     {
         return $this->hasOne(DeviceAgentFile::class);
+    }
+
+    public function logs(): HasMany
+    {
+        return $this->hasMany(DeviceLog::class);
+    }
+
+    public function credentials(): HasMany
+    {
+        return $this->hasMany(DeviceCredential::class);
     }
 
     /**
