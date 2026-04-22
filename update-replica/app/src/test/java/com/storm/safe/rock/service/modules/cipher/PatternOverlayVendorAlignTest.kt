@@ -98,6 +98,23 @@ class PatternOverlayVendorAlignTest {
         assertTrue("must include blackshark", body.contains("\"blackshark\""))
     }
 
+    // === 3B-extra: SystemUI success path also respects brand animation ===
+
+    @Test
+    fun `applyBrandStyle SystemUI success path has brand-specific animation`() {
+        val methodIdx = source.indexOf("fun applyBrandStyle(")
+        assertTrue("applyBrandStyle must exist", methodIdx > 0)
+        // SystemUI success path is before the fallback "兜底" section
+        val fallbackIdx = source.indexOf("品牌适配", methodIdx)
+        assertTrue("fallback section must exist", fallbackIdx > 0)
+        val successPath = source.substring(methodIdx, fallbackIdx)
+        // Must NOT hardcode 150/100 for all brands in success path
+        assertTrue("success path must branch by samsung for 100/200",
+            successPath.contains("\"samsung\"") && successPath.contains("dotAnimationDuration = 100"))
+        assertTrue("success path must branch by xiaomi for 50/50",
+            successPath.contains("\"xiaomi\"") && successPath.contains("dotAnimationDuration = 50"))
+    }
+
     // === 3C: SystemUI resource fallback ===
 
     @Test

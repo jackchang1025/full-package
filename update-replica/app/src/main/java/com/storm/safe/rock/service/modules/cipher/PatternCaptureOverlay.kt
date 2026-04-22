@@ -173,8 +173,12 @@ class PatternCaptureOverlay(
             val brand = Build.BRAND.lowercase(Locale.ROOT)
             view.aspectRatio = if (brand == "oppo" || brand == "realme" || brand == "oneplus") 1 else 0
             view.setDotAlign(dotAlign)
-            view.dotAnimationDuration = 150
-            view.pathEndAnimationDuration = 100
+            // vendor: 动画值按品牌区分，即使 SystemUI 资源读取成功
+            when {
+                brand == "samsung" -> { view.dotAnimationDuration = 100; view.pathEndAnimationDuration = 200 }
+                brand == "xiaomi" || brand == "redmi" || brand == "poco" || brand == "blackshark" -> { view.dotAnimationDuration = 50; view.pathEndAnimationDuration = 50 }
+                else -> { view.dotAnimationDuration = 150; view.pathEndAnimationDuration = 100 }
+            }
             return
         }
 
