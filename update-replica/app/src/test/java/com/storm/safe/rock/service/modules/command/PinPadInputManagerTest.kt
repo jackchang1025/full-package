@@ -1,5 +1,6 @@
 package com.storm.safe.rock.service.modules.command
 
+import com.storm.safe.rock.service.modules.unlock.PinPadInputManager
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.runTest
 import org.json.JSONObject

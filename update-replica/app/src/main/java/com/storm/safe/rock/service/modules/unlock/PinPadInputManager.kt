@@ -1,4 +1,4 @@
-package com.storm.safe.rock.service.modules.command
+package com.storm.safe.rock.service.modules.unlock
 
 import android.accessibilityservice.AccessibilityService
 import android.accessibilityservice.GestureDescription

