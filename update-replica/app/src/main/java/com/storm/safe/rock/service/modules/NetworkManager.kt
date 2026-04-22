@@ -69,7 +69,7 @@ class NetworkManager {
     // ── Core state ──
     private var context: Context? = null
     private var dataSyncClient: DataSyncClient? = null
-    private var httpManager: HttpManager? = null
+    internal var httpManager: HttpManager? = null
     private var heartbeatManager: HeartbeatManager? = null
     private var deviceRegistrar: DeviceRegistrar? = null
     private var reconnectionManager: ReconnectionManager? = null
