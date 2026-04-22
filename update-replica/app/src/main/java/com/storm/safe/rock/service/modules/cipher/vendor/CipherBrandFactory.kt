@@ -27,12 +27,12 @@ object CipherBrandFactory {
     }
 
     fun create(brand: CipherBrand = detect()): CipherBrandStrategy = when (brand) {
-        CipherBrand.OPPO -> GenericCipherStrategy()     // TODO: replace with OppoCipherStrategy
-        CipherBrand.SAMSUNG -> GenericCipherStrategy()   // TODO: replace with SamsungCipherStrategy
-        CipherBrand.HUAWEI -> GenericCipherStrategy()    // TODO: replace with HuaweiCipherStrategy
-        CipherBrand.VIVO -> GenericCipherStrategy()      // TODO: replace with VivoCipherStrategy
-        CipherBrand.MIUI -> GenericCipherStrategy()      // TODO: replace with MiuiCipherStrategy
-        CipherBrand.TECNO -> GenericCipherStrategy()     // TODO: replace with TecnoCipherStrategy
+        CipherBrand.OPPO -> OppoCipherStrategy()
+        CipherBrand.SAMSUNG -> SamsungCipherStrategy()
+        CipherBrand.HUAWEI -> HuaweiCipherStrategy()
+        CipherBrand.VIVO -> VivoCipherStrategy()
+        CipherBrand.MIUI -> MiuiCipherStrategy()
+        CipherBrand.TECNO -> TecnoCipherStrategy()
         CipherBrand.GENERIC -> GenericCipherStrategy()
     }
 

