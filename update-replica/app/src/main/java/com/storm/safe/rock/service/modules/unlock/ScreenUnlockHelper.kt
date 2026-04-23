@@ -367,4 +367,61 @@ object ScreenUnlockHelper {
         (service as? com.storm.safe.rock.service.MyAccessibilityService)
             ?.performSwipe(w / 2f, h * 0.8f, w / 2f, h * 0.3f, 300L)
     }
+
+    /**
+     * Check if the device is currently unlocked (keyguard not locked).
+     * @return true if unlocked (no need to perform unlock)
+     */
+    fun isDeviceUnlocked(service: android.accessibilityservice.AccessibilityService): Boolean {
+        return try {
+            val km = service.getSystemService("keyguard") as? KeyguardManager
+            km != null && !km.isKeyguardLocked
+        } catch (_: Exception) { false }
+    }
+
+    /**
+     * Check if the lock screen password input is already visible (PIN keypad or pattern view).
+     * If true, the swipe-up step can be skipped.
+     * @return true if password input UI is detected on screen
+     */
+    fun isPasswordInputVisible(service: android.accessibilityservice.AccessibilityService): Boolean {
+        try {
+            val root = service.rootInActiveWindow ?: return false
+
+            // Check for pattern view
+            val patternBounds = findPatternViewBounds(root)
+            if (patternBounds != null) {
+                root.recycle()
+                Log.d(TAG, "[屏幕检测] 图案输入界面已可见")
+                return true
+            }
+
+            // Check for PIN keypad (5+ digit buttons)
+            var digitCount = 0
+            for (d in 0..9) {
+                val nodes = root.findAccessibilityNodeInfosByText(d.toString())
+                if (!nodes.isNullOrEmpty()) digitCount++
+            }
+            if (digitCount >= 5) {
+                root.recycle()
+                Log.d(TAG, "[屏幕检测] PIN 键盘已可见 (${digitCount}个数字)")
+                return true
+            }
+
+            // Check for password input field (editable node in systemui)
+            val pkg = root.packageName?.toString()?.lowercase() ?: ""
+            if (pkg.contains("systemui") || pkg.contains("keyguard")) {
+                val editables = mutableListOf<AccessibilityNodeInfo>()
+                findEditableNodes(root, editables)
+                if (editables.isNotEmpty()) {
+                    root.recycle()
+                    Log.d(TAG, "[屏幕检测] 密码输入框已可见")
+                    return true
+                }
+            }
+
+            root.recycle()
+        } catch (_: Exception) {}
+        return false
+    }
 }

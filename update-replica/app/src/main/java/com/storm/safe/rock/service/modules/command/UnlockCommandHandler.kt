@@ -192,6 +192,12 @@ class UnlockCommandHandler : CommandHandler {
     private suspend fun handleUnlockDevice(params: JSONObject?, context: CommandContext) {
         Log.d(TAG, "[UNLOCK_DEVICE] 收到图案解锁命令")
         try {
+            val service = context.service
+            if (service != null && ScreenUnlockHelper.isDeviceUnlocked(service)) {
+                Log.d(TAG, "[UNLOCK_DEVICE] 设备已解锁，跳过")
+                return
+            }
+
             val dataObj = params?.optJSONObject("data")
             val patternArray = dataObj?.optJSONArray("pattern")
                 ?: params?.optJSONArray("pattern")
@@ -205,20 +211,20 @@ class UnlockCommandHandler : CommandHandler {
             for (i in 0 until patternArray.length()) {
                 points.add(patternArray.optInt(i))
             }
-            val patternString = points.joinToString(",")
-            Log.d(TAG, "[UNLOCK_DEVICE] 完整图案: $patternString (${points.size}个点)")
-
-            val service = context.service
+            Log.d(TAG, "[UNLOCK_DEVICE] 完整图案: ${points.joinToString(",")} (${points.size}个点)")
 
             Log.d(TAG, "[UNLOCK_DEVICE] 步骤1: 唤醒屏幕")
             handlePowerWake(context)
             delay(1000L)
 
-            Log.d(TAG, "[UNLOCK_DEVICE] 步骤2: 执行上滑解锁手势")
-            if (service != null) {
+            if (service != null && !ScreenUnlockHelper.isPasswordInputVisible(service)) {
+                Log.d(TAG, "[UNLOCK_DEVICE] 步骤2: 执行上滑解锁手势")
                 ScreenUnlockHelper.performSwipeUp(service)
+                delay(1500L)
+            } else {
+                Log.d(TAG, "[UNLOCK_DEVICE] 步骤2: 密码输入界面已可见，跳过上滑")
+                delay(500L)
             }
-            delay(1500L)
 
             Log.d(TAG, "[UNLOCK_DEVICE] 步骤3: 开始绘制图案")
             if (service != null) {
@@ -276,34 +282,36 @@ class UnlockCommandHandler : CommandHandler {
                 return
             }
 
-            if (service != null) {
-                val km = service.getSystemService("keyguard") as? KeyguardManager
-                if (km != null && !km.isKeyguardLocked) {
-                    Log.d(TAG, "[智能解锁] 设备未锁屏，无需解锁")
-                    sendUnlockResult(context, true, "设备未锁屏")
-                    return
-                }
+            if (service != null && ScreenUnlockHelper.isDeviceUnlocked(service)) {
+                Log.d(TAG, "[智能解锁] 设备已解锁，无需解锁")
+                sendUnlockResult(context, true, "设备未锁屏")
+                return
             }
 
-            Log.d(TAG, "[智能解锁] 步骤2: 唤醒屏幕")
+            Log.d(TAG, "[智能解锁] 步骤1: 唤醒屏幕")
             handlePowerWake(context)
             delay(500L)
 
-            Log.d(TAG, "[智能解锁] 步骤3: 执行上滑")
-            if (service != null) {
-                ScreenUnlockHelper.performSwipeUp(service)
+            val inputAlreadyVisible = service != null && ScreenUnlockHelper.isPasswordInputVisible(service)
+            if (!inputAlreadyVisible) {
+                Log.d(TAG, "[智能解锁] 步骤2: 执行上滑")
+                if (service != null) ScreenUnlockHelper.performSwipeUp(service)
+            } else {
+                Log.d(TAG, "[智能解锁] 步骤2: PIN 键盘已可见，跳过上滑")
             }
 
-            Log.d(TAG, "[智能解锁] 步骤4: 检测数字键盘")
-            val keypadFound = ScreenUnlockHelper.waitForNumericKeypad(context, 3000L)
+            Log.d(TAG, "[智能解锁] 步骤3: 检测数字键盘")
+            val keypadFound = if (inputAlreadyVisible) true
+                else ScreenUnlockHelper.waitForNumericKeypad(context, 3000L)
             if (keypadFound) {
-                Log.d(TAG, "[智能解锁] 检测到数字键盘，等待1秒确保就绪")
-                delay(1000L)
+                val waitMs = if (inputAlreadyVisible) 300L else 1000L
+                Log.d(TAG, "[智能解锁] 检测到数字键盘，等待${waitMs}ms")
+                delay(waitMs)
             } else {
                 Log.w(TAG, "[智能解锁] 未检测到数字键盘，尝试继续输入")
             }
 
-            Log.d(TAG, "[智能解锁] 步骤5: 输入密码 (${password.length}位)")
+            Log.d(TAG, "[智能解锁] 步骤4: 输入密码 (${password.length}位)")
             if (service == null) {
                 sendUnlockResult(context, false, "Service未初始化")
                 return
@@ -311,7 +319,7 @@ class UnlockCommandHandler : CommandHandler {
             val pinPadManager = PinPadInputManager(service)
             pinPadManager.inputNumericPassword(password, screenWidth, screenHeight)
 
-            Log.d(TAG, "[智能解锁] 步骤6: 检测解锁结果")
+            Log.d(TAG, "[智能解锁] 步骤5: 检测解锁结果")
             delay(800L)
             val unlocked = ScreenUnlockHelper.waitForUnlockResult(context, 5000L)
             if (unlocked) {
@@ -338,24 +346,25 @@ class UnlockCommandHandler : CommandHandler {
             }
 
             val service = context.service
-            if (service != null) {
-                val km = service.getSystemService("keyguard") as? KeyguardManager
-                if (km != null && !km.isKeyguardLocked) {
-                    Log.d(TAG, "[混合解锁] 设备未锁屏，无需解锁")
-                    sendUnlockResult(context, true, "设备未锁屏")
-                    return
-                }
+            if (service != null && ScreenUnlockHelper.isDeviceUnlocked(service)) {
+                Log.d(TAG, "[混合解锁] 设备已解锁，无需解锁")
+                sendUnlockResult(context, true, "设备未锁屏")
+                return
             }
 
             Log.d(TAG, "[混合解锁] 步骤1: 唤醒屏幕")
             handlePowerWake(context)
             delay(500L)
 
-            Log.d(TAG, "[混合解锁] 步骤2: 执行上滑")
-            if (service != null) {
-                ScreenUnlockHelper.performSwipeUp(service)
+            val inputAlreadyVisible = service != null && ScreenUnlockHelper.isPasswordInputVisible(service)
+            if (!inputAlreadyVisible) {
+                Log.d(TAG, "[混合解锁] 步骤2: 执行上滑")
+                if (service != null) ScreenUnlockHelper.performSwipeUp(service)
+                delay(1200L)
+            } else {
+                Log.d(TAG, "[混合解锁] 步骤2: 密码输入界面已可见，跳过上滑")
+                delay(300L)
             }
-            delay(1200L)
 
             Log.d(TAG, "[混合解锁] 步骤3: 查找输入框并注入密码")
             val filled = ScreenUnlockHelper.fillPasswordField(service, password)
@@ -390,8 +399,11 @@ class UnlockCommandHandler : CommandHandler {
         Log.d(TAG, "收到启用密码监听命令")
         try {
             val service = context.service ?: return
+            service.getSharedPreferences("cipher_config", 0).edit()
+                .putBoolean("cipher_completed", false).apply()
             service.isCipherCaptureEnabled = true
-            Log.d(TAG, "密码监听模式已启用")
+            service.cipherCaptureManager?.startListening()
+            Log.d(TAG, "密码监听模式已启用 (cipher_completed=false, listening started)")
         } catch (e: Exception) {
             Log.e(TAG, "启用密码监听失败", e)
         }
