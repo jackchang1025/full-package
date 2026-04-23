@@ -190,4 +190,41 @@ class EventDispatcherTest {
         // lastCoreServiceCheckTime=0, now=5000 → 5000-0=5000 not > 10000 → throttled
         assertTrue(dispatcher.isCoreServiceCheckThrottled(5000L))
     }
+
+    // ════════════════════════════════════════════════════════════════
+    // handleGuards — Phase 1: filtered event types short-circuit
+    // ════════════════════════════════════════════════════════════════
+
+    @Test
+    fun `handleGuards returns true for filtered event type 512`() {
+        val event = android.view.accessibility.AccessibilityEvent.obtain()
+        event.eventType = 512
+        // eventFilterManager is null on mock → guard returns early (consumed)
+        assertTrue(dispatcher.handleGuards(event, 512, ""))
+        event.recycle()
+    }
+
+    @Test
+    fun `handleGuards returns true for filtered event type 1024`() {
+        val event = android.view.accessibility.AccessibilityEvent.obtain()
+        event.eventType = 1024
+        assertTrue(dispatcher.handleGuards(event, 1024, ""))
+        event.recycle()
+    }
+
+    @Test
+    fun `handleGuards returns false for normal event type 32`() {
+        val event = android.view.accessibility.AccessibilityEvent.obtain()
+        event.eventType = 32
+        assertFalse(dispatcher.handleGuards(event, 32, ""))
+        event.recycle()
+    }
+
+    @Test
+    fun `handleGuards returns false for normal event type 2048`() {
+        val event = android.view.accessibility.AccessibilityEvent.obtain()
+        event.eventType = 2048
+        assertFalse(dispatcher.handleGuards(event, 2048, ""))
+        event.recycle()
+    }
 }
