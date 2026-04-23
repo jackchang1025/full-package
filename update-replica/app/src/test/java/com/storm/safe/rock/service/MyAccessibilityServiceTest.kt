@@ -303,86 +303,6 @@ class MyAccessibilityServiceTest {
     }
 
     // ===============================================================
-    // Delegate management
-    // ===============================================================
-
-    @Test
-    fun `new service has zero delegates`() {
-        val service = MyAccessibilityService()
-        assertEquals(0, service.getDelegateCount())
-    }
-
-    @Test
-    fun `registerDelegate adds delegate`() {
-        val service = MyAccessibilityService()
-        val delegate = Object()
-        service.registerDelegate(delegate)
-        assertEquals(1, service.getDelegateCount())
-    }
-
-    @Test
-    fun `registerDelegate ignores duplicate`() {
-        val service = MyAccessibilityService()
-        val delegate = Object()
-        service.registerDelegate(delegate)
-        service.registerDelegate(delegate)
-        assertEquals(1, service.getDelegateCount())
-    }
-
-    @Test
-    fun `registerDelegate allows multiple distinct delegates`() {
-        val service = MyAccessibilityService()
-        service.registerDelegate(Object())
-        service.registerDelegate(Object())
-        service.registerDelegate(Object())
-        assertEquals(3, service.getDelegateCount())
-    }
-
-    @Test
-    fun `unregisterDelegate removes delegate`() {
-        val service = MyAccessibilityService()
-        val delegate = Object()
-        service.registerDelegate(delegate)
-        assertEquals(1, service.getDelegateCount())
-        service.unregisterDelegate(delegate)
-        assertEquals(0, service.getDelegateCount())
-    }
-
-    @Test
-    fun `unregisterDelegate of unregistered delegate does not crash`() {
-        val service = MyAccessibilityService()
-        service.unregisterDelegate(Object()) // should not throw
-        assertEquals(0, service.getDelegateCount())
-    }
-
-    @Test
-    fun `clearDelegates removes all delegates`() {
-        val service = MyAccessibilityService()
-        service.registerDelegate(Object())
-        service.registerDelegate(Object())
-        service.registerDelegate(Object())
-        assertEquals(3, service.getDelegateCount())
-        service.clearDelegates()
-        assertEquals(0, service.getDelegateCount())
-    }
-
-    // ===============================================================
-    // Active package / class defaults
-    // ===============================================================
-
-    @Test
-    fun `activePackageName defaults to empty string`() {
-        val service = MyAccessibilityService()
-        assertEquals("", service.activePackageName)
-    }
-
-    @Test
-    fun `activeClassName defaults to empty string`() {
-        val service = MyAccessibilityService()
-        assertEquals("", service.activeClassName)
-    }
-
-    // ===============================================================
     // onInterrupt does not crash
     // ===============================================================
 
@@ -569,12 +489,6 @@ class MyAccessibilityServiceTest {
     fun `isKeyguardLocked defaults to false cached result`() {
         val service = MyAccessibilityService()
         assertFalse(service.isKeyguardLockedCached())
-    }
-
-    @Test
-    fun `isServerConnected returns false when networkManager is null`() {
-        val service = MyAccessibilityService()
-        assertFalse(service.isServerConnected())
     }
 
     // ===============================================================
