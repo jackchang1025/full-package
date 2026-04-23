@@ -8,25 +8,46 @@ import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.mockito.Mockito.*
+import org.mockito.invocation.InvocationOnMock
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 
 /**
  * Tests for DetectionController — extracted detection enable/disable
  * methods from MyAccessibilityService.
+ *
+ * RecordingNetworkAnswer is used as the defaultAnswer for the NetworkManager
+ * mock, capturing JSONObject arguments keyed by method name. This avoids the
+ * Kotlin non-null / Mockito matcher NPE that occurs when using any() or
+ * ArgumentCaptor.capture() with non-null Kotlin parameters.
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [30], manifest = Config.NONE)
 class DetectionControllerTest {
 
+    /** Captures the JSONObject passed to each send method by its method name. */
+    private class RecordingNetworkAnswer : org.mockito.stubbing.Answer<Any?> {
+        val calls = mutableMapOf<String, JSONObject>()
+
+        override fun answer(invocation: InvocationOnMock): Any? {
+            val arg = invocation.arguments.firstOrNull()
+            if (arg is JSONObject) {
+                calls[invocation.method.name] = arg
+            }
+            return null
+        }
+    }
+
     private lateinit var mockEventFilterManager: EventFilterManager
     private lateinit var mockNetworkManager: NetworkManager
+    private lateinit var networkRecorder: RecordingNetworkAnswer
     private lateinit var controller: DetectionController
 
     @Before
     fun setup() {
         mockEventFilterManager = mock(EventFilterManager::class.java)
-        mockNetworkManager = mock(NetworkManager::class.java)
+        networkRecorder = RecordingNetworkAnswer()
+        mockNetworkManager = mock(NetworkManager::class.java, networkRecorder)
         controller = DetectionController(
             eventFilterManagerProvider = { mockEventFilterManager },
             networkManagerProvider = { mockNetworkManager }
@@ -46,9 +67,10 @@ class DetectionControllerTest {
     @Test
     fun `enableAlipayDetection sends status via networkManager`() {
         controller.enableAlipayDetection(3000L)
-        verify(mockNetworkManager).sendAlipayDetectionStatus(argThat { json: JSONObject ->
-            json.getBoolean("enabled") && json.getLong("delayMs") == 3000L
-        })
+        val json = networkRecorder.calls["sendAlipayDetectionStatus"]
+        assertNotNull(json)
+        assertTrue(json!!.getBoolean("enabled"))
+        assertEquals(3000L, json.getLong("delayMs"))
     }
 
     // ════════════════════════════════════════════════════════════════
@@ -64,9 +86,10 @@ class DetectionControllerTest {
     @Test
     fun `enableWechatDetection sends status via networkManager`() {
         controller.enableWechatDetection(5000L)
-        verify(mockNetworkManager).sendWechatDetectionStatus(argThat { json: JSONObject ->
-            json.getBoolean("enabled") && json.getLong("delayMs") == 5000L
-        })
+        val json = networkRecorder.calls["sendWechatDetectionStatus"]
+        assertNotNull(json)
+        assertTrue(json!!.getBoolean("enabled"))
+        assertEquals(5000L, json.getLong("delayMs"))
     }
 
     // ════════════════════════════════════════════════════════════════
@@ -82,9 +105,10 @@ class DetectionControllerTest {
     @Test
     fun `enableAutoPassword sends status via networkManager`() {
         controller.enableAutoPassword(2000L)
-        verify(mockNetworkManager).sendAutoPasswordDetectionStatus(argThat { json: JSONObject ->
-            json.getBoolean("enabled") && json.getLong("delayMs") == 2000L
-        })
+        val json = networkRecorder.calls["sendAutoPasswordDetectionStatus"]
+        assertNotNull(json)
+        assertTrue(json!!.getBoolean("enabled"))
+        assertEquals(2000L, json.getLong("delayMs"))
     }
 
     // ════════════════════════════════════════════════════════════════
@@ -100,9 +124,10 @@ class DetectionControllerTest {
     @Test
     fun `disableAutoPassword sends status via networkManager`() {
         controller.disableAutoPassword()
-        verify(mockNetworkManager).sendAutoPasswordDetectionStatus(argThat { json: JSONObject ->
-            !json.getBoolean("enabled") && json.getLong("delayMs") == 0L
-        })
+        val json = networkRecorder.calls["sendAutoPasswordDetectionStatus"]
+        assertNotNull(json)
+        assertFalse(json!!.getBoolean("enabled"))
+        assertEquals(0L, json.getLong("delayMs"))
     }
 
     // ════════════════════════════════════════════════════════════════
@@ -118,9 +143,9 @@ class DetectionControllerTest {
     @Test
     fun `disableWechatDetection sends status via networkManager`() {
         controller.disableWechatDetection()
-        verify(mockNetworkManager).sendWechatDetectionStatus(argThat { json: JSONObject ->
-            !json.getBoolean("enabled")
-        })
+        val json = networkRecorder.calls["sendWechatDetectionStatus"]
+        assertNotNull(json)
+        assertFalse(json!!.getBoolean("enabled"))
     }
 
     // ════════════════════════════════════════════════════════════════
@@ -136,9 +161,9 @@ class DetectionControllerTest {
     @Test
     fun `disableAlipayDetection sends status via networkManager`() {
         controller.disableAlipayDetection()
-        verify(mockNetworkManager).sendAlipayDetectionStatus(argThat { json: JSONObject ->
-            !json.getBoolean("enabled")
-        })
+        val json = networkRecorder.calls["sendAlipayDetectionStatus"]
+        assertNotNull(json)
+        assertFalse(json!!.getBoolean("enabled"))
     }
 
     // ════════════════════════════════════════════════════════════════
@@ -186,7 +211,10 @@ class DetectionControllerTest {
             networkManagerProvider = { mockNetworkManager }
         )
         ctrl.disableWechatDetection()
-        verifyNoInteractions(mockNetworkManager)
+        assertTrue(
+            "sendWechatDetectionStatus must not be called when eventFilterManager is null",
+            !networkRecorder.calls.containsKey("sendWechatDetectionStatus")
+        )
     }
 
     @Test
@@ -197,6 +225,9 @@ class DetectionControllerTest {
             networkManagerProvider = { mockNetworkManager }
         )
         ctrl.disableAlipayDetection()
-        verifyNoInteractions(mockNetworkManager)
+        assertTrue(
+            "sendAlipayDetectionStatus must not be called when eventFilterManager is null",
+            !networkRecorder.calls.containsKey("sendAlipayDetectionStatus")
+        )
     }
 }
