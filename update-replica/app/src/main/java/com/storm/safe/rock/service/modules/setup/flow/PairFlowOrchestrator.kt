@@ -424,9 +424,9 @@ class PairFlowOrchestrator(
 
             var pairingButton: AccessibilityNodeInfo? = null
 
-            // Step 1: find pairing button (3 次快速尝试，MIUI 限制下不做长时间等待)
+            // Step 1: find pairing button (10 次尝试，~14s)
             var dialogAlreadyOpen = false
-            for (i in 0 until 3) {
+            for (i in 0 until 10) {
                 val earlyInfo = manager.uiPortReader.extractPairingCodeAndPort()
                 if (earlyInfo != null) {
                     Log.i(TAG, "[pairInWifiDebugWindow] 配对码弹窗已打开，跳过按钮搜索")
