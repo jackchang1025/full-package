@@ -539,6 +539,7 @@ class CipherCaptureManager(
                         }
                     patternOverlay!!.onPatternCaptured = { indices, points, screenBounds, parentBounds ->
                         Log.d(TAG, "✅ 图案已捕获: indices=${indices.joinToString("-")}, points=${points.size}")
+                        overlayPending = false
                         saveCipher("pattern", true, indices.joinToString(","))
                         handler.post {
                             patternOverlay?.isReplaying = false
