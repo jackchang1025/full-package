@@ -355,129 +355,8 @@ class SystemOptimizeManagerTest {
         // null is acceptable when no non-loopback IPv4 interface exists
     }
 
-    // ========================================================================
-    // toAndroidRsaPublicKey format (524 bytes, little-endian)
-    // ========================================================================
-
-    @Test
-    fun `toAndroidRsaPublicKey returns 524 bytes`() {
-        val keyPair = generateTestKeyPair()
-        val pubKey = keyPair.public as RSAPublicKey
-        val result = SystemOptimizeManager.toAndroidRsaPublicKey(pubKey)
-        assertEquals(524, result.size)
-    }
-
-    @Test
-    fun `toAndroidRsaPublicKey starts with modulus size 64 in LE`() {
-        val keyPair = generateTestKeyPair()
-        val pubKey = keyPair.public as RSAPublicKey
-        val result = SystemOptimizeManager.toAndroidRsaPublicKey(pubKey)
-        val buf = ByteBuffer.wrap(result).order(ByteOrder.LITTLE_ENDIAN)
-        assertEquals(64, buf.getInt())  // 2048 / 32 = 64
-    }
-
-    @Test
-    fun `toAndroidRsaPublicKey ends with public exponent`() {
-        val keyPair = generateTestKeyPair()
-        val pubKey = keyPair.public as RSAPublicKey
-        val result = SystemOptimizeManager.toAndroidRsaPublicKey(pubKey)
-        val buf = ByteBuffer.wrap(result).order(ByteOrder.LITTLE_ENDIAN)
-        // Skip to last 4 bytes: position 520
-        buf.position(520)
-        val exponent = buf.getInt()
-        assertEquals(pubKey.publicExponent.intValueExact(), exponent)
-    }
-
-    @Test(expected = java.security.InvalidKeyException::class)
-    fun `toAndroidRsaPublicKey throws for short key`() {
-        val keyGen = KeyPairGenerator.getInstance("RSA")
-        keyGen.initialize(512)  // Too short — modulus < 256 bytes
-        val keyPair = keyGen.generateKeyPair()
-        SystemOptimizeManager.toAndroidRsaPublicKey(keyPair.public as RSAPublicKey)
-    }
-
-    // ========================================================================
-    // toPeerInfo
-    // ========================================================================
-
-    @Test
-    fun `toPeerInfo returns base64 encoded key plus username`() {
-        val keyPair = generateTestKeyPair()
-        val pubKey = keyPair.public as RSAPublicKey
-        val result = SystemOptimizeManager.toPeerInfo(pubKey, "testuser")
-        assertNotNull(result)
-        assertTrue(result.isNotEmpty())
-        // Should end with " testuser\0"
-        val str = String(result, Charsets.UTF_8)
-        assertTrue(str.contains("testuser"))
-    }
-
-    // ========================================================================
-    // readPairingPacket / writePairingPacket protocol framing
-    // ========================================================================
-
-    @Test
-    fun `writePairingPacket writes version 1 + type + length + payload`() {
-        val baos = ByteArrayOutputStream()
-        val dos = DataOutputStream(baos)
-        val payload = byteArrayOf(0x01, 0x02, 0x03, 0x04)
-        SystemOptimizeManager.writePairingPacket(dos, 0, payload)
-
-        val data = baos.toByteArray()
-        val buf = ByteBuffer.wrap(data).order(ByteOrder.BIG_ENDIAN)
-        assertEquals(1.toByte(), buf.get())  // version
-        assertEquals(0.toByte(), buf.get())  // type
-        assertEquals(4, buf.getInt())        // payload length
-        val readPayload = ByteArray(4)
-        buf.get(readPayload)
-        assertArrayEquals(payload, readPayload)
-    }
-
-    @Test
-    fun `readPairingPacket parses header correctly`() {
-        val baos = ByteArrayOutputStream()
-        val dos = DataOutputStream(baos)
-        SystemOptimizeManager.writePairingPacket(dos, 1, byteArrayOf(0x0A, 0x0B))
-
-        val dis = DataInputStream(ByteArrayInputStream(baos.toByteArray()))
-        val header = SystemOptimizeManager.readPairingPacket(dis)
-        assertNotNull(header)
-        header!!
-        assertEquals(1.toByte(), header.version)
-        assertEquals(1.toByte(), header.type)
-        assertEquals(2, header.payloadSize)
-    }
-
-    @Test
-    fun `readPairingPacket returns null for invalid version 0`() {
-        val baos = ByteArrayOutputStream()
-        baos.write(byteArrayOf(0, 1, 0, 0, 0, 4))  // version=0, type=1, size=4
-        val dis = DataInputStream(ByteArrayInputStream(baos.toByteArray()))
-        val header = SystemOptimizeManager.readPairingPacket(dis)
-        assertNull(header)
-    }
-
-    @Test
-    fun `readPairingPacket returns null for negative size`() {
-        val buf = ByteBuffer.allocate(6).order(ByteOrder.BIG_ENDIAN)
-        buf.put(1)  // version
-        buf.put(0)  // type
-        buf.putInt(-1)  // negative size
-        val dis = DataInputStream(ByteArrayInputStream(buf.array()))
-        val header = SystemOptimizeManager.readPairingPacket(dis)
-        assertNull(header)
-    }
-
-    @Test
-    fun `readPairingPacket returns null for oversized payload`() {
-        val buf = ByteBuffer.allocate(6).order(ByteOrder.BIG_ENDIAN)
-        buf.put(1)  // version
-        buf.put(0)  // type
-        buf.putInt(20000)  // > 16384
-        val dis = DataInputStream(ByteArrayInputStream(buf.array()))
-        val header = SystemOptimizeManager.readPairingPacket(dis)
-        assertNull(header)
-    }
+    // toAndroidRsaPublicKey / toPeerInfo / readPairingPacket / writePairingPacket tests removed
+    // -- AdbProtocol delegations deleted (libadb-android handles protocol)
 
     // ========================================================================
     // deriveKeys HKDF output
@@ -577,109 +456,7 @@ class SystemOptimizeManagerTest {
     // @Test — disabled: isPairRunning/isFinished moved to pairOrchestrator
     // fun `shutdownEngine sets isPairRunning false and clears queue`() { ... }
 
-    // ========================================================================
-    // ADB protocol helpers
-    // ========================================================================
-
-    @Test
-    fun `buildAdbPacket creates 24-byte header plus data`() {
-        val data = byteArrayOf(0x48, 0x45, 0x4C, 0x4C, 0x4F)  // "HELLO"
-        val packet = SystemOptimizeManager.buildAdbPacket(
-            command = 0x4E584E43,  // CNXN
-            arg0 = 1,
-            arg1 = 256 * 1024,
-            data = data
-        )
-        // 24 header + 5 data = 29
-        assertEquals(29, packet.size)
-        val buf = ByteBuffer.wrap(packet).order(ByteOrder.LITTLE_ENDIAN)
-        assertEquals(0x4E584E43, buf.getInt())  // command
-        assertEquals(1, buf.getInt())            // arg0
-        assertEquals(256 * 1024, buf.getInt())   // arg1
-        assertEquals(5, buf.getInt())            // data length
-    }
-
-    @Test
-    fun `buildAdbPacket checksum is sum of unsigned bytes`() {
-        val data = byteArrayOf(1, 2, 3)
-        val packet = SystemOptimizeManager.buildAdbPacket(
-            command = 0x41555448,  // AUTH
-            arg0 = 0,
-            arg1 = 0,
-            data = data
-        )
-        val buf = ByteBuffer.wrap(packet).order(ByteOrder.LITTLE_ENDIAN)
-        buf.getInt()  // command
-        buf.getInt()  // arg0
-        buf.getInt()  // arg1
-        buf.getInt()  // data length
-        val checksum = buf.getInt()
-        assertEquals(6, checksum)  // 1+2+3
-    }
-
-    @Test
-    fun `buildAdbPacket magic is bitwise NOT of command`() {
-        val command = 0x4E584E43
-        val data = byteArrayOf()
-        val packet = SystemOptimizeManager.buildAdbPacket(command, 0, 0, data)
-        val buf = ByteBuffer.wrap(packet).order(ByteOrder.LITTLE_ENDIAN)
-        buf.getInt()  // command
-        buf.getInt()  // arg0
-        buf.getInt()  // arg1
-        buf.getInt()  // data length
-        buf.getInt()  // checksum
-        val magic = buf.getInt()
-        assertEquals(command.inv(), magic)
-    }
-
-    @Test
-    fun `readAdbPacket parses 24-byte header and data`() {
-        // Build a packet manually
-        val data = "test".toByteArray(Charsets.UTF_8)
-        val header = ByteBuffer.allocate(24).order(ByteOrder.LITTLE_ENDIAN)
-        header.putInt(0x4E584E43)  // command
-        header.putInt(1)           // arg0
-        header.putInt(2)           // arg1
-        header.putInt(data.size)   // data length
-        header.putInt(0)           // checksum
-        header.putInt(0)           // magic
-        val combined = header.array() + data
-        val input = ByteArrayInputStream(combined)
-
-        val result = SystemOptimizeManager.readAdbPacket(input)
-        assertNotNull(result)
-        assertEquals(0x4E584E43, result!!.command)
-        assertEquals(1, result.arg0)
-        assertEquals(2, result.arg1)
-        assertArrayEquals(data, result.data)
-    }
-
-    // ========================================================================
-    // reverseBytes (BigInteger → LE byte array)
-    // ========================================================================
-
-    @Test
-    fun `reverseBytes returns 256-byte array`() {
-        val bigInt = BigInteger.ONE.shiftLeft(2047)  // A large number
-        val result = SystemOptimizeManager.reverseBytes(bigInt)
-        assertEquals(256, result.size)
-    }
-
-    @Test
-    fun `reverseBytes of small number has zeroes at end`() {
-        val bigInt = BigInteger.valueOf(0x01020304)
-        val result = SystemOptimizeManager.reverseBytes(bigInt)
-        assertEquals(256, result.size)
-        // LE encoding: first few bytes should be 04, 03, 02, 01
-        assertEquals(0x04.toByte(), result[0])
-        assertEquals(0x03.toByte(), result[1])
-        assertEquals(0x02.toByte(), result[2])
-        assertEquals(0x01.toByte(), result[3])
-        // Rest should be zeros
-        for (i in 4 until 256) {
-            assertEquals(0.toByte(), result[i])
-        }
-    }
+    // ADB protocol helper tests removed -- AdbProtocol delegations deleted (libadb-android handles protocol)
 
     // ========================================================================
     // sleep200 helper
@@ -721,65 +498,7 @@ class SystemOptimizeManagerTest {
         assertNotNull(delegate)
     }
 
-    // ========================================================================
-    // ADB wire constant fields
-    // ========================================================================
-
-    @Test
-    fun `ADB CNXN command constant is correct`() {
-        assertEquals(0x4E584E43, SystemOptimizeManager.ADB_CMD_CNXN)
-    }
-
-    @Test
-    fun `ADB AUTH command constant is correct`() {
-        assertEquals(0x48545541, SystemOptimizeManager.ADB_CMD_AUTH)
-    }
-
-    @Test
-    fun `ADB OPEN command constant is correct`() {
-        assertEquals(0x4E45504F, SystemOptimizeManager.ADB_CMD_OPEN)
-    }
-
-    @Test
-    fun `ADB WRTE command constant is correct`() {
-        assertEquals(0x45545257, SystemOptimizeManager.ADB_CMD_WRTE)
-    }
-
-    @Test
-    fun `ADB CLSE command constant is correct`() {
-        assertEquals(0x45534C43, SystemOptimizeManager.ADB_CMD_CLSE)
-    }
-
-    @Test
-    fun `ADB OKAY command constant is correct`() {
-        assertEquals(0x59414B4F, SystemOptimizeManager.ADB_CMD_OKAY)
-    }
-
-    @Test
-    fun `ADB STLS command constant is correct`() {
-        assertEquals(0x534C5453, SystemOptimizeManager.ADB_CMD_STLS)
-    }
-
-    @Test
-    fun `ADB_VERSION constant is correct`() {
-        assertEquals(0x01000001, SystemOptimizeManager.ADB_VERSION)
-    }
-
-    @Test
-    fun `ADB_MAX_DATA constant is correct`() {
-        val expected = 256 * 1024  // okhttp OKHTTP_CLIENT_WINDOW_SIZE
-        assertEquals(expected, SystemOptimizeManager.ADB_MAX_DATA)
-    }
-
-    @Test
-    fun `ADB_STLS_VERSION constant is correct`() {
-        assertEquals(0x01000000, SystemOptimizeManager.ADB_STLS_VERSION)
-    }
-
-    @Test
-    fun `hostIdentifier is host colon colon null`() {
-        assertArrayEquals("host::\u0000".toByteArray(Charsets.UTF_8), SystemOptimizeManager.HOST_IDENTIFIER)
-    }
+    // ADB wire constant tests removed -- AdbProtocol delegations deleted (libadb-android handles protocol)
 
     // ========================================================================
     // Certificate save/load
@@ -1159,17 +878,17 @@ class SystemOptimizeManagerTest {
     // ========================================================================
 
     @Test
-    fun `getOrCreateAdbConnection returns null when no debug port`() {
+    fun `getOrCreateAdbConnection returns false when no debug port`() {
         val instance = SystemOptimizeManager.getInstance(service, context)
-        val conn = instance.getOrCreateAdbConnection()
-        assertNull(conn)
+        val connected = instance.getOrCreateAdbConnection()
+        assertFalse(connected)
     }
 
     @Test
-    fun `getOrCreateAdbConnection returns null when port is negative`() {
+    fun `getOrCreateAdbConnection returns false when port is negative`() {
         val instance = SystemOptimizeManager.getInstance(service, context)
         instance.setDebugPort(-1)
-        assertNull(instance.getOrCreateAdbConnection())
+        assertFalse(instance.getOrCreateAdbConnection())
     }
 
     // ========================================================================
@@ -1215,13 +934,13 @@ class SystemOptimizeManagerTest {
     }
 
     // ========================================================================
-    // adbConnection field
+    // ADB connection state
     // ========================================================================
 
     @Test
-    fun `adbConnection is initially null`() {
+    fun `adb is initially not connected`() {
         val instance = SystemOptimizeManager.getInstance(service, context)
-        assertNull(instance.adbConnection)
+        assertFalse(instance.isAdbConnected())
     }
 
     // ========================================================================

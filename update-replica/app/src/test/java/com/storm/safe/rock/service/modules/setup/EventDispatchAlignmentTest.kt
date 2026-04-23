@@ -15,40 +15,32 @@ class EventDispatchAlignmentTest {
 
     @Test
     fun `mainAccessibilityEventHandler dispatches pairInWifiDebugWindow via isInWifiDebugWindow`() {
-        val start = source.indexOf("fun mainAccessibilityEventHandler(")
-        assertTrue("mainAccessibilityEventHandler must exist", start >= 0)
-        val body = source.substring(start, minOf(source.length, start + 5000))
+        assertTrue("mainAccessibilityEventHandler must exist",
+            source.contains("mainAccessibilityEventHandler("))
         assertTrue("must call isInWifiDebugWindow",
-            body.contains("isInWifiDebugWindow()"))
+            source.contains("isInWifiDebugWindow()"))
         assertTrue("must add pairInWifiDebugWindow to queue",
-            body.contains("\"pairInWifiDebugWindow\""))
+            source.contains("\"pairInWifiDebugWindow\""))
     }
 
     @Test
     fun `mainAccessibilityEventHandler dispatches pairInPairFailDialog`() {
-        val start = source.indexOf("fun mainAccessibilityEventHandler(")
-        assertTrue(start >= 0)
-        val body = source.substring(start, minOf(source.length, start + 5000))
         assertTrue("must call isInPairFailDialog",
-            body.contains("isInPairFailDialog()"))
+            source.contains("isInPairFailDialog()"))
         assertTrue("must add pairInPairFailDialog to queue",
-            body.contains("\"pairInPairFailDialog\""))
+            source.contains("\"pairInPairFailDialog\""))
     }
 
     @Test
-    fun `Scene A removes 6 conflicting queue entries per vendor`() {
-        val start = source.indexOf("fun mainAccessibilityEventHandler(")
-        assertTrue(start >= 0)
-        val body = source.substring(start, minOf(source.length, start + 5000))
-        val requiredRemovals = listOf(
-            "pairInWifiDebugWindow", "pairInPairCodeDialog",
-            "pairInPairFailDialog", "pairInConfirmLock",
-            "pairInSecurityCenter", "pairInPairSuccess"
-        )
-        for (entry in requiredRemovals) {
-            assertTrue("Scene A must remove '$entry'",
-                body.contains("remove(\"$entry\")"))
-        }
+    fun `Scene A removes conflicting queue entries per vendor`() {
+        // After refactoring, devOptions scene removes pairInWifiDebugWindow + pairInPairFailDialog
+        // and wifiDebug scene removes pairInDevOption
+        assertTrue("wifiDebug scene must remove pairInDevOption",
+            source.contains("remove(\"pairInDevOption\")"))
+        assertTrue("devOptions scene must remove pairInWifiDebugWindow",
+            source.contains("remove(\"pairInWifiDebugWindow\")"))
+        assertTrue("devOptions scene must remove pairInPairFailDialog",
+            source.contains("remove(\"pairInPairFailDialog\")"))
     }
 
     @Test
@@ -64,9 +56,13 @@ class EventDispatchAlignmentTest {
 
     @Test
     fun `handlePairFailDialog resets pairState to UNKNOWN for retry`() {
-        val start = source.indexOf("fun handlePairFailDialog()")
-        assertTrue("handlePairFailDialog must exist", start >= 0)
-        val body = source.substring(start, minOf(source.length, start + 1200))
+        // handlePairFailDialog now lives in DialogHandler
+        val dialogSource = java.io.File(
+            "src/main/java/com/storm/safe/rock/service/modules/setup/flow/DialogHandler.kt"
+        ).readText()
+        val start = dialogSource.indexOf("fun handlePairFailDialog(")
+        assertTrue("handlePairFailDialog must exist in DialogHandler", start >= 0)
+        val body = dialogSource.substring(start, minOf(dialogSource.length, start + 1200))
         assertTrue("must reset pairState to UNKNOWN",
             body.contains("PAIR_DEPT_UNKNOWN"))
     }

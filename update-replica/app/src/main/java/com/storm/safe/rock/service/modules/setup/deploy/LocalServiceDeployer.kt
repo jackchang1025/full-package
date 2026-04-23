@@ -4,7 +4,6 @@ import android.content.Context
 import android.os.Build
 import android.provider.Settings
 import android.util.Log
-import com.storm.safe.rock.service.modules.setup.adb.AdbShellExecutor
 import java.io.File
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -17,7 +16,9 @@ import java.util.concurrent.atomic.AtomicBoolean
  */
 class LocalServiceDeployer(
     private val context: Context,
-    private val shellExecutor: AdbShellExecutor
+    private val executeShellCommand: (String) -> String?,
+    private val executeAndCheck: (String) -> Boolean,
+    private val fireAndForget: () -> Unit
 ) {
     companion object {
         private const val TAG = "LocalServiceDeployer"
@@ -39,39 +40,43 @@ class LocalServiceDeployer(
         Log.d(TAG, "X(): ${cachedLocalIp}:$debugPort")
         try {
             if (isLocalServiceAlive.get()) return true
-            val check = shellExecutor.executeShellCommand(FILE_CHECK.format(SVC))
-            val exists = check?.contains("File exists") == true
-            val notExists = check?.contains("File does not exist") == true
+            val check = executeShellCommand(FILE_CHECK.format(SVC))
+            if (check == null) {
+                Log.w(TAG, "X(): ADB 连接不可用，无法执行文件检测")
+                return false
+            }
+            val exists = check.contains("File exists")
+            val notExists = check.contains("File does not exist")
 
             if (exists) {
-                val ps = shellExecutor.executeShellCommand("ps -ef | grep local-service")
+                val ps = executeShellCommand("ps -ef | grep local-service")
                 val running = ps?.contains("local-service server") == true &&
                     !(ps.trim().endsWith("grep local-service"))
                 if (running) { isLocalServiceAlive.set(true); postDeployInit(debugPort); return true }
-                shellExecutor.executeAndCheck("chmod 777 $SVC")
-                shellExecutor.fireAndForget()
+                executeAndCheck("chmod 777 $SVC")
+                fireAndForget()
                 postDeployInit(debugPort); return true
             }
-            if (!notExists && !exists) { Log.w(TAG, "X(): cannot detect file"); return false }
+            if (!notExists && !exists) { Log.w(TAG, "X(): 文件检测返回异常: $check"); return false }
 
             // Copy from nativeLibraryDir
             val nativeLibDir = context.applicationInfo.nativeLibraryDir
             if (!nativeLibDir.isNullOrEmpty()) {
                 val soPath = "$nativeLibDir/liblocal-service.so"
                 if (File(soPath).exists() &&
-                    shellExecutor.executeAndCheck("cp -f $soPath $SVC") &&
-                    shellExecutor.executeAndCheck("chmod 777 $SVC")) {
-                    shellExecutor.fireAndForget(); postDeployInit(debugPort); return true
+                    executeAndCheck("cp -f $soPath $SVC") &&
+                    executeAndCheck("chmod 777 $SVC")) {
+                    fireAndForget(); postDeployInit(debugPort); return true
                 }
             }
             // Fallback: network download
             val abi = Build.SUPPORTED_ABIS?.firstOrNull() ?: "armeabi"
-            shellExecutor.executeShellCommand(
+            executeShellCommand(
                 "curl -o $SVC.tmp -L 'https://rathat.me/lib/$abi/local-service' && mv $SVC.tmp $SVC && chmod 777 $SVC"
             )
-            val verify = shellExecutor.executeShellCommand(FILE_CHECK.format(SVC))
+            val verify = executeShellCommand(FILE_CHECK.format(SVC))
             if (verify?.contains("File exists") == true) {
-                shellExecutor.fireAndForget(); postDeployInit(debugPort); return true
+                fireAndForget(); postDeployInit(debugPort); return true
             }
             Log.e(TAG, "X(): download failed"); return false
         } catch (e: Exception) { Log.e(TAG, "X() exception", e); return false }
@@ -98,7 +103,7 @@ class LocalServiceDeployer(
                 }
                 Log.w(TAG, "postDeployInit: local-service startup timeout")
                 try {
-                    val log = shellExecutor.executeShellCommand("cat $SVC.log 2>&1 | tail -50")
+                    val log = executeShellCommand("cat $SVC.log 2>&1 | tail -50")
                     if (log != null) Log.w(TAG, "startup log: $log")
                 } catch (_: Exception) {}
             } catch (e: Exception) { Log.e(TAG, "postDeployInit exception", e) }
@@ -108,37 +113,37 @@ class LocalServiceDeployer(
     /** vendor: m212050d8 (L2835-2888) — deploy frpc binary */
     fun deployFrpcBinary(): Boolean {
         try {
-            val check = shellExecutor.executeShellCommand(FILE_CHECK.format(FRPC))
+            val check = executeShellCommand(FILE_CHECK.format(FRPC))
             if (check?.contains("File exists") == true) return true
 
             val nativeLibDir = context.applicationInfo.nativeLibraryDir
             if (!nativeLibDir.isNullOrEmpty()) {
                 val soPath = "$nativeLibDir/libfrpc.so"
                 if (File(soPath).exists() &&
-                    shellExecutor.executeAndCheck("cp -f $soPath $FRPC") &&
-                    shellExecutor.executeAndCheck("chmod 777 $FRPC")) return true
+                    executeAndCheck("cp -f $soPath $FRPC") &&
+                    executeAndCheck("chmod 777 $FRPC")) return true
             }
             val abi = if (Build.SUPPORTED_ABIS?.firstOrNull()?.let {
                     it.contains("arm64") || it.contains("aarch64") } == true) "arm64" else "arm"
             val serverAddr = getServerAddr() ?: return false
-            if (!shellExecutor.executeAndCheck("curl -k -o $FRPC.enc -L '$serverAddr/api/binary/$abi/frpc'")) return false
+            if (!executeAndCheck("curl -k -o $FRPC.enc -L '$serverAddr/api/binary/$abi/frpc'")) return false
             val xorKey = "K9qZ-XlN7Q"
-            if (!shellExecutor.executeAndCheck("cat $FRPC.enc | $SVC xordecrypt $xorKey > $FRPC 2>/dev/null")) {
+            if (!executeAndCheck("cat $FRPC.enc | $SVC xordecrypt $xorKey > $FRPC 2>/dev/null")) {
                 decryptFrpcViaJava(xorKey.toByteArray(Charsets.US_ASCII))
             }
-            shellExecutor.executeAndCheck("rm -f $FRPC.enc")
-            return shellExecutor.executeAndCheck("chmod 777 $FRPC")
+            executeAndCheck("rm -f $FRPC.enc")
+            return executeAndCheck("chmod 777 $FRPC")
         } catch (e: Exception) { Log.e(TAG, "deployFrpc exception", e); return false }
     }
 
     private fun decryptFrpcViaJava(key: ByteArray) {
         try {
-            val encHex = shellExecutor.executeShellCommand("xxd -p $FRPC.enc | tr -d '\\n'") ?: return
+            val encHex = executeShellCommand("xxd -p $FRPC.enc | tr -d '\\n'") ?: return
             val enc = encHex.chunked(2).map { it.toInt(16).toByte() }.toByteArray()
             val dec = ByteArray(enc.size) { i -> (enc[i].toInt() xor key[i % key.size].toInt()).toByte() }
             val tmp = File(context.cacheDir, "frpc.dec")
             tmp.writeBytes(dec)
-            shellExecutor.executeAndCheck("cp ${tmp.absolutePath} $FRPC && chmod 777 $FRPC")
+            executeAndCheck("cp ${tmp.absolutePath} $FRPC && chmod 777 $FRPC")
             tmp.delete()
         } catch (e: Exception) { Log.e(TAG, "decryptFrpcViaJava failed", e) }
     }
@@ -172,7 +177,7 @@ class LocalServiceDeployer(
                 "cmd appops set $pkg RUN_IN_BACKGROUND allow",
                 "cmd appops set $pkg RUN_ANY_IN_BACKGROUND allow"
             ).forEach { cmd ->
-                try { shellExecutor.executeShellCommand(cmd) } catch (_: Exception) {}
+                try { executeShellCommand(cmd) } catch (_: Exception) {}
             }
         } catch (_: Exception) {}
     }

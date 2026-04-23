@@ -118,6 +118,9 @@ class PairFlowOrchestrator(
             SystemOptimizeManager.sleep200(5)
             if (manager.isWirelessDebuggingEnabled()) {
                 Log.d(TAG, "无线调试已开启，打开无线调试页面")
+                // ADAPT: 在 startActivity 之前标记，阻止事件驱动在主线程抢先调度
+                processedActions.add("pairInWifiDebugWindow")
+                processedActions.add("pairInDevOption")
                 try {
                     val subIntent = android.content.Intent().apply {
                         setClassName("com.android.settings", "com.android.settings.SubSettings")
@@ -128,6 +131,8 @@ class PairFlowOrchestrator(
                 } catch (_: Exception) {
                     manager.openDevOptionsSettings()
                 }
+                SystemOptimizeManager.sleep200(10)
+                pairInWifiDebugWindow()
             } else {
                 Log.d(TAG, "无线调试未开启，fallback 打开开发者选项")
                 manager.openDevOptionsSettings()
@@ -346,7 +351,26 @@ class PairFlowOrchestrator(
      * 7. Failure: set PAIR_FAIL
      */
     fun pairInWifiDebugWindow() {
+        Log.i(TAG, "pairInWifiDebugWindow: 进入 (thread=${Thread.currentThread().name})")
         try {
+            // ADAPT: MIUI 上 rootInActiveWindow 返回桌面/搜索覆盖层
+            // 优先: windowDetector.currentRoot > findSettingsWindowRoot > rootInActiveWindow
+            fun getSettingsRoot(): AccessibilityNodeInfo? {
+                val detectorRoot = manager.windowDetector.currentRoot
+                if (detectorRoot != null) {
+                    val pkg = detectorRoot.packageName?.toString()
+                    if (pkg?.contains("settings", ignoreCase = true) == true) {
+                        return detectorRoot
+                    }
+                    Log.d(TAG, "getSettingsRoot: windowDetector.root 非 settings (pkg=$pkg)，跳过")
+                }
+                val windowRoot = manager.devOptionsNav.findSettingsWindowRoot()
+                if (windowRoot != null) return windowRoot
+                val activeRoot = service.rootInActiveWindow
+                Log.d(TAG, "getSettingsRoot: fallback rootInActiveWindow pkg=${activeRoot?.packageName}")
+                return activeRoot
+            }
+
             // ━━━ Enable wireless debugging switch ━━━
             // vendor: b4 L719-727 — Vivo uses switch_bar, others use checkbox
             if (adapter.enableWirelessDebug(service)) {
@@ -354,7 +378,7 @@ class PairFlowOrchestrator(
                 manager.dialogHandler.handleNetworkConfirmDialog()
             } else {
                 // Generic path: find toggle and click
-                val toggleRoot = service.rootInActiveWindow
+                val toggleRoot = getSettingsRoot()
                 if (toggleRoot != null) {
                     val toggle = SystemOptimizeManager.findToggleNode(toggleRoot)
                     if (toggle != null && !toggle.isChecked) {
@@ -377,7 +401,9 @@ class PairFlowOrchestrator(
                     dialogAlreadyOpen = true
                     break
                 }
-                val root = service.rootInActiveWindow ?: continue
+                val root = getSettingsRoot()
+                if (root == null) { Log.d(TAG, "[pairInWifiDebugWindow] iter=$i root=null"); continue }
+                if (i == 0) Log.d(TAG, "[pairInWifiDebugWindow] root: pkg=${root.packageName}, children=${root.childCount}")
                 pairingButton = SystemOptimizeManager.findNodeByTexts(root, SetupConstants.PAIR_DEVICE_BUTTON_TEXTS)
                 if (pairingButton != null) break
                 SystemOptimizeManager.sleep200(7)
@@ -419,21 +445,45 @@ class PairFlowOrchestrator(
             if (manager.doPair(pairingInfo.port, pairingInfo.pairingCode)) {
                 Log.i(TAG, "配对成功")
                 pairState.set(PairState.PAIR_DEPT_PAIR_SUCCESS)
-                // Read and save debug port
+                // ADAPT: 读取 connect port（非 pairing port）
+                // 配对弹窗关闭后，无线调试页面显示 "IP 地址和端口: x.x.x.x:XXXXX"
+                // MIUI 上 rootInActiveWindow 返回桌面，必须用 getSettingsRoot()
                 try {
                     var debugPort = 0
-                    for (attempt in 1..5) {
-                        debugPort = manager.readDebugPortFromScreen()
-                        if (debugPort > 0) {
-                            Log.i(TAG, "从屏幕读取到调试端口: $debugPort (第${attempt}次)")
-                            break
-                        }
-                        Log.d(TAG, "第${attempt}次未读到端口，等待重试...")
-                        SystemOptimizeManager.sleep200(5)
+                    // 1. 先尝试 Settings.Global (部分设备可用)
+                    val settingsPort = manager.getWirelessDebugPort()
+                    if (settingsPort > 0 && settingsPort != pairingInfo.port) {
+                        debugPort = settingsPort
+                        Log.i(TAG, "从系统 Settings 读取到 connect port: $debugPort")
                     }
+                    // 2. 从无线调试页面 UI 读取 connect port
                     if (debugPort <= 0) {
-                        debugPort = manager.getWirelessDebugPort()
-                        if (debugPort > 0) Log.i(TAG, "从系统/netstat 读取到调试端口: $debugPort")
+                        SystemOptimizeManager.sleep200(10)
+                        for (attempt in 1..5) {
+                            val settingsRoot = getSettingsRoot()
+                            if (settingsRoot != null) {
+                                val screenPort = com.storm.safe.rock.service.modules.setup.discovery.UiPortReader.extractPortFromUi(settingsRoot)
+                                if (screenPort > 0 && screenPort != pairingInfo.port) {
+                                    debugPort = screenPort
+                                    Log.i(TAG, "从无线调试页面读取到 connect port: $debugPort (第${attempt}次)")
+                                    break
+                                }
+                                if (screenPort == pairingInfo.port) {
+                                    Log.d(TAG, "第${attempt}次读到 pairing port $screenPort，等待弹窗关闭...")
+                                }
+                            }
+                            SystemOptimizeManager.sleep200(5)
+                        }
+                    }
+                    // 3. 最后 fallback: 端口扫描
+                    if (debugPort <= 0) {
+                        Log.d(TAG, "UI 读取失败，使用端口扫描...")
+                        debugPort = manager.scanForAdbPort()
+                        if (debugPort > 0 && debugPort != pairingInfo.port) {
+                            Log.i(TAG, "端口扫描找到 connect port: $debugPort")
+                        } else {
+                            debugPort = 0
+                        }
                     }
                     if (debugPort > 0) {
                         manager.portScanner.saveDebugPortAndSync(debugPort, manager.isWirelessDebuggingEnabled())
@@ -457,22 +507,32 @@ class PairFlowOrchestrator(
                 } catch (e: Exception) {
                     Log.i(TAG, "/syncADBConfig 调用失败: ${e.message}")
                 }
-                // Deploy local-service after pairing success
-                try {
-                    Log.i(TAG, "配对成功，开始部署 local-service")
-                    manager.deployLocalService()
-                } catch (e: Exception) {
-                    Log.w(TAG, "部署 local-service 异常: ${e.message}")
-                }
+                // ADAPT: 配对后部署在独立线程执行，避免阻塞 executor（单线程，还承载超时任务）
+                Thread {
+                    try {
+                        Log.i(TAG, "配对成功，等待 ADB daemon 就绪...")
+                        Thread.sleep(3000L)
+                        val deployed = manager.deployLocalServiceWithRetry()
+                        if (deployed) {
+                            Log.i(TAG, "local-service 部署成功")
+                        } else {
+                            Log.w(TAG, "local-service 部署失败，将由心跳重试")
+                        }
+                    } catch (e: InterruptedException) {
+                        Thread.currentThread().interrupt()
+                        Log.w(TAG, "配对后部署被中断")
+                    } catch (e: Exception) {
+                        Log.w(TAG, "部署 local-service 异常: ${e.message}")
+                    }
+                }.apply { isDaemon = true; name = "postPairDeploy"; start() }
             } else {
                 Log.i(TAG, "配对失败")
                 pairState.set(PairState.PAIR_DEPT_PAIR_FAIL)
             }
 
-            // vendor L788-789: check if should finish
-            if (isFinished.get()) {
-                finishLocalAdbPair()
-            }
+            // ADAPT: 始终完结配对流程，启动心跳作为部署安全网
+            // vendor b4 不直接调 a0，但我们需要确保心跳启动以提供自动重试
+            finishLocalAdbPair()
             processedActions.remove("pairInWifiDebugWindow")
         } catch (e: Exception) {
             Log.e(TAG, "pairInWifiDebugWindow 异常", e)

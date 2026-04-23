@@ -6,7 +6,7 @@ import org.junit.Assert.*
 class DeployFrpcTest {
 
     private val source by lazy {
-        java.io.File("src/main/java/com/storm/safe/rock/service/modules/setup/SystemOptimizeManager.kt").readText()
+        java.io.File("src/main/java/com/storm/safe/rock/service/modules/setup/deploy/LocalServiceDeployer.kt").readText()
     }
 
     @Test
@@ -37,7 +37,7 @@ class DeployFrpcTest {
 
     @Test
     fun `postDeployInit calls deployFrpcBinary`() {
-        val start = source.indexOf("fun postDeployInit()")
+        val start = source.indexOf("fun postDeployInit(")
         assertTrue(start >= 0)
         val body = source.substring(start, minOf(source.length, start + 3000))
         assertTrue("must call deployFrpcBinary",

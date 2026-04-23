@@ -9,7 +9,6 @@ import android.os.Looper
 import android.os.PowerManager
 import android.provider.Settings
 import android.util.Log
-import com.storm.safe.rock.service.modules.setup.adb.AdbShellExecutor
 import org.json.JSONObject
 import java.io.File
 import java.util.concurrent.Executors
@@ -37,14 +36,13 @@ import java.util.concurrent.locks.ReentrantLock
 class ServiceMonitor(
     private val context: Context,
     private val deployer: LocalServiceDeployer,
-    private val shellExecutor: AdbShellExecutor,
     private val debugPortProvider: () -> Int,
     private val setDebugPort: (Int) -> Unit,
     private val isConnectedProvider: () -> Boolean,
     private val generateOrLoadKeyPair: () -> Unit,
     private val isWirelessDebuggingEnabled: () -> Boolean,
     private val enableWirelessDebugging: () -> Unit,
-    private val clearSslCache: () -> Unit
+    private val deployWithRetry: () -> Boolean = { false }
 ) {
     companion object {
         private const val TAG = "ServiceMonitor"
@@ -132,8 +130,8 @@ class ServiceMonitor(
 
     /**
      * FileObserver that watches the key directory for certificate and private key
-     * file changes. When cert.pem or private.key is written, clears the SSL cache
-     * so the next TLS connection picks up the new credentials.
+     * file changes. Logs when cert.pem or private.key is written (libadb-android
+     * manages TLS internally, no manual SSL cache clearing needed).
      *
      * vendor: C0360a2 p41 callback -- CLOSE_WRITE on cert.pem/private.key
      */
@@ -142,11 +140,7 @@ class ServiceMonitor(
             if (path == null) return
             Log.d(TAG, "FileObserver: file changed: $path")
             if (path == "cert.pem" || path == "private.key") {
-                Log.d(TAG, "FileObserver: key file changed, clearing SSL cache")
-                try {
-                    clearSslCache()
-                } catch (_: Exception) {
-                }
+                Log.d(TAG, "FileObserver: key file changed")
             }
         }
     }
@@ -247,6 +241,7 @@ class ServiceMonitor(
             Log.i(TAG, "H() #$iteration tryLock failed, skip")
             return
         }
+        var needReconnect = false
         try {
             // Check power save mode
             try {
@@ -275,18 +270,19 @@ class ServiceMonitor(
 
             // 3. Auto-generate keys if needed
             generateOrLoadKeyPair()
-            // 4. Port scan and reconnect
-            val port = debugPortProvider()
-            if (port > 0 && !isConnectedProvider()) {
-                Log.d(TAG, "H() #$iteration attempting ADB reconnect port=$port")
-                deployer.deployLocalService(port)
-            }
-
+            // 4. ADB reconnect — 在锁外异步执行（避免端口扫描阻塞心跳）
+            needReconnect = !isConnectedProvider() && debugPortProvider() > 0
             lastHeartbeatTime = System.currentTimeMillis()
         } catch (e: Exception) {
             Log.e(TAG, "H() exception", e)
         } finally {
             heartbeatLock.unlock()
+        }
+        if (needReconnect) {
+            Log.d(TAG, "H() #$iteration ADB 未连接，异步触发重连")
+            Thread {
+                try { deployWithRetry() } catch (_: Exception) {}
+            }.apply { isDaemon = true; name = "adb-reconnect"; start() }
         }
     }
 

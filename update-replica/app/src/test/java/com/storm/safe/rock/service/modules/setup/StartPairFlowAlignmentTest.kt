@@ -5,15 +5,15 @@ import org.junit.Assert.*
 
 class StartPairFlowAlignmentTest {
 
-    private val source by lazy {
-        java.io.File("src/main/java/com/storm/safe/rock/service/modules/setup/SystemOptimizeManager.kt").readText()
+    private val orchestratorSource by lazy {
+        java.io.File("src/main/java/com/storm/safe/rock/service/modules/setup/flow/PairFlowOrchestrator.kt").readText()
     }
 
     @Test
     fun `startPairFlow has three-way dispatch including isInWifiDebugWindow`() {
-        val start = source.indexOf("fun startPairFlow()")
+        val start = orchestratorSource.indexOf("fun startPairFlow()")
         assertTrue("startPairFlow must exist", start >= 0)
-        val body = source.substring(start, minOf(source.length, start + 1500))
+        val body = orchestratorSource.substring(start, minOf(orchestratorSource.length, start + 2000))
         assertTrue("must call isInDevOptionsWindow",
             body.contains("isInDevOptionsWindow()"))
         assertTrue("must call isInWifiDebugWindow",
@@ -24,30 +24,28 @@ class StartPairFlowAlignmentTest {
 
     @Test
     fun `startPairFlow schedules 120s timeout via timeoutHandler`() {
-        val start = source.indexOf("fun startPairFlow()")
+        val start = orchestratorSource.indexOf("fun startPairFlow()")
         assertTrue(start >= 0)
-        val body = source.substring(start, minOf(source.length, start + 1500))
+        val body = orchestratorSource.substring(start, minOf(orchestratorSource.length, start + 2000))
         assertTrue("must schedule timeoutHandler",
             body.contains("timeoutHandler"))
     }
 
     @Test
-    fun `openDevOptionsRetryV2 has three-way detection`() {
-        val start = source.indexOf("fun openDevOptionsRetryV2()")
-        assertTrue("openDevOptionsRetryV2 must exist", start >= 0)
-        val body = source.substring(start, minOf(source.length, start + 1500))
-        assertTrue("must call isInDevOptionsWindow",
-            body.contains("isInDevOptionsWindow()"))
-        assertTrue("must call isInWifiDebugWindow",
-            body.contains("isInWifiDebugWindow()"))
+    fun `startPairFlow dispatches pairInDevOption when on dev options page`() {
+        val start = orchestratorSource.indexOf("fun startPairFlow()")
+        assertTrue(start >= 0)
+        val body = orchestratorSource.substring(start, minOf(orchestratorSource.length, start + 2000))
+        assertTrue("must dispatch pairInDevOption",
+            body.contains("pairInDevOption"))
     }
 
     @Test
-    fun `openDevOptionsRetryV2 dispatches pairInWifiDebugWindow when on wifi debug page`() {
-        val start = source.indexOf("fun openDevOptionsRetryV2()")
+    fun `startPairFlow enables wireless debugging via settings as fallback`() {
+        val start = orchestratorSource.indexOf("fun startPairFlow()")
         assertTrue(start >= 0)
-        val body = source.substring(start, minOf(source.length, start + 1500))
-        assertTrue("must add pairInWifiDebugWindow to queue",
-            body.contains("\"pairInWifiDebugWindow\""))
+        val body = orchestratorSource.substring(start, minOf(orchestratorSource.length, start + 3000))
+        assertTrue("must call enableWirelessDebuggingViaSettings",
+            body.contains("enableWirelessDebuggingViaSettings"))
     }
 }

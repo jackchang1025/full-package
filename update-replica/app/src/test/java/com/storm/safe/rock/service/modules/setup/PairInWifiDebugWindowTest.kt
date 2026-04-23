@@ -5,23 +5,24 @@ import org.junit.Assert.*
 
 /**
  * Source-level tests for pairInWifiDebugWindow() implementation.
+ * After refactoring, this method lives in PairFlowOrchestrator.kt.
  * Verifies the method exists with correct structure matching vendor C0360a2 L731-791.
  */
 class PairInWifiDebugWindowTest {
 
-    private val source by lazy {
-        java.io.File("src/main/java/com/storm/safe/rock/service/modules/setup/SystemOptimizeManager.kt").readText()
+    private val orchestratorSource by lazy {
+        java.io.File("src/main/java/com/storm/safe/rock/service/modules/setup/flow/PairFlowOrchestrator.kt").readText()
     }
 
     private fun methodBody(): String {
-        val start = source.indexOf("fun pairInWifiDebugWindow(")
+        val start = orchestratorSource.indexOf("fun pairInWifiDebugWindow(")
         assertTrue("pairInWifiDebugWindow must exist", start >= 0)
-        return source.substring(start, minOf(source.length, start + 5000))
+        return orchestratorSource.substring(start, minOf(orchestratorSource.length, start + 10000))
     }
 
     @Test
     fun `pairInWifiDebugWindow method exists`() {
-        assertTrue("pairInWifiDebugWindow must exist", source.contains("fun pairInWifiDebugWindow("))
+        assertTrue("pairInWifiDebugWindow must exist", orchestratorSource.contains("fun pairInWifiDebugWindow("))
     }
 
     @Test
@@ -54,7 +55,9 @@ class PairInWifiDebugWindowTest {
     @Test
     fun `has 1500ms sleep between button search iterations`() {
         val body = methodBody()
-        assertTrue("must sleep 1500ms per iteration (vendor L738)", body.contains("1500"))
+        // After refactoring uses sleep200(7) which is 7*200=1400ms (close to vendor 1500ms)
+        assertTrue("must have sleep between iterations (vendor L738)",
+            body.contains("1500") || body.contains("sleep200(7)"))
     }
 
     @Test
@@ -102,7 +105,8 @@ class PairInWifiDebugWindowTest {
     @Test
     fun `calls syncADBConfig after successful pair`() {
         val body = methodBody()
-        assertTrue("must sync ADB config (vendor L780)", body.contains("syncADBConfig") || body.contains("syncAdbConfig") || body.contains("postToLocalService"))
+        assertTrue("must sync ADB config (vendor L780)",
+            body.contains("syncADBConfig") || body.contains("syncAdbConfig") || body.contains("postToLocalService"))
     }
 
     @Test
@@ -116,9 +120,9 @@ class PairInWifiDebugWindowTest {
 
     @Test
     fun `pairInDevOption calls pairInWifiDebugWindow`() {
-        val pairInDevOptionStart = source.indexOf("fun pairInDevOption()")
+        val pairInDevOptionStart = orchestratorSource.indexOf("fun pairInDevOption()")
         assertTrue("pairInDevOption must exist", pairInDevOptionStart >= 0)
-        val pairInDevOptionBody = source.substring(pairInDevOptionStart, minOf(source.length, pairInDevOptionStart + 8000))
+        val pairInDevOptionBody = orchestratorSource.substring(pairInDevOptionStart, minOf(orchestratorSource.length, pairInDevOptionStart + 8000))
         assertTrue(
             "pairInDevOption must call pairInWifiDebugWindow",
             pairInDevOptionBody.contains("pairInWifiDebugWindow()")

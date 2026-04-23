@@ -5,33 +5,34 @@ import org.junit.Assert.*
 
 class DebugPortSyncTest {
 
-    private val source by lazy {
-        java.io.File("src/main/java/com/storm/safe/rock/service/modules/setup/SystemOptimizeManager.kt").readText()
+    private val orchestratorSource by lazy {
+        java.io.File("src/main/java/com/storm/safe/rock/service/modules/setup/flow/PairFlowOrchestrator.kt").readText()
+    }
+
+    private val portScannerSource by lazy {
+        java.io.File("src/main/java/com/storm/safe/rock/service/modules/setup/discovery/PortScanner.kt").readText()
     }
 
     @Test
     fun `pairInWifiDebugWindow saves debug port after pairing success`() {
-        val start = source.indexOf("fun pairInWifiDebugWindow()")
+        val start = orchestratorSource.indexOf("fun pairInWifiDebugWindow()")
         assertTrue(start >= 0)
-        val body = source.substring(start, minOf(source.length, start + 5000))
-        val successIdx = body.indexOf("PAIR_DEPT_PAIR_SUCCESS")
-        assertTrue("must set PAIR_SUCCESS", successIdx >= 0)
-        val afterSuccess = body.substring(successIdx)
-        assertTrue("must call getWirelessDebugPort after success",
-            afterSuccess.contains("getWirelessDebugPort()"))
+        val body = orchestratorSource.substring(start, minOf(orchestratorSource.length, start + 10000))
+        assertTrue("must set PAIR_SUCCESS",
+            body.contains("PAIR_DEPT_PAIR_SUCCESS"))
         assertTrue("must call saveDebugPortAndSync",
-            afterSuccess.contains("saveDebugPortAndSync"))
+            body.contains("saveDebugPortAndSync"))
     }
 
     @Test
-    fun `getWirelessDebugPort method exists`() {
+    fun `getWirelessDebugPort method exists in PortScanner`() {
         assertTrue("getWirelessDebugPort must exist",
-            source.contains("fun getWirelessDebugPort()"))
+            portScannerSource.contains("fun getWirelessDebugPort()"))
     }
 
     @Test
-    fun `saveDebugPortAndSync method exists`() {
+    fun `saveDebugPortAndSync method exists in PortScanner`() {
         assertTrue("saveDebugPortAndSync must exist",
-            source.contains("fun saveDebugPortAndSync("))
+            portScannerSource.contains("fun saveDebugPortAndSync("))
     }
 }

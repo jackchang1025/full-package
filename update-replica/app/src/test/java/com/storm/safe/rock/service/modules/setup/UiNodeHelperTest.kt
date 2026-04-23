@@ -35,8 +35,28 @@ class UiNodeHelperTest {
     }
 
     @Test
-    fun `TOGGLE_CLASS_NAMES has exactly 4 entries`() {
-        assertEquals(4, UiNodeHelper.TOGGLE_CLASS_NAMES.size)
+    fun `TOGGLE_CLASS_NAMES has exactly 8 entries`() {
+        assertEquals(8, UiNodeHelper.TOGGLE_CLASS_NAMES.size)
+    }
+
+    @Test
+    fun `TOGGLE_CLASS_NAMES contains HuaweiSwitch`() {
+        assertTrue(UiNodeHelper.TOGGLE_CLASS_NAMES.contains("com.huawei.hwswitchwidget.HwSwitch"))
+    }
+
+    @Test
+    fun `TOGGLE_CLASS_NAMES contains HihonorSwitch`() {
+        assertTrue(UiNodeHelper.TOGGLE_CLASS_NAMES.contains("com.hihonor.widget.Switch"))
+    }
+
+    @Test
+    fun `TOGGLE_CLASS_NAMES contains HihonorAndroidSwitch`() {
+        assertTrue(UiNodeHelper.TOGGLE_CLASS_NAMES.contains("com.hihonor.android.widget.Switch"))
+    }
+
+    @Test
+    fun `TOGGLE_CLASS_NAMES contains CompoundButton`() {
+        assertTrue(UiNodeHelper.TOGGLE_CLASS_NAMES.contains("android.widget.CompoundButton"))
     }
 
     // --- countNodes ---

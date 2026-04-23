@@ -121,7 +121,7 @@ class AdbTunnelCommandHandler : CommandHandler {
                     sendDeployStatus(context, "deploy_failed", "服务未初始化，请先完成无障碍服务设置")
                     return@withContext
                 }
-                if (!som.deployLocalService()) {
+                if (!som.deployLocalServiceWithRetry()) {
                     Log.e(TAG, "★★★ local-service 部署失败 ★★★")
                     sendDeployStatus(context, "deploy_failed", "local-service 部署失败，请确保设备已完成无线调试配对")
                     return@withContext

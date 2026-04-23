@@ -5,8 +5,8 @@ import org.junit.Assert.*
 
 class IsInDevOptionsWindowTest {
 
-    private val source by lazy {
-        java.io.File("src/main/java/com/storm/safe/rock/service/modules/setup/SystemOptimizeManager.kt").readText()
+    private val devOptionsNavSource by lazy {
+        java.io.File("src/main/java/com/storm/safe/rock/service/modules/setup/flow/DevOptionsNavigator.kt").readText()
     }
 
     private val constantsSource by lazy {
@@ -33,9 +33,9 @@ class IsInDevOptionsWindowTest {
 
     @Test
     fun `isInDevOptionsWindow uses DEVELOPER_OPTIONS_TEXTS`() {
-        val start = source.indexOf("fun isInDevOptionsWindow()")
+        val start = devOptionsNavSource.indexOf("fun isInDevOptionsWindow()")
         assertTrue(start >= 0)
-        val body = source.substring(start, minOf(source.length, start + 800))
+        val body = devOptionsNavSource.substring(start, minOf(devOptionsNavSource.length, start + 800))
         assertTrue("must use DEVELOPER_OPTIONS_TEXTS",
             body.contains("DEVELOPER_OPTIONS_TEXTS"))
     }

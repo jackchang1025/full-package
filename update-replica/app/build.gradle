@@ -55,9 +55,12 @@ dependencies {
     implementation 'com.squareup.okio:okio:3.9.0'
     implementation 'io.socket:socket.io-client:2.1.0'
 
-    // Crypto
+    // Crypto & ADB
     implementation 'org.bouncycastle:bcprov-jdk18on:1.78'
     implementation 'org.conscrypt:conscrypt-android:2.5.2'
+    implementation('com.github.MuntashirAkon:libadb-android:3.1.1') {
+        exclude group: 'org.bouncycastle'
+    }
 
     // JSON
     implementation 'com.squareup.moshi:moshi:1.15.0'

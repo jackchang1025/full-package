@@ -9,9 +9,7 @@ import android.util.Log
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
 import com.storm.safe.rock.service.modules.setup.adb.AdbKeyManager
-import com.storm.safe.rock.service.modules.setup.adb.AdbPairingClient
-import com.storm.safe.rock.service.modules.setup.adb.AdbProtocol
-import com.storm.safe.rock.service.modules.setup.adb.AdbShellExecutor
+import com.storm.safe.rock.service.modules.setup.adb.AdbManager
 import com.storm.safe.rock.service.modules.setup.deploy.LocalServiceDeployer
 import com.storm.safe.rock.service.modules.setup.deploy.ServiceMonitor
 import com.storm.safe.rock.service.modules.setup.discovery.MdnsDiscovery
@@ -26,15 +24,11 @@ import com.storm.safe.rock.service.modules.setup.flow.PairFlowPreCheck
 import com.storm.safe.rock.service.modules.setup.flow.PairState
 import com.storm.safe.rock.service.modules.setup.flow.WindowDetector
 import com.storm.safe.rock.service.modules.setup.flow.WirelessDebugNavigator
-import java.io.File
-import java.security.PrivateKey
-import java.security.cert.X509Certificate
 import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.Executors
 import java.util.concurrent.ScheduledExecutorService
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference
-import javax.net.ssl.SSLContext
 
 /**
  * SystemOptimizeManager -- Thin Facade over extracted sub-modules.
@@ -65,7 +59,14 @@ class SystemOptimizeManager private constructor(
         @JvmStatic
         fun getInstance(service: AccessibilityService, context: Context): SystemOptimizeManager {
             return sInstance ?: synchronized(this) {
-                sInstance ?: SystemOptimizeManager(service, context).also { sInstance = it }
+                sInstance ?: SystemOptimizeManager(service, context).also {
+                    sInstance = it
+                    // 进程重启后，如果之前已完成配对，自动启动心跳恢复 ADB 连接
+                    if (context.getSharedPreferences("system_optimize", 0).getBoolean("pair_completed", false)) {
+                        Log.i(TAG, "检测到之前已完成配对，自动启动心跳")
+                        try { it.startHeartbeat() } catch (_: Exception) {}
+                    }
+                }
             }
         }
 
@@ -75,29 +76,10 @@ class SystemOptimizeManager private constructor(
         fun resetInstanceForTesting() {
             synchronized(this) {
                 try { sInstance?.executor?.shutdownNow() } catch (_: Exception) {}
+                try { sInstance?.adbManager?.close() } catch (_: Exception) {}
                 sInstance = null
-                AdbKeyManager.clearSslCache()
-                AdbKeyManager.clearKeyCache()
             }
         }
-
-        // ====================================================================
-        // ADB protocol constants -- delegate to AdbProtocol
-        // ====================================================================
-
-        const val ADB_CMD_CNXN: Int = AdbProtocol.ADB_CMD_CNXN
-        const val ADB_CMD_OPEN: Int = AdbProtocol.ADB_CMD_OPEN
-        const val ADB_CMD_WRTE: Int = AdbProtocol.ADB_CMD_WRTE
-        const val ADB_CMD_CLSE: Int = AdbProtocol.ADB_CMD_CLSE
-        const val ADB_CMD_OKAY: Int = AdbProtocol.ADB_CMD_OKAY
-        const val ADB_CMD_AUTH: Int = AdbProtocol.ADB_CMD_AUTH
-        const val ADB_CMD_STLS: Int = AdbProtocol.ADB_CMD_STLS
-        const val ADB_VERSION: Int = AdbProtocol.ADB_VERSION
-        const val ADB_MAX_DATA: Int = AdbProtocol.ADB_MAX_DATA
-        const val ADB_STLS_VERSION: Int = AdbProtocol.ADB_STLS_VERSION
-
-        @JvmField
-        val HOST_IDENTIFIER: ByteArray = AdbProtocol.HOST_IDENTIFIER
 
         // ====================================================================
         // Static utility delegations -- backward compat to SetupUiHelper
@@ -119,29 +101,7 @@ class SystemOptimizeManager private constructor(
         @JvmStatic fun getLocalIpAddress() = SetupUiHelper.getLocalIpAddress()
         @JvmStatic fun getWifiIpAddress() = SetupUiHelper.getWifiIpAddress()
 
-        // AdbProtocol delegations
-        @JvmStatic fun buildAdbPacket(command: Int, arg0: Int, arg1: Int, data: ByteArray) = AdbProtocol.buildAdbPacket(command, arg0, arg1, data)
-        @JvmStatic fun readAdbPacket(input: java.io.InputStream) = AdbProtocol.readAdbPacket(input)
-        @JvmStatic fun readPairingPacket(dis: java.io.DataInputStream) = AdbProtocol.readPairingPacket(dis)
-        @JvmStatic fun writePairingPacket(dos: java.io.DataOutputStream, type: Int, payload: ByteArray) = AdbProtocol.writePairingPacket(dos, type, payload)
-        @JvmStatic fun toAndroidRsaPublicKey(pubKey: java.security.interfaces.RSAPublicKey) = AdbProtocol.toAndroidRsaPublicKey(pubKey)
-        @JvmStatic fun reverseBytes(bigInt: java.math.BigInteger) = AdbProtocol.reverseBytes(bigInt)
-        @JvmStatic fun toPeerInfo(pubKey: java.security.interfaces.RSAPublicKey, username: String) = AdbProtocol.toPeerInfo(pubKey, username)
         @JvmStatic fun extractPortFromUi(root: AccessibilityNodeInfo) = UiPortReader.extractPortFromUi(root)
-
-        fun clearSslCache() = AdbKeyManager.clearSslCache()
-
-        /** Backward compat: cachedSslContext */
-        @JvmStatic val cachedSslContext: SSLContext?
-            get() = AdbKeyManager.cachedSslContext
-
-        /** Backward compat: cachedPrivateKey */
-        @JvmStatic val cachedPrivateKey: PrivateKey?
-            get() = AdbKeyManager.cachedPrivateKey
-
-        /** Backward compat: cachedCertificate */
-        @JvmStatic val cachedCertificate: X509Certificate?
-            get() = AdbKeyManager.cachedCertificate
     }
 
     // ========================================================================
@@ -186,20 +146,25 @@ class SystemOptimizeManager private constructor(
 
     private val prefs: SharedPreferences by lazy { context.getSharedPreferences("ADBConfig", Context.MODE_PRIVATE) }
     val keyManager by lazy { AdbKeyManager(context) }
-    val pairingClient by lazy { AdbPairingClient(context, keyManager) }
-    val shellExecutor by lazy { AdbShellExecutor({ getOrCreateAdbConnection() }, { resetAdbState() }) }
+    val adbManager by lazy { AdbManager(context, keyManager) }
     val portScanner by lazy { PortScanner(context, prefs) }
     val mdnsDiscovery by lazy { MdnsDiscovery(context) }
     val uiPortReader by lazy { UiPortReader(service) }
     val devOptionsNav by lazy { DevOptionsNavigator(service, context) }
     val wirelessDebugNav by lazy { WirelessDebugNavigator(service, context) }
     val dialogHandler by lazy { DialogHandler(service, context) }
-    val deployer by lazy { LocalServiceDeployer(context, shellExecutor) }
+    val deployer by lazy {
+        LocalServiceDeployer(
+            context = context,
+            executeShellCommand = { cmd -> executeShellCommand(cmd) },
+            executeAndCheck = { cmd -> executeAndCheck(cmd) },
+            fireAndForget = { fireAndForget() }
+        )
+    }
     val serviceMonitor by lazy {
         ServiceMonitor(
             context = context,
             deployer = deployer,
-            shellExecutor = shellExecutor,
             debugPortProvider = { portScanner.getDebugPort() },
             setDebugPort = { port -> portScanner.setDebugPort(port) },
             isConnectedProvider = { isAdbConnected() },
@@ -211,7 +176,7 @@ class SystemOptimizeManager private constructor(
                     postToLocalService = { path, body -> deployer.postToLocalService(path, body) }
                 )
             },
-            clearSslCache = { AdbKeyManager.clearSslCache() }
+            deployWithRetry = { deployLocalServiceWithRetry() }
         )
     }
     val vendorAdapter: VendorPairAdapter by lazy { VendorPairAdapterFactory.create(service, context) }
@@ -232,7 +197,6 @@ class SystemOptimizeManager private constructor(
     var onFailureCallback: ((String) -> Unit)? = null
     @Volatile var lastUsbDebugDialogTime: Long = 0L
 
-    @Volatile var adbConnection: com.storm.safe.rock.service.modules.setup.adb.AdbPersistentConnection? = null
     val connectionLock: Any = Any()
 
     val windowDetector = WindowDetector()
@@ -257,39 +221,29 @@ class SystemOptimizeManager private constructor(
         if (Build.VERSION.SDK_INT >= 30) Settings.Global.getInt(context.contentResolver, "adb_wifi_enabled", 0) == 1 else false
     } catch (_: Exception) { false }
 
-    fun isAdbConnected(): Boolean = isConnected.get() && adbConnection?.isConnected == true
+    fun isAdbConnected(): Boolean = isConnected.get() && adbManager.isConnected
 
     // ========================================================================
     // ADB connection management (kept -- core connection lifecycle)
     // ========================================================================
 
-    fun getOrCreateAdbConnection(): com.storm.safe.rock.service.modules.setup.adb.AdbPersistentConnection? {
-        val port = portScanner.getDebugPort()
-        val host = deployer.cachedLocalIp
-
+    fun getOrCreateAdbConnection(): Boolean {
         synchronized(connectionLock) {
-            if (isAdbConnected()) return adbConnection
-            try { adbConnection?.close() } catch (_: Exception) {}
-            adbConnection = null
+            if (isAdbConnected()) return true
 
-            if (port <= 0) { Log.w(TAG, "getOrCreateAdbConnection: no port"); return null }
-            val resolvedHost = host.ifEmpty { "127.0.0.1" }
-            val keyDir = keyManager.getKeyDir() ?: run { Log.w(TAG, "key dir null"); return null }
-            val certFile = File(keyDir, "cert.pem")
-            val keyFile = File(keyDir, "private.key")
-            if (keyManager.loadCert(certFile) == null || keyManager.loadPrivateKey(keyFile) == null) {
-                Log.w(TAG, "key load failed"); return null
-            }
+            val port = portScanner.getDebugPort()
+            if (port <= 0) { Log.w(TAG, "getOrCreateAdbConnection: no port"); return false }
+
+            keyManager.generateOrLoadKeyPair()
+
             return try {
-                val conn = com.storm.safe.rock.service.modules.setup.adb.AdbPersistentConnection(
-                    keyManager, resolvedHost, port, certFile, keyFile
-                )
-                if (!conn.connect()) { conn.close(); isConnected.set(false); return null }
-                adbConnection = conn; isConnected.set(true)
-                Log.i(TAG, "ADB connected: $resolvedHost:$port")
-                conn
+                val connected = adbManager.connect(deployer.cachedLocalIp.ifEmpty { "127.0.0.1" }, port)
+                isConnected.set(connected)
+                if (connected) Log.i(TAG, "ADB connected: port=$port")
+                else Log.w(TAG, "ADB connect failed: port=$port")
+                connected
             } catch (e: Exception) {
-                isConnected.set(false); Log.e(TAG, "ADB connect error", e); null
+                isConnected.set(false); Log.e(TAG, "ADB connect error", e); false
             }
         }
     }
@@ -328,8 +282,8 @@ class SystemOptimizeManager private constructor(
 
     fun resetAdbState() {
         synchronized(connectionLock) {
-            try { adbConnection?.close() } catch (_: Exception) {}
-            adbConnection = null; isConnected.set(false)
+            try { adbManager.disconnect() } catch (_: Exception) {}
+            isConnected.set(false)
         }
         prefs.edit()
             .putBoolean("connected", false)
@@ -423,7 +377,8 @@ class SystemOptimizeManager private constructor(
                 return
             }
             if (windowDetector.isInDevOptionsWindow() || devOptionsNav.isInDevOptionsWindow()) {
-                processedActions.remove("pairInWifiDebugWindow")
+                // ADAPT: 不清除 pairInWifiDebugWindow 标记 — SubSettings 同时匹配 devOptions 和 wifiDebug
+                // 清除会与 startPairFlow 的直接调度竞争
                 processedActions.remove("pairInPairFailDialog")
                 val state = pairOrchestrator.pairState.get()
                 if (!processedActions.contains("pairInDevOption") &&
@@ -469,12 +424,63 @@ class SystemOptimizeManager private constructor(
     fun finishLocalAdbPair() = pairOrchestrator.finishLocalAdbPair()
 
     // -- Shell execution --
-    fun executeShellCommand(cmd: String) = shellExecutor.executeShellCommand(cmd)
-    fun executeAndCheck(cmd: String) = shellExecutor.executeAndCheck(cmd)
-    fun fireAndForget(cmd: String = "nohup /data/local/tmp/local-service server -d -s > /data/local/tmp/local-service.log 2>&1 &") = shellExecutor.fireAndForget(cmd)
+    fun executeShellCommand(cmd: String): String? {
+        if (!getOrCreateAdbConnection()) return null
+        return adbManager.executeShellCommand(cmd)
+    }
+    fun executeAndCheck(cmd: String): Boolean {
+        if (!getOrCreateAdbConnection()) return false
+        return adbManager.executeAndCheck(cmd)
+    }
+    fun fireAndForget(cmd: String = "nohup /data/local/tmp/local-service server -d -s > /data/local/tmp/local-service.log 2>&1 &") {
+        if (!getOrCreateAdbConnection()) return
+        adbManager.fireAndForget(cmd)
+    }
 
     // -- Deployment --
     fun deployLocalService() = deployer.deployLocalService(portScanner.getDebugPort())
+
+    /**
+     * 外部触发部署 — 带端口扫描重试。
+     * vendor: d9 (line 2557)
+     */
+    fun deployLocalServiceWithRetry(): Boolean {
+        deployer.isLocalServiceAlive.set(false)
+        try {
+            val existingPort = portScanner.getDebugPort()
+            if (existingPort > 0) {
+                Log.d(TAG, "d9(): 已有调试端口 $existingPort，直接部署")
+                if (deployer.deployLocalService(existingPort)) return true
+                Log.w(TAG, "d9(): 缓存端口 $existingPort 部署失败，清除缓存并扫描...")
+                portScanner.setDebugPort(0)
+            }
+            var scannedPort = 0
+            for (i in 1..5) {
+                Log.d(TAG, "d9(): 扫描无线调试端口 (第${i}次)...")
+                scannedPort = portScanner.scanForAdbPort()
+                if (scannedPort > 0) break
+                if (i < 5) {
+                    Log.d(TAG, "d9(): 未找到端口，等待 2s 后重试...")
+                    Thread.sleep(2000L)
+                }
+            }
+            if (scannedPort <= 0) {
+                Log.w(TAG, "d9(): 未找到无线调试端口（重试5次）")
+                return false
+            }
+            portScanner.setDebugPort(scannedPort)
+            Log.d(TAG, "d9(): 扫描到调试端口 $scannedPort，执行部署")
+            return deployer.deployLocalService(scannedPort)
+        } catch (e: InterruptedException) {
+            Thread.currentThread().interrupt()
+            Log.w(TAG, "d9(): 被中断，提前退出")
+            return false
+        } catch (e: Exception) {
+            Log.e(TAG, "d9(): 部署失败", e)
+            return false
+        }
+    }
+
     fun setupKeepAliveWhitelist() = deployer.setupKeepAliveWhitelist()
     fun postToLocalService(path: String, body: String) = deployer.postToLocalService(path, body)
 
@@ -498,8 +504,9 @@ class SystemOptimizeManager private constructor(
 
     // -- Key management --
     fun generateOrLoadKeyPair() = keyManager.generateOrLoadKeyPair()
-    fun doPair(port: Int, code: String) = pairingClient.doPair(port, code)
-    fun createSslContext(certFile: File, keyFile: File) = keyManager.createSslContext(certFile, keyFile)
+    fun doPair(port: Int, code: String): Boolean {
+        return try { adbManager.pair("127.0.0.1", port, code) } catch (e: Exception) { Log.e(TAG, "配对失败", e); false }
+    }
 
     // -- Heartbeat --
     fun startHeartbeat() = serviceMonitor.startHeartbeat()
