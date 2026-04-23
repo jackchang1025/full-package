@@ -58,12 +58,12 @@ class C0263a5(
         private const val MAX_HEIGHT = 854
 
         /** Scale target width for bitmap compression */
-        const val SCALE_TARGET_WIDTH = 350
+        const val SCALE_TARGET_WIDTH = 240
 
         /** Default compression quality (WebP) */
         @Volatile
         @JvmStatic
-        var compressionQuality: Int = 45
+        var compressionQuality: Int = 20
 
         /** Default scale factor */
         @Volatile
@@ -203,7 +203,7 @@ class C0263a5(
 
     /** Minimum interval between screenshots (adaptive) */
     @Volatile
-    var captureInterval: Long = if (isVivoDevice) 350L else 300L
+    var captureInterval: Long = if (isVivoDevice) 200L else 100L
         private set
 
     /** Last captured bitmap (for reuse) */
@@ -246,7 +246,8 @@ class C0263a5(
 
         try {
             val now = System.currentTimeMillis()
-            if (now - lastScreenshotTime < captureInterval) return null
+            val minInterval = if (isVivoDevice) 150L else 50L
+            if (now - lastScreenshotTime < minInterval) return null
             return doTakeScreenshot(now)
         } catch (e: Exception) {
             Log.e(TAG, "无障碍截图失败", e)
@@ -311,7 +312,7 @@ class C0263a5(
             latch.countDown()
         }
 
-        val timeoutMs = if (isVivoDevice) 600L else 800L
+        val timeoutMs = if (isVivoDevice) 400L else 500L
         if (latch.await(timeoutMs, TimeUnit.MILLISECONDS)) {
             if (ref[0] != null) {
                 // Adaptively reduce interval on success
@@ -555,18 +556,19 @@ class C0263a5(
             Log.d(TAG, "📱 Vivo 设备检测到，使用安全截图间隔: ${interval}ms")
         }
         captureJob = scope.launch {
-            // JADX: etzbzyzqxvqm$startAccessibilityCapture$1 — capture loop
             while (isCapturing && !isPaused) {
                 try {
                     val bitmap = takeAccessibilityScreenshot()
                     if (bitmap != null) {
                         val compressed = compressBitmap(bitmap)
                         sendFrameData(compressed)
+                    } else {
+                        delay(50)
                     }
                 } catch (e: Exception) {
                     Log.e(TAG, "截图循环错误", e)
+                    delay(100)
                 }
-                delay(interval)
             }
         }
     }

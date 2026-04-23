@@ -78,9 +78,9 @@ abstract class PermissionHelper {
             if (Build.VERSION.SDK_INT < 33 &&
                 TextUtils.equals("android.permission.POST_NOTIFICATIONS", permission)
             ) {
-                // vendor: checks NotificationManagerCompat.areNotificationsEnabled()
-                // We simplify to return -1 (denied) on pre-33 since the permission doesn't exist
-                return -1
+                // JADX: AbstractC1117qo.m214411a7 delegates to mk0.m214005a0(nk0(context).f58645a0)
+                // i.e. NotificationManagerCompat.areNotificationsEnabled() → 0 (granted) / -1 (denied)
+                return if (androidx.core.app.NotificationManagerCompat.from(context).areNotificationsEnabled()) 0 else -1
             }
             return context.checkPermission(permission, Process.myPid(), Process.myUid())
         }

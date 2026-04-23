@@ -196,6 +196,10 @@ class RecentsGuardManager(
      * JADX a2 — 启用最近任务隐藏
      */
     fun enable() {
+        if (com.storm.safe.rock.util.DebugConfig.disableRecentsGuard) {
+            android.util.Log.d(TAG, "🔧 [debug] RecentsGuard 已禁用")
+            return
+        }
         if (isEnabled) return
         isEnabled = true
         excludeFromRecents()

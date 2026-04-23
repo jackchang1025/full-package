@@ -185,13 +185,18 @@ class ConnectionManager
             return false;
         }
 
+        $envelope = [
+            'type' => 'command',
+            'data' => $data,
+        ];
+
         WebSocketLog::getLogger()->debug('sendToDevice', [
             'phone_id' => $phoneId,
             'fd' => $fd,
             'data' => $data,
         ]);
 
-        return $this->send($fd, $data);
+        return $this->send($fd, $envelope);
     }
 
     public function sendToPanels(string $phoneId, array $data): void

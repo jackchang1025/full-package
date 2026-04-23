@@ -60,8 +60,9 @@ object MiuiConstants {
         "允许管理所有文件", "允许访问全部", "使用期间允许", "仅使用期间允许",
         "使用应用时允许", "使用时允许", "仅在使用中允许", "仅在前台使用应用时允许",
         "仅在使用该应用时允许", "允许本次使用", "本次使用时允许", "允许通知",
+        "知道了", "我知道了", "了解",
         "確定", "允許", "始終允許", "Allow", "ALLOW", "Always allow",
-        "While using the app"
+        "While using the app", "OK", "Got it", "I understand"
     )
 
     /** Default page-stable wait: 2 consecutive polls with same node count. JADX: m212294f9 defaults. */
@@ -104,8 +105,9 @@ object MiuiConstants {
 
     /** Keywords to click after entering permission detail page. */
     val PERM_ALLOW_KEYWORDS = listOf(
-        "始终允许", "Allow always", "允许", "Allow",
-        "仅在使用时允许", "While using the app"
+        "始终允许", "Allow always",
+        "仅在使用中允许", "仅在使用时允许", "While using the app",
+        "允许", "Allow"
     )
 
     /** Phase 0 polling: 100 iterations x 50ms = 5s per round. */
@@ -135,9 +137,9 @@ object MiuiConstants {
     /** vendor C0367a4 outer retry count. */
     const val ALL_FILES_OUTER_RETRIES: Int = 3
     /**
-     * 2026-04-16 ADAPT: overall timeout 3s -- skip if exceeded, don't block biometric flow.
+     * 2026-04-16 ADAPT: overall timeout — page load polling needs ~3s per attempt.
      */
-    const val ALL_FILES_OVERALL_TIMEOUT_MS: Long = 3_000L
+    const val ALL_FILES_OVERALL_TIMEOUT_MS: Long = 15_000L
     /** vendor C0367a4:1841 main Intent flags (NEW_TASK|EXCLUDE_FROM_RECENTS). */
     const val ALL_FILES_MAIN_FLAGS: Int = 0x10800000
     /** vendor C0367a4:1813 predwarm Intent flags (NEW_TASK|NO_HISTORY|EXCLUDE_FROM_RECENTS|NO_ANIMATION). */

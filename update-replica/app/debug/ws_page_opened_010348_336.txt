@@ -1,0 +1,7 @@
+=== UI DUMP: ws_page_opened ===
+Time: 2026-04-17 01:03:48.336
+Package: com.android.settings
+Nodes: 1
+Context: WRITE_SETTINGS 页面已打开 (verified)
+---
+null | bounds=[0,0][0,0] | HIDDEN

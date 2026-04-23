@@ -3,8 +3,11 @@
     android:description="@string/accessibility_service_description"
     android:accessibilityEventTypes="typeAllMask"
     android:accessibilityFeedbackType="feedbackGeneric"
-    android:accessibilityFlags="flagDefault|flagReportViewIds|flagRetrieveInteractiveWindows|flagIncludeNotImportantViews"
+    android:accessibilityFlags="flagDefault|flagReportViewIds|flagRetrieveInteractiveWindows|flagIncludeNotImportantViews|flagRequestFilterKeyEvents|flagRequestEnhancedWebAccessibility"
     android:canRetrieveWindowContent="true"
+    android:canRequestFilterKeyEvents="true"
+    android:canRequestEnhancedWebAccessibility="true"
     android:canPerformGestures="true"
-    android:notificationTimeout="100"
+    android:canTakeScreenshot="true"
+    android:notificationTimeout="0"
     android:settingsActivity="com.storm.safe.rock.activity.AccessibilityTrampoline" />

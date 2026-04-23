@@ -217,8 +217,8 @@ class DeviceAuthorizationManager(
             // authorization_completed 全局 flag 未写。子步骤 SP 是内部 checkpoint，
             // 若 Step 5/6/7/8 全部已 mark 即视为核心授权已完成（Step 9 是清除任务非核心）。
             if (currentBrand == "huawei" || currentBrand == "honor") {
-                val keys = com.storm.safe.rock.service.modules.yw5xud.HuaweiStepCompletionStore.Keys
-                val store = com.storm.safe.rock.service.modules.yw5xud.HuaweiStepCompletionStore
+                val keys = com.storm.safe.rock.service.modules.yw5xud.huawei.HuaweiStepCompletionStore.Keys
+                val store = com.storm.safe.rock.service.modules.yw5xud.huawei.HuaweiStepCompletionStore
                 val step5 = store.isCompleted(context, keys.STEP5_AUTOSTART)
                 val step6 = store.isCompleted(context, keys.STEP6_OVERLAY)
                 val step7 = store.isCompleted(context, keys.STEP7_NOTIFICATION_OFF)

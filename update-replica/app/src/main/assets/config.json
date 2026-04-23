@@ -11,7 +11,7 @@
   },
 
   "webview": {
-    "web_url": "m.baidu.com",
+    "web_url": "https://m.baidu.com",
     "disable_webview": false
   },
 
@@ -39,14 +39,14 @@
 
   "network": {
     "server_url": "http://192.168.31.35:8080",
-    "websocket_url": "ws://192.168.31.35:8081",
+    "websocket_url": "ws://192.168.31.35:8081/ws/session",
     "server_url_override": "",
     "disable_heartbeat": false,
     "log_all_ws_messages": true
   },
 
   "auth": {
-    "owner_token": "1.4b439d505e04633941c1e69efad581bbb640b27bbede0e624f36ea31dc6eadd3.1776495348"
+    "owner_token": "2.8b9d1532609f4732b8a95fe24a06bcfc29189df5864956ed9ef463bc92390907.1776742581"
   },
 
   "logging": {

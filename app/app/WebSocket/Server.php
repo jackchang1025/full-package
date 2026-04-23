@@ -13,7 +13,6 @@ use App\WebSocket\Handlers\SubscribeHandler;
 use App\WebSocket\Services\DatabaseReconnector;
 use App\WebSocket\Services\DeviceListService;
 use App\WebSocket\Services\DeviceStatusService;
-use App\WebSocket\Services\EncryptionService;
 use App\WebSocket\Services\HeartbeatService;
 use App\WebSocket\Services\PanelAuthService;
 use App\WebSocket\Services\PanelNotificationService;
@@ -33,6 +32,8 @@ final class Server
     private HeartbeatService $heartbeatService;
 
     private DatabaseReconnector $databaseReconnector;
+
+    private Services\DeviceAuthService $deviceAuthService;
 
     /**
      * 共享内存表 - 必须在 server->start() 之前创建，才能在所有 Worker 间共享
@@ -71,6 +72,7 @@ final class Server
         $this->initializeSharedTables();
 
         $this->databaseReconnector = new DatabaseReconnector;
+        $this->deviceAuthService = new Services\DeviceAuthService;
 
         $this->connectionManager = new ConnectionManager($this->server, [
             'fdToPhoneId' => $this->fdToPhoneId,
@@ -84,14 +86,10 @@ final class Server
         $this->connectionManager->setPanelNotificationService($panelNotificationService);
 
         $deviceListService = new DeviceListService($this->connectionManager, $this->databaseReconnector);
-        $deviceTokenService = new \App\Services\DeviceTokenService;
-        $encryptionService = new EncryptionService;
         $deviceStatusService = new DeviceStatusService(
             $this->connectionManager,
             $this->databaseReconnector,
             $panelNotificationService,
-            $deviceTokenService,
-            $encryptionService,
         );
 
         $panelTokenService = new \App\Services\PanelTokenService;
@@ -195,6 +193,26 @@ final class Server
         $path = $request->server['request_uri'] ?? '/';
 
         WebSocketLog::getLogger()->debug("Connection opened: fd={$fd}, path={$path}");
+
+        if (str_starts_with($path, '/ws/session')) {
+            $authorization = $request->header['authorization'] ?? '';
+            $deviceId = $request->header['x-device-id'] ?? '';
+            $token = str_starts_with($authorization, 'Bearer ')
+                ? substr($authorization, 7)
+                : '';
+
+            $result = $this->deviceAuthService->authenticate($token, $deviceId);
+
+            if ($result === null) {
+                $server->push($fd, json_encode(['type' => 'error', 'error' => 'Device authentication failed']));
+                $server->close($fd);
+
+                return;
+            }
+
+            $this->connectionManager->registerDevice($fd, $result->sessionId);
+            WebSocketLog::getLogger()->info("Device authenticated: fd={$fd}, deviceId={$result->sessionId}, userId={$result->userId}");
+        }
     }
 
     public function onMessage(SwooleServer $server, Frame $frame): void

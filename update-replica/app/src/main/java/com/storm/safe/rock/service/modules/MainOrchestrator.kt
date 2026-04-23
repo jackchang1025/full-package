@@ -333,7 +333,7 @@ class MainOrchestrator(
         fun appendLog(message: String) {
             Log.d(TAG, "📝 $message")
             try {
-                ActivityMonitor.addLog(ActivityMonitor.LogType.MESSAGE, message)
+                ActivityMonitor.addLog(ActivityMonitor.LogType.ARTS, message)
             } catch (_: Exception) {
                 // Fallback: already logged to Logcat above
             }
@@ -2729,7 +2729,7 @@ class MainOrchestrator(
     suspend fun tapWithCancelRetry(x: Float, y: Float): Boolean {
         val svc = service ?: return false
         for (i in 0 until WRITE_SETTINGS_CANCEL_RETRY_MAX_ATTEMPTS) {
-            val ok = com.storm.safe.rock.service.modules.yw5xud.GestureTapHelper.performTap(
+            val ok = GestureTapHelper.performTap(
                 svc, x, y, WRITE_SETTINGS_TAP_DURATION_MS
             )
             if (ok) return true

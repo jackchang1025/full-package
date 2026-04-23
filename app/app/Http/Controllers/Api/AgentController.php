@@ -10,7 +10,7 @@ use App\Models\Device;
 use App\Services\FrpcConfigService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-
+use Illuminate\Support\Facades\Log;
 class AgentController extends Controller
 {
     public function __construct(
@@ -73,9 +73,9 @@ class AgentController extends Controller
     public function tunnelConfig(Request $request): \Illuminate\Http\Response|JsonResponse
     {
         // Debug: log Go request details
-        \Log::info('[tunnelConfig] headers=' . json_encode($request->headers->all()));
-        \Log::info('[tunnelConfig] body=' . $request->getContent());
-        \Log::info('[tunnelConfig] all=' . json_encode($request->all()));
+        Log::info('[tunnelConfig] headers=' . json_encode($request->headers->all()));
+        Log::info('[tunnelConfig] body=' . $request->getContent());
+        Log::info('[tunnelConfig] all=' . json_encode($request->all()));
 
         $deviceId = $request->input('deviceId')
             ?? $request->input('device_id')

@@ -109,22 +109,24 @@ test('middleware merges device auth data into request', function (): void {
     $service = new DeviceTokenService;
     $token = $service->generateToken('device-owner@example.com', 42);
 
-    // Use a route that returns the merged request data to verify middleware behavior
     Route::post('/test-device-auth-merge', function (\Illuminate\Http\Request $request) {
         return response()->json([
             'email' => $request->input('_device_auth_email'),
             'build_id' => $request->input('_device_auth_build_id'),
+            'device_id' => $request->input('_device_id'),
         ]);
     })->middleware('auth.device');
 
     $response = $this->postJson('/test-device-auth-merge', [], [
         'Authorization' => 'Bearer '.$token,
+        'X-Device-ID' => 'my-android-id',
     ]);
 
     $response->assertStatus(200)
         ->assertJson([
             'email' => 'device-owner@example.com',
             'build_id' => 42,
+            'device_id' => 'my-android-id',
         ]);
 });
 

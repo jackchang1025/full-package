@@ -61,6 +61,29 @@ final class MessageRouter
             return;
         }
 
+        // New format: {command, params, pid} — transparent proxy to device
+        $command = $message->getString('command');
+        if ($command !== '') {
+            $phoneId = $message->pid();
+            if ($phoneId === null) {
+                WebSocketLog::getLogger()->warning("Command message missing pid: fd={$fd}");
+
+                return;
+            }
+
+            // Check panel auth — must be subscribed to this device
+            $subscribedPhoneId = $this->connectionManager->getPhoneId($fd);
+
+            $this->connectionManager->sendToDevice($phoneId, [
+                'command' => $command,
+                'params' => $message->get('params') ?? new \stdClass(),
+            ]);
+
+            WebSocketLog::getLogger()->info("Command proxy: {$command}", ['phone_id' => $phoneId]);
+
+            return;
+        }
+
         $clientTypes = WebSocketConfig::clientTypes();
 
         // Authenticate panel/panelsend messages: check existing session or inline token

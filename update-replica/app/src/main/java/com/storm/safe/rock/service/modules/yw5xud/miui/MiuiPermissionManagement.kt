@@ -156,11 +156,23 @@ class MiuiPermissionManagement(
                         continue
                     }
                     var allowed = false
-                    for (allowKw in MiuiConstants.PERM_ALLOW_KEYWORDS) {
-                        if (ui.clickSelector("[text=\"$allowKw\"][visibleToUser=true]")) {
-                            allowed = true
-                            Log.i(TAG, "[权限管理] $name -> $allowKw")
-                            break
+                    // 优先用 findByText 点击"始终允许"（绕过 visibleToUser 限制）
+                    val allowRoot = ui.root()
+                    if (allowRoot != null) {
+                        for (allowKw in MiuiConstants.PERM_ALLOW_KEYWORDS) {
+                            try {
+                                val nodes = allowRoot.findAccessibilityNodeInfosByText(allowKw)
+                                for (node in nodes) {
+                                    if (node.text?.toString() == allowKw) {
+                                        if (ui.click(node)) {
+                                            allowed = true
+                                            Log.i(TAG, "[权限管理] $name -> $allowKw")
+                                            break
+                                        }
+                                    }
+                                }
+                            } catch (_: Exception) {}
+                            if (allowed) break
                         }
                     }
                     if (!allowed) Log.w(TAG, "[权限管理] $name: 未找到允许按钮")
@@ -181,18 +193,34 @@ class MiuiPermissionManagement(
     }
 
     private suspend fun clickPermissionItemMulti(keywords: List<String>, logs: MutableList<String>): Boolean {
-        // First try without scrolling
-        for (keyword in keywords) { if (ui.clickSelector("[text=\"$keyword\"][visibleToUser=true]")) return true }
-        // Scroll down -- MIUI other permissions page is very long
-        for (i in 0 until 6) {
-            val pkg = ui.root()?.packageName?.toString() ?: ""
-            Log.d(TAG, "[权限搜索] scroll down #$i, pkg=$pkg, keywords=$keywords")
-            if (pkg != "com.miui.securitycenter") {
-                Log.w(TAG, "[权限搜索] 已离开安全中心，停止滚动")
-                return false
-            }
+        // Strategy 1: findByText on current visible tree
+        for (keyword in keywords) {
+            try {
+                val root = ui.root() ?: continue
+                val nodes = root.findAccessibilityNodeInfosByText(keyword)
+                for (node in nodes) {
+                    if (node.text?.toString() == keyword) {
+                        Log.i(TAG, "[权限搜索] findByText 命中: $keyword")
+                        if (ui.click(node)) return true
+                    }
+                }
+            } catch (_: Exception) {}
+        }
+        // Strategy 2: scroll + check ALL keywords each round (avoid single-keyword scroll exhaustion)
+        for (i in 0 until 5) {
             ui.scrollForward(); delay(500)
-            for (keyword in keywords) { if (ui.clickSelector("[text=\"$keyword\"][visibleToUser=true]")) return true }
+            for (keyword in keywords) {
+                try {
+                    val root = ui.root() ?: continue
+                    val nodes = root.findAccessibilityNodeInfosByText(keyword)
+                    for (node in nodes) {
+                        if (node.text?.toString() == keyword) {
+                            Log.i(TAG, "[权限搜索] scroll#$i findByText 命中: $keyword")
+                            if (ui.click(node)) return true
+                        }
+                    }
+                } catch (_: Exception) {}
+            }
         }
         return false
     }

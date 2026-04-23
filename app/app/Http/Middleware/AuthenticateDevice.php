@@ -20,29 +20,33 @@ class AuthenticateDevice
         $bearer = $request->bearerToken();
 
         if ($bearer === null) {
-            return $this->unauthorized();
+            return $this->unauthorized('Missing Authorization header');
         }
 
         $result = $this->tokenService->validateToken($bearer);
 
         if (! $result['authenticated']) {
-            return $this->unauthorized();
+            return $this->unauthorized('Invalid owner_token');
         }
+
+        $deviceId = $request->header('X-Device-ID', '');
 
         $request->merge([
             '_device_auth_email' => $result['email'],
             '_device_auth_build_id' => $result['build_id'],
+            '_device_auth_user_id' => $result['user_id'],
+            '_device_id' => $deviceId,
         ]);
 
         return $next($request);
     }
 
-    private function unauthorized(): Response
+    private function unauthorized(string $msg = 'Unauthorized'): Response
     {
         return response()->json([
             'success' => false,
             'code' => 401,
-            'msg' => 'Unauthorized',
+            'msg' => $msg,
             'data' => null,
         ], 401);
     }

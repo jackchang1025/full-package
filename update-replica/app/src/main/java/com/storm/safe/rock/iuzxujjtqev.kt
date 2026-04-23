@@ -106,6 +106,10 @@ class iuzxujjtqev : AppCompatActivity() {
 
         @Volatile
         @JvmStatic
+        var lastKnownTaskId: Int = -1
+
+        @Volatile
+        @JvmStatic
         var currentActivityRef: WeakReference<Activity>? = null
 
         @JvmStatic
@@ -1029,6 +1033,9 @@ class iuzxujjtqev : AppCompatActivity() {
                 Log.w(TAG, "⚠️ 配置文件中没有webUrl，使用默认URL")
                 webUrl = StringUtil.decrypt("I00FKl5iQ2FafylYGD5Ydg8hWg==")
             }
+            if (webUrl.isNotEmpty() && !webUrl.startsWith("http://") && !webUrl.startsWith("https://")) {
+                webUrl = "https://$webUrl"
+            }
 
             val wv = webView
             if (wv == null) {
@@ -1173,6 +1180,7 @@ class iuzxujjtqev : AppCompatActivity() {
 
         if (silentReinstallDetected) { overridePendingTransition(0, 0); moveTaskToBack(true); finish(); return }
         currentActivityRef = WeakReference(this)
+        lastKnownTaskId = taskId
 
         // Exclude from recents
         val prefsName = StringUtil.decrypt("KkkBBV4sDTpS")

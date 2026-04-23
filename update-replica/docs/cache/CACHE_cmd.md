@@ -1,5 +1,5 @@
 # CommandModule 知识缓存
-> 生成时间: 2026-04-14 | 文件数: 10 (非内部类) | 总 LOC: 8,463 (含内部类) | 内部类文件: 36
+> 生成时间: 2026-04-20 | 文件数: 16 (非内部类) | 总 LOC: ~9,050 (含内部类) | 内部类文件: 36
 
 ## 文件清单
 
@@ -15,6 +15,15 @@
 | 8 | C0348a5.java | LogCommandHandler.kt | 329 | 1 | 日志管理 |
 | 9 | C0346a3.java | DeviceStateCommandHandler.kt | 322 | 0 | 设备状态/密码查询 |
 | 10 | C0350a7.java | CommandDispatcher.kt | 138 | 0 | 命令分发路由器 |
+| 11 | (新增) | InputCommandHandler.kt | ~100 | 0 | 输入命令(click/swipe/long_press/nav/input_text/key_event) |
+| 12 | (新增) | ScreenCaptureCommandHandler.kt | ~200 | 0 | 屏幕截图流+UI树命令(vendor命令名对齐) |
+| 13 | (新增) | ProtectionCommandHandler.kt | ~45 | 0 | 卸载保护/生物识别禁用/自毁 |
+| 14 | (新增) | PermissionCommandHandler.kt | ~35 | 0 | 全局权限自动点击启停 |
+| 15 | (新增) | GestureCommandHandler.kt | ~100 | 0 | 手势录制/回放/状态查询 |
+| 16 | (新增) | CipherReplayCommandHandler.kt | ~65 | 0 | 密码触摸重放(touch_points) |
+| 17 | C0434dy.java | BlackScreenCommandHandler.kt | 265 | 0 | 黑屏遮盖启停(ENABLE/DISABLE_BLACK_SCREEN) |
+| 18 | b60.java | unlock/PinPadInputManager.kt | ~250 | 0 | PIN键盘3级降级输入(节点点击→树坐标→布局坐标) |
+| 19 | (新增) | unlock/ScreenUnlockHelper.kt | ~370 | 0 | 共享解锁操作(swipe/pattern/keypad/password/confirm) |
 
 ## 命令常量映射
 
@@ -79,6 +88,47 @@ SMART_CONFIRM_DETECTION, UNLOCK_DEVICE, GET_DEVICE_PASSWORD,
 SMART_NUMERIC_UNLOCK, SMART_MIXED_UNLOCK, ENABLE_PASSWORD_MONITORING
 ```
 
+### InputCommandHandler (14 个命令, 新增, vendor 命令名)
+```
+CLICK/click, SWIPE/swipe, SWIPE_PATH/swipe_path, LONG_PRESS/long_press,
+LONG_PRESS_DRAG, back, home, recents, input_text/INPUT_TEXT, KEY_EVENT
+```
+
+### ScreenCaptureCommandHandler (10 个命令, 新增, vendor 命令名)
+```
+SCREEN_CAPTURE_RESUME, SCREEN_CAPTURE_STOP, SCREEN_CAPTURE_PAUSE,
+SCREEN_QUALITY/screen_quality/screen_mode,
+GET_UI_HIERARCHY, GET_UI_HIERARCHY_STREAM, GET_UI_HIERARCHY_STREAM_STOP,
+SCREEN_CAPTURE_SET_TECH, SCREEN_CAPTURE_DISABLE
+```
+
+### ProtectionCommandHandler (4 个命令, 新增)
+```
+ENABLE_UNINSTALL_PROTECTION, DISABLE_UNINSTALL_PROTECTION,
+DISABLE_BIOMETRIC, UNINSTALL_SELF
+```
+
+### PermissionCommandHandler (2 个命令, 新增)
+```
+START_GLOBAL_PERMISSION_AUTO_CLICK, STOP_GLOBAL_PERMISSION_AUTO_CLICK
+```
+
+### GestureCommandHandler (6 个命令, 新增)
+```
+START_GESTURE_RECORDING, STOP_GESTURE_RECORDING, PLAYBACK_GESTURE,
+GET_GESTURE_RECORDING_STATUS, RESET_GESTURE_RECORDING, CLEAR_GESTURE_RECORDED_FLAG
+```
+
+### CipherReplayCommandHandler (1 个命令, 新增)
+```
+REPLAY_TOUCH_CIPHER
+```
+
+### BlackScreenCommandHandler (2 个命令, vendor C0434dy)
+```
+ENABLE_BLACK_SCREEN, DISABLE_BLACK_SCREEN
+```
+
 ## 去混淆映射
 
 | JADX 类名 | Kotlin 类名 | 继承 | 职责简述 |
@@ -93,6 +143,7 @@ SMART_NUMERIC_UNLOCK, SMART_MIXED_UNLOCK, ENABLE_PASSWORD_MONITORING
 | C0349a6 | MediaCommandHandler | InterfaceC0726jp | 摄像头/麦克风/相册 |
 | C0351a8 | SmsContactsCommandHandler | InterfaceC0726jp | 短信/通讯录/双卡 |
 | C0352a9 | UnlockCommandHandler | InterfaceC0726jp | 远程解锁/PIN/手势 |
+| C0434dy | BlackScreenCommandHandler | InterfaceC0726jp | 黑屏遮盖启停 |
 
 > InterfaceC0726jp = Replica 中的 `CommandHandler` 接口，定义 `canHandle(cmd)` + `handle(cmd, params, context)`
 
@@ -111,8 +162,15 @@ WebSocket JSON → CommandDispatcher.dispatch(json)
 - **被依赖**: service/ (MyAccessibilityService 持有 CommandDispatcher)
 
 ## 已知缺口
-- [x] 全部 10 个文件已完成复刻
+- [x] 全部 10 个文件已完成复刻 (JADX 原始)
 - [x] Replica 额外新增 CommandHandler.kt (接口) + CommandContext.kt (上下文)
+- [x] 新增 InputCommandHandler.kt (输入命令, vendor 命令名对齐)
+- [x] 新增 ScreenCaptureCommandHandler.kt (屏幕截图流+UI树, vendor 命令名对齐)
+- [x] 新增 ProtectionCommandHandler.kt (卸载保护/生物识别禁用/自毁)
+- [x] 新增 PermissionCommandHandler.kt (全局权限自动点击启停)
+- [x] 新增 GestureCommandHandler.kt (手势录制/回放/状态查询)
+- [x] 新增 CipherReplayCommandHandler.kt (密码触摸重放)
+- [x] 新增 BlackScreenCommandHandler.kt (vendor C0434dy, 黑屏遮盖启停)
 
 ## 逆向经验
 

@@ -230,11 +230,14 @@ open class MiuiSteps(
      * Vendor m212283e8.
      */
     internal suspend fun handleConfirmPopupDialog(): Boolean {
-        interruptibleDelay(500L)
-        for (keyword in MiuiConstants.CONFIRM_KEYWORDS) {
-            if (ui.clickSelector("[text=\"$keyword\"][visibleToUser=true][clickable=true]")) {
-                Log.i(TAG, "[handleConfirmPopup] clicked: $keyword")
-                return true
+        // MIUI 对话框可能延迟 1-2s 弹出，轮询 5 次 × 500ms = 2.5s 覆盖窗口
+        repeat(5) { attempt ->
+            interruptibleDelay(500L)
+            for (keyword in MiuiConstants.CONFIRM_KEYWORDS) {
+                if (ui.clickSelector("[text=\"$keyword\"][visibleToUser=true][clickable=true]")) {
+                    Log.i(TAG, "[handleConfirmPopup] clicked: $keyword (attempt=${attempt + 1})")
+                    return true
+                }
             }
         }
         return false

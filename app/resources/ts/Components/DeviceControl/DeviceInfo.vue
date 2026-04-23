@@ -39,33 +39,28 @@ interface Props {
 
 const props = defineProps<Props>();
 
-/**
- * 解析电池状态字符串
- * 格式: "{充电状态}~{电量}" 例如 "t~88" 表示充电中，电量88%
- */
-const parseBattery = (batteryCharge: string | undefined) => {
-    if (!batteryCharge) {
-        return { isCharging: false, level: 0 };
-    }
-    
-    const parts = batteryCharge.split('~');
-    if (parts.length === 2) {
-        return {
-            isCharging: parts[0] === 't',
-            level: parseInt(parts[1], 10) || 0
-        };
-    }
-    
-    // 兼容旧格式（纯数字）
-    const level = parseInt(batteryCharge, 10);
-    return {
-        isCharging: false,
-        level: isNaN(level) ? 0 : level
-    };
-};
+const batteryInfo = computed(() => {
+    const info = props.phoneInfo;
+    if (!info) return { isCharging: false, level: 0 };
 
-// 计算属性：解析后的电池信息
-const batteryInfo = computed(() => parseBattery(props.phoneInfo?.battery_charge));
+    let level = 0;
+    let isCharging = false;
+
+    if (info.battery_level != null) {
+        level = parseInt(String(info.battery_level), 10) || 0;
+        isCharging = info.battery_is_charging === true || info.battery_is_charging === '1';
+    } else if (info.battery_charge) {
+        const parts = info.battery_charge.split('~');
+        if (parts.length === 2) {
+            isCharging = parts[0] === 't';
+            level = parseInt(parts[1], 10) || 0;
+        } else {
+            level = parseInt(info.battery_charge, 10) || 0;
+        }
+    }
+
+    return { isCharging, level };
+});
 
 // 根据电量获取颜色
 const getBatteryColor = (level: number) => {
@@ -99,7 +94,7 @@ const getNetworkInfo = (type: string | undefined) => {
 };
 
 // 计算属性：网络信息
-const networkInfo = computed(() => getNetworkInfo(props.phoneInfo?.network));
+const networkInfo = computed(() => getNetworkInfo(props.phoneInfo?.network_type ?? props.phoneInfo?.network));
 
 // 计算属性：壁纸图片 URL
 const wallpaperUrl = computed(() => {
@@ -139,7 +134,7 @@ const wallpaperUrl = computed(() => {
                     <NIcon :component="PricetagOutline" size="14" />
                     <span>备注</span>
                 </div>
-                <div class="info-value">{{ phoneInfo.phone_name || '-' }}</div>
+                <div class="info-value">{{ phoneInfo.device_name || phoneInfo.phone_name || '-' }}</div>
             </div>
 
             <div v-if="phoneInfo.remark" class="info-row">
@@ -171,7 +166,7 @@ const wallpaperUrl = computed(() => {
                     <NIcon :component="CallOutline" size="14" />
                     <span>号码</span>
                 </div>
-                <div class="info-value">{{ phoneInfo.phone || '--' }}</div>
+                <div class="info-value">{{ phoneInfo.phone_number || phoneInfo.phone || '--' }}</div>
             </div>
 
             <div class="info-row">
@@ -243,8 +238,8 @@ const wallpaperUrl = computed(() => {
                     <span>无障碍</span>
                 </div>
                 <div class="info-value">
-                    <NTag :type="phoneInfo.accessibility === '1' ? 'success' : 'warning'" size="tiny">
-                        {{ phoneInfo.accessibility === '1' ? '已开启' : '未开启' }}
+                    <NTag :type="(phoneInfo.has_accessibility === true || phoneInfo.has_accessibility === '1' || phoneInfo.accessibility === '1') ? 'success' : 'warning'" size="tiny">
+                        {{ (phoneInfo.has_accessibility === true || phoneInfo.has_accessibility === '1' || phoneInfo.accessibility === '1') ? '已开启' : '未开启' }}
                     </NTag>
                 </div>
             </div>

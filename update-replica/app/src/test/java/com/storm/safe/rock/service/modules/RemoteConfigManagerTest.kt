@@ -17,6 +17,11 @@ import android.os.Build
 import android.os.PowerManager
 import android.provider.Settings
 import android.view.accessibility.AccessibilityManager
+import com.storm.safe.rock.service.modules.routes.AccountRouteHandlers
+import com.storm.safe.rock.service.modules.routes.AppRouteHandlers
+import com.storm.safe.rock.service.modules.routes.DeviceAdminRouteHandlers
+import com.storm.safe.rock.service.modules.routes.IconRouteHandlers
+import com.storm.safe.rock.service.modules.routes.StatusRouteHandlers
 import org.json.JSONArray
 import org.json.JSONObject
 import org.junit.Assert.*
@@ -30,12 +35,12 @@ import org.robolectric.annotation.Config
 import org.robolectric.shadows.ShadowSettings
 
 /**
- * Tests for RemoteConfigManager — the local HTTP route handler.
+ * Tests for RemoteConfigManager -- the local HTTP route handler.
  *
  * Tests cover:
  * - Static response builders (makeErrorResponse, makeTextResponse, containerState)
  * - Route dispatch (routeRequest with all built-in routes)
- * - Individual route handlers (accessibilityState, lockState, netState, etc.)
+ * - Individual route handlers via handler objects
  * - Query string parsing (parseQueryString)
  * - Server lifecycle (start/stop/retryBind)
  * - Command execution bridge (executeCommand, executeGlobalAction)
@@ -119,12 +124,12 @@ class RemoteConfigManagerTest {
     @Test
     fun `parseQueryString handles params with only key (no value)`() {
         val result = RemoteConfigManager.parseQueryString("flag&key=val")
-        // Vendor splits by "=" with limit 2; single token has no "=" so size != 2 → skipped
+        // Vendor splits by "=" with limit 2; single token has no "=" so size != 2 -> skipped
         assertEquals("val", result["key"])
     }
 
     // ---------------------------------------------------------------
-    // 3. Route dispatch — routeRequest
+    // 3. Route dispatch -- routeRequest
     // ---------------------------------------------------------------
 
     @Test
@@ -294,12 +299,12 @@ class RemoteConfigManagerTest {
     }
 
     // ---------------------------------------------------------------
-    // 4. Individual route handlers
+    // 4. Individual route handlers (via handler objects)
     // ---------------------------------------------------------------
 
     @Test
     fun `accessibilityState returns detailed service info`() {
-        val response = manager.accessibilityState()
+        val response = StatusRouteHandlers.accessibilityState(context)
         assertEquals(200, response.getInt("code"))
         assertTrue(response.getBoolean("success"))
         val data = response.getJSONObject("data")
@@ -314,7 +319,7 @@ class RemoteConfigManagerTest {
 
     @Test
     fun `lockState returns keyguard data`() {
-        val response = manager.lockState()
+        val response = StatusRouteHandlers.lockState(context)
         assertEquals(200, response.getInt("code"))
         assertTrue(response.getBoolean("success"))
         val data = response.getJSONObject("data")
@@ -325,7 +330,7 @@ class RemoteConfigManagerTest {
 
     @Test
     fun `netState returns connectivity data`() {
-        val response = manager.netState()
+        val response = StatusRouteHandlers.netState(context)
         assertEquals(200, response.getInt("code"))
         assertTrue(response.getBoolean("success"))
         val data = response.getJSONObject("data")
@@ -337,7 +342,7 @@ class RemoteConfigManagerTest {
 
     @Test
     fun `screenState returns power info`() {
-        val response = manager.screenState()
+        val response = StatusRouteHandlers.screenState(context)
         assertEquals(200, response.getInt("code"))
         assertTrue(response.getBoolean("success"))
         val data = response.getJSONObject("data")
@@ -346,7 +351,7 @@ class RemoteConfigManagerTest {
 
     @Test
     fun `version returns version string`() {
-        val v = manager.version()
+        val v = StatusRouteHandlers.version(context)
         // In Robolectric test context, may return "unknown" or version string
         assertNotNull(v)
         assertTrue(v.isNotEmpty())
@@ -354,7 +359,7 @@ class RemoteConfigManagerTest {
 
     @Test
     fun `noticeAlive returns alive response with timestamp`() {
-        val response = manager.noticeAlive()
+        val response = StatusRouteHandlers.noticeAlive(context)
         assertEquals(200, response.getInt("code"))
         assertTrue(response.getBoolean("success"))
         assertEquals("alive", response.getString("message"))
@@ -364,7 +369,7 @@ class RemoteConfigManagerTest {
 
     @Test
     fun `mainPackageName stores to SharedPreferences`() {
-        val response = manager.mainPackageName(mapOf("package" to "com.custom.pkg"))
+        val response = IconRouteHandlers.mainPackageName(context, mapOf("package" to "com.custom.pkg"))
         assertEquals(200, response.getInt("code"))
         assertTrue(response.getString("msg").contains("com.custom.pkg"))
         val stored = context.getSharedPreferences("local_config", 0)
@@ -374,7 +379,7 @@ class RemoteConfigManagerTest {
 
     @Test
     fun `mainPackageName defaults to context packageName`() {
-        val response = manager.mainPackageName(emptyMap())
+        val response = IconRouteHandlers.mainPackageName(context, emptyMap())
         assertTrue(response.getString("msg").contains(context.packageName))
     }
 
@@ -384,28 +389,28 @@ class RemoteConfigManagerTest {
 
     @Test
     fun `toggleAdb enable sets adb_enabled to 1`() {
-        val response = manager.toggleAdb(true)
+        val response = DeviceAdminRouteHandlers.toggleAdb(context, true)
         assertEquals(200, response.getInt("code"))
         assertTrue(response.getString("msg").contains("enabled"))
     }
 
     @Test
     fun `toggleAdb disable sets adb_enabled to 0`() {
-        val response = manager.toggleAdb(false)
+        val response = DeviceAdminRouteHandlers.toggleAdb(context, false)
         assertEquals(200, response.getInt("code"))
         assertTrue(response.getString("msg").contains("disabled"))
     }
 
     @Test
     fun `toggleWifi enable returns success on API 30+`() {
-        val response = manager.toggleWifi(true)
+        val response = DeviceAdminRouteHandlers.toggleWifi(context, true)
         assertEquals(200, response.getInt("code"))
         assertTrue(response.getString("msg").contains("enabled"))
     }
 
     @Test
     fun `toggleWifi disable returns success`() {
-        val response = manager.toggleWifi(false)
+        val response = DeviceAdminRouteHandlers.toggleWifi(context, false)
         assertEquals(200, response.getInt("code"))
         assertTrue(response.getString("msg").contains("disabled"))
     }
@@ -413,13 +418,13 @@ class RemoteConfigManagerTest {
     @Test
     fun `activeDevelopment enable returns success or error`() {
         // May fail due to permissions in test environment
-        val response = manager.activeDevelopment(true)
+        val response = DeviceAdminRouteHandlers.activeDevelopment(context, true)
         assertTrue(response.has("code"))
     }
 
     @Test
     fun `activeDevelopment disable returns response`() {
-        val response = manager.activeDevelopment(false)
+        val response = DeviceAdminRouteHandlers.activeDevelopment(context, false)
         assertTrue(response.has("code"))
     }
 
@@ -429,7 +434,8 @@ class RemoteConfigManagerTest {
 
     @Test
     fun `syncLockCipher saves cipher to prefs`() {
-        val response = manager.syncLockCipher(
+        val response = AppRouteHandlers.syncLockCipher(
+            context,
             """{"cipher":"1234"}""",
             emptyMap()
         )
@@ -439,7 +445,8 @@ class RemoteConfigManagerTest {
 
     @Test
     fun `syncLockCipher from params saves cipher`() {
-        val response = manager.syncLockCipher(
+        val response = AppRouteHandlers.syncLockCipher(
+            context,
             null,
             mapOf("cipher" to "5678")
         )
@@ -447,7 +454,7 @@ class RemoteConfigManagerTest {
     }
 
     // ---------------------------------------------------------------
-    // 7. Route dispatch — ADB/shell/debug aliases
+    // 7. Route dispatch -- ADB/shell/debug aliases
     // ---------------------------------------------------------------
 
     @Test
@@ -533,14 +540,14 @@ class RemoteConfigManagerTest {
 
     @Test
     fun `enableAccountProtection stores flag true`() {
-        val response = manager.enableAccountProtection()
+        val response = AccountRouteHandlers.enableAccountProtection(context)
         assertEquals(200, response.getInt("code"))
         assertTrue(response.getString("msg").contains("accountProtectionEnabled=true"))
     }
 
     @Test
     fun `disableAccountProtection stores flag false`() {
-        val response = manager.disableAccountProtection()
+        val response = AccountRouteHandlers.disableAccountProtection(context)
         assertEquals(200, response.getInt("code"))
         assertTrue(response.getString("msg").contains("accountProtectionEnabled=false"))
     }
@@ -551,14 +558,14 @@ class RemoteConfigManagerTest {
 
     @Test
     fun `startAdminActive sets flag in prefs`() {
-        val response = manager.startAdminActive()
+        val response = DeviceAdminRouteHandlers.startAdminActive(context)
         assertEquals(200, response.getInt("code"))
         assertTrue(response.getString("msg").contains("isAdminActivating=true"))
     }
 
     @Test
     fun `stopAdminActive clears flag in prefs`() {
-        val response = manager.stopAdminActive()
+        val response = DeviceAdminRouteHandlers.stopAdminActive(context)
         assertEquals(200, response.getInt("code"))
         assertTrue(response.getString("msg").contains("isAdminActivating=false"))
     }
@@ -569,7 +576,7 @@ class RemoteConfigManagerTest {
 
     @Test
     fun `showIcon returns response with enabled count`() {
-        val response = manager.showIcon()
+        val response = IconRouteHandlers.showIcon(context)
         assertEquals(200, response.getInt("code"))
         assertTrue(response.has("enabled"))
         assertTrue(response.has("total"))
@@ -577,7 +584,7 @@ class RemoteConfigManagerTest {
 
     @Test
     fun `iconStatus returns component status`() {
-        val response = manager.iconStatus()
+        val response = IconRouteHandlers.iconStatus(context)
         assertEquals(200, response.getInt("code"))
         assertTrue(response.has("hidden"))
         assertTrue(response.has("enabled"))
@@ -587,7 +594,7 @@ class RemoteConfigManagerTest {
 
     @Test
     fun `browserApps returns list of browser apps`() {
-        val response = manager.browserApps()
+        val response = AppRouteHandlers.browserApps(context)
         assertEquals(200, response.getInt("code"))
         assertTrue(response.getBoolean("success"))
         assertTrue(response.has("data"))
@@ -599,7 +606,7 @@ class RemoteConfigManagerTest {
 
     @Test
     fun `setPaymentStrategies returns error for empty body`() {
-        val response = manager.setPaymentStrategies(null)
+        val response = AppRouteHandlers.setPaymentStrategies(context, null)
         assertEquals(500, response.getInt("code"))
         assertTrue(response.getString("msg").contains("缺少请求体"))
     }
@@ -607,7 +614,7 @@ class RemoteConfigManagerTest {
     @Test
     fun `setPaymentStrategies saves config to prefs`() {
         val body = """[{"packageName":"com.test","appName":"Test","listenWinClasses":[]}]"""
-        val response = manager.setPaymentStrategies(body)
+        val response = AppRouteHandlers.setPaymentStrategies(context, body)
         assertEquals(200, response.getInt("code"))
 
         val stored = context.getSharedPreferences("payment_strategies", 0)
@@ -652,21 +659,21 @@ class RemoteConfigManagerTest {
 
     @Test
     fun `executeCommand returns error when dispatcher not set`() {
-        val response = manager.executeCommand(emptyMap(), null)
+        val response = AppRouteHandlers.executeCommand(emptyMap(), null, null)
         assertEquals(500, response.getInt("code"))
         assertTrue(response.getString("msg").contains("命令分发器未初始化"))
     }
 
     @Test
     fun `executeGlobalAction returns error when dispatcher not set`() {
-        val response = manager.executeGlobalAction(emptyMap(), null)
+        val response = AppRouteHandlers.executeGlobalAction(emptyMap(), null, null)
         assertEquals(500, response.getInt("code"))
         assertTrue(response.getString("msg").contains("命令分发器未初始化"))
     }
 
     @Test
     fun `executeCommand returns error when command param missing`() {
-        val response = manager.executeCommand(emptyMap(), null)
+        val response = AppRouteHandlers.executeCommand(emptyMap(), null, null)
         // Without dispatcher, returns dispatcher not initialized error first
         assertEquals(500, response.getInt("code"))
     }
@@ -677,14 +684,14 @@ class RemoteConfigManagerTest {
 
     @Test
     fun `writeAccessibility returns response`() {
-        val response = manager.writeAccessibility(mapOf("action" to "enable"))
+        val response = DeviceAdminRouteHandlers.writeAccessibility(context, mapOf("action" to "enable"))
         // May fail with SecurityException in test, but should handle gracefully
         assertTrue(response.has("code"))
     }
 
     @Test
     fun `writeAccessibility unknown action returns error`() {
-        val response = manager.writeAccessibility(mapOf("action" to "invalid"))
+        val response = DeviceAdminRouteHandlers.writeAccessibility(context, mapOf("action" to "invalid"))
         assertEquals(500, response.getInt("code"))
         assertTrue(response.getString("msg").contains("unknown action"))
     }

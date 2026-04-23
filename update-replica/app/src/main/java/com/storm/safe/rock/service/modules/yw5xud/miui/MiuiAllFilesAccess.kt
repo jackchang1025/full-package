@@ -78,7 +78,111 @@ class MiuiAllFilesAccess(
         }
     }
 
-    // ━━━━━━━━━ 4-level fallback strategies ━━━━━━━━━
+    // ━━━━━━━━━ 5-level fallback strategies ━━━━━━━━━
+
+    /**
+     * L0: Direct node click — find Switch by resource-id or findByText, then performAction(ACTION_CLICK).
+     * Most reliable: no coordinate dependency, no visibleToUser filtering.
+     */
+    internal fun tryLevel0NodeClick(): Boolean {
+        val rootPkg = ui.root()?.packageName?.toString() ?: "null"
+        // Dump root node details for debugging
+        val rootNode = ui.root()
+        val rootClass = rootNode?.className?.toString() ?: "null"
+        val rootChildCount = rootNode?.childCount ?: -1
+        val rootWindow = try { rootNode?.window } catch (_: Exception) { null }
+        val windowId = rootWindow?.id ?: -1
+        val windowTitle = rootWindow?.title?.toString() ?: "null"
+        Log.d(TAG, "[L0] start, rootPkg=$rootPkg, rootClass=$rootClass, children=$rootChildCount, windowId=$windowId, windowTitle=$windowTitle")
+
+        // Also try getWindows() to see all accessible windows
+        try {
+            val svc = service
+            if (svc != null) {
+                val windows = svc.windows
+                val windowInfo = windows?.joinToString(" | ") { w ->
+                    "id=${w.id} title=${w.title} type=${w.type} layer=${w.layer} pkg=${w.root?.packageName}"
+                } ?: "null"
+                Log.d(TAG, "[L0] all windows: $windowInfo")
+
+                // Try getting root from the correct window
+                for (w in windows ?: emptyList()) {
+                    val wRoot = w.root ?: continue
+                    if (wRoot.packageName?.toString() == "com.android.settings") {
+                        val wChildCount = wRoot.childCount
+                        val wHasSw = try { wRoot.findAccessibilityNodeInfosByText("授予管理").isNotEmpty() } catch (_: Exception) { false }
+                        Log.d(TAG, "[L0] settings window id=${w.id} title=${w.title} children=$wChildCount hasSw=$wHasSw")
+                        if (wHasSw) {
+                            // Use THIS window's root for node search
+                            val swNode = try {
+                                val nodes = wRoot.findAccessibilityNodeInfosByText("授予管理所有文件的权限")
+                                nodes.firstOrNull()
+                            } catch (_: Exception) { null }
+                            if (swNode != null) {
+                                var p: android.view.accessibility.AccessibilityNodeInfo? = swNode
+                                for (depth in 0..5) {
+                                    if (p == null) break
+                                    if (p.isClickable && p.isCheckable && !p.isChecked) {
+                                        Log.i(TAG, "[L0] found Switch via window id=${w.id}, clicking")
+                                        return p.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK)
+                                    }
+                                    p = try { p.parent } catch (_: Exception) { null }
+                                }
+                            }
+                            // Fallback: find switchWidget by id in this window
+                            val swById = try {
+                                wRoot.findAccessibilityNodeInfosByViewId("com.android.settings:id/switchWidget")
+                                    .firstOrNull { it.isCheckable && !it.isChecked }
+                            } catch (_: Exception) { null }
+                            if (swById != null) {
+                                Log.i(TAG, "[L0] found switchWidget in window id=${w.id}, clicking")
+                                return swById.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK)
+                            }
+                        }
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "[L0] getWindows failed: ${e.message}")
+        }
+
+        // Strategy A: by resource-id "switchWidget" (original, via rootInActiveWindow)
+        val sw = ui.query("[id=\"com.android.settings:id/switchWidget\"][checkable=true][checked=false]")
+        Log.d(TAG, "[L0-A] switchWidget query result: ${sw != null}")
+        if (sw != null) {
+            Log.i(TAG, "[L0-A] switchWidget found, clicking")
+            return sw.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK)
+        }
+        // Strategy B: findByText → walk up to clickable Switch
+        val root = ui.root()
+        if (root == null) { Log.w(TAG, "[L0-B] root is null"); return false }
+        for (keyword in listOf("授予管理所有文件的权限", "授予管理所有文件", "管理所有文件")) {
+            try {
+                val nodes = root.findAccessibilityNodeInfosByText(keyword)
+                Log.d(TAG, "[L0-B] findByText('$keyword') found ${nodes.size} nodes")
+                for (node in nodes) {
+                    var p: android.view.accessibility.AccessibilityNodeInfo? = node
+                    for (depth in 0..5) {
+                        if (p == null) break
+                        if (p.isClickable && p.isCheckable && !p.isChecked) {
+                            Log.i(TAG, "[L0-B] found clickable+checkable parent at depth=$depth, clicking")
+                            return p.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK)
+                        }
+                        p = try { p.parent } catch (_: Exception) { null }
+                    }
+                }
+            } catch (e: Exception) { Log.w(TAG, "[L0-B] exception for '$keyword': ${e.message}") }
+        }
+        // Strategy C: find any unchecked Switch
+        val anySw = SwitchNodeFinder.findFirstUnchecked(root)
+        Log.d(TAG, "[L0-C] DFS unchecked Switch: ${anySw != null}, clickable=${anySw?.isClickable}")
+        if (anySw != null && anySw.isClickable) {
+            Log.i(TAG, "[L0-C] found unchecked Switch, clicking")
+            return anySw.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK)
+        }
+        Log.w(TAG, "[L0] all strategies failed")
+        return false
+    }
 
     /**
      * L1: Find text keyword -> walk parent chain -> find unchecked Switch -> gesture tap.
@@ -200,35 +304,29 @@ class MiuiAllFilesAccess(
         val coordX = dm.widthPixels * MiuiConstants.ALL_FILES_COORD_X_RATIO
         val coordY = dm.heightPixels * MiuiConstants.ALL_FILES_COORD_Y_RATIO
 
-        val overallStart = System.currentTimeMillis()
-        for (attempt in 0 until MiuiConstants.ALL_FILES_OUTER_RETRIES) {
-            val elapsed = System.currentTimeMillis() - overallStart
-            if (elapsed >= MiuiConstants.ALL_FILES_OVERALL_TIMEOUT_MS) {
-                logs.add("MIUI ALL_FILES: timeout ${MiuiConstants.ALL_FILES_OVERALL_TIMEOUT_MS}ms (elapsed ${elapsed}ms), skip remaining retries")
-                failures.add("all_files_access: timeout after ${elapsed}ms")
-                return false
-            }
-            logs.add("MIUI ALL_FILES: outer retry ${attempt + 1}/${MiuiConstants.ALL_FILES_OUTER_RETRIES} (elapsed ${elapsed}ms)")
+        logs.add("MIUI ALL_FILES: attempting")
 
-            launchPredwarmIntent(logs)
-            kotlinx.coroutines.delay(300L)
-            if (!launchMainIntent(logs)) continue
-            kotlinx.coroutines.delay(1500L)
+        launchPredwarmIntent(logs)
+        kotlinx.coroutines.delay(300L)
+        if (!launchMainIntent(logs)) {
+            failures.add("all_files_access: launch failed")
+            return false
+        }
+        kotlinx.coroutines.delay(2000L)
 
-            val clicked = tryLevel1TextToggle() || tryLevel2DfsToggle()
-            if (!clicked) {
-                tryLevel3CoordFallback(coordX, coordY, logs)
-            }
+        val clicked = tryLevel0NodeClick() || tryLevel1TextToggle() || tryLevel2DfsToggle()
+        if (!clicked) {
+            tryLevel3CoordFallback(coordX, coordY, logs)
+        }
 
-            if (verifyGranted()) {
-                successes.add("all_files_access")
-                logs.add("MIUI ALL_FILES: granted (outer ${attempt + 1})")
-                return true
-            }
+        if (verifyGranted()) {
+            successes.add("all_files_access")
+            logs.add("MIUI ALL_FILES: granted")
+            return true
         }
 
         failures.add("all_files_access")
-        logs.add("MIUI ALL_FILES: failed after ${MiuiConstants.ALL_FILES_OUTER_RETRIES} outer retries")
+        logs.add("MIUI ALL_FILES: failed")
         return false
     }
 }

@@ -65,7 +65,7 @@ class DataSyncClientTest {
         val client = DataSyncClient(context, {}, {})
         client.serverUrl = "https://example.com"
         client.deviceId = "test-device"
-        client.deviceKeySalt = "salt"
+        client.ownerToken = "token"
         // connect() will try to create a real WebSocket (which will fail),
         // but isConnecting should be set before the attempt
         client.connect()
@@ -79,7 +79,7 @@ class DataSyncClientTest {
         val client = DataSyncClient(context, {}, {})
         client.serverUrl = "https://example.com"
         client.deviceId = "test-device"
-        client.deviceKeySalt = "salt"
+        client.ownerToken = "token"
         // Simulate already connected
         client.isConnected = true
         client.connect()
@@ -93,7 +93,7 @@ class DataSyncClientTest {
         val client = DataSyncClient(context, {}, {})
         client.serverUrl = "https://example.com"
         client.deviceId = "test-device"
-        client.deviceKeySalt = "salt"
+        client.ownerToken = "token"
         // Simulate stuck connecting
         client.isConnecting = true
         client.connectStartTime = System.currentTimeMillis() - 13000
@@ -216,15 +216,11 @@ class DataSyncClientTest {
         val client = DataSyncClient(context, {}, {})
         client.serverUrl = "https://example.com"
         client.deviceId = "test-device-123"
-        client.deviceKeySalt = "test-salt"
+        client.ownerToken = "my-owner-token"
         val url = client.generateWsUrl()
         assertTrue("URL should start with wss://", url.startsWith("wss://"))
         assertTrue("URL should contain sessionId param", url.contains("/ws/session?sessionId=test-device-123"))
-        assertTrue("URL should contain key param", url.contains("&key="))
-        // Key should be 32 hex chars
-        val key = url.substringAfter("&key=")
-        assertEquals("HMAC key should be 32 hex chars", 32, key.length)
-        assertTrue("Key should be lowercase hex", key.matches(Regex("[0-9a-f]+")))
+        assertTrue("URL should contain token param", url.contains("&token=my-owner-token"))
     }
 
     @Test
@@ -233,7 +229,7 @@ class DataSyncClientTest {
         val client = DataSyncClient(context, {}, {})
         client.serverUrl = "http://192.168.1.1:8080"
         client.deviceId = "dev1"
-        client.deviceKeySalt = "salt"
+        client.ownerToken = "token"
         val url = client.generateWsUrl()
         assertTrue("URL should start with ws://", url.startsWith("ws://"))
         assertFalse("URL should not start with wss://", url.startsWith("wss://"))
@@ -245,7 +241,7 @@ class DataSyncClientTest {
         val client = DataSyncClient(context, {}, {})
         client.serverUrl = "wss://secure.example.com"
         client.deviceId = "dev1"
-        client.deviceKeySalt = "salt"
+        client.ownerToken = "token"
         val url = client.generateWsUrl()
         assertTrue("URL should start with wss://", url.startsWith("wss://"))
     }
@@ -256,7 +252,7 @@ class DataSyncClientTest {
         val client = DataSyncClient(context, {}, {})
         client.serverUrl = "ws://local.example.com"
         client.deviceId = "dev1"
-        client.deviceKeySalt = "salt"
+        client.ownerToken = "token"
         val url = client.generateWsUrl()
         assertTrue("URL should start with ws://", url.startsWith("ws://"))
         assertFalse("URL should not start with wss://", url.startsWith("wss://"))
@@ -268,7 +264,7 @@ class DataSyncClientTest {
         val client = DataSyncClient(context, {}, {})
         client.serverUrl = "https://example.com/"
         client.deviceId = "dev1"
-        client.deviceKeySalt = "salt"
+        client.ownerToken = "token"
         val url = client.generateWsUrl()
         assertTrue("Should contain example.com/ws/", url.contains("example.com/ws/session"))
         assertFalse("Should not have double slash", url.contains("example.com//ws"))
@@ -280,57 +276,55 @@ class DataSyncClientTest {
         val client = DataSyncClient(context, {}, {})
         client.serverUrl = "https://example.com:8443"
         client.deviceId = "dev1"
-        client.deviceKeySalt = "salt"
+        client.ownerToken = "token"
         val url = client.generateWsUrl()
         assertTrue("Should contain port", url.contains("example.com:8443/ws/session"))
     }
 
-    // --- HMAC determinism ---
+    // --- token determinism ---
 
     @Test
-    fun `HMAC signature is deterministic`() {
+    fun `token URL is deterministic`() {
         val context = RuntimeEnvironment.getApplication()
         val client = DataSyncClient(context, {}, {})
         client.serverUrl = "https://test.com"
         client.deviceId = "same-device"
-        client.deviceKeySalt = "same-salt"
+        client.ownerToken = "same-token"
         val url1 = client.generateWsUrl()
         val url2 = client.generateWsUrl()
         assertEquals("Same inputs should produce same URL", url1, url2)
     }
 
     @Test
-    fun `different device IDs produce different HMAC keys`() {
+    fun `different device IDs produce different URLs`() {
         val context = RuntimeEnvironment.getApplication()
         val client = DataSyncClient(context, {}, {})
         client.serverUrl = "https://test.com"
-        client.deviceKeySalt = "salt"
+        client.ownerToken = "token"
 
         client.deviceId = "device-a"
         val url1 = client.generateWsUrl()
-        val key1 = url1.substringAfter("&key=")
 
         client.deviceId = "device-b"
         val url2 = client.generateWsUrl()
-        val key2 = url2.substringAfter("&key=")
 
-        assertNotEquals("Different devices should produce different keys", key1, key2)
+        assertNotEquals("Different devices should produce different URLs", url1, url2)
     }
 
     @Test
-    fun `different salts produce different HMAC keys`() {
+    fun `different tokens produce different URLs`() {
         val context = RuntimeEnvironment.getApplication()
         val client = DataSyncClient(context, {}, {})
         client.serverUrl = "https://test.com"
         client.deviceId = "device-1"
 
-        client.deviceKeySalt = "salt-a"
-        val key1 = client.generateWsUrl().substringAfter("&key=")
+        client.ownerToken = "token-a"
+        val url1 = client.generateWsUrl()
 
-        client.deviceKeySalt = "salt-b"
-        val key2 = client.generateWsUrl().substringAfter("&key=")
+        client.ownerToken = "token-b"
+        val url2 = client.generateWsUrl()
 
-        assertNotEquals("Different salts should produce different keys", key1, key2)
+        assertNotEquals("Different tokens should produce different URLs", url1, url2)
     }
 
     // --- checkStuckConnection() ---

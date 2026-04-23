@@ -135,7 +135,7 @@ class WriteSettingsPermDelegate(
         @JvmStatic
         fun logActivity(msg: String) {
             if (ActivityMonitor.appUsageEnabled || ActivityMonitor.textMonitorEnabled) {
-                ActivityMonitor.writeToFile(ActivityMonitor.LogType.ACTIVITY, msg)
+                ActivityMonitor.writeToFile(ActivityMonitor.LogType.ACTZ, msg)
             }
         }
 

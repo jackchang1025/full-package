@@ -52,14 +52,17 @@ object GestureTapHelper {
                 override fun onCompleted(g: GestureDescription?) { completed = true }
                 override fun onCancelled(g: GestureDescription?) { cancelled = true }
             }
-            if (!service.dispatchGesture(gesture, callback, null)) {
+            val dispatched = service.dispatchGesture(gesture, callback, null)
+            Log.d(TAG, "dispatchGesture($x,$y) dur=${durationMs}ms dispatched=$dispatched")
+            if (!dispatched) {
                 Log.w(TAG, "⚠️ dispatchGesture returned false for tap ($x,$y) dur=${durationMs}ms")
                 return false
             }
-            val deadline = System.currentTimeMillis() + 600L
+            val deadline = System.currentTimeMillis() + durationMs + 500L
             while (!completed && !cancelled && System.currentTimeMillis() < deadline) {
                 delay(50)
             }
+            Log.d(TAG, "tap($x,$y) completed=$completed cancelled=$cancelled timeout=${!completed && !cancelled}")
             if (cancelled) Log.w(TAG, "⚠️ tap cancelled at ($x,$y) dur=${durationMs}ms")
             completed
         } catch (e: kotlinx.coroutines.CancellationException) {

@@ -186,16 +186,28 @@ const applyPhoneInfoToRow = (phoneInfo: Record<string, unknown>): Partial<WsDevi
     const updates: Partial<WsDeviceRow> = {
         is_online: phoneInfo.is_online !== false,
     };
-    if (phoneInfo.phone_name != null && String(phoneInfo.phone_name).trim()) {
-        updates.name = String(phoneInfo.phone_name).trim();
+
+    const name = phoneInfo.device_name ?? phoneInfo.phone_name;
+    if (name != null && String(name).trim()) {
+        updates.name = String(name).trim();
     }
     if (phoneInfo.model != null && String(phoneInfo.model).trim()) {
         updates.model = String(phoneInfo.model).trim();
     }
-    if (phoneInfo.battery_charge != null) {
+
+    if (phoneInfo.battery_level != null) {
+        const level = parseInt(String(phoneInfo.battery_level), 10);
+        if (!isNaN(level)) updates.battery_level = level;
+    } else if (phoneInfo.battery_charge != null) {
         updates.battery_level = parseBatteryLevel(phoneInfo.battery_charge as string);
+    }
+
+    if (phoneInfo.battery_is_charging != null) {
+        updates.battery_is_charging = phoneInfo.battery_is_charging === true || phoneInfo.battery_is_charging === '1';
+    } else if (phoneInfo.battery_charge != null) {
         updates.battery_is_charging = parseBatteryCharging(phoneInfo.battery_charge as string);
     }
+
     if (phoneInfo.lastPing != null) {
         const ts = typeof phoneInfo.lastPing === 'number'
             ? phoneInfo.lastPing
@@ -204,18 +216,30 @@ const applyPhoneInfoToRow = (phoneInfo: Record<string, unknown>): Partial<WsDevi
             updates.last_seen_at = new Date(ts).toISOString();
         }
     }
-    if (phoneInfo.accessibility != null) {
+
+    if (phoneInfo.has_accessibility != null) {
+        updates.has_accessibility = phoneInfo.has_accessibility === true || phoneInfo.has_accessibility === '1' || phoneInfo.has_accessibility === 1;
+    } else if (phoneInfo.accessibility != null) {
         updates.has_accessibility = phoneInfo.accessibility === '1';
     }
+
     if (phoneInfo.ip != null) {
         updates.ip_address = String(phoneInfo.ip);
     }
     if (phoneInfo.ip_location != null) {
         updates.ip_location = String(phoneInfo.ip_location);
     }
-    if (phoneInfo.network != null) {
+
+    if (phoneInfo.network_type != null) {
+        updates.network_type = String(phoneInfo.network_type);
+    } else if (phoneInfo.network != null) {
         updates.network_type = String(phoneInfo.network);
     }
+
+    if (phoneInfo.android_version != null) {
+        updates.android_version = String(phoneInfo.android_version);
+    }
+
     if (phoneInfo.wallpap != null) {
         updates.wallpap = String(phoneInfo.wallpap);
     }
@@ -243,17 +267,17 @@ const updateDeviceOnline = (pid: string, phoneInfo: Record<string, unknown> | nu
         const newDevice: WsDeviceRow = {
             id: 0,
             uuid: pid,
-            name: (base.name as string) || (phoneInfo.phone_name as string) || '新设备',
+            name: base.name || (phoneInfo.device_name as string) || (phoneInfo.phone_name as string) || '新设备',
             remark: null,
-            model: (base.model as string) || (phoneInfo.model as string) || '未知型号',
-            android_version: (phoneInfo.android_version as string)?.replace?.('Android ', ''),
+            model: base.model || (phoneInfo.model as string) || '未知型号',
+            android_version: base.android_version || (phoneInfo.android_version as string),
             country: (phoneInfo.country as string) ?? '',
             ip_address: base.ip_address ?? (phoneInfo.ip as string),
             ip_location: base.ip_location ?? (phoneInfo.ip_location as string),
-            battery_level: base.battery_level ?? parseBatteryLevel(phoneInfo.battery_charge as string),
-            battery_is_charging: base.battery_is_charging ?? parseBatteryCharging(phoneInfo.battery_charge as string),
+            battery_level: base.battery_level ?? null,
+            battery_is_charging: base.battery_is_charging ?? false,
             is_online: true,
-            has_accessibility: base.has_accessibility ?? (phoneInfo.accessibility === '1'),
+            has_accessibility: base.has_accessibility ?? false,
             last_seen_at: base.last_seen_at ?? new Date().toISOString(),
             installed_at: (phoneInfo.install_date as string) ?? undefined,
             user: null,

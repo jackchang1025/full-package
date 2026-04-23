@@ -216,16 +216,23 @@ class GestureRecorderManager(private val service: MyAccessibilityService) {
     private fun tryEnableTouchExploration() {
         if (touchExplorationEnabled) return
         try {
-            val root = service.rootInActiveWindow ?: return
+            val root = service.rootInActiveWindow
+            if (root == null) {
+                Log.d(TAG, "tryEnableTouchExploration: root=null")
+                return
+            }
             val patternViewId = if (Build.MANUFACTURER.lowercase().let {
                     it.contains("vivo") || it.contains("iqoo") || it.contains("bbk")
                 }) "com.android.systemui:id/vivo_lock_pattern_view"
             else "com.android.systemui:id/lockPatternView"
 
             val nodes = root.findAccessibilityNodeInfosByViewId(patternViewId)
+            val found = !nodes.isNullOrEmpty()
+            val visible = found && nodes[0].isVisibleToUser
+            Log.d(TAG, "tryEnableTouchExploration: id=$patternViewId found=$found visible=$visible")
             root.recycle()
 
-            if (!nodes.isNullOrEmpty() && nodes[0].isVisibleToUser) {
+            if (visible) {
                 enableTouchExploration()
                 Log.d(TAG, "🔐 检测到图案锁视图($patternViewId)，启用触摸探索")
             }

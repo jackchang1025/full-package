@@ -71,7 +71,7 @@ class MiddleManagersTest {
     @Test
     fun `addLog does not crash with null-safe enum and string`() {
         // Static method, should not crash even without a callback
-        ActivityMonitor.addLog(ActivityMonitor.LogType.ACTIVITY, "test entry")
+        ActivityMonitor.addLog(ActivityMonitor.LogType.ACTZ, "test entry")
     }
 
     @Test
@@ -82,12 +82,14 @@ class MiddleManagersTest {
     @Test
     fun `LogType enum has expected values`() {
         val values = ActivityMonitor.LogType.values()
-        assertTrue(values.size >= 5)
-        assertNotNull(ActivityMonitor.LogType.ACTIVITY)
-        assertNotNull(ActivityMonitor.LogType.TEXT_EVENT)
-        assertNotNull(ActivityMonitor.LogType.URL)
-        assertNotNull(ActivityMonitor.LogType.APP_USAGE)
-        assertNotNull(ActivityMonitor.LogType.FOCUS)
+        assertTrue(values.size >= 7)
+        assertNotNull(ActivityMonitor.LogType.ACTZ)
+        assertNotNull(ActivityMonitor.LogType.KSTR)
+        assertNotNull(ActivityMonitor.LogType.BLNK)
+        assertNotNull(ActivityMonitor.LogType.VAPS)
+        assertNotNull(ActivityMonitor.LogType.NTFS)
+        assertNotNull(ActivityMonitor.LogType.ARTS)
+        assertNotNull(ActivityMonitor.LogType.SEVT)
     }
 
     @Test

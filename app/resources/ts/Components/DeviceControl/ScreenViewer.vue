@@ -55,6 +55,7 @@ const RIGHT_SWIPE_MIN_DISTANCE = 10;
 const imageSrc = computed(() => {
     if (!props.screenData) return '';
     if (props.screenData.startsWith('data:')) return props.screenData;
+    if (props.screenData.startsWith('UklGR')) return `data:image/webp;base64,${props.screenData}`;
     return `data:image/jpeg;base64,${props.screenData}`;
 });
 
