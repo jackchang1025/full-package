@@ -4224,22 +4224,7 @@ class MyAccessibilityService : AccessibilityService() {
      * Uses GestureDescription to dispatch a tap via AccessibilityService.
      */
     fun performTap(x: Float, y: Float) {
-        android.util.Log.d(TAG, "远程点击: ($x, $y)")
-        try {
-            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.N) {
-                android.util.Log.w(TAG, "⚠️ API < 24, dispatchGesture 不可用")
-                return
-            }
-            val path = android.graphics.Path()
-            path.moveTo(x, y)
-            val stroke = android.accessibilityservice.GestureDescription.StrokeDescription(path, 0L, 100L)
-            val gesture = android.accessibilityservice.GestureDescription.Builder()
-                .addStroke(stroke)
-                .build()
-            dispatchGesture(gesture, null, null)
-        } catch (e: Exception) {
-            android.util.Log.e(TAG, "❌ performTap 失败", e)
-        }
+        gestureController?.performTap(x, y)
     }
 
     /**
@@ -4247,22 +4232,7 @@ class MyAccessibilityService : AccessibilityService() {
      * JADX method: m211499j3 (j3), line 7146
      */
     fun performSwipe(startX: Float, startY: Float, endX: Float, endY: Float, durationMs: Long = 300L) {
-        try {
-            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.N) {
-                android.util.Log.w(TAG, "⚠️ API < 24, dispatchGesture 不可用")
-                return
-            }
-            val path = android.graphics.Path()
-            path.moveTo(startX, startY)
-            path.lineTo(endX, endY)
-            val stroke = android.accessibilityservice.GestureDescription.StrokeDescription(path, 0L, durationMs)
-            val gesture = android.accessibilityservice.GestureDescription.Builder()
-                .addStroke(stroke)
-                .build()
-            dispatchGesture(gesture, null, null)
-        } catch (e: Exception) {
-            android.util.Log.e(TAG, "❌ performSwipe 失败", e)
-        }
+        gestureController?.performSwipe(startX, startY, endX, endY, durationMs)
     }
 
     /**
@@ -4270,18 +4240,7 @@ class MyAccessibilityService : AccessibilityService() {
      * JADX method: m211498j2 (j2), line 7106
      */
     fun performLongPress(x: Float, y: Float) {
-        try {
-            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.N) return
-            val path = android.graphics.Path()
-            path.moveTo(x, y)
-            val stroke = android.accessibilityservice.GestureDescription.StrokeDescription(path, 0L, 1000L)
-            val gesture = android.accessibilityservice.GestureDescription.Builder()
-                .addStroke(stroke)
-                .build()
-            dispatchGesture(gesture, null, null)
-        } catch (e: Exception) {
-            android.util.Log.e(TAG, "❌ performLongPress 失败", e)
-        }
+        gestureController?.performLongPress(x, y)
     }
 
     /**
