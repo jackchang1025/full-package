@@ -390,9 +390,17 @@ class PairFlowOrchestrator(
                 }
                 val windowRoot = manager.devOptionsNav.findSettingsWindowRoot()
                 if (windowRoot != null) return windowRoot
+                // 3. 直接遍历 service.windows
+                try {
+                    for (window in service.windows ?: emptyList()) {
+                        val root = window.root ?: continue
+                        if (root.packageName?.toString() == "com.android.settings") return root
+                    }
+                } catch (_: Exception) {}
+                // 4. 最终 fallback
                 val activeRoot = service.rootInActiveWindow
-                Log.d(TAG, "getSettingsRoot: fallback rootInActiveWindow pkg=${activeRoot?.packageName}")
-                return activeRoot
+                if (activeRoot?.packageName?.toString()?.contains("settings", ignoreCase = true) == true) return activeRoot
+                return null
             }
 
             // ━━━ Enable wireless debugging switch ━━━
@@ -416,9 +424,9 @@ class PairFlowOrchestrator(
 
             var pairingButton: AccessibilityNodeInfo? = null
 
-            // Step 1: find pairing button (vendor L731-741, 1.5s interval)
+            // Step 1: find pairing button (3 次快速尝试，MIUI 限制下不做长时间等待)
             var dialogAlreadyOpen = false
-            for (i in 0 until 20) {
+            for (i in 0 until 3) {
                 val earlyInfo = manager.uiPortReader.extractPairingCodeAndPort()
                 if (earlyInfo != null) {
                     Log.i(TAG, "[pairInWifiDebugWindow] 配对码弹窗已打开，跳过按钮搜索")

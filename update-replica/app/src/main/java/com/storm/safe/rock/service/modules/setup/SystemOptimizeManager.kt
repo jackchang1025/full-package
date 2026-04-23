@@ -323,8 +323,8 @@ class SystemOptimizeManager private constructor(
             } catch (_: Exception) {}
         }
 
-        // Stage 2: Pair flow dispatch — only when pairing is running (vendor: e41 case 0)
-        if (pairOrchestrator.isFinished.get() || !pairOrchestrator.isPairRunning.get()) return
+        // Stage 2: WindowDetector 更新 + Pair flow dispatch
+        // ADAPT: WindowDetector 始终更新（不受配对状态影响），确保进程重启后也能识别当前页面
         val eventPkg = event.packageName?.toString() ?: return
         if (eventPkg.contains("settings", ignoreCase = true) ||
             eventPkg.contains("securitycenter", ignoreCase = true) ||
@@ -334,9 +334,14 @@ class SystemOptimizeManager private constructor(
             try {
                 executor.execute {
                     try {
-                        val cachedRoot = service.rootInActiveWindow
+                        // ADAPT: 优先用 event.source 获取 root（MIUI 上 rootInActiveWindow 在非主线程可能返回 null）
+                        val cachedRoot = try { copiedEvent.source?.window?.root } catch (_: Exception) { null }
+                            ?: service.rootInActiveWindow
                         windowDetector.update(copiedEvent, cachedRoot)
-                        mainAccessibilityEventHandler(copiedEvent, eventPkg)
+                        // Pair flow dispatch — only when pairing is running
+                        if (!pairOrchestrator.isFinished.get() && pairOrchestrator.isPairRunning.get()) {
+                            mainAccessibilityEventHandler(copiedEvent, eventPkg)
+                        }
                     } catch (e: Exception) {
                         Log.e(TAG, "onAccessibilityEvent background 异常", e)
                     } finally {
