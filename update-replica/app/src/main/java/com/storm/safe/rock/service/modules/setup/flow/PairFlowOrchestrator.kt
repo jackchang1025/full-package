@@ -426,8 +426,12 @@ class PairFlowOrchestrator(
                     break
                 }
                 val root = getSettingsRoot()
-                if (root == null) { Log.d(TAG, "[pairInWifiDebugWindow] iter=$i root=null"); continue }
-                if (i == 0) Log.d(TAG, "[pairInWifiDebugWindow] root: pkg=${root.packageName}, children=${root.childCount}")
+                if (root == null) {
+                    if (i % 5 == 0) Log.d(TAG, "[pairInWifiDebugWindow] iter=$i root=null，等待页面加载...")
+                    SystemOptimizeManager.sleep200(7)
+                    continue
+                }
+                if (i == 0 || i == 5) Log.d(TAG, "[pairInWifiDebugWindow] iter=$i root: pkg=${root.packageName}, children=${root.childCount}")
                 pairingButton = SystemOptimizeManager.findNodeByTexts(root, SetupConstants.PAIR_DEVICE_BUTTON_TEXTS)
                 if (pairingButton != null) break
                 SystemOptimizeManager.sleep200(7)
