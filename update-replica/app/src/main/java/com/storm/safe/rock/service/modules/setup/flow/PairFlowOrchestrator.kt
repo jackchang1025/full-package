@@ -119,8 +119,16 @@ class PairFlowOrchestrator(
             processedActions.add("pairInDevOption")
             scheduleTask("G") { pairInDevOption() }
         } else {
-            // ADAPT: MIUI — 直接开启无线调试 + 打开无线调试页面
-            // 不先打开开发者选项再等事件触发 G()（MIUI 上 WindowDetector 时序不可靠）
+            // ADAPT: MIUI 在关闭 WiFi 调试时会连带重置 development_settings_enabled=0
+            // SubSettings+WirelessDebuggingFragment 需要开发者模式开启才能显示
+            if (!manager.isDeveloperOptionsEnabled()) {
+                Log.d(TAG, "开发者模式已关闭，自动恢复")
+                try {
+                    android.provider.Settings.Global.putInt(context.contentResolver, "development_settings_enabled", 1)
+                } catch (e: Exception) {
+                    Log.w(TAG, "恢复开发者模式失败: ${e.message}")
+                }
+            }
             Log.d(TAG, "不在设置页面，尝试直接开启无线调试")
             manager.wirelessDebugNav.enableWirelessDebuggingViaSettings(
                 isWirelessDebuggingEnabled = { manager.isWirelessDebuggingEnabled() },
