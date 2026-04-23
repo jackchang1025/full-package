@@ -97,6 +97,17 @@ class PairFlowOrchestrator(
         pairState.set(PairState.PAIR_DEPT_UNKNOWN)
         SystemOptimizeManager.sleep200(5)
 
+        // ADAPT: 进程重启后 WindowDetector 状态为空，补充实时窗口检测
+        if (!manager.isInWifiDebugWindow() && !manager.isInDevOptionsWindow()) {
+            try {
+                val root = manager.devOptionsNav.findSettingsWindowRoot()
+                if (root != null) {
+                    manager.windowDetector.update(root.packageName?.toString(), root.className?.toString())
+                    Log.d(TAG, "实时窗口检测: pkg=${root.packageName}")
+                }
+            } catch (_: Exception) {}
+        }
+
         if (manager.isInWifiDebugWindow()) {
             Log.d(TAG, "已在无线调试页面，直接开始配对")
             SystemOptimizeManager.sleep200(5)
