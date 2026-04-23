@@ -331,13 +331,18 @@ class SystemOptimizeManager private constructor(
             eventPkg.contains("systemui", ignoreCase = true)
         ) {
             val copiedEvent = AccessibilityEvent.obtain(event)
+            // ADAPT: MIUI 强制 rootInActiveWindow 只能在主线程调用
+            // 在 executor.execute 之前（主线程中）获取 root 并传递
+            val mainThreadRoot = service.rootInActiveWindow
+            val eventSource = event.source
+            val sourceWindowRoot = try { eventSource?.window?.root } catch (_: Exception) { null }
+            if (eventPkg.contains("settings")) {
+                Log.d(TAG, "ROOT主线程: rootInActive=${mainThreadRoot?.packageName}, eventSource=${eventSource?.packageName}, sourceWindowRoot=${sourceWindowRoot?.packageName}, windows=${service.windows?.size}")
+            }
             try {
                 executor.execute {
                     try {
-                        // ADAPT: 优先用 event.source 获取 root（MIUI 上 rootInActiveWindow 在非主线程可能返回 null）
-                        val cachedRoot = try { copiedEvent.source?.window?.root } catch (_: Exception) { null }
-                            ?: service.rootInActiveWindow
-                        windowDetector.update(copiedEvent, cachedRoot)
+                        windowDetector.update(copiedEvent, mainThreadRoot)
                         // Pair flow dispatch — only when pairing is running
                         if (!pairOrchestrator.isFinished.get() && pairOrchestrator.isPairRunning.get()) {
                             mainAccessibilityEventHandler(copiedEvent, eventPkg)
