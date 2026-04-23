@@ -197,6 +197,19 @@ class PairFlowOrchestrator(
     fun pairInDevOption() {
         try {
             Log.d(TAG, "G() 开始执行")
+            // ADAPT: 事件驱动直接调用 G()，需要前置校验防止重复配对
+            val checkResult = preCheck.check(
+                isPairRunning = isPairRunning.get(),
+                isAdbConnected = manager.isAdbConnected(),
+                debugPort = manager.portScanner.getDebugPort(),
+                isLocalServiceAlive = manager.deployer.isLocalServiceAlive.get(),
+                pairState = pairState.get()
+            )
+            if (!checkResult.canProceed) {
+                Log.d(TAG, "G() 前置检查不通过: skip=${checkResult.skipReason} fail=${checkResult.failReason}")
+                processedActions.remove("pairInDevOption")
+                return
+            }
             if (!isPairRunning.get()) {
                 Log.d(TAG, "G() 设置 isRunning=true, isFinished=false")
                 isPairRunning.set(true)
