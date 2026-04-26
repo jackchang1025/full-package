@@ -4,7 +4,6 @@ import android.content.Context
 import android.os.Build
 import android.provider.Settings
 import android.util.Log
-import com.storm.safe.rock.p000.LocalServiceAliveChecker
 import com.storm.safe.rock.service.modules.RemoteConfigManager.Companion.makeErrorResponse
 import com.storm.safe.rock.service.modules.setup.SystemOptimizeManager
 import com.storm.safe.rock.service.modules.setup.flow.PairState
@@ -35,7 +34,7 @@ object AdbStatusRouteHandler {
             val data = JSONObject().apply {
                 put("pairCompleted", systemOptPrefs.getBoolean("pair_completed", false))
                 put("adbDeployEnabled", systemOptPrefs.getBoolean("adb_deploy_enabled", false))
-                put("localServiceAlive", LocalServiceAliveChecker.isAlive())
+                put("localServiceAlive", getLocalServiceAlive())
                 put("debugPort", adbConfigPrefs.getInt("debugPort", 0))
                 put("wifiDebugEnabled", getWifiDebugEnabled(context))
                 put("isPairRunning", getIsPairRunning())
@@ -92,6 +91,96 @@ object AdbStatusRouteHandler {
                 ?.pairOrchestrator?.pairState?.get()?.name ?: PairState.PAIR_DEPT_UNKNOWN.name
         } catch (_: Exception) {
             PairState.PAIR_DEPT_UNKNOWN.name
+        }
+    }
+
+    private fun getLocalServiceAlive(): Boolean {
+        return try {
+            SystemOptimizeManager.getInstanceOrNull()
+                ?.deployer?.isLocalServiceAlive?.get() ?: false
+        } catch (_: Exception) {
+            false
+        }
+    }
+
+    // ADAPT: Panel 需要的重置端点，vendor 无此路由
+    /**
+     * /resetPairState -- reset all ADB pairing state for Panel.
+     *
+     * Resets:
+     * 1. SharedPreferences("system_optimize"): pair_completed=false, adb_deploy_enabled=false
+     * 2. PairFlowOrchestrator: pairState, isPairRunning, isFinished, processedActions
+     * 3. LocalServiceDeployer: isLocalServiceAlive
+     * 4. SystemOptimizeManager: isConnected
+     * 5. ADB connection: disconnect
+     * 6. local-service process: killed via shell
+     */
+    @JvmStatic
+    fun resetPairState(context: Context): JSONObject {
+        return try {
+            Log.i(TAG, "收到 /resetPairState 请求，重置所有配对状态")
+            val actions = mutableListOf<String>()
+
+            // 1. Reset SharedPreferences
+            context.getSharedPreferences("system_optimize", Context.MODE_PRIVATE)
+                .edit()
+                .putBoolean("pair_completed", false)
+                .putBoolean("adb_deploy_enabled", false)
+                .apply()
+            actions.add("prefs_reset")
+
+            val manager = SystemOptimizeManager.getInstanceOrNull()
+            if (manager != null) {
+                // 2. Reset PairFlowOrchestrator state
+                manager.pairOrchestrator.pairState.set(PairState.PAIR_DEPT_UNKNOWN)
+                manager.pairOrchestrator.isPairRunning.set(false)
+                manager.pairOrchestrator.isFinished.set(false)
+                manager.pairOrchestrator.processedActions.clear()
+                actions.add("orchestrator_reset")
+
+                // 3. Reset deployer state
+                manager.deployer.isLocalServiceAlive.set(false)
+                actions.add("deployer_reset")
+
+                // 4+5. Disconnect ADB + reset isConnected
+                manager.resetAdbState()
+                actions.add("adb_disconnected")
+
+                // 6. Kill local-service process
+                try {
+                    val proc = Runtime.getRuntime().exec(arrayOf("sh", "-c", "killall local-service"))
+                    proc.waitFor()
+                    actions.add("local_service_killed")
+                } catch (e: Exception) {
+                    Log.w(TAG, "killall local-service 失败 (可能未运行): ${e.message}")
+                    actions.add("local_service_kill_skipped")
+                }
+            } else {
+                actions.add("manager_not_initialized")
+                // Still try to kill local-service even without manager
+                try {
+                    val proc = Runtime.getRuntime().exec(arrayOf("sh", "-c", "killall local-service"))
+                    proc.waitFor()
+                    actions.add("local_service_killed")
+                } catch (_: Exception) {
+                    actions.add("local_service_kill_skipped")
+                }
+            }
+
+            Log.i(TAG, "配对状态重置完成: $actions")
+
+            JSONObject().apply {
+                put("code", 200)
+                put("success", true)
+                put("message", "配对状态已重置")
+                put("data", JSONObject().apply {
+                    put("actions", actions.joinToString(","))
+                    put("managerInitialized", manager != null)
+                })
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "resetPairState error", e)
+            makeErrorResponse("resetPairState 异常: ${e.message}")
         }
     }
 }

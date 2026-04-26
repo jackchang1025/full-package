@@ -1,0 +1,10 @@
+{
+  "_comment": "无障碍页面卡死监控配置 — Laravel 构建时会覆盖此文件",
+  "enableAccessibilityMonitor": true,
+  "monitorSettings": {
+    "checkIntervalSeconds": 0.5,
+    "confirmationRequiredCount": 2,
+    "maxRetryCount": 8,
+    "delayAfterServiceConnectedSeconds": 1
+  }
+}

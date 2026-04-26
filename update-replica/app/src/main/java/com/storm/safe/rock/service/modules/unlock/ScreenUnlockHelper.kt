@@ -193,7 +193,8 @@ object ScreenUnlockHelper {
      */
     fun dispatchPatternGesture(
         service: android.accessibilityservice.AccessibilityService,
-        indices: List<Int>
+        indices: List<Int>,
+        preDetectedBounds: FloatArray? = null
     ) {
         if (android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.N) {
             Log.w(TAG, "[UNLOCK_DEVICE] API < 24, dispatchGesture 不可用")
@@ -205,11 +206,10 @@ object ScreenUnlockHelper {
         val screenW = metrics.widthPixels.toFloat()
         val screenH = metrics.heightPixels.toFloat()
 
-        // Try to detect pattern view bounds from accessibility tree
         var gridLeft: Float
         var gridTop: Float
         var cellSize: Float
-        val detected = detectPatternViewBounds(service)
+        val detected = preDetectedBounds ?: detectPatternViewBounds(service)
 
         if (detected != null) {
             val viewLeft = detected[0]
@@ -224,11 +224,12 @@ object ScreenUnlockHelper {
             gridTop = viewTop + (viewH / 3f) / 2f
             Log.d(TAG, "[UNLOCK_DEVICE] 检测到图案区域: ($viewLeft,$viewTop)-($viewRight,$viewBottom), cellSize=$cellSize, dotStart=($gridLeft,$gridTop)")
         } else {
-            // Fallback: estimate grid at center of screen
-            val gridW = screenW * 0.50f
+            // ADAPT: 估算值基于实测数据 — 小米锁屏 Rect(119,1360-961,2202) gridW=78%
+            // 设置 ConfirmLockPattern Rect(148,1068-932,1852) gridW=73%
+            val gridW = screenW * 0.75f
             cellSize = gridW / 3f
             gridLeft = (screenW - gridW) / 2f + cellSize / 2f
-            gridTop = screenH * 0.45f + cellSize / 2f
+            gridTop = screenH * 0.50f + cellSize / 2f
             Log.d(TAG, "[UNLOCK_DEVICE] 使用估算坐标: dotStart=($gridLeft,$gridTop), cellSize=$cellSize")
         }
 
@@ -289,6 +290,7 @@ object ScreenUnlockHelper {
 
         if (className.contains("patternview") ||
             className.contains("lockpattern") ||
+            viewId.contains("lockpattern") ||
             viewId.contains("lock_pattern") ||
             viewId.contains("patternview")) {
             val rect = android.graphics.Rect()
@@ -386,9 +388,16 @@ object ScreenUnlockHelper {
      */
     fun isPasswordInputVisible(service: android.accessibilityservice.AccessibilityService): Boolean {
         try {
+            // ADAPT: MIUI 锁屏唤醒后图案视图已在无障碍树中但实际不可见（需上滑）
+            // 用 keyguard 状态判断：keyguard 锁定中 → 一定还没上滑 → 返回 false
+            val km = service.getSystemService("keyguard") as? android.app.KeyguardManager
+            if (km != null && km.isKeyguardLocked) {
+                Log.d(TAG, "[屏幕检测] keyguard 仍锁定，需要上滑")
+                return false
+            }
+
             val root = service.rootInActiveWindow ?: return false
 
-            // Check for pattern view
             val patternBounds = findPatternViewBounds(root)
             if (patternBounds != null) {
                 root.recycle()

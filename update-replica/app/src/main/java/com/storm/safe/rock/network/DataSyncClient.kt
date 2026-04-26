@@ -98,7 +98,7 @@ open class DataSyncClient(
             }
             isConnecting = true
             connectStartTime = System.currentTimeMillis()
-            Log.i(TAG, "Connecting to: $serverUrl")
+            Log.i(TAG, "Connecting to: $serverUrl, ownerToken=${if (ownerToken.isNotEmpty()) "${ownerToken.take(10)}..." else "(EMPTY)"}, deviceId=$deviceId")
             try {
                 val wsUrl = generateWsUrl()
                 val timestamp = System.currentTimeMillis()

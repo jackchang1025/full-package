@@ -23,7 +23,7 @@ class FrpcProcessManager(private val context: Context) {
 
     private var timer: Timer? = null
     private var frpcProcess: Process? = null
-    private val isRunning = AtomicBoolean(false)
+    val isRunning = AtomicBoolean(false)
     private val deviceId = AtomicReference<String?>(null)
     private var fileObserver: FileObserver? = null
 

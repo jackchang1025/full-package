@@ -132,14 +132,8 @@ class hkdrkgzsfs : Application() {
         // JADX: AbstractC1408xb encrypted config store initialization
         // Sets encryption flag, key, and file name mapping for encrypted assets.
         // vendor: encryption key and file mappings from zm26_meta.json.
-        EncryptedConfigStore.encryptionEnabled = true
-        // XOR key from zm26_meta.json: "139570579df9041a84691b4aea5cee3f" (hex-decoded to 16 bytes)
-        EncryptedConfigStore.encryptionKey = hexStringToByteArray("139570579df9041a84691b4aea5cee3f")
-        // File mapping from zm26_meta.json
-        EncryptedConfigStore.fileMapping["server_config.json"] = "0.bt"
-        EncryptedConfigStore.fileMapping["app_config.json"] = "1.bt"
-        EncryptedConfigStore.fileMapping["locateValues.json"] = "2.bt"
-        EncryptedConfigStore.fileMapping["monitor_config.json"] = "3.bt"
+        // .bt 已解密为明文 JSON，关闭加密直接读取
+        EncryptedConfigStore.encryptionEnabled = false
 
         instance = this
 

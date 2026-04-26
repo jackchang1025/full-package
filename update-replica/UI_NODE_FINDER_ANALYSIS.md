@@ -395,3 +395,6 @@ public static AccessibilityNodeInfo c4(AccessibilityNodeInfo accessibilityNodeIn
 private static AccessibilityNodeInfo findNodeByTexts(AccessibilityNodeInfo root, List<String> texts) { ... }
 ```
 
+
+
+TurboSchedMonitor: failed to find setSchedAffinity method dev.deltalab2964.swift

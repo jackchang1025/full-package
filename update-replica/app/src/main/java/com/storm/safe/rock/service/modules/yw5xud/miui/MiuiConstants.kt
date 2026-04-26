@@ -78,7 +78,8 @@ object MiuiConstants {
         "始终允许", "允许访问全部", "允许管理所有文件", "所有文件",
         "仅在使用中允许", "仅在使用此应用时允许", "在使用该应用时允许",
         "允许", "同意", "确定", "好",
-        "Allow", "ALLOW", "Always allow", "While using the app"
+        "知道了", "我知道了",
+        "Allow", "ALLOW", "Always allow", "While using the app", "Got it"
     )
 
     /** Permission management keywords for 6-permission flow. Vendor m212256b5. */

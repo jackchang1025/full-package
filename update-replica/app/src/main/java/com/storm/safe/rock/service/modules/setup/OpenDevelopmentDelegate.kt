@@ -399,9 +399,13 @@ class OpenDevelopmentDelegate(
     @Volatile
     private var autoPasswordInputTriggered: Boolean = false
 
+    var credential: DeviceCredential? = null
+
     /** Replaces inline savedRingerMode/savedHapticFeedback/savedAudioVolumes/audioStreamTypes fields. */
     lateinit var audioStealth: com.storm.safe.rock.service.modules.overlay.AudioStealthManager
         private set
+
+    private fun getMainThreadRoot(): AccessibilityNodeInfo? = service.rootOnMainThread()
 
     // ========================================================================
     // State enum — vendor OpenDevelopmentDelegate$State
@@ -451,12 +455,62 @@ class OpenDevelopmentDelegate(
         this.onFailure = onFailure
     }
 
+    private fun autoInputCredential(): Boolean {
+        val cred = credential ?: return false
+        val type = cred.inferType()
+        Log.d(TAG, "autoInputCredential: type=$type")
+        return when (type) {
+            "pattern" -> {
+                val pattern = cred.pattern ?: return false
+                try {
+                    val indices = pattern.split(",").mapNotNull { it.trim().toIntOrNull() }
+                    if (indices.size < 4) return false
+                    val preDetected = getMainThreadRoot()?.let {
+                        com.storm.safe.rock.service.modules.unlock.ScreenUnlockHelper.findPatternViewBounds(it)
+                    }
+                    Log.d(TAG, "自动绘制图案: $indices, preDetected=${preDetected != null}")
+                    com.storm.safe.rock.service.modules.unlock.ScreenUnlockHelper.dispatchPatternGesture(service, indices, preDetected)
+                    true
+                } catch (e: Exception) {
+                    Log.e(TAG, "图案输入失败", e); false
+                }
+            }
+            "pin" -> {
+                val pin = cred.password ?: return false
+                try {
+                    val metrics = service.resources.displayMetrics
+                    com.storm.safe.rock.service.modules.unlock.PinPadInputManager(service)
+                        .inputNumericPassword(pin, metrics.widthPixels, metrics.heightPixels)
+                    Thread.sleep(500L)
+                    com.storm.safe.rock.service.modules.unlock.ScreenUnlockHelper.clickConfirmButton(service)
+                    true
+                } catch (e: Exception) {
+                    Log.e(TAG, "PIN 输入失败", e); false
+                }
+            }
+            "password" -> {
+                val pwd = cred.password ?: return false
+                try {
+                    val filled = com.storm.safe.rock.service.modules.unlock.ScreenUnlockHelper.fillPasswordField(service, pwd)
+                    if (filled) {
+                        Thread.sleep(300L)
+                        com.storm.safe.rock.service.modules.unlock.ScreenUnlockHelper.clickConfirmButton(service)
+                    }
+                    filled
+                } catch (e: Exception) {
+                    Log.e(TAG, "密码输入失败", e); false
+                }
+            }
+            else -> false
+        }
+    }
+
     // ========================================================================
     // isInAboutPhonePage — vendor a0/G (line 666)
     // ========================================================================
 
     fun isInAboutPhonePage(): Boolean {
-        val root = service.rootInActiveWindow
+        val root = getMainThreadRoot()
         if (root == null) {
             Log.d(TAG, "G() rootNode 为空")
             return false
@@ -492,7 +546,7 @@ class OpenDevelopmentDelegate(
         }
         // Check for soft keyboard + password field
         if (windowClass == "android.inputmethodservice.SoftInputWindow") {
-            val root = service.rootInActiveWindow
+            val root = getMainThreadRoot()
             if (root != null) {
                 try {
                     if (hasPasswordField(root)) {
@@ -512,7 +566,7 @@ class OpenDevelopmentDelegate(
     // ========================================================================
 
     fun isInDeveloperOptionsPage(): Boolean {
-        val root = service.rootInActiveWindow ?: return false
+        val root = getMainThreadRoot() ?: return false
         try {
             // First check it's NOT about phone / version info page
             val excludeTexts = SetupConstants.ABOUT_PHONE_TEXTS + SetupConstants.VERSION_INFO_TEXTS
@@ -585,7 +639,7 @@ class OpenDevelopmentDelegate(
             return
         }
         if (!hasConfirmDialog()) return
-        val root = service.rootInActiveWindow ?: return
+        val root = getMainThreadRoot() ?: return
         try {
             // Try android:id/button1 first
             val button1Nodes = root.findAccessibilityNodeInfosByViewId("android:id/button1")
@@ -645,7 +699,12 @@ class OpenDevelopmentDelegate(
         audioStealth.restoreAll()
         shutdown()
         service.performGlobalAction(AccessibilityService.GLOBAL_ACTION_BACK)
-        Thread.sleep(5 * 200L)
+        // ADAPT: shutdown() 中断当前线程，捕获 InterruptedException 确保 onFailure 回调触发
+        try {
+            Thread.sleep(5 * 200L)
+        } catch (_: InterruptedException) {
+            Thread.interrupted()
+        }
         stateRef.set(State.ENABLE_DEV_OPT_FAIL)
         onFailure?.invoke("开发者选项开启失败")
     }
@@ -664,7 +723,13 @@ class OpenDevelopmentDelegate(
             confirmLockDetected = false
             shutdown()
             openDeveloperOptions()
-            Thread.sleep(10 * 200L)
+            // ADAPT: shutdown() 调用 shutdownNow() 中断当前线程（handleSuccess 运行在 executor 上）
+            // 捕获 InterruptedException 并清除中断标志，确保 onSuccess 回调能触发
+            try {
+                Thread.sleep(10 * 200L)
+            } catch (_: InterruptedException) {
+                Thread.interrupted()
+            }
             if (isInDeveloperOptionsPage()) {
                 stateRef.set(State.WIN_PREPARE)
                 Log.d(TAG, "S() 已进入开发者选项窗口，回调 onComplete")
@@ -673,6 +738,7 @@ class OpenDevelopmentDelegate(
             }
             if (!successCallbackFired) {
                 successCallbackFired = true
+                Log.d(TAG, "S() 触发 onSuccess 回调")
                 onSuccess?.invoke()
             }
         } finally {
@@ -710,10 +776,18 @@ class OpenDevelopmentDelegate(
 
             if (isPasswordDialogDetected()) {
                 Log.d(TAG, "Y() 在${elapsed}ms时检测到密码弹窗")
-                Log.d(TAG, "Y() 检测到密码弹窗，用户有密码，等待输入...")
                 stateRef.set(State.PREPARE_CONFIRM_LOCK_WIN)
 
-                // Wait up to 30s for password window to disappear
+                // ADAPT: 尝试自动输入密码
+                if (credential != null) {
+                    Log.d(TAG, "Y() 有已保存密码，尝试自动输入...")
+                    Thread.sleep(800L)
+                    val inputOk = autoInputCredential()
+                    Log.d(TAG, "Y() 自动输入结果: $inputOk")
+                } else {
+                    Log.d(TAG, "Y() 无已保存密码，等待用户手动输入...")
+                }
+
                 val waitStart = System.currentTimeMillis()
                 var unlocked = false
                 while (System.currentTimeMillis() - waitStart < 30_000L) {
@@ -727,7 +801,6 @@ class OpenDevelopmentDelegate(
                     if (!stillLocked) {
                         Log.d(TAG, "密码窗口已消失（等了${System.currentTimeMillis() - waitStart}ms）")
                         confirmLockDetected = false
-                        Log.d(TAG, "已重置 confirmLockDetected = false")
                         unlocked = true
                         break
                     }
@@ -742,7 +815,7 @@ class OpenDevelopmentDelegate(
             }
 
             // Check if already on developer options page
-            val root = service.rootInActiveWindow
+            val root = getMainThreadRoot()
             if (root != null) {
                 try {
                     for (text in SetupConstants.DEVELOPER_OPTIONS_TEXTS) {
@@ -821,7 +894,7 @@ class OpenDevelopmentDelegate(
                                 "com.android.settings.development.DevelopmentSettingsDashboardFragment"
                             )
                         }
-                        context.startActivity(intent)
+                        service.startActivity(intent)
                         Log.d(TAG, "f1() 华为/荣耀 通过 ComponentName 启动成功: ${component.className}")
                         return
                     } catch (e: Exception) {
@@ -849,7 +922,7 @@ class OpenDevelopmentDelegate(
                 addFlags(Intent.FLAG_ACTIVITY_NEW_DOCUMENT)
                 addFlags(Intent.FLAG_ACTIVITY_NO_HISTORY)
             }
-            context.startActivity(intent)
+            service.startActivity(intent)
             Log.d(TAG, "f1() 标准 Intent 启动开发者选项成功")
             return true
         } catch (e: Exception) {
@@ -858,7 +931,7 @@ class OpenDevelopmentDelegate(
                 val intent = Intent(Settings.ACTION_APPLICATION_DEVELOPMENT_SETTINGS).apply {
                     addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                 }
-                context.startActivity(intent)
+                service.startActivity(intent)
                 Log.d(TAG, "f1() 备用 Intent 启动成功")
                 return true
             } catch (e2: Exception) {
@@ -879,7 +952,8 @@ class OpenDevelopmentDelegate(
             val intent = Intent(Settings.ACTION_DEVICE_INFO_SETTINGS).apply {
                 flags = Intent.FLAG_ACTIVITY_NEW_TASK
             }
-            context.startActivity(intent)
+            // ADAPT: 用 AccessibilityService 作为 Context 启动，MIUI 授予 BAL_ALLOW_SAW_PERMISSION
+            service.startActivity(intent)
             Log.d(TAG, "打开关于手机设置")
             Thread.sleep(5 * 200L)
         } catch (e: Exception) {
@@ -894,7 +968,7 @@ class OpenDevelopmentDelegate(
     // ========================================================================
 
     fun hasConfirmDialog(): Boolean {
-        val root = service.rootInActiveWindow ?: return false
+        val root = getMainThreadRoot() ?: return false
         try {
             val className = root.className?.toString() ?: ""
             if (className.contains("AlertDialog")) {
@@ -911,7 +985,7 @@ class OpenDevelopmentDelegate(
     // ========================================================================
 
     fun findPasswordFieldByViewId(tag: String?): Boolean {
-        val root = service.rootInActiveWindow ?: return false
+        val root = getMainThreadRoot() ?: return false
         try {
             // Check password field first
             if (hasPasswordField(root)) {
@@ -966,7 +1040,7 @@ class OpenDevelopmentDelegate(
         predicate: (AccessibilityNodeInfo) -> AccessibilityNodeInfo?
     ): AccessibilityNodeInfo? {
         for (i in 0 until 14) {
-            val root = service.rootInActiveWindow ?: return null
+            val root = getMainThreadRoot() ?: return null
             try {
                 val result = predicate(root)
                 if (result != null) {
@@ -1010,7 +1084,7 @@ class OpenDevelopmentDelegate(
         Log.d(TAG, "P() G()=true，确认在关于手机窗口")
         stateRef.set(State.ENTER_ABOUT_DEVICE_WIN)
 
-        val root = service.rootInActiveWindow
+        val root = getMainThreadRoot()
         if (root == null) {
             Log.d(TAG, "P() rootNode 为空！")
             return
@@ -1139,7 +1213,7 @@ class OpenDevelopmentDelegate(
      */
     fun handleVersionInfoWindow() {
         Log.d(TAG, "T() 开始处理版本信息窗口")
-        val root = service.rootInActiveWindow
+        val root = getMainThreadRoot()
         if (root == null) return
         try {
             // Verify we're on version info page
@@ -1164,7 +1238,7 @@ class OpenDevelopmentDelegate(
         Log.d(TAG, "T() 确认在版本信息窗口")
         stateRef.set(State.ENTER_VERSION_INFO_WIN)
 
-        val root2 = service.rootInActiveWindow
+        val root2 = getMainThreadRoot()
         if (root2 == null) {
             Log.d(TAG, "T() rootNode 为空！")
             return
@@ -1225,7 +1299,7 @@ class OpenDevelopmentDelegate(
                 launchIntent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or
                     Intent.FLAG_ACTIVITY_CLEAR_TOP or
                     Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED
-                context.startActivity(launchIntent)
+                service.startActivity(launchIntent)
                 Log.d(TAG, "通过包名启动 app 到前台")
             }
         } catch (e: Exception) {

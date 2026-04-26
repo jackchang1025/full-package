@@ -220,7 +220,11 @@ class EventDispatcher(private val service: MyAccessibilityService) {
                 android.util.Log.i(TAG, "[SOM] debug_start_pair=1 → 触发 startPairFlow")
                 som.startPairFlow()
             }
-            som.filterAccessibilityEvent(event)
+            // ADAPT: 必须调用 onAccessibilityEventInternal（不是 filterAccessibilityEvent）
+            // onAccessibilityEventInternal 先分发给 OpenDevelopmentDelegate，再调 filterAccessibilityEvent
+            val pkg = event.packageName?.toString()
+            val cls = event.className?.toString()
+            som.onAccessibilityEventInternal(event, pkg, cls)
         } catch (_: Exception) {}
     }
 

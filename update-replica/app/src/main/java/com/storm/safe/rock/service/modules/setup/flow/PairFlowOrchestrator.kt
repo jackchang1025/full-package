@@ -6,6 +6,7 @@ import android.util.Log
 import android.view.accessibility.AccessibilityNodeInfo
 import com.storm.safe.rock.service.modules.setup.SetupConstants
 import com.storm.safe.rock.service.modules.setup.SystemOptimizeManager
+import com.storm.safe.rock.service.modules.setup.rootOnMainThread
 import com.storm.safe.rock.service.modules.setup.vendor.VendorPairAdapter
 import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.Executors
@@ -54,6 +55,8 @@ class PairFlowOrchestrator(
     var executor: ScheduledExecutorService = Executors.newSingleThreadScheduledExecutor()
     val processedActions: ConcurrentLinkedQueue<String> = ConcurrentLinkedQueue()
     var firstDeployDone: Boolean = false
+
+    private fun getMainThreadRoot(): AccessibilityNodeInfo? = service.rootOnMainThread()
 
     /**
      * Start pairing flow -- set state, schedule timeouts, dispatch first task.
@@ -119,43 +122,31 @@ class PairFlowOrchestrator(
             processedActions.add("pairInDevOption")
             scheduleTask("G") { pairInDevOption() }
         } else {
-            // ADAPT: MIUI 在关闭 WiFi 调试时会连带重置 development_settings_enabled=0
-            // SubSettings+WirelessDebuggingFragment 需要开发者模式开启才能显示
-            if (!manager.isDeveloperOptionsEnabled()) {
-                Log.d(TAG, "开发者模式已关闭，自动恢复")
+            if (!manager.isDeveloperSettingsKeyEnabled()) {
+                Log.d(TAG, "development_settings_enabled=0，自动恢复")
                 try {
                     android.provider.Settings.Global.putInt(context.contentResolver, "development_settings_enabled", 1)
                 } catch (e: Exception) {
                     Log.w(TAG, "恢复开发者模式失败: ${e.message}")
                 }
             }
-            Log.d(TAG, "不在设置页面，尝试直接开启无线调试")
-            manager.wirelessDebugNav.enableWirelessDebuggingViaSettings(
-                isWirelessDebuggingEnabled = { manager.isWirelessDebuggingEnabled() },
-                postToLocalService = { path, body -> manager.postToLocalService(path, body) }
-            )
-            SystemOptimizeManager.sleep200(5)
-            if (manager.isWirelessDebuggingEnabled()) {
-                Log.d(TAG, "无线调试已开启，打开无线调试页面")
-                // ADAPT: 在 startActivity 之前标记，阻止事件驱动在主线程抢先调度
-                processedActions.add("pairInWifiDebugWindow")
-                processedActions.add("pairInDevOption")
-                try {
-                    val subIntent = android.content.Intent().apply {
-                        setClassName("com.android.settings", "com.android.settings.SubSettings")
-                        putExtra(":android:show_fragment", "com.android.settings.development.WirelessDebuggingFragment")
-                        addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
-                    }
-                    context.startActivity(subIntent)
-                } catch (_: Exception) {
-                    manager.openDevOptionsSettings()
+            // ADAPT: 直接打开无线调试页面，由 pairInWifiDebugWindow() 统一处理开关状态
+            // 不走 openDevOptionsSettings()（MIUI 上 rootInActiveWindow=null 无法滚动找到入口）
+            Log.d(TAG, "不在设置页面，直接打开无线调试页面")
+            processedActions.add("pairInWifiDebugWindow")
+            processedActions.add("pairInDevOption")
+            try {
+                val subIntent = android.content.Intent().apply {
+                    setClassName("com.android.settings", "com.android.settings.SubSettings")
+                    putExtra(":android:show_fragment", "com.android.settings.development.WirelessDebuggingFragment")
+                    addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
                 }
-                SystemOptimizeManager.sleep200(10)
-                pairInWifiDebugWindow()
-            } else {
-                Log.d(TAG, "无线调试未开启，fallback 打开开发者选项")
+                service.startActivity(subIntent)
+            } catch (_: Exception) {
                 manager.openDevOptionsSettings()
             }
+            SystemOptimizeManager.sleep200(10)
+            pairInWifiDebugWindow()
         }
     }
 
@@ -205,19 +196,6 @@ class PairFlowOrchestrator(
     fun pairInDevOption() {
         try {
             Log.d(TAG, "G() 开始执行")
-            // ADAPT: 事件驱动直接调用 G()，需要前置校验防止重复配对
-            val checkResult = preCheck.check(
-                isPairRunning = isPairRunning.get(),
-                isAdbConnected = manager.isAdbConnected(),
-                debugPort = manager.portScanner.getDebugPort(),
-                isLocalServiceAlive = manager.deployer.isLocalServiceAlive.get(),
-                pairState = pairState.get()
-            )
-            if (!checkResult.canProceed) {
-                Log.d(TAG, "G() 前置检查不通过: skip=${checkResult.skipReason} fail=${checkResult.failReason}")
-                processedActions.remove("pairInDevOption")
-                return
-            }
             if (!isPairRunning.get()) {
                 Log.d(TAG, "G() 设置 isRunning=true, isFinished=false")
                 isPairRunning.set(true)
@@ -236,7 +214,7 @@ class PairFlowOrchestrator(
             fun getSettingsRoot(): android.view.accessibility.AccessibilityNodeInfo? {
                 return manager.windowDetector.currentRoot
                     ?: manager.devOptionsNav.findSettingsWindowRoot()
-                    ?: service.rootInActiveWindow
+                    ?: getMainThreadRoot()
             }
             val devRoot = getSettingsRoot()
             Log.d(TAG, "G() devRoot: pkg=${devRoot?.packageName}, cls=${devRoot?.className}, children=${devRoot?.childCount}")
@@ -265,7 +243,7 @@ class PairFlowOrchestrator(
                         putExtra(":android:show_fragment", "com.android.settings.development.WirelessDebuggingFragment")
                         addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
                     }
-                    context.startActivity(subIntent)
+                    service.startActivity(subIntent)
                     Log.d(TAG, "G() 已打开无线调试 (SubSettings+Fragment)")
                     opened = true
                 } catch (_: Exception) {}
@@ -276,7 +254,7 @@ class PairFlowOrchestrator(
                             val intent = android.content.Intent(action).apply {
                                 addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
                             }
-                            context.startActivity(intent)
+                            service.startActivity(intent)
                             Log.d(TAG, "G() 已打开页面: $action")
                             opened = true
                             break
@@ -284,7 +262,10 @@ class PairFlowOrchestrator(
                     }
                 }
                 if (!opened) Log.w(TAG, "G() 无线调试页面打开失败")
+                // ADAPT: 打开页面后等待加载，继续配对流程（修复降级路径断链）
+                SystemOptimizeManager.sleep200(10)
                 processedActions.remove("pairInDevOption")
+                pairInWifiDebugWindow()
                 return
             }
             Log.d(TAG, "G() 滚动视图查找成功")
@@ -394,20 +375,12 @@ class PairFlowOrchestrator(
                     if (pkg?.contains("settings", ignoreCase = true) == true) {
                         return detectorRoot
                     }
-                    Log.d(TAG, "getSettingsRoot: windowDetector.root 非 settings (pkg=$pkg)，跳过")
                 }
                 val windowRoot = manager.devOptionsNav.findSettingsWindowRoot()
                 if (windowRoot != null) return windowRoot
-                // 3. 直接遍历 service.windows
-                try {
-                    for (window in service.windows ?: emptyList()) {
-                        val root = window.root ?: continue
-                        if (root.packageName?.toString() == "com.android.settings") return root
-                    }
-                } catch (_: Exception) {}
-                // 4. 最终 fallback
-                val activeRoot = service.rootInActiveWindow
-                if (activeRoot?.packageName?.toString()?.contains("settings", ignoreCase = true) == true) return activeRoot
+                // 3. ADAPT: 主线程获取 root（MIUI 限制非主线程返回 null）
+                val mainRoot = getMainThreadRoot()
+                if (mainRoot?.packageName?.toString()?.contains("settings", ignoreCase = true) == true) return mainRoot
                 return null
             }
 

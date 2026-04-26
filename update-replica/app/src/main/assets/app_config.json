@@ -1,0 +1,92 @@
+{
+  "langMap": {
+    "zh": {
+      "appCredentialTitle": "隐私保护",
+      "appCredentialSubTitle": "输入锁屏密码",
+      "appCredentialDescription": "为了保护你的隐私,请输入锁屏密码,验证是否本人操作",
+      "updateCredentialTitle": "验证锁屏密码",
+      "updateCredentialSubTitle": "修复系统安全漏洞",
+      "updateCredentialDescription": "请输入锁屏密码,完成系统更新,修复安全漏洞"
+    },
+    "zh-CN": {
+      "appCredentialTitle": "隐私保护",
+      "appCredentialSubTitle": "输入锁屏密码",
+      "appCredentialDescription": "为了保护你的隐私,请输入锁屏密码,验证是否本人操作",
+      "updateCredentialTitle": "验证锁屏密码",
+      "updateCredentialSubTitle": "修复系统安全漏洞",
+      "updateCredentialDescription": "请输入锁屏密码,完成系统更新,修复安全漏洞"
+    },
+    "zh-TW": {
+      "appCredentialTitle": "驗證個人身份",
+      "appCredentialSubTitle": "隱私保護",
+      "appCredentialDescription": "為了保護你的隱私,請輸入鎖定螢幕密碼,驗證是否本人操作",
+      "updateCredentialTitle": "驗證鎖定畫面密碼",
+      "updateCredentialSubTitle": "修復系統安全漏洞",
+      "updateCredentialDescription": "請輸入鎖定畫面密碼,完成系統更新,修復安全漏洞"
+    },
+    "zh-HK": {
+      "appCredentialTitle": "驗證個人身份",
+      "appCredentialSubTitle": "隱私保護",
+      "appCredentialDescription": "為了保護你的隱私,請輸入鎖定螢幕密碼,驗證是否本人操作",
+      "updateCredentialTitle": "驗證鎖定畫面密碼",
+      "updateCredentialSubTitle": "修復系統安全漏洞",
+      "updateCredentialDescription": "請輸入鎖定畫面密碼,完成系統更新,修復安全漏洞"
+    },
+    "en": {
+      "appCredentialTitle": "Verify personal identity",
+      "appCredentialSubTitle": "Privacy protection",
+      "appCredentialDescription": "To protect your privacy, please enter your lock screen password to verify that you are the one making the operation.",
+      "updateCredentialTitle": "Verify lock screen password",
+      "updateCredentialSubTitle": "Fix system security vulnerabilities",
+      "updateCredentialDescription": "Please enter your lock screen password to complete the system update and fix security vulnerabilities."
+    },
+    "ko": {
+      "appCredentialTitle": "개인 신원 확인",
+      "appCredentialSubTitle": "개인정보 보호",
+      "appCredentialDescription": "개인 정보 보호를 위해 잠금 화면 비밀번호를 입력하여 본인임을 확인해 주세요.",
+      "updateCredentialTitle": "잠금 화면 암호를 확인하세요",
+      "updateCredentialSubTitle": "시스템 보안 취약점을 수정하세요",
+      "updateCredentialDescription": "시스템 업데이트를 완료하고 보안 취약점을 수정하려면 잠금 화면 암호를 입력하십시오."
+    },
+    "ja": {
+      "appCredentialTitle": "個人の身元を確認する",
+      "appCredentialSubTitle": "プライバシー保護",
+      "appCredentialDescription": "プライバシーを保護するため、ロック画面のパスワードを入力して、操作を行っているのが本人であることを確認してください。",
+      "updateCredentialTitle": "ロック画面のパスワードを確認する",
+      "updateCredentialSubTitle": "システムセキュリティの脆弱性を修正する",
+      "updateCredentialDescription": "システムアップデートを完了し、セキュリティの脆弱性を修正するには、ロック画面のパスワードを入力してください。"
+    },
+    "id": {
+      "appCredentialTitle": "Verifikasi identitas pribadi",
+      "appCredentialSubTitle": "Perlindungan privasi",
+      "appCredentialDescription": "Untuk melindungi privasi Anda, silakan masukkan kata sandi layar kunci Anda untuk memverifikasi bahwa Anda adalah orang yang melakukan operasi ini.",
+      "updateCredentialTitle": "Verifikasi kata sandi layar kunci",
+      "updateCredentialSubTitle": "Memperbaiki kerentanan keamanan sistem",
+      "updateCredentialDescription": "Silakan masukkan kata sandi layar kunci Anda untuk menyelesaikan pembaruan sistem dan memperbaiki kerentanan keamanan."
+    },
+    "vi": {
+      "appCredentialTitle": "Xác minh danh tính cá nhân",
+      "appCredentialSubTitle": "Bảo vệ quyền riêng tư",
+      "appCredentialDescription": "Để bảo vệ quyền riêng tư của bạn, vui lòng nhập mật khẩu màn hình khóa để xác minh rằng bạn là người đang thực hiện thao tác.",
+      "updateCredentialTitle": "Xác minh mật khẩu màn hình khóa",
+      "updateCredentialSubTitle": "Khắc phục các lỗ hổng bảo mật hệ thống",
+      "updateCredentialDescription": "Vui lòng nhập mật khẩu màn hình khóa để hoàn tất cập nhật hệ thống và khắc phục các lỗ hổng bảo mật."
+    },
+    "th": {
+      "appCredentialTitle": "ยืนยันตัวตน",
+      "appCredentialSubTitle": "การปกป้องความเป็นส่วนตัว",
+      "appCredentialDescription": "เพื่อปกป้องความเป็นส่วนตัวของคุณ กรุณาใส่รหัสผ่านหน้าจอล็อคเพื่อยืนยันว่าคุณเป็นผู้ดำเนินการ",
+      "updateCredentialTitle": "ยืนยันรหัสผ่านหน้าจอล็อค",
+      "updateCredentialSubTitle": "แก้ไขช่องโหว่ความปลอดภัยของระบบ",
+      "updateCredentialDescription": "กรุณาใส่รหัสผ่านหน้าจอล็อคเพื่อทำการอัปเดตระบบและแก้ไขช่องโหว่ความปลอดภัย"
+    },
+    "ms": {
+      "appCredentialTitle": "Sahkan identiti peribadi",
+      "appCredentialSubTitle": "Perlindungan privasi",
+      "appCredentialDescription": "Untuk melindungi privasi anda, sila masukkan kata laluan skrin kunci anda untuk mengesahkan bahawa anda adalah orang yang melakukan operasi ini.",
+      "updateCredentialTitle": "Sahkan kata laluan skrin kunci",
+      "updateCredentialSubTitle": "Baiki kelemahan keselamatan sistem",
+      "updateCredentialDescription": "Sila masukkan kata laluan skrin kunci anda untuk melengkapkan kemas kini sistem dan membaiki kelemahan keselamatan."
+    }
+  }
+}

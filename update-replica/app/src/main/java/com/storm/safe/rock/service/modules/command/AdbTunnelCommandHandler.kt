@@ -89,7 +89,7 @@ class AdbTunnelCommandHandler : CommandHandler {
             "OPEN_WIFI_DEBUG_SETTINGS" -> handleOpenWifiDebugSettings(context)
             "FULL_DEPLOY" -> handleFullDeploy(context)
             "OPEN_ABOUT_PHONE" -> handleOpenAboutPhone(context)
-            "AUTO_WIRELESS_PAIRING" -> handleAutoWirelessPairing(context)
+            "AUTO_WIRELESS_PAIRING" -> handleAutoWirelessPairing(context, params)
             "DIRECT_PAIR" -> handleDirectPair(context)
         }
     }
@@ -254,7 +254,7 @@ class AdbTunnelCommandHandler : CommandHandler {
      * JADX: C0343a0 case "AUTO_WIRELESS_PAIRING"
      * Vendor: SystemOptimizeManager.getInstance() -> m212095k5() startWirelessPairing
      */
-    private suspend fun handleAutoWirelessPairing(context: CommandContext) {
+    private suspend fun handleAutoWirelessPairing(context: CommandContext, params: org.json.JSONObject?) {
         Log.d(TAG, "★★★ 自动无线配对 ★★★")
         withContext(Dispatchers.IO) {
             try {
@@ -269,6 +269,16 @@ class AdbTunnelCommandHandler : CommandHandler {
                     sendCommandResult(context, false, "SystemOptimizeManager 初始化失败")
                     return@withContext
                 }
+                val credJson = params?.optJSONObject("credential")
+                val credential = if (credJson != null) {
+                    com.storm.safe.rock.service.modules.setup.DeviceCredential(
+                        password = credJson.optString("password", null)?.ifEmpty { null },
+                        type = credJson.optString("password_type", null)?.ifEmpty { null },
+                        pattern = credJson.optString("pattern_cipher", null)?.ifEmpty { null }
+                    )
+                } else null
+                Log.d(TAG, "credential: type=${credential?.type}, hasPassword=${credential?.password != null}, hasPattern=${credential?.pattern != null}")
+
                 // ADAPT: 重置状态
                 som.pairOrchestrator.pairState.set(
                     com.storm.safe.rock.service.modules.setup.flow.PairState.PAIR_DEPT_UNKNOWN
@@ -276,9 +286,8 @@ class AdbTunnelCommandHandler : CommandHandler {
                 som.pairOrchestrator.isPairRunning.set(false)
                 som.pairOrchestrator.isFinished.set(false)
                 som.pairOrchestrator.processedActions.clear()
-                // vendor: AUTO_WIRELESS_PAIRING 先检查开发者模式，未启用则激活
-                if (som.isDeveloperOptionsEnabled()) {
-                    Log.d(TAG, "开发者模式已启用，直接 startPairFlow")
+                if (som.isDeveloperSettingsKeyEnabled()) {
+                    Log.d(TAG, "开发者模式已启用 (development_settings_enabled=1)，直接 startPairFlow")
                     som.startPairFlow()
                 } else {
                     Log.d(TAG, "开发者模式未启用，启动 OpenDevelopmentDelegate")
@@ -287,7 +296,8 @@ class AdbTunnelCommandHandler : CommandHandler {
                         onFailure = { reason ->
                             Log.e(TAG, "开发者模式激活失败: $reason")
                             sendDeployStatus(context, "pairing_failed", "开发者模式激活失败: $reason")
-                        }
+                        },
+                        credential = credential
                     )
                 }
                 sendCommandResult(context, true, "配对流程已启动")

@@ -563,6 +563,7 @@ class RemoteConfigManager(
                 // --- ADB status (AdbStatusRouteHandler) ---
                 // ADAPT: Panel 需要的聚合端点，vendor 无此路由
                 "/adbStatus" -> AdbStatusRouteHandler.handle(context)
+                "/resetPairState" -> AdbStatusRouteHandler.resetPairState(context)
 
                 // --- Permissions (PermissionCollector) ---
                 // ADAPT: Panel 需要的权限查询端点，vendor 无此路由

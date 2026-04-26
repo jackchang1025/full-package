@@ -1,0 +1,882 @@
+{
+  "version": "2.0.0",
+  "description": "多语言/多品牌 UI 文本配置 - 用于自动化查找界面元素（36语言覆盖）",
+  "languages": {
+    "zh-CN": {
+      "BUILD_VERSION_TEXT": "版本号",
+      "BUILD_NUMBER_TEXT": "编译号",
+      "OS_VERSION_TEXT": "系统版本",
+      "OS_VERSION_INFO_TEXT": "版本信息",
+      "SOFTWARE_INFO_TEXT": "软件信息",
+      "ABOUT_PHONE_TEXT": "关于手机",
+      "ABOUT_DEVICE_TEXT": "关于本机",
+      "DEVELOPER_OPTIONS_TEXT": "开发者选项",
+      "DEVELOPER_MODE_TEXT": "开发者模式",
+      "USB_DEBUGGING_TEXT": "USB调试",
+      "WIRELESS_DEBUGGING_TEXT": "无线调试",
+      "PAIR_DEVICE_BY_CODE_TEXT": "使用配对码配对设备",
+      "PAIR_DEVICE_USE_PAIR_CODE_TEXT": "使用配对码配对",
+      "PAIR_SECURITY_OPENING_TEXT": "安全设置",
+      "PAIR_NEXT_TEXT": "下一步",
+      "PAIR_DISABLE_ADB_WITH_AUTH_TIMEOUT_TEXT": "撤销USB调试授权",
+      "PAIR_FAILED_TEXT": "配对失败",
+      "CONFIRM_YOUR_TEXT": "确认您的",
+      "ENTER_PIN_TEXT": "输入PIN",
+      "DRAW_PATTERN_TEXT": "绘制图案",
+      "OK_TEXT": "确定",
+      "CANCEL_TEXT": "取消",
+      "ENABLE_TEXT": "启用",
+      "DISABLE_TEXT": "禁用",
+      "ALLOW_TEXT": "允许",
+      "DENY_TEXT": "拒绝",
+      "INSTALL_TEXT": "安装",
+      "UNINSTALL_TEXT": "卸载",
+      "DONE_TEXT": "完成",
+      "NEXT_TEXT": "下一步",
+      "BACK_TEXT": "返回",
+      "SETTINGS_TEXT": "设置",
+      "ACCESSIBILITY_TEXT": "无障碍",
+      "ACCESSIBILITY_SERVICE_TEXT": "无障碍服务",
+      "BATTERY_OPTIMIZATION_TEXT": "电池优化",
+      "IGNORE_BATTERY_OPTIMIZATION_TEXT": "忽略电池优化",
+      "PERMISSION_TEXT": "权限",
+      "USB_INSTALL_TEXT": "USB安装",
+      "DISABLE_PERMISSION_MONITOR_TEXT": "禁用权限监控",
+      "DELETE_TEXT": "删除",
+      "MIUI_VERSION_TEXT": "MIUI版本",
+      "HYPER_OS_VERSION_TEXT": "HyperOS版本",
+      "COLORS_BUILD_NUMBER_TEXT": "ColorOS版本",
+      "VIVO_OS_SOFTWARE_VERSION_TEXT": "软件版本号",
+      "VIVO_OS_VERSION_INFO_TEXT": "更多信息",
+      "HARMONY_OS_VERSION_TEXT": "HarmonyOS版本"
+    },
+    "zh-TW": {
+      "BUILD_VERSION_TEXT": "版本號",
+      "BUILD_NUMBER_TEXT": "編譯號",
+      "OS_VERSION_TEXT": "系統版本",
+      "OS_VERSION_INFO_TEXT": "版本資訊",
+      "SOFTWARE_INFO_TEXT": "軟體資訊",
+      "ABOUT_PHONE_TEXT": "關於手機",
+      "ABOUT_DEVICE_TEXT": "關於本機",
+      "DEVELOPER_OPTIONS_TEXT": "開發者選項",
+      "DEVELOPER_MODE_TEXT": "開發人員模式",
+      "USB_DEBUGGING_TEXT": "USB偵錯",
+      "WIRELESS_DEBUGGING_TEXT": "無線偵錯",
+      "PAIR_DEVICE_BY_CODE_TEXT": "使用配對碼配對裝置",
+      "OK_TEXT": "確定",
+      "CANCEL_TEXT": "取消",
+      "ENABLE_TEXT": "啟用",
+      "DISABLE_TEXT": "停用",
+      "ALLOW_TEXT": "允許",
+      "DENY_TEXT": "拒絕",
+      "SETTINGS_TEXT": "設定",
+      "ACCESSIBILITY_TEXT": "無障礙",
+      "DELETE_TEXT": "刪除"
+    },
+    "en": {
+      "BUILD_VERSION_TEXT": "Build number",
+      "BUILD_NUMBER_TEXT": "Build number",
+      "OS_VERSION_TEXT": "Android version",
+      "OS_VERSION_INFO_TEXT": "Software information",
+      "SOFTWARE_INFO_TEXT": "Software info",
+      "ABOUT_PHONE_TEXT": "About phone",
+      "ABOUT_DEVICE_TEXT": "About device",
+      "DEVELOPER_OPTIONS_TEXT": "Developer options",
+      "DEVELOPER_MODE_TEXT": "Developer mode",
+      "USB_DEBUGGING_TEXT": "USB debugging",
+      "WIRELESS_DEBUGGING_TEXT": "Wireless debugging",
+      "PAIR_DEVICE_BY_CODE_TEXT": "Pair device with pairing code",
+      "PAIR_DEVICE_USE_PAIR_CODE_TEXT": "Pair with pairing code",
+      "PAIR_NEXT_TEXT": "Next",
+      "PAIR_FAILED_TEXT": "Pairing failed",
+      "CONFIRM_YOUR_TEXT": "Confirm your",
+      "ENTER_PIN_TEXT": "Enter PIN",
+      "DRAW_PATTERN_TEXT": "Draw pattern",
+      "OK_TEXT": "OK",
+      "CANCEL_TEXT": "Cancel",
+      "ENABLE_TEXT": "Enable",
+      "DISABLE_TEXT": "Disable",
+      "ALLOW_TEXT": "Allow",
+      "DENY_TEXT": "Deny",
+      "INSTALL_TEXT": "Install",
+      "UNINSTALL_TEXT": "Uninstall",
+      "DONE_TEXT": "Done",
+      "SETTINGS_TEXT": "Settings",
+      "ACCESSIBILITY_TEXT": "Accessibility",
+      "BATTERY_OPTIMIZATION_TEXT": "Battery optimization",
+      "USB_INSTALL_TEXT": "Install via USB",
+      "DELETE_TEXT": "Delete",
+      "MIUI_VERSION_TEXT": "MIUI version",
+      "HYPER_OS_VERSION_TEXT": "HyperOS version",
+      "COLORS_BUILD_NUMBER_TEXT": "ColorOS version",
+      "VIVO_OS_SOFTWARE_VERSION_TEXT": "Software version",
+      "VIVO_OS_VERSION_INFO_TEXT": "More info",
+      "HARMONY_OS_VERSION_TEXT": "HarmonyOS version"
+    },
+    "ja": {
+      "BUILD_VERSION_TEXT": "ビルド番号",
+      "BUILD_NUMBER_TEXT": "ビルド番号",
+      "OS_VERSION_TEXT": "Androidバージョン",
+      "OS_VERSION_INFO_TEXT": "ソフトウェア情報",
+      "SOFTWARE_INFO_TEXT": "ソフトウェア情報",
+      "ABOUT_PHONE_TEXT": "端末情報",
+      "ABOUT_DEVICE_TEXT": "デバイス情報",
+      "DEVELOPER_OPTIONS_TEXT": "開発者向けオプション",
+      "USB_DEBUGGING_TEXT": "USBデバッグ",
+      "WIRELESS_DEBUGGING_TEXT": "ワイヤレスデバッグ",
+      "PAIR_DEVICE_BY_CODE_TEXT": "ペア設定コードによるデバイスのペア設定",
+      "OK_TEXT": "OK",
+      "CANCEL_TEXT": "キャンセル",
+      "ALLOW_TEXT": "許可",
+      "DENY_TEXT": "拒否",
+      "SETTINGS_TEXT": "設定",
+      "ACCESSIBILITY_TEXT": "ユーザー補助",
+      "DELETE_TEXT": "削除"
+    },
+    "ko": {
+      "BUILD_VERSION_TEXT": "빌드 번호",
+      "BUILD_NUMBER_TEXT": "빌드 번호",
+      "OS_VERSION_TEXT": "Android 버전",
+      "OS_VERSION_INFO_TEXT": "소프트웨어 정보",
+      "SOFTWARE_INFO_TEXT": "소프트웨어 정보",
+      "ABOUT_PHONE_TEXT": "휴대전화 정보",
+      "ABOUT_DEVICE_TEXT": "디바이스 정보",
+      "DEVELOPER_OPTIONS_TEXT": "개발자 옵션",
+      "USB_DEBUGGING_TEXT": "USB 디버깅",
+      "WIRELESS_DEBUGGING_TEXT": "무선 디버깅",
+      "PAIR_DEVICE_BY_CODE_TEXT": "페어링 코드로 기기 페어링",
+      "OK_TEXT": "확인",
+      "CANCEL_TEXT": "취소",
+      "ALLOW_TEXT": "허용",
+      "DENY_TEXT": "거부",
+      "SETTINGS_TEXT": "설정",
+      "ACCESSIBILITY_TEXT": "접근성",
+      "DELETE_TEXT": "삭제"
+    },
+    "vi": {
+      "BUILD_VERSION_TEXT": "Số bản dựng",
+      "BUILD_NUMBER_TEXT": "Số bản dựng",
+      "OS_VERSION_TEXT": "Phiên bản Android",
+      "OS_VERSION_INFO_TEXT": "Thông tin phần mềm",
+      "ABOUT_PHONE_TEXT": "Giới thiệu về điện thoại",
+      "DEVELOPER_OPTIONS_TEXT": "Tùy chọn nhà phát triển",
+      "USB_DEBUGGING_TEXT": "Gỡ lỗi USB",
+      "WIRELESS_DEBUGGING_TEXT": "Gỡ lỗi không dây",
+      "OK_TEXT": "OK",
+      "CANCEL_TEXT": "Hủy",
+      "ALLOW_TEXT": "Cho phép",
+      "SETTINGS_TEXT": "Cài đặt",
+      "ACCESSIBILITY_TEXT": "Hỗ trợ tiếp cận",
+      "DELETE_TEXT": "Xóa"
+    },
+    "th": {
+      "BUILD_VERSION_TEXT": "หมายเลขบิลด์",
+      "BUILD_NUMBER_TEXT": "หมายเลขบิลด์",
+      "OS_VERSION_TEXT": "เวอร์ชัน Android",
+      "OS_VERSION_INFO_TEXT": "ข้อมูลซอฟต์แวร์",
+      "ABOUT_PHONE_TEXT": "เกี่ยวกับโทรศัพท์",
+      "DEVELOPER_OPTIONS_TEXT": "ตัวเลือกสำหรับนักพัฒนา",
+      "USB_DEBUGGING_TEXT": "การแก้ไขข้อบกพร่อง USB",
+      "WIRELESS_DEBUGGING_TEXT": "การแก้ไขข้อบกพร่องแบบไร้สาย",
+      "OK_TEXT": "ตกลง",
+      "CANCEL_TEXT": "ยกเลิก",
+      "ALLOW_TEXT": "อนุญาต",
+      "SETTINGS_TEXT": "การตั้งค่า",
+      "ACCESSIBILITY_TEXT": "การเข้าถึง",
+      "DELETE_TEXT": "ลบ"
+    },
+    "id": {
+      "BUILD_VERSION_TEXT": "Nomor build",
+      "BUILD_NUMBER_TEXT": "Nomor build",
+      "OS_VERSION_TEXT": "Versi Android",
+      "OS_VERSION_INFO_TEXT": "Informasi perangkat lunak",
+      "ABOUT_PHONE_TEXT": "Tentang ponsel",
+      "DEVELOPER_OPTIONS_TEXT": "Opsi developer",
+      "USB_DEBUGGING_TEXT": "Debugging USB",
+      "WIRELESS_DEBUGGING_TEXT": "Debugging nirkabel",
+      "OK_TEXT": "OK",
+      "CANCEL_TEXT": "Batal",
+      "ALLOW_TEXT": "Izinkan",
+      "SETTINGS_TEXT": "Setelan",
+      "ACCESSIBILITY_TEXT": "Aksesibilitas",
+      "DELETE_TEXT": "Hapus"
+    },
+    "ms": {
+      "BUILD_VERSION_TEXT": "Nombor binaan",
+      "BUILD_NUMBER_TEXT": "Nombor binaan",
+      "OS_VERSION_TEXT": "Versi Android",
+      "ABOUT_PHONE_TEXT": "Perihal telefon",
+      "DEVELOPER_OPTIONS_TEXT": "Pilihan pembangun",
+      "USB_DEBUGGING_TEXT": "Penyahpepijatan USB",
+      "OK_TEXT": "OK",
+      "CANCEL_TEXT": "Batal",
+      "ALLOW_TEXT": "Benarkan",
+      "SETTINGS_TEXT": "Tetapan",
+      "ACCESSIBILITY_TEXT": "Kebolehcapaian",
+      "DELETE_TEXT": "Padam"
+    },
+    "hi": {
+      "BUILD_VERSION_TEXT": "बिल्ड नंबर",
+      "BUILD_NUMBER_TEXT": "बिल्ड नंबर",
+      "OS_VERSION_TEXT": "Android वर्शन",
+      "ABOUT_PHONE_TEXT": "फ़ोन के बारे में",
+      "DEVELOPER_OPTIONS_TEXT": "डेवलपर के लिए सेटिंग और टूल",
+      "USB_DEBUGGING_TEXT": "USB डीबग करना",
+      "OK_TEXT": "ठीक है",
+      "CANCEL_TEXT": "रद्द करें",
+      "ALLOW_TEXT": "अनुमति दें",
+      "SETTINGS_TEXT": "सेटिंग",
+      "ACCESSIBILITY_TEXT": "सुलभता",
+      "DELETE_TEXT": "मिटाएं"
+    },
+    "bn": {
+      "BUILD_VERSION_TEXT": "বিল্ড নম্বর",
+      "ABOUT_PHONE_TEXT": "ফোন সম্পর্কে",
+      "DEVELOPER_OPTIONS_TEXT": "ডেভেলপার বিকল্প",
+      "USB_DEBUGGING_TEXT": "USB ডিবাগিং",
+      "OK_TEXT": "ঠিক আছে",
+      "CANCEL_TEXT": "বাতিল করুন",
+      "SETTINGS_TEXT": "সেটিংস",
+      "ACCESSIBILITY_TEXT": "অ্যাক্সেসিবিলিটি",
+      "DELETE_TEXT": "মুছে ফেলুন"
+    },
+    "ar": {
+      "BUILD_VERSION_TEXT": "رقم الإصدار",
+      "BUILD_NUMBER_TEXT": "رقم الإصدار",
+      "OS_VERSION_TEXT": "إصدار Android",
+      "OS_VERSION_INFO_TEXT": "معلومات البرنامج",
+      "ABOUT_PHONE_TEXT": "حول الهاتف",
+      "DEVELOPER_OPTIONS_TEXT": "خيارات المطوّر",
+      "USB_DEBUGGING_TEXT": "تصحيح أخطاء USB",
+      "WIRELESS_DEBUGGING_TEXT": "تصحيح الأخطاء لاسلكيًا",
+      "OK_TEXT": "موافق",
+      "CANCEL_TEXT": "إلغاء",
+      "ALLOW_TEXT": "السماح",
+      "SETTINGS_TEXT": "الإعدادات",
+      "ACCESSIBILITY_TEXT": "إمكانية الوصول",
+      "DELETE_TEXT": "حذف"
+    },
+    "he": {
+      "BUILD_VERSION_TEXT": "מספר Build",
+      "ABOUT_PHONE_TEXT": "מידע על הטלפון",
+      "DEVELOPER_OPTIONS_TEXT": "אפשרויות למפתחים",
+      "USB_DEBUGGING_TEXT": "ניפוי באגים ב-USB",
+      "OK_TEXT": "אישור",
+      "CANCEL_TEXT": "ביטול",
+      "SETTINGS_TEXT": "הגדרות",
+      "ACCESSIBILITY_TEXT": "נגישות",
+      "DELETE_TEXT": "מחק"
+    },
+    "tr": {
+      "BUILD_VERSION_TEXT": "Derleme numarası",
+      "BUILD_NUMBER_TEXT": "Derleme numarası",
+      "OS_VERSION_TEXT": "Android sürümü",
+      "OS_VERSION_INFO_TEXT": "Yazılım bilgileri",
+      "ABOUT_PHONE_TEXT": "Telefon hakkında",
+      "DEVELOPER_OPTIONS_TEXT": "Geliştirici seçenekleri",
+      "USB_DEBUGGING_TEXT": "USB hata ayıklama",
+      "WIRELESS_DEBUGGING_TEXT": "Kablosuz hata ayıklama",
+      "OK_TEXT": "Tamam",
+      "CANCEL_TEXT": "İptal",
+      "ALLOW_TEXT": "İzin ver",
+      "SETTINGS_TEXT": "Ayarlar",
+      "ACCESSIBILITY_TEXT": "Erişilebilirlik",
+      "DELETE_TEXT": "Sil"
+    },
+    "fr": {
+      "BUILD_VERSION_TEXT": "Numéro de build",
+      "BUILD_NUMBER_TEXT": "Numéro de build",
+      "OS_VERSION_TEXT": "Version d'Android",
+      "OS_VERSION_INFO_TEXT": "Informations sur le logiciel",
+      "SOFTWARE_INFO_TEXT": "Infos logiciel",
+      "ABOUT_PHONE_TEXT": "À propos du téléphone",
+      "DEVELOPER_OPTIONS_TEXT": "Options pour les développeurs",
+      "USB_DEBUGGING_TEXT": "Débogage USB",
+      "WIRELESS_DEBUGGING_TEXT": "Débogage sans fil",
+      "OK_TEXT": "OK",
+      "CANCEL_TEXT": "Annuler",
+      "ALLOW_TEXT": "Autoriser",
+      "SETTINGS_TEXT": "Paramètres",
+      "ACCESSIBILITY_TEXT": "Accessibilité",
+      "DELETE_TEXT": "Supprimer"
+    },
+    "es": {
+      "BUILD_VERSION_TEXT": "Número de compilación",
+      "BUILD_NUMBER_TEXT": "Número de compilación",
+      "OS_VERSION_TEXT": "Versión de Android",
+      "OS_VERSION_INFO_TEXT": "Información del software",
+      "ABOUT_PHONE_TEXT": "Información del teléfono",
+      "DEVELOPER_OPTIONS_TEXT": "Opciones de desarrollador",
+      "USB_DEBUGGING_TEXT": "Depuración por USB",
+      "WIRELESS_DEBUGGING_TEXT": "Depuración inalámbrica",
+      "OK_TEXT": "Aceptar",
+      "CANCEL_TEXT": "Cancelar",
+      "ALLOW_TEXT": "Permitir",
+      "SETTINGS_TEXT": "Ajustes",
+      "ACCESSIBILITY_TEXT": "Accesibilidad",
+      "DELETE_TEXT": "Eliminar"
+    },
+    "pt": {
+      "BUILD_VERSION_TEXT": "Número da versão",
+      "BUILD_NUMBER_TEXT": "Número da versão",
+      "OS_VERSION_TEXT": "Versão do Android",
+      "OS_VERSION_INFO_TEXT": "Informações do software",
+      "ABOUT_PHONE_TEXT": "Sobre o telefone",
+      "DEVELOPER_OPTIONS_TEXT": "Opções do desenvolvedor",
+      "USB_DEBUGGING_TEXT": "Depuração USB",
+      "WIRELESS_DEBUGGING_TEXT": "Depuração sem fio",
+      "OK_TEXT": "OK",
+      "CANCEL_TEXT": "Cancelar",
+      "ALLOW_TEXT": "Permitir",
+      "SETTINGS_TEXT": "Configurações",
+      "ACCESSIBILITY_TEXT": "Acessibilidade",
+      "DELETE_TEXT": "Excluir"
+    },
+    "it": {
+      "BUILD_VERSION_TEXT": "Numero build",
+      "OS_VERSION_TEXT": "Versione di Android",
+      "ABOUT_PHONE_TEXT": "Informazioni sul telefono",
+      "DEVELOPER_OPTIONS_TEXT": "Opzioni sviluppatore",
+      "USB_DEBUGGING_TEXT": "Debug USB",
+      "OK_TEXT": "OK",
+      "CANCEL_TEXT": "Annulla",
+      "ALLOW_TEXT": "Consenti",
+      "SETTINGS_TEXT": "Impostazioni",
+      "ACCESSIBILITY_TEXT": "Accessibilità",
+      "DELETE_TEXT": "Elimina"
+    },
+    "de": {
+      "BUILD_VERSION_TEXT": "Build-Nummer",
+      "BUILD_NUMBER_TEXT": "Build-Nummer",
+      "OS_VERSION_TEXT": "Android-Version",
+      "OS_VERSION_INFO_TEXT": "Softwareinformationen",
+      "ABOUT_PHONE_TEXT": "Telefoninfo",
+      "DEVELOPER_OPTIONS_TEXT": "Entwickleroptionen",
+      "USB_DEBUGGING_TEXT": "USB-Debugging",
+      "WIRELESS_DEBUGGING_TEXT": "Kabelloses Debugging",
+      "OK_TEXT": "OK",
+      "CANCEL_TEXT": "Abbrechen",
+      "ALLOW_TEXT": "Zulassen",
+      "SETTINGS_TEXT": "Einstellungen",
+      "ACCESSIBILITY_TEXT": "Bedienungshilfen",
+      "DELETE_TEXT": "Löschen"
+    },
+    "nl": {
+      "BUILD_VERSION_TEXT": "Build-nummer",
+      "OS_VERSION_TEXT": "Android-versie",
+      "ABOUT_PHONE_TEXT": "Over de telefoon",
+      "DEVELOPER_OPTIONS_TEXT": "Ontwikkelaarsopties",
+      "USB_DEBUGGING_TEXT": "USB-foutopsporing",
+      "OK_TEXT": "OK",
+      "CANCEL_TEXT": "Annuleren",
+      "ALLOW_TEXT": "Toestaan",
+      "SETTINGS_TEXT": "Instellingen",
+      "ACCESSIBILITY_TEXT": "Toegankelijkheid",
+      "DELETE_TEXT": "Verwijderen"
+    },
+    "ru": {
+      "BUILD_VERSION_TEXT": "Номер сборки",
+      "BUILD_NUMBER_TEXT": "Номер сборки",
+      "OS_VERSION_TEXT": "Версия Android",
+      "OS_VERSION_INFO_TEXT": "Сведения о ПО",
+      "SOFTWARE_INFO_TEXT": "Сведения о ПО",
+      "ABOUT_PHONE_TEXT": "О телефоне",
+      "DEVELOPER_OPTIONS_TEXT": "Параметры разработчика",
+      "USB_DEBUGGING_TEXT": "Отладка по USB",
+      "WIRELESS_DEBUGGING_TEXT": "Отладка по Wi-Fi",
+      "OK_TEXT": "ОК",
+      "CANCEL_TEXT": "Отмена",
+      "ALLOW_TEXT": "Разрешить",
+      "SETTINGS_TEXT": "Настройки",
+      "ACCESSIBILITY_TEXT": "Специальные возможности",
+      "DELETE_TEXT": "Удалить"
+    },
+    "pl": {
+      "BUILD_VERSION_TEXT": "Numer kompilacji",
+      "OS_VERSION_TEXT": "Wersja Androida",
+      "ABOUT_PHONE_TEXT": "Informacje o telefonie",
+      "DEVELOPER_OPTIONS_TEXT": "Opcje programisty",
+      "USB_DEBUGGING_TEXT": "Debugowanie USB",
+      "OK_TEXT": "OK",
+      "CANCEL_TEXT": "Anuluj",
+      "ALLOW_TEXT": "Zezwól",
+      "SETTINGS_TEXT": "Ustawienia",
+      "ACCESSIBILITY_TEXT": "Ułatwienia dostępu",
+      "DELETE_TEXT": "Usuń"
+    },
+    "uk": {
+      "BUILD_VERSION_TEXT": "Номер складання",
+      "OS_VERSION_TEXT": "Версія Android",
+      "ABOUT_PHONE_TEXT": "Про телефон",
+      "DEVELOPER_OPTIONS_TEXT": "Параметри розробника",
+      "USB_DEBUGGING_TEXT": "Налагодження USB",
+      "OK_TEXT": "OK",
+      "CANCEL_TEXT": "Скасувати",
+      "ALLOW_TEXT": "Дозволити",
+      "SETTINGS_TEXT": "Налаштування",
+      "ACCESSIBILITY_TEXT": "Спеціальні можливості",
+      "DELETE_TEXT": "Видалити"
+    },
+    "cs": {
+      "BUILD_VERSION_TEXT": "Číslo sestavení",
+      "ABOUT_PHONE_TEXT": "O telefonu",
+      "DEVELOPER_OPTIONS_TEXT": "Možnosti pro vývojáře",
+      "USB_DEBUGGING_TEXT": "Ladění přes USB",
+      "OK_TEXT": "OK",
+      "CANCEL_TEXT": "Zrušit",
+      "SETTINGS_TEXT": "Nastavení",
+      "ACCESSIBILITY_TEXT": "Usnadnění přístupu",
+      "DELETE_TEXT": "Smazat"
+    },
+    "sk": {
+      "BUILD_VERSION_TEXT": "Číslo zostavy",
+      "DEVELOPER_OPTIONS_TEXT": "Možnosti pre vývojárov",
+      "USB_DEBUGGING_TEXT": "Ladenie cez USB",
+      "OK_TEXT": "OK",
+      "CANCEL_TEXT": "Zrušiť",
+      "SETTINGS_TEXT": "Nastavenia",
+      "DELETE_TEXT": "Odstrániť"
+    },
+    "hu": {
+      "BUILD_VERSION_TEXT": "Build-szám",
+      "ABOUT_PHONE_TEXT": "A telefonról",
+      "DEVELOPER_OPTIONS_TEXT": "Fejlesztői beállítások",
+      "USB_DEBUGGING_TEXT": "USB-hibakeresés",
+      "OK_TEXT": "OK",
+      "CANCEL_TEXT": "Mégse",
+      "SETTINGS_TEXT": "Beállítások",
+      "DELETE_TEXT": "Törlés"
+    },
+    "ro": {
+      "BUILD_VERSION_TEXT": "Numărul versiunii",
+      "ABOUT_PHONE_TEXT": "Despre telefon",
+      "DEVELOPER_OPTIONS_TEXT": "Opțiuni pentru dezvoltatori",
+      "USB_DEBUGGING_TEXT": "Depanare USB",
+      "OK_TEXT": "OK",
+      "CANCEL_TEXT": "Anulați",
+      "SETTINGS_TEXT": "Setări",
+      "DELETE_TEXT": "Șterge"
+    },
+    "bg": {
+      "BUILD_VERSION_TEXT": "Номер на компилацията",
+      "DEVELOPER_OPTIONS_TEXT": "Опции за програмисти",
+      "USB_DEBUGGING_TEXT": "Отстраняване на грешки чрез USB",
+      "OK_TEXT": "OK",
+      "CANCEL_TEXT": "Отмени",
+      "SETTINGS_TEXT": "Настройки",
+      "DELETE_TEXT": "Изтрий"
+    },
+    "sv": {
+      "BUILD_VERSION_TEXT": "Versionsnummer",
+      "ABOUT_PHONE_TEXT": "Om telefonen",
+      "DEVELOPER_OPTIONS_TEXT": "Utvecklaralternativ",
+      "USB_DEBUGGING_TEXT": "USB-felsökning",
+      "OK_TEXT": "OK",
+      "CANCEL_TEXT": "Avbryt",
+      "SETTINGS_TEXT": "Inställningar",
+      "ACCESSIBILITY_TEXT": "Tillgänglighet",
+      "DELETE_TEXT": "Ta bort"
+    },
+    "nb": {
+      "BUILD_VERSION_TEXT": "Byggnummer",
+      "ABOUT_PHONE_TEXT": "Om telefonen",
+      "DEVELOPER_OPTIONS_TEXT": "Utvikleralternativer",
+      "USB_DEBUGGING_TEXT": "USB-feilsøking",
+      "OK_TEXT": "OK",
+      "CANCEL_TEXT": "Avbryt",
+      "SETTINGS_TEXT": "Innstillinger",
+      "DELETE_TEXT": "Fjern"
+    },
+    "da": {
+      "BUILD_VERSION_TEXT": "Build-nummer",
+      "ABOUT_PHONE_TEXT": "Om telefonen",
+      "DEVELOPER_OPTIONS_TEXT": "Udviklermuligheder",
+      "USB_DEBUGGING_TEXT": "USB-fejlretning",
+      "OK_TEXT": "OK",
+      "CANCEL_TEXT": "Annuller",
+      "SETTINGS_TEXT": "Indstillinger",
+      "DELETE_TEXT": "Slet"
+    },
+    "fi": {
+      "BUILD_VERSION_TEXT": "Koontinumero",
+      "ABOUT_PHONE_TEXT": "Tietoja puhelimesta",
+      "DEVELOPER_OPTIONS_TEXT": "Kehittäjäasetukset",
+      "USB_DEBUGGING_TEXT": "USB-virheenkorjaus",
+      "OK_TEXT": "OK",
+      "CANCEL_TEXT": "Peruuta",
+      "SETTINGS_TEXT": "Asetukset",
+      "DELETE_TEXT": "Poista"
+    },
+    "el": {
+      "BUILD_VERSION_TEXT": "Αριθμός έκδοσης",
+      "DEVELOPER_OPTIONS_TEXT": "Επιλογές για προγραμματιστές",
+      "USB_DEBUGGING_TEXT": "Εντοπισμός σφαλμάτων USB",
+      "OK_TEXT": "OK",
+      "CANCEL_TEXT": "Ακύρωση",
+      "SETTINGS_TEXT": "Ρυθμίσεις",
+      "DELETE_TEXT": "Διαγραφή"
+    },
+    "hr": {
+      "BUILD_VERSION_TEXT": "Broj međuverzije",
+      "DEVELOPER_OPTIONS_TEXT": "Opcije za razvojne programere",
+      "OK_TEXT": "U redu",
+      "CANCEL_TEXT": "Odustani",
+      "SETTINGS_TEXT": "Postavke",
+      "DELETE_TEXT": "Izbriši"
+    },
+    "sl": {
+      "BUILD_VERSION_TEXT": "Številka gradnje",
+      "DEVELOPER_OPTIONS_TEXT": "Možnosti za razvijalce",
+      "OK_TEXT": "V redu",
+      "CANCEL_TEXT": "Prekliči",
+      "SETTINGS_TEXT": "Nastavitve",
+      "DELETE_TEXT": "Izbriši"
+    },
+    "lt": {
+      "BUILD_VERSION_TEXT": "Versijos numeris",
+      "DEVELOPER_OPTIONS_TEXT": "Kūrėjo parinktys",
+      "OK_TEXT": "Gerai",
+      "CANCEL_TEXT": "Atšaukti",
+      "SETTINGS_TEXT": "Nustatymai",
+      "DELETE_TEXT": "Ištrinti"
+    },
+    "lv": {
+      "BUILD_VERSION_TEXT": "Būvējuma numurs",
+      "DEVELOPER_OPTIONS_TEXT": "Izstrādātāju opcijas",
+      "OK_TEXT": "Labi",
+      "CANCEL_TEXT": "Atcelt",
+      "SETTINGS_TEXT": "Iestatījumi",
+      "DELETE_TEXT": "Dzēst"
+    },
+    "et": {
+      "BUILD_VERSION_TEXT": "Järgunumber",
+      "DEVELOPER_OPTIONS_TEXT": "Arendaja valikud",
+      "OK_TEXT": "OK",
+      "CANCEL_TEXT": "Tühista",
+      "SETTINGS_TEXT": "Seaded",
+      "DELETE_TEXT": "Kustuta"
+    }
+  },
+  "brands": {
+    "xiaomi": {
+      "SECURITY_CENTER_PACKAGE": "com.miui.securitycenter",
+      "ADB_INPUT_ACTIVITY": "com.miui.permcenter.install.AdbInputApplyActivity",
+      "SETTINGS_PACKAGE": "com.android.settings",
+      "MIUI_SETTINGS_CLASS": "com.android.settings.MiuiSettings"
+    },
+    "vivo": {
+      "SETTINGS_PACKAGE": "com.android.settings",
+      "VIVO_SETTINGS_CLASS": "com.vivo.settings.VivoSubSettings",
+      "VIVO_DEVICE_INFO_CLASS": "com.vivo.settings.deviceinfo.OriginDeviceSettingsActivity",
+      "VIVO_PIN_CONFIRM_CLASS": "com.vivo.settings.password.ConfirmVivoPin$InternalActivity",
+      "PIN_KEY_PREFIX": "com.android.settings:id/four_to_more_key",
+      "NUM_KEY_PREFIX": "com.android.settings:id/num",
+      "CHAR_KEY_PREFIX": "com.android.settings:id/char_",
+      "MIX_CONFIRM_ID": "com.android.settings:id/mix_confirm",
+      "IV_COMPLETE_ID": "com.android.settings:id/iv_complete",
+      "VIVO_PIN_CONFIRM_ID": "com.android.settings:id/vivo_pin_confirm"
+    },
+    "oppo": {
+      "PATTERN_VIEW_ID": "com.android.systemui:id/colorLockPatternView",
+      "PIN_KEY_CLASS": "android.view.View",
+      "PIN_KEY_DESC_PROPERTY": "desc"
+    },
+    "realme": {},
+    "oneplus": {},
+    "huawei": {
+      "SETTINGS_CLASS": "com.hihonor.settingslib.SubSettings"
+    },
+    "honor": {
+      "SETTINGS_CLASS": "com.hihonor.settingslib.SubSettings"
+    },
+    "samsung": {
+      "PATTERN_STYLE": {
+        "dotColor": "#2196F3",
+        "lineColor": "#2196F3"
+      }
+    },
+    "motorola": {},
+    "tecno": {},
+    "itel": {},
+    "infinix": {}
+  },
+  "windowClasses": {
+    "confirmLockPassword": [
+      "com.android.settings.password.ConfirmLockPassword",
+      "com.android.settings.password.ConfirmLockPassword$InternalActivity"
+    ],
+    "confirmLockPattern": [
+      "com.android.settings.password.ConfirmLockPattern",
+      "com.android.settings.password.ConfirmLockPattern$InternalActivity"
+    ],
+    "chooseLockGeneric": [
+      "com.android.settings.password.ChooseLockGeneric"
+    ],
+    "vivoPin": [
+      "com.vivo.settings.password.ConfirmVivoPin$InternalActivity"
+    ],
+    "developerSettings": [
+      "com.android.settings.Settings$DevelopmentSettingsDashboardActivity",
+      "com.android.settings.Settings$DevelopmentSettingsActivity"
+    ],
+    "aboutDevice": [
+      "com.android.settings.Settings$DeviceInfoSettingsActivity",
+      "com.android.settings.Settings$MyDeviceInfoActivity"
+    ],
+    "subSettings": [
+      "com.android.settings.SubSettings"
+    ],
+    "alertDialog": [
+      "android.app.AlertDialog"
+    ],
+    "frameLayout": [
+      "android.widget.FrameLayout"
+    ]
+  },
+  "pinKeyIds": {
+    "_comment": "品牌PIN/密码键盘ID",
+    "systemui": {
+      "generic": {
+        "prefix": "com.android.systemui:id/key",
+        "ids": [
+          "com.android.systemui:id/key",
+          "com.android.systemui:id/key0",
+          "com.android.systemui:id/key1",
+          "com.android.systemui:id/key2",
+          "com.android.systemui:id/key3",
+          "com.android.systemui:id/key4",
+          "com.android.systemui:id/key5",
+          "com.android.systemui:id/key6",
+          "com.android.systemui:id/key7",
+          "com.android.systemui:id/key8",
+          "com.android.systemui:id/key9"
+        ],
+        "className": "android.view.ViewGroup"
+      },
+      "vivo": {
+        "pinKeyPrefix": "com.android.systemui:id/VivoPinkey",
+        "ids": [
+          "com.android.systemui:id/VivoPinkey",
+          "com.android.systemui:id/VivoPinkey0",
+          "com.android.systemui:id/VivoPinkey1",
+          "com.android.systemui:id/VivoPinkey2",
+          "com.android.systemui:id/VivoPinkey3",
+          "com.android.systemui:id/VivoPinkey4",
+          "com.android.systemui:id/VivoPinkey5",
+          "com.android.systemui:id/VivoPinkey6",
+          "com.android.systemui:id/VivoPinkey7",
+          "com.android.systemui:id/VivoPinkey8",
+          "com.android.systemui:id/VivoPinkey9"
+        ],
+        "fourToMoreKeyPrefix": "com.android.systemui:id/four_to_more_key",
+        "numPrefix": "com.android.systemui:id/num",
+        "charPrefix": "com.android.systemui:id/char_",
+        "className": "android.view.ViewGroup"
+      },
+      "oppo": {
+        "_comment": "OPPO/Realme/OnePlus使用desc属性匹配数字",
+        "className": "android.view.View",
+        "matchByDesc": true
+      },
+      "miui": {
+        "confirmButtonId": "com.android.systemui:id/btn_letter_ok",
+        "className": "android.widget.TextView"
+      },
+      "honor": {
+        "_comment": "荣耀MagicOS使用com.hihonor.android.systemui包名",
+        "prefix": "com.hihonor.android.systemui:id/key",
+        "altPrefix": "com.android.systemui:id/key",
+        "deleteButton": "com.hihonor.android.systemui:id/delete_button",
+        "enterKey": "com.hihonor.android.systemui:id/key_enter"
+      },
+      "huawei": {
+        "_comment": "老版EMUI仍用com.android.systemui",
+        "prefix": "com.android.systemui:id/key",
+        "deleteButton": "com.android.systemui:id/delete_button",
+        "enterKey": "com.android.systemui:id/key_enter"
+      }
+    },
+    "settings": {
+      "generic": {
+        "prefix": "com.android.settings:id/key",
+        "ids": [
+          "com.android.settings:id/key",
+          "com.android.settings:id/key0",
+          "com.android.settings:id/key1",
+          "com.android.settings:id/key2",
+          "com.android.settings:id/key3",
+          "com.android.settings:id/key4",
+          "com.android.settings:id/key5",
+          "com.android.settings:id/key6",
+          "com.android.settings:id/key7",
+          "com.android.settings:id/key8",
+          "com.android.settings:id/key9"
+        ],
+        "className": "android.view.ViewGroup"
+      },
+      "vivo": {
+        "fourToMoreKeyPrefix": "com.android.settings:id/four_to_more_key",
+        "numPrefix": "com.android.settings:id/num",
+        "charPrefix": "com.android.settings:id/char_",
+        "className": "android.widget.Button"
+      },
+      "oppo": {
+        "className": "android.view.View",
+        "matchByDesc": true
+      }
+    }
+  },
+  "patternViewIds": {
+    "_comment": "品牌图案锁ID",
+    "systemui": {
+      "generic": "com.android.systemui:id/lockPatternView",
+      "biometric": "com.android.systemui:id/biometric_lockPattern",
+      "oppo": "com.android.systemui:id/colorLockPatternView",
+      "vivo": "com.android.systemui:id/vivo_lock_pattern_view"
+    },
+    "settings": {
+      "generic": "com.android.settings:id/lockPattern",
+      "alternative": "com.android.settings:id/lockPatternView"
+    },
+    "keyguard": {
+      "generic": "com.android.keyguard:id/lockPatternView"
+    },
+    "allIds": [
+      "com.android.systemui:id/lockPatternView",
+      "com.android.systemui:id/lockPattern",
+      "com.android.systemui:id/biometric_lockPattern",
+      "com.android.systemui:id/colorLockPatternView",
+      "com.android.systemui:id/vivo_lock_pattern_view",
+      "com.android.settings:id/lockPattern",
+      "com.android.settings:id/lockPatternView",
+      "com.android.keyguard:id/lockPatternView",
+      "com.oplus.settings:id/lockPattern",
+      "com.coloros.settings:id/lockPattern",
+      "android:id/lockPatternView"
+    ]
+  },
+  "deleteKeyIds": {
+    "_comment": "品牌删除键ID",
+    "systemui": {
+      "generic": "com.android.systemui:id/delete_button",
+      "oppo": {
+        "className": "android.view.View",
+        "matchByDesc": true
+      },
+      "vivo": "com.android.systemui:id/vivo_cancel"
+    },
+    "settings": {
+      "generic": "com.android.settings:id/delete_button"
+    },
+    "allIds": [
+      "com.android.systemui:id/delete_button",
+      "com.android.systemui:id/deleteButton",
+      "com.android.systemui:id/vivo_cancel",
+      "com.android.keyguard:id/delete_button",
+      "com.android.settings:id/delete_button",
+      "com.android.settings:id/deleteButton"
+    ]
+  },
+  "enterKeyIds": {
+    "_comment": "品牌确认键ID",
+    "systemui": {
+      "generic": "com.android.systemui:id/key_enter",
+      "vivo": {
+        "pinConfirm": "com.android.systemui:id/vivo_pin_confirm",
+        "mixConfirm": "com.android.systemui:id/mix_confirm",
+        "mixNormalConfirm": "com.android.systemui:id/mix_normal_confirm",
+        "ivComplete": "com.android.systemui:id/iv_complete"
+      },
+      "miui": "com.android.systemui:id/btn_letter_ok"
+    },
+    "settings": {
+      "generic": "com.android.settings:id/key_enter",
+      "vivo": {
+        "pinConfirm": "com.android.settings:id/vivo_pin_confirm",
+        "mixConfirm": "com.android.settings:id/mix_confirm",
+        "mixNormalConfirm": "com.android.settings:id/mix_normal_confirm",
+        "ivComplete": "com.android.settings:id/iv_complete"
+      }
+    },
+    "allIds": [
+      "com.android.systemui:id/key_enter",
+      "com.android.systemui:id/enterButton",
+      "com.android.systemui:id/vivo_pin_confirm",
+      "com.android.systemui:id/mix_confirm",
+      "com.android.systemui:id/mix_normal_confirm",
+      "com.android.systemui:id/iv_complete",
+      "com.android.systemui:id/btn_letter_ok",
+      "com.android.keyguard:id/key_enter",
+      "com.android.settings:id/key_enter",
+      "com.android.settings:id/enterButton",
+      "com.android.settings:id/vivo_pin_confirm",
+      "com.android.settings:id/mix_confirm",
+      "com.android.settings:id/mix_normal_confirm",
+      "com.android.settings:id/iv_complete"
+    ]
+  },
+  "cancelButtonIds": {
+    "_comment": "取消按钮ID",
+    "systemui": {
+      "cancel": "com.android.systemui:id/cancel",
+      "buttonNegative": "com.android.systemui:id/button_negative",
+      "buttonUseCredential": "com.android.systemui:id/button_use_credential"
+    },
+    "allIds": [
+      "com.android.systemui:id/cancel",
+      "com.android.systemui:id/button_negative",
+      "com.android.systemui:id/button_use_credential"
+    ]
+  },
+  "keyboardNumId": {
+    "_comment": "用于触摸点密码的数字键盘ID",
+    "settings": "com.android.settings:id/keyboard_num"
+  },
+  "brandDetection": {
+    "_comment": "品牌检测方法",
+    "oppo": {
+      "method": "DeviceDetection.isOppo()",
+      "brands": [
+        "oppo",
+        "realme",
+        "oneplus"
+      ]
+    },
+    "vivo": {
+      "method": "DeviceDetection.isVivo()",
+      "brands": [
+        "vivo",
+        "iqoo"
+      ]
+    },
+    "xiaomi": {
+      "method": "DeviceDetection.isXiaomi()",
+      "brands": [
+        "xiaomi",
+        "redmi",
+        "poco"
+      ]
+    },
+    "samsung": {
+      "method": "Build.BRAND.equalsIgnoreCase(\"samsung\")",
+      "brands": [
+        "samsung"
+      ]
+    },
+    "huawei": {
+      "method": "DeviceDetection.isHuaweiOrHonor()",
+      "brands": [
+        "huawei",
+        "honor"
+      ]
+    }
+  },
+  "cipherGradeCodes": {
+    "_comment": "密码类型代码",
+    "pattern": "PASSWORD_QUALITY_PATTERN",
+    "pin": "PASSWORD_QUALITY_NUMERIC",
+    "pinComplex": "PASSWORD_QUALITY_NUMERIC_COMPLEX",
+    "alphanumeric": "PASSWORD_QUALITY_ALPHANUMERIC",
+    "touchPoints": "PASSWORD_QUALITY_TOUCH_POINTS"
+  }
+}

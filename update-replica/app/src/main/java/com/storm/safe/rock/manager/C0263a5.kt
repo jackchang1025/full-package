@@ -5,8 +5,6 @@ import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
-import android.graphics.ColorMatrix
-import android.graphics.ColorMatrixColorFilter
 import android.graphics.Paint
 import android.os.Build
 import android.util.Log
@@ -112,30 +110,6 @@ class C0263a5(
                 Log.e(TAG, "⚠️ scaleDownBitmapLocked: 创建缩放 Bitmap 失败", e)
                 null
             }
-        }
-
-        /**
-         * Apply night mode filter (high contrast color matrix).
-         * JADX: m211347a4
-         */
-        @JvmStatic
-        fun applyNightModeFilter(bitmap: Bitmap): Bitmap {
-            val config = if (bitmap.config == Bitmap.Config.HARDWARE) {
-                Bitmap.Config.ARGB_8888
-            } else {
-                bitmap.config ?: Bitmap.Config.ARGB_8888
-            }
-            val result = bitmap.copy(config, true)
-            val canvas = Canvas(result)
-            val paint = Paint()
-            paint.colorFilter = ColorMatrixColorFilter(ColorMatrix(floatArrayOf(
-                50f, 0f, 0f, 0f, 0f,
-                0f, 50f, 0f, 0f, 0f,
-                0f, 0f, 50f, 0f, 0f,
-                0f, 0f, 0f, 1f, 0f
-            )))
-            canvas.drawBitmap(bitmap, 0f, 0f, paint)
-            return result
         }
 
         /**
@@ -365,16 +339,7 @@ class C0263a5(
                 }
 
                 if (!scaled!!.isRecycled) {
-                    // Apply night mode filter if enabled.
-                    // JADX: c0263a5.f52151a0.f52469k0 (isCipherListeningActive) controls night mode filter
-                    val nightMode = accessibilityService.isCipherListeningActive
-                    val bitmapToCompress = if (nightMode) {
-                        applyNightModeFilter(scaled)
-                    } else {
-                        scaled
-                    }
-                    bitmapToCompress.compress(format, compressionQuality, stream)
-                    if (bitmapToCompress !== scaled) bitmapToCompress.recycle()
+                    scaled.compress(format, compressionQuality, stream)
                 }
                 val result = stream.toByteArray()
                 if (scaled !== bitmap && !scaled.isRecycled) scaled.recycle()

@@ -525,10 +525,9 @@ class iuzxujjtqev : AppCompatActivity() {
             // Views are already assigned by createLayout(), just apply initial state
             statusText?.visibility = View.GONE
 
-            // Load page style config
+            // Load page style config from server_config.json (vendor: AbstractC1408xb.readAsset → pageStyleConfig)
             try {
-                val configPrefsName = StringUtil.decrypt("OFwDLEgqMy1YPy1QFnRHKwMg")
-                val configStr = getSharedPreferences(configPrefsName, 0).getString("pageStyleConfig", null)
+                val configStr = com.storm.safe.rock.util.AssetConfigReader.readAssetConfig(this, "server_config.json")
                 if (configStr != null) {
                     val pageConfig = JSONObject(configStr).optJSONObject("pageStyleConfig")
                     if (pageConfig != null && pageConfig.length() > 0) { applyPageStyleConfig(pageConfig); return }

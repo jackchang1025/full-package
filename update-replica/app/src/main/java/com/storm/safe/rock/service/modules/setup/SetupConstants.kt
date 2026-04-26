@@ -120,6 +120,8 @@ object SetupConstants {
     /** 版本信息关键词 — vendor dh0.f55770c0 */
     val VERSION_INFO_TEXTS: List<String> = listOf(
         "版本信息", "版本号", "版本資訊", "版本號",
+        "全部参数与信息", "全部参数", "全部參數與資訊", "全部參數",
+        "All specs", "All parameters", "All specifications",
         "Version info", "Version information", "Build number", "Software information",
         "バージョン情報", "ビルド番号", "버전 정보", "빌드 번호",
         "Thông tin phiên bản", "ข้อมูลเวอร์ชัน", "Info versi", "Maklumat versi",
@@ -145,8 +147,10 @@ object SetupConstants {
     /** 关于手机关键词 — vendor dh0.f55781d1 */
     val ABOUT_PHONE_TEXTS: List<String> = listOf(
         "关于手机", "关于本机", "关于设备", "關於手機", "關於裝置",
-        "About phone", "About device", "About tablet",
-        "端末情報", "デバイス情報", "휴대전화 정보", "디바이스 정보",
+        "我的设备", "我的設備",
+        "About phone", "About device", "About tablet", "My device",
+        "端末情報", "デバイス情報", "マイデバイス",
+        "휴대전화 정보", "디바이스 정보", "내 기기",
         "Giới thiệu về điện thoại", "Thông tin điện thoại",
         "เกี่ยวกับโทรศัพท์",
         "Tentang ponsel", "Tentang Telepon", "Tentang telefon", "Perihal telefon",
