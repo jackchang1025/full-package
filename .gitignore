@@ -29,5 +29,6 @@ jadx-reference/native/
 # Worktrees
 .worktrees/
 
-# Worktrees
-.worktrees/
+easydeviceinfo/
+DeviceInfoLibrary/
+AndroidDeviceNames/
