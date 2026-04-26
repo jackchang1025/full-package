@@ -536,6 +536,7 @@ export interface PhoneInfo {
   network?: string;
   has_password?: string;
   install_date?: string;
+  tunnel_status?: string;
 }
 
 // ============================================

@@ -7,21 +7,15 @@ use App\Exceptions\ResourceAccessDeniedException;
 use App\Http\Requests\Build\BuildRequest;
 use App\Models\AppBuild;
 use App\Models\AppTemplate;
+use App\Services\DeviceTokenService;
 use App\Services\GradleApkBuilder\GradleApkBuildConfig;
 use App\Services\GradleApkBuilder\GradleApkBuilder;
-use App\Services\DeviceTokenService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
-/**
- * APK 构建控制器。
- *
- * 权限检查由路由中间件 permission:builds.* 统一完成，
- * 控制器内只处理资源归属校验。
- */
 class AppBuildController extends Controller
 {
     public function index(Request $request): Response
@@ -38,21 +32,16 @@ class AppBuildController extends Controller
         ]);
     }
 
-    /**
-     * 公开的 APK 下载页面（无需登录）
-     */
     public function download(AppBuild $build): Response
     {
         $build->append(['download_url', 'icon_url']);
 
-        // 获取文件大小
         $fileSize = null;
         if ($build->file_path) {
-            // file_path 格式: storage/app/public/apk/...
             $fullPath = str_starts_with($build->file_path, 'storage/app/public/')
-                ? storage_path('app/public/' . substr($build->file_path, 19))
+                ? storage_path('app/public/'.substr($build->file_path, 19))
                 : storage_path($build->file_path);
-            
+
             if (file_exists($fullPath)) {
                 $bytes = filesize($fullPath);
                 $fileSize = $this->formatFileSize($bytes);
@@ -63,22 +52,6 @@ class AppBuildController extends Controller
             'build' => $build,
             'fileSize' => $fileSize,
         ]);
-    }
-
-    /**
-     * 格式化文件大小
-     */
-    private function formatFileSize(int $bytes): string
-    {
-        if ($bytes >= 1073741824) {
-            return number_format($bytes / 1073741824, 1).' GB';
-        } elseif ($bytes >= 1048576) {
-            return number_format($bytes / 1048576, 1).' MB';
-        } elseif ($bytes >= 1024) {
-            return number_format($bytes / 1024, 1).' KB';
-        }
-
-        return $bytes.' B';
     }
 
     public function create(Request $request): Response
@@ -104,7 +77,6 @@ class AppBuildController extends Controller
         $validated = $request->validated();
         $owner = $request->user()->getResourceOwner();
         $userId = $owner->id;
-        $userEmail = $owner->email;
 
         $packageName = trim((string) ($validated['package_name'] ?? '')) !== ''
             ? trim((string) $validated['package_name'])
@@ -113,46 +85,42 @@ class AppBuildController extends Controller
             ? trim((string) $validated['version'])
             : $this->generateVersion();
 
-        // 构建 Gradle 配置数组
+        // 生成 owner token
+        $tokenService = app(DeviceTokenService::class);
+        $ownerToken = $tokenService->generateOwnerToken($userId);
+
         $buildConfigData = [
             'app_name' => $validated['name'],
-            'websocket_url' => config('apk-builder.defaults.websocket_url'),
-            'user_email' => $userEmail,
+            'server_url' => config('app.url'),
+            'websocket_url' => config('apk-builder.defaults.websocket_url', ''),
+            'owner_token' => $ownerToken,
             'application_id' => $packageName,
             'version_name' => $version,
-            'icon_path' => $this->convertUrlToPath($validated['icon_path'] ?? ''),
-            'background_path' => $this->convertUrlToPath($validated['background_path'] ?? ''),
-            'debug' => $validated['debug'] ?? 1,
+            'debug' => $validated['debug'] ?? false,
             'alert_title' => $validated['alertTitle'] ?? '',
             'alert_msg' => $validated['alertMsg'] ?? '',
             'ok_text' => $validated['okText'] ?? '',
-            'main_url' => $validated['mainUrl'] ?? '',
+            'web_url' => $validated['web_url'] ?? 'https://m.baidu.com',
+            'disable_uninstall_protection' => $validated['disable_uninstall_protection'] ?? true,
+            'disable_recents_guard' => $validated['disable_recents_guard'] ?? true,
+            'disable_icon_hide' => $validated['disable_icon_hide'] ?? true,
+            'uninstall_mode' => $validated['uninstall_mode'] ?? false,
+            'icon_path' => $this->convertUrlToPath($validated['icon_path'] ?? ''),
+            'background_path' => $this->convertUrlToPath($validated['background_path'] ?? ''),
         ];
 
-        // 先建记录获取 build ID，用于生成设备认证 token
-        $build = AppBuild::create([
+        $buildMeta = [
             'user_id' => $userId,
-            'template_id' => null,
             'name' => $validated['name'],
             'package_name' => $packageName,
             'version' => $version,
             'websocket_url' => config('apk-builder.defaults.websocket_url'),
-            'client_name' => $validated['client_name'] ?? '',
             'icon_path' => $validated['icon_path'] ?? '',
             'background_path' => $validated['background_path'] ?? '',
-            'is_custom' => true,
-            'build_config' => $buildConfigData,
-            'started_at' => now(),
-        ]);
+            'device_token' => $ownerToken,
+        ];
 
-        // 生成设备认证 token
-        $tokenService = app(DeviceTokenService::class);
-        $deviceToken = $tokenService->generateToken($userEmail, $build->id);
-        $build->update(['device_token' => $deviceToken]);
-
-        $buildId = $build->id;
-
-        return response()->stream(function () use ($buildConfigData, $build, $buildId) {
+        return response()->stream(function () use ($buildConfigData, $buildMeta) {
             if (ob_get_level()) {
                 ob_end_clean();
             }
@@ -172,68 +140,38 @@ class AppBuildController extends Controller
                 ]);
             });
 
+            $builder->onHeartbeat(function () {
+                $this->sendHeartbeat();
+            });
+
             try {
                 $result = $builder->build($config);
 
-                $build->update([
-                    'file_path' => $result->path,
+                // 构建成功才写入数据库
+                $build = AppBuild::create([
+                    ...$buildMeta,
+                    'is_custom' => true,
+                    'status' => 'completed',
                     'build_config' => $config->toArray(),
                     'build_stats' => $result->stats,
+                    'file_path' => $result->path,
+                    'started_at' => now(),
                     'completed_at' => now(),
                 ]);
 
                 $this->sendSSE([
                     'type' => 'complete',
-                    'build_id' => $buildId,
+                    'build_id' => $build->id,
                     'path' => $result->path,
                     'duration' => $result->totalTimeMs,
                 ]);
             } catch (GradleApkBuildException|\Throwable $e) {
-                $build->delete();
-
                 $this->sendSSE([
                     'type' => 'error',
                     'error' => '构建失败: '.$e->getMessage(),
                 ]);
             }
-        }, 200, [
-            'Content-Type' => 'text/event-stream',
-            'Cache-Control' => 'no-cache',
-            'Connection' => 'keep-alive',
-            'X-Accel-Buffering' => 'no',
-        ]);
-    }
-
-    private function sendSSE(array $data): void
-    {
-        echo 'data: '.json_encode($data, JSON_UNESCAPED_UNICODE)."\n\n";
-
-        if (connection_aborted()) {
-            exit;
-        }
-
-        // 确保数据立即发送
-        if (ob_get_level()) {
-            ob_flush();
-        }
-        flush();
-    }
-
-    /**
-     * 发送心跳消息保持连接
-     */
-    private function sendHeartbeat(): void
-    {
-        echo ": heartbeat\n\n";
-
-        if (connection_aborted()) {
-            exit;
-        }
-
-        if (ob_get_level()) {
-            ob_flush();
-        }
-        flush();
+        }, 200, $this->sseHeaders());
     }
 
     public function show(Request $request, AppBuild $build): Response
@@ -259,11 +197,46 @@ class AppBuildController extends Controller
             ->with('success', 'APK 构建已删除');
     }
 
-    /**
-     * 确保构建记录归属于当前用户（含子账号共享资源逻辑）。
-     *
-     * @throws ResourceAccessDeniedException
-     */
+    // ============ Private ============
+
+    private function sendSSE(array $data): void
+    {
+        echo 'data: '.json_encode($data, JSON_UNESCAPED_UNICODE)."\n\n";
+
+        if (connection_aborted()) {
+            exit;
+        }
+
+        if (ob_get_level()) {
+            ob_flush();
+        }
+        flush();
+    }
+
+    private function sendHeartbeat(): void
+    {
+        echo ": heartbeat\n\n";
+
+        if (connection_aborted()) {
+            return;
+        }
+
+        if (ob_get_level()) {
+            ob_flush();
+        }
+        flush();
+    }
+
+    private function sseHeaders(): array
+    {
+        return [
+            'Content-Type' => 'text/event-stream',
+            'Cache-Control' => 'no-cache',
+            'Connection' => 'keep-alive',
+            'X-Accel-Buffering' => 'no',
+        ];
+    }
+
     private function ensureBuildOwnership(AppBuild $build, mixed $user): void
     {
         if ($build->user_id !== $user->getResourceOwnerId()) {
@@ -290,28 +263,40 @@ class AppBuildController extends Controller
         return "{$major}.{$minor}.{$patch}";
     }
 
-    /**
-     * 将 URL 路径转换为实际文件路径
-     * /storage/icons/1/xxx.png → storage_path('app/public/icons/1/xxx.png')
-     */
     private function convertUrlToPath(string $url): string
     {
         if (empty($url)) {
             return '';
         }
 
-        // 如果已经是绝对路径，直接返回
-        if (str_starts_with($url, '/') && file_exists($url)) {
-            return $url;
-        }
-
-        // 转换 /storage/xxx 为 storage_path('app/public/xxx')
         if (str_starts_with($url, '/storage/')) {
             $relativePath = substr($url, strlen('/storage/'));
-            return storage_path('app/public/' . $relativePath);
+            $fullPath = storage_path('app/public/'.$relativePath);
+
+            // 路径遍历防护
+            $realPath = realpath($fullPath);
+            $allowedBase = realpath(storage_path('app/public'));
+            if ($realPath === false || $allowedBase === false || ! str_starts_with($realPath, $allowedBase)) {
+                return '';
+            }
+
+            return $realPath;
         }
 
         return $url;
+    }
+
+    private function formatFileSize(int $bytes): string
+    {
+        if ($bytes >= 1073741824) {
+            return number_format($bytes / 1073741824, 1).' GB';
+        } elseif ($bytes >= 1048576) {
+            return number_format($bytes / 1048576, 1).' MB';
+        } elseif ($bytes >= 1024) {
+            return number_format($bytes / 1024, 1).' KB';
+        }
+
+        return $bytes.' B';
     }
 
     private function listUserImages(string $path, string $type, int $userId): array

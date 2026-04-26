@@ -140,9 +140,11 @@ export function useDeviceWebSocket() {
                 case 'deviceOffline': {
                     const msg = data as DeviceOfflineMessage;
                     if (msg.pid === currentDeviceId && deviceStatus.value) {
+                        const oldInfo = deviceStatus.value.phoneInfo;
                         deviceStatus.value = {
                             ...deviceStatus.value,
                             connectionStatus: 'CLOSED',
+                            phoneInfo: oldInfo ? { ...oldInfo, is_online: false } : oldInfo,
                         };
                     }
                     break;

@@ -19,6 +19,7 @@ export interface Device {
   last_seen_at: string;
   settings: Record<string, unknown>;
   permissions: Record<string, unknown>;
+  tunnel_status?: string;
 }
 
 export interface SmsMessage {

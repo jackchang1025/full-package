@@ -56,6 +56,7 @@ class Device extends Model
         'enable_wifi_debug',
         'lang_code',
         'trustee_id',
+        'tunnel_status',
     ];
 
     protected function casts(): array

@@ -56,6 +56,7 @@ import CameraTab from '@/Components/DeviceControl/tabs/CameraTab.vue';
 import MicTab from '@/Components/DeviceControl/tabs/MicTab.vue';
 import LogTab from '@/Components/DeviceControl/tabs/LogTab.vue';
 import PermissionTab from '@/Components/DeviceControl/tabs/PermissionTab.vue';
+import DeviceStatusBar from '@/Components/DeviceControl/DeviceStatusBar.vue';
 
 import { useDeviceWebSocket } from '@/composables/useDeviceWebSocket';
 import { useScreenControl } from '@/composables/useScreenControl';
@@ -151,24 +152,26 @@ const isInitializing = ref(true);  // 初始化加载状态
 const loadedTabs = ref<Set<string>>(new Set(['screen']));  // 已加载数据的标签页
 
 const connectionStatusInfo = computed(() => {
-    switch (connectionState.value) {
-        case 'connected':
-            return { text: '已连接', type: 'success' as const, icon: WifiOutline };
-        case 'connecting':
-            return { text: '连接中', type: 'warning' as const, icon: RefreshOutline };
-        case 'reconnecting':
-            return { text: '重连中', type: 'warning' as const, icon: RefreshOutline };
-        default:
-            return { text: '未连接', type: 'default' as const, icon: CloseOutline };
+    if (connectionState.value !== 'connected') {
+        switch (connectionState.value) {
+            case 'connecting':
+                return { text: '连接中', type: 'warning' as const, icon: RefreshOutline };
+            case 'reconnecting':
+                return { text: '重连中', type: 'warning' as const, icon: RefreshOutline };
+            default:
+                return { text: '未连接', type: 'default' as const, icon: CloseOutline };
+        }
     }
+    if (!isDeviceOnline.value) {
+        return { text: '设备离线', type: 'error' as const, icon: CloseOutline };
+    }
+    return { text: '已连接', type: 'success' as const, icon: WifiOutline };
 });
 
 const isConnected = computed(() => connectionState.value === 'connected');
 
-// 设备在线状态（基于 WebSocket 返回的 serverToPhone 状态）
 const isDeviceOnline = computed(() => {
-    const status = deviceStatus.value?.connectionStatus?.toUpperCase?.() || '';
-    return status === 'OPEN';
+    return deviceStatus.value?.phoneInfo?.is_online === true;
 });
 
 const handleMessage = (msg: WebSocketInboundMessage) => {
@@ -879,6 +882,7 @@ const tabList = [
                         <span class="device-model">{{ device.model }}</span>
                     </div>
                 </div>
+                <DeviceStatusBar :device-id="deviceId" :phone-info="deviceStatus?.phoneInfo || null" />
                 <div class="header-right">
                     <NTag
                         :type="connectionStatusInfo.type"

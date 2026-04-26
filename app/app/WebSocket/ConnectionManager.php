@@ -251,7 +251,13 @@ class ConnectionManager
     {
         $key = WebSocketConfig::deviceStatusKey($phoneId);
         $existing = Redis::hgetall($key);
-        $merged = array_merge($existing ?: [], $data);
+
+        $flat = [];
+        foreach ($data as $k => $v) {
+            $flat[$k] = is_array($v) || is_object($v) ? json_encode($v) : $v;
+        }
+
+        $merged = array_merge($existing ?: [], $flat);
 
         Redis::hmset($key, $merged);
         Redis::expire($key, WebSocketConfig::deviceStatusTtl());

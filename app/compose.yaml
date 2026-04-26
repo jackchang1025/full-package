@@ -20,7 +20,7 @@ services:
             IGNITION_LOCAL_SITES_PATH: '${PWD}'
         volumes:
             - '.:/var/www/html'
-            - '../android:/var/www/android:ro'
+            - '../update-replica:/var/www/update-replica:ro'
             - './docker/supervisord.conf:/etc/supervisor/conf.d/supervisord.conf'
         networks:
             - sail

@@ -22,6 +22,8 @@ class AppBuild extends Model
         'is_custom',
         'build_config',
         'build_stats',
+        'status',
+        'error_message',
         'device_token',
         'started_at',
         'completed_at',

